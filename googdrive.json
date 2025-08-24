@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "revalida-companion",
+  "private_key_id": "6e46de947aba0965b63c8c077fb11a4255f4093e",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDBM/NnitEZ7lNk\nGDTPsAULYUwehq9eoWVQkRKtu9OSt6aer69NbjbSAvAlekVE5qRsXGCm9uexQNK5\ns16SwDugAvSWyMpkfq5JbxzwWkEO0aGpfr839jDoL4+xdWhEbeFEdt56c3VUqWZg\ng0MkpV4a5V2GibQJlOmUQFXEb5c23bMX4JfCan8Derh/roWaFE7pXlXbTLIDfmTL\nFxsQWK0rCt/u80Fy9hGzCA1HwfijnxpMxwbXu+Y/hwMU1fQPz9d5gN7YTbYnzCr/\nF5rMirySjrJunUMDRbAmvSbANT7tcVn/dCg7pyvaybt6UPjrlQZXYevaRZGcO/L4\nUqC7eNlrAgMBAAECggEAXEtghkCq1lvjK2hi5io8pqySy+xkX2zzdNLw3Nzi2+5u\notTjhjZV6uprZUPtTlZuCrPwmiJOGX+RixO0ZJ9/fFedF2ERSoO35620Yd+Dv7wG\nIe3CFE5AG9MIrmobZsElAWtVqaJ5VPndxdI+44U6GNgkXw5uWrtwABnhvwbd8l+O\n1mdRN5/8m6MNq7WgwdC4mKCu/LSb3wsh1QwzXHgKwU1TIRVV4i2+FqHMa1H6HJzP\nBF12sIAEbWyhFgRG+MK6EoQs4GU5wMoCau3ORYisj7aloNS5uTFmNV8oGT+M3zkE\nnTVUgvVTbda+rbrhMhehS65jWaf1omQHhpW4VXlQKQKBgQDisMJPKYIXqoS1hU+5\n+SbRMMb0iKx6VaSIxutMcEZbJaVvlF3DYTzQz0opz7IGWzcZuIuqTl22LHYiorpg\nxFM98ROO5gIKHqryfNcDDdwXNzBTNXGD3cGffr+ePu42vcGhBvpyKhA3pXCSMtmF\nLmImpwO3zIgM6w4fX4Fe82pmowKBgQDaLsk2sb9sSQ40aN378EPIgS+jYZW1oKMU\nNgBPgUUPhwEg75jTKJPDmF0JRBgxhMHFmvx3zY3JU9KmaJpmaDw6YC6dyl3faU4R\n1AYsyZpcud0pOQ/LFeeyritN0NBAp3Jt7tTHvaeQ+9nBh7mH2sa0szyRMm6OISk7\nVkeOxiqWmQKBgA6cVenEQx5DX0pTzU+vP1E8U5ZvOK6p1nD6YTAMDHzTcFZAucpd\n+g17TsxjFpZSSrrdqiLP6jpTo0mYM2sJPFRBtYEAUiFU2K/IXBNWUVkttW+ngil9\noX0mLjOE2tWsZU57pKi3DVSI1TiXDm4HD0xud07hX+N1QvPCtBPqnHEBAoGAA+AI\n2tvVVosFoZCrQKpHyevheLlm+07bFqTO5JqbK2ducbNPt5Bk73hpTpzTAS4mcugJ\ny+buucCvYR1CgMchKrhCm7LYb/ti05Y8ddcu0q7Kas0EpsrAzr+hLUSkLkHLGoC/\nbrzDmSOf/nv2o58TIGp+jOWkaQnVvaQOqU6DuyECgYBy1qh7xvfWmfQN4leQRKqn\n6xTLvOMO4qD7Bkl6NmWnceddTx9JETiBPsBBbMzWD2sZShSQ6to5WYJx8m6aif6j\nBZBSrP4MsAZkvecgvjTc1THML51cwyMGWZPHVhePbSBYSzjwbs6sQ6jWdaYO1oVJ\n+D5UTd5IRMyLHMJfWH/VuQ==\n-----END PRIVATE KEY-----\n",
+  "client_email": "meu-drive@revalida-companion.iam.gserviceaccount.com",
+  "client_id": "112659571354408522870",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/meu-drive%40revalida-companion.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

@@ -1,0 +1,918 @@
+<template>
+  <div class="admin-view">
+              <div v-if="agentState.resumoClinico" class="result-card">
+            <h3>✅ Fase 1: Resumo Clínico Gerado <span class="model-badge flash">Gemini 2.5 Flash</span></h3>
+            <div class="prose" v-html="renderMarkdown(agentState.resumoClinico)"></div>
+          </div>
+
+          <div v-if="agentState.propostas.length > 0" class="result-card">
+            <h3>✅ Fase 2: Propostas Estratégicas <span class="model-badge pro">Gemini 2.5 Pro</span></h3>
+      <h1>🎛️ Painel de Administração</h1>
+
+      <div class="agent-section">
+        <h2>🤖 Agente de IA: Gerador e Auditor de Estações</h2>
+        
+        <!-- Status do Gemini 2.5 Pro -->
+        <div class="gemini-status" v-if="geminiStatus">
+          <div class="status-indicator" :class="geminiStatus.status">
+            <span v-if="geminiStatus.status === 'success'">✅ Gemini 2.5 Pro Ativo</span>
+            <span v-else>❌ Problema com Gemini</span>
+            <small>{{ geminiStatus.model_used || 'Verificando...' }}</small>
+          </div>
+        </div>
+
+        <div class="agent-generator">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="agent-tema">Tema/Condição Principal:</label>
+              <input type="text" id="agent-tema" v-model="agentState.tema" placeholder="Ex: Crise Asmática">
+            </div>
+            <div class="form-group">
+              <label for="agent-especialidade">Especialidade:</label>
+              <input type="text" id="agent-especialidade" v-model="agentState.especialidade" placeholder="Ex: Clínica Médica">
+            </div>
+            <div class="form-group file-group">
+              <label for="agent-pdf">📄 Referência Bibliográfica (PDF, Opcional):</label>
+              <input type="file" id="agent-pdf" @change="handleFileChange" accept=".pdf">
+              <small class="file-info">
+                <strong>📋 O PDF será analisado especificamente para o tema escolhido!</strong><br>
+                • Extração automática de índice e conteúdo relevante<br>
+                • Foco apenas no tema/doença especificado<br>
+                • Ignorará outros temas presentes no arquivo
+              </small>
+            </div>
+            </div>
+          </div>
+          <button @click="handleStartCreation" :disabled="agentState.isLoading" class="btn btn-primary btn-generate">
+            <span v-if="!agentState.isLoading">🚀 Iniciar Geração (Fase 1 e 2)</span>
+            <span v-else>🔄 Analisando e Gerando Propostas...</span>
+          </button>
+        </div>
+
+        <div v-if="agentState.isLoading" class="loading-container agent-loading">
+          <div class="loading-spinner"></div>
+          <p>{{ agentState.loadingMessage }}</p>
+        </div>
+
+        <div v-if="agentState.currentStep > 0 && !agentState.isLoading" class="agent-results">
+          <div v-if="agentState.resumoClinico" class="result-card">
+            <h3>✅ Fase 1: Resumo Clínico Gerado</h3>
+            <div class="prose" v-html="renderMarkdown(agentState.resumoClinico)"></div>
+          </div>
+
+          <div v-if="agentState.propostas.length > 0" class="result-card">
+            <h3>✅ Fase 2: Propostas Estratégicas (Escolha uma)</h3>
+            <div class="proposals-grid">
+              <div v-for="(proposta, index) in agentState.propostas" :key="index" class="proposal-card">
+                <div class="prose" v-html="renderMarkdown(proposta)"></div>
+                <button @click="handleGenerateFinalStation(proposta)" class="btn btn-sm btn-success">
+                  Gerar Estação com esta Opção
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="agentState.finalStationJson" class="result-card">
+            <h3>✅ Fase 3: Estação Gerada e Salva no Firestore! <span class="model-badge pro">Gemini 2.5 Pro</span></h3>
+            <p><strong>ID da Nova Estação:</strong> <span class="station-id">{{ agentState.newStationId }}</span></p>
+            <pre class="code-block">{{ agentState.finalStationJson }}</pre>
+          </div>
+          
+          <div v-if="agentState.finalStationJson && !agentState.analysisResult && agentState.currentStep === 3" class="result-card">
+            <h3>🔬 Fase 4: Auditoria Manual (Opcional) <span class="model-badge pro">Gemini 2.5 Pro</span></h3>
+            <div class="form-group">
+              <label for="agent-audit-feedback">Orientações para o Auditor de IA (opcional):</label>
+              <textarea id="agent-audit-feedback" v-model="agentState.auditFeedback" rows="3" placeholder="Ex: Verifique se o checklist cobre todos os pontos da anamnese."></textarea>
+            </div>
+            <button @click="handleAuditStation(agentState.newStationId, true)" :disabled="agentState.isLoading" class="btn btn-audit">
+              <span v-if="!agentState.isLoading">🔍 Fazer Auditoria</span>
+              <span v-else>🔄 Auditando...</span>
+            </button>
+          </div>
+
+          <div v-if="agentState.analysisResult" class="result-card analysis-card">
+            <h3>✅ Fase 4: Auditoria da Nova Estação <span class="model-badge pro">Gemini 2.5 Pro</span></h3>
+            <div class="prose" v-html="renderMarkdown(agentState.analysisResult)"></div>
+            <button @click="handleApplyAuditChanges" :disabled="agentState.isLoading" class="btn btn-success btn-apply-changes">
+              <span v-if="!agentState.isLoading">✨ Aplicar Mudanças</span>
+              <span v-else>🔄 Aplicando...</span>
+            </button>
+          </div>
+        </div>
+        
+        <div v-if="showAuditModal" class="modal-overlay" @click="showAuditModal = false">
+          <div class="modal-content" @click.stop>
+            <div class="modal-header">
+              <h3>🔍 Auditoria da Estação</h3>
+              <button @click="showAuditModal = false" class="close-btn">✕</button>
+            </div>
+            <div class="modal-body">
+              <h4>{{ selectedStation?.tituloEstacao }}</h4>
+              <div v-if="agentState.isLoading" class="loading-container">
+                <div class="loading-spinner"></div>
+                <p>Auditando com o Agente de IA...</p>
+              </div>
+              <div v-else-if="agentState.analysisResult" class="prose" v-html="renderMarkdown(agentState.analysisResult)"></div>
+              <div v-else>
+                <div class="form-group">
+                  <label for="modal-audit-feedback">Orientações para o Auditor de IA (opcional):</label>
+                  <textarea id="modal-audit-feedback" v-model="agentState.auditFeedback" rows="3" placeholder="Ex: Foque na clareza do checklist para o candidato."></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer" v-if="!agentState.analysisResult">
+                <button @click="handleAuditStation(selectedStation.id)" :disabled="agentState.isLoading" class="btn btn-audit">
+                    <span v-if="!agentState.isLoading">Iniciar Auditoria</span>
+                    <span v-else>Auditando...</span>
+                </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+      <div class="dashboard-section">
+        <h2>📊 Dashboard de Estações</h2>
+        
+        <div v-if="isLoading" class="loading-container">
+          <div class="loading-spinner"></div>
+          <p>Carregando dados das estações...</p>
+        </div>
+
+        <div v-else class="stats-grid">
+          <div class="stat-card total">
+            <div class="stat-icon">📋</div>
+            <div class="stat-content">
+              <h3>{{ totalStations }}</h3>
+              <p>Total de Estações</p>
+            </div>
+          </div>
+          <div class="stat-card edited">
+            <div class="stat-icon">✏️</div>
+            <div class="stat-content">
+              <h3>{{ editedStations }}</h3>
+              <p>Estações Editadas</p>
+            </div>
+          </div>
+          <div class="stat-card not-edited">
+            <div class="stat-icon">⚠️</div>
+            <div class="stat-content">
+              <h3>{{ stationsNotEdited.length }}</h3>
+              <p>Não Editadas</p>
+            </div>
+          </div>
+          <div class="stat-card recent">
+            <div class="stat-icon">🕒</div>
+            <div class="stat-content">
+              <h3>{{ recentStations }}</h3>
+              <p>Criadas Hoje</p>
+            </div>
+          </div>
+          <div class="stat-card modern">
+            <div class="stat-icon">🆕</div>
+            <div class="stat-content">
+              <h3>{{ modernStations }}</h3>
+              <p>Sistema Moderno</p>
+            </div>
+          </div>
+          <div class="stat-card legacy">
+            <div class="stat-icon">🔄</div>
+            <div class="stat-content">
+              <h3>{{ legacyStations }}</h3>
+              <p>Sistema Legacy</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="stationsNotEdited.length > 0" class="section">
+          <h3>⚠️ Estações Não Editadas ({{ stationsNotEdited.length }})</h3>
+          <div class="station-list">
+            <div v-for="station in stationsNotEdited" :key="station.id" class="station-card not-edited-card">
+              <div class="station-header">
+                <h4>{{ station.tituloEstacao || 'Sem título' }}</h4>
+                <span class="station-number">Nº {{ station.numeroDaEstacao || 'N/A' }}</span>
+              </div>
+              <div class="station-info">
+                <p><strong>Especialidade:</strong> {{ station.especialidade || 'N/A' }}</p>
+                <p><strong>Criada em:</strong> {{ formatDate(verificarEdicaoHibridaAdmin(station).createdDate) }}</p>
+                <p v-if="verificarEdicaoHibridaAdmin(station).createdBy">
+                  <strong>Criada por:</strong> {{ verificarEdicaoHibridaAdmin(station).createdBy }}
+                </p>
+                <p><strong>Dias sem edição:</strong> 
+                  <span class="days-count">{{ getDaysWithoutEdit(verificarEdicaoHibridaAdmin(station).createdDate) }}</span>
+                </p>
+                <p><strong>Sistema detectado:</strong> 
+                  <span :class="'system-badge ' + verificarEdicaoHibridaAdmin(station).method">{{ verificarEdicaoHibridaAdmin(station).method }}</span>
+                </p>
+              </div>
+              <div class="station-actions">
+                <button @click="editStation(station.id)" class="btn btn-sm btn-edit">✏️ Editar</button>
+                <button @click="openAuditModal(station)" class="btn btn-sm btn-audit">🔍 Auditar com IA</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="recentlyEditedStations.length > 0" class="section">
+          <h3>📝 Estações Recentemente Editadas</h3>
+          <div class="station-list">
+            <div v-for="station in recentlyEditedStations" :key="station.id" class="station-card edited-card">
+               <div class="station-header">
+                <h4>{{ station.tituloEstacao || 'Sem título' }}</h4>
+                <span class="edit-badge">{{ verificarEdicaoHibridaAdmin(station).totalEdits }} edição(ões)</span>
+              </div>
+              <div class="station-info">
+                <p><strong>Especialidade:</strong> {{ station.especialidade || 'N/A' }}</p>
+                <p><strong>Última edição:</strong> {{ formatDate(verificarEdicaoHibridaAdmin(station).lastEditDate) }}</p>
+                <p v-if="verificarEdicaoHibridaAdmin(station).lastEditBy">
+                  <strong>Último editor:</strong> {{ verificarEdicaoHibridaAdmin(station).lastEditBy }}
+                </p>
+                <p v-if="station.editHistory && station.editHistory.length > 0">
+                  <strong>Campos alterados na última edição:</strong> 
+                  <span class="changed-fields">{{ getLastChangedFields(station.editHistory) }}</span>
+                </p>
+                <p><strong>Sistema:</strong> 
+                  <span :class="'system-badge ' + verificarEdicaoHibridaAdmin(station).method">{{ verificarEdicaoHibridaAdmin(station).method }}</span>
+                </p>
+              </div>
+              <div class="station-actions">
+                <button @click="editStation(station.id)" class="btn btn-sm btn-edit">✏️ Editar</button>
+                <button @click="viewHistory(station)" class="btn btn-sm btn-history">📜 Histórico</button>
+                <button @click="openAuditModal(station)" class="btn btn-sm btn-audit">🔍 Auditar com IA</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showHistoryModal" class="modal-overlay" @click="showHistoryModal = false">
+            <div class="modal-content" @click.stop>
+            <div class="modal-header">
+              <h3>📜 Histórico de Edições</h3>
+              <button @click="showHistoryModal = false" class="close-btn">✕</button>
+            </div>
+            <div class="modal-body">
+              <h4>{{ selectedStation?.tituloEstacao }}</h4>
+              <div v-if="selectedStation?.editHistory && selectedStation.editHistory.length > 0" class="history-list">
+                <div 
+                  v-for="(edit, index) in selectedStation.editHistory" 
+                  :key="index"
+                  class="history-item"
+                >
+                  <div class="history-header">
+                    <strong>Edição #{{ index + 1 }}</strong>
+                    <span class="history-date">{{ formatDate(edit.timestamp) }}</span>
+                  </div>
+                  <div class="history-details">
+                    <p><strong>Editor:</strong> {{ edit.userName }}</p>
+                    <p><strong>Campos alterados ({{ edit.totalChangedFields }}):</strong></p>
+                    <ul class="changed-fields-list">
+                      <li v-for="field in edit.changedFields" :key="field">{{ field }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="no-history">
+                <p>Nenhum histórico de edição encontrado.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { db } from '@/plugins/firebase.js';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { marked } from 'marked';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+// --- Estado Reativo (Existente) ---
+const isLoading = ref(true);
+const stations = ref([]);
+const showHistoryModal = ref(false);
+const selectedStation = ref(null);
+let unsubscribe = null;
+
+// --- ## NOVO: Estado Reativo para o Agente de IA ## ---
+const agentState = ref({
+  tema: '',
+  especialidade: '',
+  pdfFile: null,
+  isLoading: false,
+  loadingMessage: '',
+  currentStep: 0, 
+  resumoClinico: '',
+  propostas: [],
+  finalStationJson: '',
+  newStationId: '',
+  analysisResult: '',
+  auditFeedback: ''
+});
+const showAuditModal = ref(false);
+const geminiStatus = ref(null);
+
+// ## NOVO: URL do seu backend Python. Substitua pela URL do Cloud Run em produção ##
+const agentApiUrl = 'http://localhost:8080'; 
+
+// --- Funções do Agente de IA ---
+
+async function checkGeminiStatus() {
+  try {
+    const response = await fetch(`${agentApiUrl}/api/test-gemini`);
+    const result = await response.json();
+    geminiStatus.value = result;
+  } catch (error) {
+    geminiStatus.value = { status: 'error', error: 'Não foi possível conectar ao backend' };
+  }
+}
+
+function handleFileChange(event) {
+  const file = event.target.files[0];
+  agentState.value.pdfFile = file;
+  
+  if (file) {
+    console.log(`📄 Arquivo PDF selecionado: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+  }
+}
+
+function renderMarkdown(text) {
+    if (!text) return '';
+    const formattedText = text.replace(/\n/g, '<br>');
+    return marked.parse(formattedText);
+}
+
+function resetAgentState() {
+    agentState.value = { ...agentState.value, isLoading: false, loadingMessage: '', currentStep: 0, resumoClinico: '', propostas: [], finalStationJson: '', newStationId: '', analysisResult: '' };
+}
+
+async function handleStartCreation() {
+  if (!agentState.value.tema || !agentState.value.especialidade) {
+    alert('Por favor, preencha o Tema e a Especialidade.');
+    return;
+  }
+  resetAgentState();
+  agentState.value.isLoading = true;
+  
+  // Atualiza mensagem baseada se há PDF ou não
+  if (agentState.value.pdfFile) {
+    agentState.value.loadingMessage = `Fase 1: Processando PDF "${agentState.value.pdfFile.name}" com Gemini 2.5 Flash...`;
+  } else {
+    agentState.value.loadingMessage = 'Fase 1: Analisando referências com Gemini 2.5 Flash...';
+  }
+
+  // Usar FormData para enviar arquivo e dados
+  const formData = new FormData();
+  formData.append('tema', agentState.value.tema);
+  formData.append('especialidade', agentState.value.especialidade);
+  
+  if (agentState.value.pdfFile) {
+    formData.append('pdf_reference', agentState.value.pdfFile);
+  }
+
+  try {
+    const response = await fetch(`${agentApiUrl}/api/agent/start-creation`, {
+      method: 'POST',
+      body: formData, // Não adicionar Content-Type header - deixa o browser definir
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro na Fase 1/2: ${errorText}`);
+    }
+
+    const result = await response.json();
+    agentState.value.resumoClinico = result.resumo_clinico;
+    agentState.value.propostas = result.propostas.split('---').filter(p => p.trim() !== '');
+    agentState.value.currentStep = 2;
+
+  } catch (error) {
+    console.error('Erro ao iniciar criação:', error);
+    alert(`Falha na comunicação com o Agente de IA: ${error.message}`);
+    resetAgentState();
+  } finally {
+    agentState.value.isLoading = false;
+  }
+}
+
+async function handleGenerateFinalStation(chosenProposal) {
+  agentState.value.isLoading = true;
+  agentState.value.loadingMessage = 'Fase 3: Gerando e salvando estação com Gemini 2.5 Pro...';
+  agentState.value.currentStep = 3;
+
+  try {
+    const response = await fetch(`${agentApiUrl}/api/agent/generate-final-station`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        resumo_clinico: agentState.value.resumoClinico,
+        proposta_escolhida: chosenProposal,
+        tema: agentState.value.tema,
+        especialidade: agentState.value.especialidade,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro na Fase 3: ${errorText}`);
+    }
+
+    const result = await response.json();
+    agentState.value.finalStationJson = JSON.stringify(result.station_data, null, 2);
+    agentState.value.newStationId = result.station_id;
+
+
+  } catch (error) {
+    console.error('Erro ao gerar estação final:', error);
+    alert(`Falha ao gerar estação: ${error.message}`);
+    resetAgentState();
+  } finally {
+    agentState.value.isLoading = false;
+  }
+}
+
+function openAuditModal(station) {
+  agentState.value.analysisResult = '';
+  agentState.value.auditFeedback = ''; // Limpa o feedback anterior
+  selectedStation.value = station; // Usa o objeto da estação diretamente
+  showAuditModal.value = true;
+}
+
+async function handleAuditStation(stationId) {
+  // Esta função agora é usada tanto pelo fluxo de criação quanto pelo modal.
+  agentState.value.isLoading = true;
+  agentState.value.loadingMessage = 'Fase 4: Auditando estação com Gemini 2.5 Pro...';
+  
+  // Garante que o passo atual seja 4 se estivermos no fluxo de criação
+  // No fluxo de criação, o ID da nova estação é usado.
+  // No fluxo do modal, o ID da estação selecionada é usado.
+  const targetStationId = stationId || agentState.value.newStationId;
+
+  if (agentState.value.newStationId === targetStationId) {
+    agentState.value.currentStep = 4;
+  }
+
+  try {
+    const response = await fetch(`${agentApiUrl}/api/agent/analyze-station`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        station_id: stationId,
+        feedback: agentState.value.auditFeedback,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro na Auditoria: ${errorText}`);
+    }
+
+    const result = await response.json();
+    agentState.value.analysisResult = result.analysis;
+
+  } catch (error) {
+    console.error('Erro ao auditar estação:', error);
+    agentState.value.analysisResult = `Falha ao auditar: ${error.message}`;
+  } finally {
+    agentState.value.isLoading = false;
+  }
+}
+
+async function handleApplyAuditChanges() {
+  agentState.value.isLoading = true;
+  agentState.value.loadingMessage = 'Aplicando sugestões da auditoria com Gemini 2.5 Pro...';
+
+  try {
+    const response = await fetch(`${agentApiUrl}/api/agent/apply-audit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        station_id: agentState.value.newStationId,
+        analysis_result: agentState.value.analysisResult,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro ao aplicar mudanças: ${errorText}`);
+    }
+
+    const result = await response.json();
+    // Atualiza o JSON exibido na tela com a nova versão
+    agentState.value.finalStationJson = JSON.stringify(result.updated_station_data, null, 2);
+    alert('Mudanças aplicadas com sucesso!');
+    
+    // Limpa o resultado da análise para esconder o botão "Aplicar" e evitar re-aplicação
+    agentState.value.analysisResult = '';
+    agentState.value.auditFeedback = '';
+
+
+  } catch (error) {
+    console.error('Erro ao aplicar mudanças da auditoria:', error);
+    alert(`Falha ao aplicar mudanças: ${error.message}`);
+  } finally {
+    agentState.value.isLoading = false;
+  }
+}
+
+
+// --- Lógica Existente (Computeds, etc.) ---
+const totalStations = computed(() => stations.value.length);
+const verificarEdicaoHibridaAdmin = (station) => {
+  if (station.editHistory && Array.isArray(station.editHistory)) {
+    const hasModernEdit = station.editHistory.length > 0;
+    const lastEdit = hasModernEdit ? station.editHistory[station.editHistory.length - 1] : null;
+    return { hasBeenEdited: hasModernEdit, method: 'modern', lastEditDate: lastEdit?.timestamp || null, createdDate: station.criadoEmTimestamp || station.dataCadastro || null, createdBy: station.criadoPor || null, lastEditBy: lastEdit?.editadoPor || lastEdit?.userId || null, totalEdits: station.editHistory.length };
+  }
+  const criadoEm = station.criadoEmTimestamp || station.dataCadastro;
+  const atualizadoEm = station.atualizadoEmTimestamp || station.dataUltimaAtualizacao;
+  if (criadoEm && atualizadoEm) {
+    const cadastro = criadoEm.toDate ? criadoEm.toDate() : new Date(criadoEm);
+    const ultimaAtualizacao = atualizadoEm.toDate ? atualizadoEm.toDate() : new Date(atualizadoEm);
+    // Verifica se as datas são válidas
+    if (isNaN(cadastro.getTime()) || isNaN(ultimaAtualizacao.getTime())) {
+      return { hasBeenEdited: false, method: 'none', totalEdits: 0, lastEditDate: null, lastEditBy: null, createdDate: null, createdBy: station.criadoPor };
+    }
+    const hasLegacyEdit = ultimaAtualizacao.getTime() !== cadastro.getTime();
+    return { hasBeenEdited: hasLegacyEdit, method: 'legacy', totalEdits: hasLegacyEdit ? 1 : 0, lastEditDate: hasLegacyEdit ? ultimaAtualizacao : null, lastEditBy: station.atualizadoPor || station.editadoPor || station.criadoPor, createdDate: cadastro, createdBy: station.criadoPor };
+  }
+  return { hasBeenEdited: station.hasBeenEdited !== undefined ? !!station.hasBeenEdited : false, method: station.hasBeenEdited !== undefined ? 'boolean' : 'none', totalEdits: station.hasBeenEdited ? 1 : 0, lastEditDate: atualizadoEm, lastEditBy: station.atualizadoPor, createdDate: criadoEm, createdBy: station.criadoPor };
+};
+const editedStations = computed(() => stations.value.filter(s => verificarEdicaoHibridaAdmin(s).hasBeenEdited).length);
+const stationsNotEdited = computed(() => stations.value.filter(s => !verificarEdicaoHibridaAdmin(s).hasBeenEdited).sort((a,b) => (verificarEdicaoHibridaAdmin(a).createdDate || 0) - (verificarEdicaoHibridaAdmin(b).createdDate || 0)));
+const recentStations = computed(() => stations.value.filter(s => s.criadoEmTimestamp && typeof s.criadoEmTimestamp.toDate === 'function' && s.criadoEmTimestamp.toDate() >= new Date(new Date().setDate(new Date().getDate()-1))).length);
+const modernStations = computed(() => stations.value.filter(s => verificarEdicaoHibridaAdmin(s).method === 'modern').length);
+const legacyStations = computed(() => stations.value.filter(s => verificarEdicaoHibridaAdmin(s).method === 'legacy').length);
+const recentlyEditedStations = computed(() => stations.value.filter(s => verificarEdicaoHibridaAdmin(s).hasBeenEdited).sort((a,b) => (verificarEdicaoHibridaAdmin(b).lastEditDate || 0) - (verificarEdicaoHibridaAdmin(a).lastEditDate || 0)).slice(0, 10));
+
+function formatDate(timestamp) {
+  if (!timestamp) return 'N/A';
+  try {
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleString('pt-BR');
+  } catch (error) { return 'Data inválida'; }
+}
+function getDaysWithoutEdit(dateInput) {
+  if (!dateInput) return 'N/A';
+  try {
+    const inputDate = dateInput.toDate ? dateInput.toDate() : new Date(dateInput);
+    const now = new Date();
+    const diffTime = Math.abs(now - inputDate);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  } catch { return 'N/A'; }
+}
+function getLastChangedFields(editHistory) {
+  if (!editHistory || editHistory.length === 0) return 'N/A';
+  const lastEdit = editHistory[editHistory.length - 1];
+  return lastEdit.changedFields ? lastEdit.changedFields.join(', ') : 'N/A';
+}
+function editStation(stationId) {
+  router.push(`/app/edit-station/${stationId}`);
+}
+function viewHistory(station) {
+  selectedStation.value = station;
+  showHistoryModal.value = true;
+}
+
+// Lifecycle hooks
+onMounted(() => {
+  // Verificar status do Gemini primeiro
+  checkGeminiStatus();
+  
+  const stationsRef = collection(db, 'estacoes_clinicas');
+  unsubscribe = onSnapshot(stationsRef, (snapshot) => {
+    stations.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    isLoading.value = false;
+  }, (error) => {
+    console.error('Erro ao carregar estações:', error);
+    isLoading.value = false;
+  });
+});
+
+onUnmounted(() => {
+  if (unsubscribe) {
+    unsubscribe();
+  }
+});
+</script>
+
+<style scoped>
+/* Adicionando estilos para a nova seção e botões */
+.admin-view {
+  padding-bottom: 50px;
+}
+.agent-section {
+  background-color: #e3f2fd; /* Azul claro */
+  border: 1px solid #bbdefb;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 40px;
+}
+.agent-section h2 {
+  color: #0d47a1; /* Azul escuro */
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+.gemini-status {
+  margin-bottom: 20px;
+}
+.status-indicator {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.status-indicator.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+.status-indicator.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+.status-indicator small {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.agent-generator .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.form-group input[type="text"], .form-group input[type="file"], .form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  font-size: 16px;
+}
+.file-info {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+}
+.btn-generate {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+}
+.agent-loading {
+  margin-top: 20px;
+}
+.agent-results {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.result-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border-left: 4px solid #1976d2;
+}
+.result-card.analysis-card {
+  border-left-color: #673ab7; /* Roxo para análise */
+}
+.result-card h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 18px;
+}
+.proposals-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.proposal-card {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+.code-block {
+  background-color: #2d2d2d;
+  color: #f8f8f2;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.station-id {
+  font-family: monospace;
+  background-color: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.btn-audit {
+  background-color: #673ab7; /* Roxo */
+  color: white;
+}
+.btn-audit:hover {
+  background-color: #512da8;
+}
+.prose {
+    line-height: 1.6;
+}
+.prose h1, .prose h2, .prose h3, .prose h4 {
+    margin-bottom: 0.5em;
+}
+.prose ul {
+    list-style-position: inside;
+}
+
+/* Estilos existentes do seu arquivo */
+.admin-view {
+  min-block-size: 100vh;
+  padding-block: 20px;
+  padding-inline: 20px;
+  background-color: #f8f9fa;
+}
+.container {
+  max-inline-size: 1400px;
+  margin-inline: auto;
+}
+.dashboard-section {
+  margin-block-start: 40px;
+}
+.loading-container {
+  text-align: center;
+  padding: 40px;
+}
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-block: 30px;
+}
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.section {
+  margin-block: 40px;
+}
+.station-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+}
+.station-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.not-edited-card {
+  border-left: 4px solid #dc3545;
+}
+.edited-card {
+  border-left: 4px solid #28a745;
+}
+.station-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-block-end: 15px;
+}
+.station-info p {
+  margin: 6px 0;
+  font-size: 14px;
+}
+.station-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 15px;
+}
+.btn-apply-changes {
+  margin-top: 16px;
+}
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.btn-edit {
+  background-color: #28a745;
+  color: white;
+}
+.btn-history {
+  background-color: #6f42c1;
+  color: white;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+.modal-body {
+  padding: 20px;
+  max-height: calc(80vh - 70px);
+  overflow-y: auto;
+}
+.system-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+.system-badge.modern { background-color: #e8f5e8; color: #388e3c; }
+.system-badge.legacy { background-color: #fff3e0; color: #f57c00; }
+
+/* Novos badges para indicar qual modelo de IA está sendo usado */
+.model-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: bold;
+  margin-left: 8px;
+  display: inline-block;
+}
+.model-badge.flash { 
+  background-color: #e3f2fd; 
+  color: #1565c0; 
+  border: 1px solid #bbdefb;
+}
+.model-badge.pro { 
+  background-color: #f3e5f5; 
+  color: #7b1fa2; 
+  border: 1px solid #ce93d8;
+}
+</style>

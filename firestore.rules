@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // === USUÁRIOS - Acesso total para usuários autenticados ===
+    match /usuarios/{userId} {
+      // Leitura e escrita para todos os usuários autenticados
+      allow read, write: if request.auth != null;
+    }
+    
+    // === ESTAÇÕES CLÍNICAS - Leitura livre, escrita apenas admin ===
+    match /estacoes_clinicas/{stationId} {
+      // Leitura para todos os usuários autenticados
+      allow read: if request.auth != null;
+      // Escrita APENAS para administradores
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    // === COLEÇÕES ADMINISTRATIVAS - APENAS ADMINS ===
+    match /admin_logs/{logId} {
+      allow read, write: if request.auth != null && isAdmin();
+    }
+    
+    match /system_config/{configId} {
+      allow read, write: if request.auth != null && isAdmin();
+    }
+
+    // === QUESTÕES - Leitura para todos, escrita para Admins/Serviço, comentários para usuários ===
+    match /questoes/{questaoId} {
+      allow read: if request.auth != null;
+
+      // Criação e deleção apenas por Admins ou Conta de Serviço
+      allow create, delete: if request.auth != null && (isAdmin() || request.auth.token.email != null);
+
+      // Atualização: Admins/Serviço podem mudar tudo. Usuários só podem adicionar comentários.
+      allow update: if request.auth != null && 
+                      (
+                        (isAdmin() || request.auth.token.email != null) ||
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments'])
+                      );
+    }
+    
+    // === TODAS AS OUTRAS COLEÇÕES - Acesso total ===
+    match /avaliacoes/{avaliacaoId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /sessoes/{sessionId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /chatMessages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // === CHAT PRIVADO - Acesso total para usuários autenticados ===
+    match /{chatCollection}/{messageId} {
+      allow read, write: if request.auth != null && 
+        chatCollection.matches('chatPrivado_.*');
+    }
+    
+    // === REGRA GERAL PARA OUTRAS COLEÇÕES ===
+    match /{document=**} {
+      allow read, write: if request.auth != null && 
+        !document.matches('admin_logs|system_config');
+    }
+    
+    // === FUNÇÕES DE CONTROLE ===
+    
+    // Função para verificar se é administrador
+    function isAdmin() {
+      return request.auth != null && request.auth.uid in [
+        'KiSITAxXMAY5uU3bOPW5JMQPent2',  // Taís Zocche
+        'RtfNENOqMUdw7pvgeeaBVSuin662',  // Usuário atual
+        'UD7S8aiyR8TJXHyxdw29BHNfjEf1',  // Admin 3
+        'lNwhdYgMwLhS1ZyufRzw9xLD10y1'   // stefferson ferraz
+      ];
+    }
+  }
+}
