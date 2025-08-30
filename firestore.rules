@@ -1,20 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // === USUÁRIOS - Acesso total para usuários autenticados ===
     match /usuarios/{userId} {
       // Leitura e escrita para todos os usuários autenticados
       allow read, write: if request.auth != null;
     }
-    
-    // === ESTAÇÕES CLÍNICAS - Leitura livre, escrita apenas admin ===
+
+    // === ESTAÇÕES CLÍNICAS - Leitura para usuários autenticados, escrita apenas admin ===
     match /estacoes_clinicas/{stationId} {
       // Leitura para todos os usuários autenticados
       allow read: if request.auth != null;
       // Escrita APENAS para administradores
       allow write: if request.auth != null && isAdmin();
     }
+
+    // === ACESSO APENAS PARA USUÁRIOS AUTENTICADOS ===
+    // Acesso público removido para reduzir custos desnecessários
     
     // === COLEÇÕES ADMINISTRATIVAS - APENAS ADMINS ===
     match /admin_logs/{logId} {
@@ -60,9 +63,9 @@ service cloud.firestore {
     }
     
     // === REGRA GERAL PARA OUTRAS COLEÇÕES ===
-    match /{document=**} {
+    match /{collection}/{docId} {
       allow read, write: if request.auth != null && 
-        !document.matches('admin_logs|system_config');
+        !(collection == 'admin_logs' || collection == 'system_config');
     }
     
     // === FUNÇÕES DE CONTROLE ===

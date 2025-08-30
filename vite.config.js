@@ -66,6 +66,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ollama/, ''),
       },
+      // Redireciona requisições de /api para o backend Python
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+      },
     },
   },
   // <<<----------------------------->>>

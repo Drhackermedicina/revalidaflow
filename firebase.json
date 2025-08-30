@@ -10,7 +10,9 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "backend",
+      "backend-python-agent"
     ],
     "rewrites": [
       {
@@ -24,7 +26,7 @@
         "headers": [
           {
             "key": "Content-Security-Policy",
-            "value": "script-src 'self' https://www.google.com https://www.gstatic.com https://apis.google.com https://www.recaptcha.net 'unsafe-inline'; object-src 'self'; connect-src 'self' https://www.googleapis.com https://firebase.googleapis.com https://firestore.googleapis.com https://storage.googleapis.com https://firebasestorage.googleapis.com https://revalida-companion.firebasestorage.app https://www.gstatic.com https://www.google.com https://www.recaptcha.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com wss://*.firebaseio.com https://revalida-backend-772316263153.southamerica-east1.run.app wss://revalida-backend-772316263153.southamerica-east1.run.app https://*.run.app wss://*.run.app https://a3aeafe93b5a.ngrok-free.app https://5bfa058e91a5.ngrok-free.app;"
+            "value": "script-src 'self' https://www.google.com https://www.gstatic.com https://apis.google.com https://www.recaptcha.net 'unsafe-inline'; object-src 'self'; connect-src 'self' https://www.googleapis.com https://firebase.googleapis.com https://firestore.googleapis.com https://storage.googleapis.com https://firebasestorage.googleapis.com https://revalida-companion.firebasestorage.app https://www.gstatic.com https://www.google.com https://www.recaptcha.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com wss://*.firebaseio.com https://revalida-backend-772316263153.southamerica-east1.run.app wss://revalida-backend-772316263153.southamerica-east1.run.app https://*.run.app wss://*.run.app https://a3aeafe93b5a.ngrok-free.app https://5bfa058e91a5.ngrok-free.app https://revalida-companion.rj.r.appspot.com wss://revalida-companion.rj.r.appspot.com;"
           },
           {
             "key": "Cross-Origin-Opener-Policy",

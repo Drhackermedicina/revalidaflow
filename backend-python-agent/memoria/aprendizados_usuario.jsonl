@@ -1,23 +1,16 @@
-[
-  {
-    "timestamp": "{\"$date\": {\"$numberLong\": \"1755626488484\"}}",
-    "rule": "Sempre usar sistema híbrido para economia de tokens",
-    "context": "Otimização de performance",
-    "category": "obrigatorio",
-    "source": "user_feedback"
-  },
-  {
-    "timestamp": "{\"$date\": {\"$numberLong\": \"1755626488487\"}}",
-    "rule": "Nunca incluir informações entre parênteses no PEP",
-    "context": "Padrão de formatação INEP",
-    "category": "restricao",
-    "source": "user_feedback"
-  },
-  {
-    "timestamp": "{\"$date\": {\"$numberLong\": \"1755626488491\"}}",
-    "rule": "Preferir arquivos locais ao invés de Firestore para templates",
-    "context": "Sistema híbrido",
-    "category": "preferencia",
-    "source": "user_feedback"
-  }
-]
+{"timestamp": "2025-08-28T23:50:00.000Z", "rule": "Sempre usar sistema híbrido para economia de tokens", "context": "Otimização de performance", "category": "obrigatorio", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:01.000Z", "rule": "Nunca incluir informações entre parênteses nas tarefas", "context": "Padrão de formatação INEP", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:02.000Z", "rule": "Preferir arquivos locais, em segundo lugar cloud", "context": "Sistema híbrido", "category": "preferencia", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:03.000Z", "rule": "FASE 3: sempre verificar o arquivo gabarito antes de gerar impressos", "context": "Feedback do usuário via interface", "category": "obrigatorio", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:04.000Z", "rule": "FASE 2: NAS TAREFAS NUNCA JAMAIS DE EXEMPLO OU DICAS", "context": "Feedback do usuário via interface", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:05.000Z", "rule": "FASE 3: sempre verifique os padrões do gabarito para impressos", "context": "Feedback do usuário via interface", "category": "obrigatorio", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:06.000Z", "rule": "FASE 2: na descricaoCasoCompleta não incluir descrição da tarefa", "context": "Feedback do usuário via interface", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:07.000Z", "rule": "FASE 2: nunca faça assim 'Materiais na mesa' ou similares", "context": "Feedback do usuário via interface", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:08.000Z", "rule": "FASE 4: sinais vitais e exame fisico devem ser realistas", "context": "Feedback do usuário via interface", "category": "geral", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:09.000Z", "rule": "FASE 4: os impressos devem seguir exatamente o gabarito", "context": "Feedback do usuário via interface", "category": "obrigatorio", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:10.000Z", "rule": "FASE 2: sempre quando indicar tratamento, não dar exemplos", "context": "Feedback do usuário via interface", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:11.000Z", "rule": "FASE 1: NÃO DE DICAS NAS TAREFAS POR FAVOR", "context": "Feedback do usuário via interface", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:12.000Z", "rule": "FASE 2: quando a descrição contém material na mesa, remover", "context": "Feedback do usuário via interface", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:13.000Z", "rule": "FASE 2: O CAMPO idEstacao deve ser sempre único", "context": "Feedback do usuário via interface", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:14.000Z", "rule": "FASE 3: AO GERAR O ARQUIVO JSON AO FINAL verificar validação", "context": "Feedback do usuário via interface", "category": "restricao", "source": "user_feedback"}
+{"timestamp": "2025-08-28T23:50:15.000Z", "rule": "FASE 3: NÃO INSERIR O CAMPO '_validation' nos impressos", "context": "Validação de estrutura de arquivos", "category": "obrigatorio", "source": "user_feedback"}

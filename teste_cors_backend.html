@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de CORS e Download - Revalida Backend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        input {
+            width: 300px;
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste de CORS e Download - Revalida Backend</h1>
+        <p>Esta página testa a conectividade e CORS do backend em produção.</p>
+        
+        <div class="test-section">
+            <h3>⚙️ Configuração</h3>
+            <label>
+                URL do Backend:
+                <input type="text" id="backendUrl" value="https://revalida-backend-772316263153.southamerica-east1.run.app">
+            </label>
+            <br>
+            <label>
+                Station ID:
+                <input type="text" id="stationId" value="LN65yxhZ6nnSppFaYYGm">
+            </label>
+        </div>
+
+        <div class="test-section">
+            <h3>🏥 Health Check</h3>
+            <button onclick="testHealthCheck()">Testar Health Check</button>
+            <div id="healthResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Teste de CORS (OPTIONS)</h3>
+            <button onclick="testCorsOptions()">Testar CORS com OPTIONS</button>
+            <div id="corsResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📥 Teste de Download</h3>
+            <button onclick="testDownload()">Testar Download JSON</button>
+            <button onclick="testDownloadWithFetch()">Testar com Fetch API</button>
+            <div id="downloadResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Teste de Conectividade Geral</h3>
+            <button onclick="runAllTests()">Executar Todos os Testes</button>
+            <div id="allTestsResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const resultElements = {
+            health: document.getElementById('healthResult'),
+            cors: document.getElementById('corsResult'),
+            download: document.getElementById('downloadResult'),
+            all: document.getElementById('allTestsResult')
+        };
+
+        function getBackendUrl() {
+            return document.getElementById('backendUrl').value;
+        }
+
+        function getStationId() {
+            return document.getElementById('stationId').value;
+        }
+
+        function showResult(element, message, type = 'info') {
+            element.className = `result ${type}`;
+            element.textContent = message;
+        }
+
+        async function testHealthCheck() {
+            const resultEl = resultElements.health;
+            showResult(resultEl, 'Testando health check...', 'info');
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/health`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult(resultEl, `✅ Health check OK!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult(resultEl, `❌ Health check falhou!\nStatus: ${response.status}\nStatusText: ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult(resultEl, `❌ Erro no health check:\n${error.message}\n\nDetalhes: ${error.stack}`, 'error');
+            }
+        }
+
+        async function testCorsOptions() {
+            const resultEl = resultElements.cors;
+            showResult(resultEl, 'Testando CORS com OPTIONS...', 'info');
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/api/stations/${getStationId()}/download-json`, {
+                    method: 'OPTIONS',
+                    mode: 'cors',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'GET',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                const corsHeaders = {};
+                response.headers.forEach((value, key) => {
+                    if (key.toLowerCase().includes('access-control')) {
+                        corsHeaders[key] = value;
+                    }
+                });
+                
+                showResult(resultEl, `✅ OPTIONS request OK!\nStatus: ${response.status}\nCORS Headers:\n${JSON.stringify(corsHeaders, null, 2)}`, 'success');
+            } catch (error) {
+                showResult(resultEl, `❌ Erro no teste de CORS:\n${error.message}`, 'error');
+            }
+        }
+
+        async function testDownload() {
+            const resultEl = resultElements.download;
+            showResult(resultEl, 'Testando download...', 'info');
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/api/stations/${getStationId()}/download-json`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult(resultEl, `✅ Download OK!\nStatus: ${response.status}\nContent-Type: ${response.headers.get('content-type')}\nData size: ${JSON.stringify(data).length} chars\nFirst 200 chars: ${JSON.stringify(data).substring(0, 200)}...`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    showResult(resultEl, `❌ Download falhou!\nStatus: ${response.status}\nStatusText: ${response.statusText}\nError: ${errorText}`, 'error');
+                }
+            } catch (error) {
+                showResult(resultEl, `❌ Erro no download:\n${error.message}\n\nStack: ${error.stack}`, 'error');
+            }
+        }
+
+        async function testDownloadWithFetch() {
+            const resultEl = resultElements.download;
+            showResult(resultEl, 'Testando download com configurações avançadas...', 'info');
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/api/stations/${getStationId()}/download-json`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    }
+                });
+                
+                const responseHeaders = {};
+                response.headers.forEach((value, key) => {
+                    responseHeaders[key] = value;
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult(resultEl, `✅ Download avançado OK!\nStatus: ${response.status}\nHeaders recebidos:\n${JSON.stringify(responseHeaders, null, 2)}\n\nData preview: ${JSON.stringify(data, null, 2).substring(0, 300)}...`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    showResult(resultEl, `❌ Download avançado falhou!\nStatus: ${response.status}\nHeaders recebidos:\n${JSON.stringify(responseHeaders, null, 2)}\nError: ${errorText}`, 'error');
+                }
+            } catch (error) {
+                showResult(resultEl, `❌ Erro no download avançado:\n${error.message}`, 'error');
+            }
+        }
+
+        async function runAllTests() {
+            const resultEl = resultElements.all;
+            showResult(resultEl, 'Executando todos os testes...', 'info');
+            
+            const results = [];
+            
+            // Test 1: Health Check
+            try {
+                const healthResponse = await fetch(`${getBackendUrl()}/health`, { method: 'GET', mode: 'cors' });
+                results.push(`✅ Health: ${healthResponse.status} ${healthResponse.statusText}`);
+            } catch (error) {
+                results.push(`❌ Health: ${error.message}`);
+            }
+            
+            // Test 2: CORS OPTIONS
+            try {
+                const corsResponse = await fetch(`${getBackendUrl()}/api/stations/${getStationId()}/download-json`, { 
+                    method: 'OPTIONS', 
+                    mode: 'cors' 
+                });
+                results.push(`✅ CORS: ${corsResponse.status} ${corsResponse.statusText}`);
+            } catch (error) {
+                results.push(`❌ CORS: ${error.message}`);
+            }
+            
+            // Test 3: Download
+            try {
+                const downloadResponse = await fetch(`${getBackendUrl()}/api/stations/${getStationId()}/download-json`, { 
+                    method: 'GET', 
+                    mode: 'cors' 
+                });
+                results.push(`✅ Download: ${downloadResponse.status} ${downloadResponse.statusText}`);
+            } catch (error) {
+                results.push(`❌ Download: ${error.message}`);
+            }
+            
+            // Test 4: Network Info
+            results.push(`\n📊 Info da Rede:`);
+            results.push(`Origin: ${window.location.origin}`);
+            results.push(`User Agent: ${navigator.userAgent}`);
+            results.push(`Protocolo: ${window.location.protocol}`);
+            
+            const finalResult = results.join('\n');
+            const hasErrors = finalResult.includes('❌');
+            showResult(resultEl, finalResult, hasErrors ? 'error' : 'success');
+        }
+    </script>
+</body>
+</html>

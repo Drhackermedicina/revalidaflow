@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REVALIDA FÁCIL</title>
+  <link rel="stylesheet" type="text/css" href="/loader.css" />
+  <!-- Importa Remix Icon para ícones 'ri-...' -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css" rel="stylesheet" />
+  <!-- REMOVIDA META CSP PARA NÃO CONFLITAR COM O HEADER DO FIREBASE HOSTING -->
+
+  <!-- Headers para resolver Cross-Origin-Opener-Policy com Firebase Auth -->
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
+</head>
+
+<body>
+  <div id="app">
+    <div id="loading-bg">
+      <div class="loading-logo">
+        <!-- Logo personalizado -->
+        <img src="/src/assets/images/svg/google-gemini-icon.webp" alt="Logo Gemini" class="logo-revalida" />
+      </div>
+      <div class="loading">
+        <div class="effect-1 effects"></div>
+        <div class="effect-2 effects"></div>
+        <div class="effect-3 effects"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+  <script>
+    const loaderColor = localStorage.getItem('materio-initial-loader-bg') || '#FFFFFF'
+    const primaryColor = localStorage.getItem('materio-initial-loader-color') || '#9155FD'
+
+    if (loaderColor)
+      document.documentElement.style.setProperty('--initial-loader-bg', loaderColor)
+
+    if (primaryColor)
+      document.documentElement.style.setProperty('--initial-loader-color', primaryColor)
+  </script>
+</body>
+
+</html>

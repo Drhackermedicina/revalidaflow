@@ -1,55 +1,32 @@
 {
-    "sistema_memoria": {
-        "versao": "3.1-versionamento",
-        "tipo": "local_files_com_firestore_backup_versionado",
-        "estrutura": {
-            "referencias_base": "memoria/referencias_base.md",
-            "gabarito_template": "gabaritoestacoes.json",
-            "contexto_otimizado": {
-                "fase1": "memoria/contexto_otimizado/fase1_analise_planejamento.md",
-                "fase2": "memoria/contexto_otimizado/fase2_roteiros_anamnese.md",
-                "fase3": "memoria/contexto_otimizado/fase3_impressos_exames.md",
-                "fase4": "memoria/contexto_otimizado/fase4_checklist_pep.md"
-            },
-            "aprendizados_usuario": "memoria/aprendizados_usuario.jsonl",
-            "sistema_versoes": "memoria/versoes/config_versoes.json",
-            "diretorio_versoes": "memoria/versoes/"
-        },
-        "reducao_tokens": {
-            "sistema_anterior": "35000-40000 tokens",
-            "sistema_atual": "7000-11000 tokens",
-            "economia": "82% de redução (inclui gabarito local + versionamento)"
-        },
-        "regras_carregamento": {
-            "sempre_carregar": [
-                "referencias_base"
-            ],
-            "carregar_por_fase": {
-                "1": [
-                    "fase1_analise_planejamento"
-                ],
-                "2": [
-                    "fase1_analise_planejamento",
-                    "fase2_roteiros_anamnese"
-                ],
-                "3": [
-                    "fase2_roteiros_anamnese",
-                    "fase3_impressos_exames",
-                    "gabarito_template"
-                ],
-                "4": [
-                    "fase3_impressos_exames",
-                    "fase4_checklist_pep"
-                ]
-            },
-            "sempre_adicionar": [
-                "aprendizados_usuario"
-            ]
-        },
-        "backup_firestore": {
-            "colecao": "agent_config",
-            "documento": "backup_memoria_local",
-            "sincronizacao": "weekly"
-        }
+  "current_version": "v1.0.98",
+  "system_initialized": true,
+  "last_update": "2025-08-28T23:47:06.497151",
+  "contexts_loaded": true,
+  "memory_optimization": {
+    "max_context_size": 50000,
+    "context_compression": true,
+    "auto_reload": true
+  },
+  "sistema_memoria": {
+    "estrutura": {
+      "referencias_base": "memoria/referencias_base.md",
+      "gabarito_template": "gabaritoestacoes.json", 
+      "provas_inep": "provas inep/",
+      "aprendizados_usuario": "memoria/aprendizados_usuario.jsonl",
+      "contexto_otimizado": {
+        "fase1": "memoria/contexto_otimizado/fase1_analise_planejamento.md",
+        "fase2": "memoria/contexto_otimizado/fase2_roteiros_anamnese.md",
+        "fase3": "memoria/contexto_otimizado/fase3_impressos_exames.md",
+        "fase4": "memoria/contexto_otimizado/fase4_impressos_exames.md"
+      }
+    },
+    "reducao_tokens": {
+      "economia": "85% redução (de 35k para 7k tokens)"
+    },
+    "regras_carregamento": {
+      "sempre_carregar": ["referencias_base", "gabarito_template"],
+      "carregar_por_fase": true
     }
+  }
 }
