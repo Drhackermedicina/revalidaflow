@@ -202,10 +202,13 @@ As tarefas são altamente adaptadas ao contexto da estação.
     -  `"Verbalizar o diagnóstico" / "sua classificação de gravidade" / "elaborar a conduta terapêutica"` (Dengue)
 
 - **Conclusão para Padronização:**
+
+  **Regra obrigatória para as tarefas**
+
   - As tarefas devem ser desenhadas para refletir o objetivo central da estação.
   - Para estações de emergência, as tarefas devem ser mais diretas e focadas na ação.
   - Para estações ambulatoriais, as tarefas devem incluir mais elementos de comunicação, interpretação e orientação, alinhando-se com a necessidade de um atendimento mais integral.
-  - NUNCA DAR ORIENTAÇÕES DE COMO FAZER OU DO QUE PEDIR E O QUE FAZER, Ex: "Classifique o paciente conforme o CURB 65, QUERO QUE SEJA ASSIM, Classifique o paciente corretamente, sem orientações ou exemplos entre parenteses por favor
+  - NUNCA DAR ORIENTAÇÕES DE COMO FAZER OU DO QUE PEDIR E O QUE FAZER, Ex: "De o diagnostico definitivo e classifique o paciente conforme o CURB 65", deste jeito esta errado, QUERO QUE SEJA ASSIM: "De o diagnostico definitivo e classifique o paciente". Ou seja, sem orientações, dicas ou exemplos entre parenteses, o candidato ira visualizar essas tarefas e ele tem a OBRIGAÇÃO de saber a classificação referente ao diagnostico que ele irá dar.
 
 ---
 
@@ -240,7 +243,7 @@ As tarefas são altamente adaptadas ao contexto da estação.
  - *IDENTIFICAÇÃO DO(s) PACIENTE(s):* 
 
  Sempre exibir os dados de identificação do(s) acompanhante(s), geralmente são estações de pediatria ou em casos com adolescentes, ou idosos incapazes ou pessoas incapazes,(pai, mãe, ambos, avó, cuidador, tia, tio, professora, cuidador, enfermeiro, filha, filho, sobrinho,etc), o padrão do campo 'informacao' sempre é composto por :Nome, idade, estado civil e profissão, outras informações como procedencia (Ex: casos de malaria que o paciente veio/viajou ou vive em regiao endemica, procedente de regiões especificas de certas doenças), religâo (se for um caso em que o paciente é de certa religiao que não aceita certos procedimentos), genero (em estações onde o paciente é gay, lésbica, ou lgbt, apenas nesses casos).
-
+ 
  - *MOTIVO DE CONSULTA:* 
 
  Motivo claro e objetivo, deve ser registrada de forma sucinta, utilizando as palavras exatas do paciente, apenas contendo os sintoma(s)/queixas do paciente, sem caracterização, por exemplo, não deve ser assim: "Estou com dor de barriga muito forte a dois dias e febre de 38 graus", o correto deve ser assim: "Estou com dor de barriga e também estou com febre".
