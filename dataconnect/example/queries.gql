@@ -1,0 +1,41 @@
+mutation CreateStudyPlan @auth(level: USER) {
+  studyPlan_insert(data: {
+    name: "My Study Plan",
+    description: "A plan to help me study",
+    startDate: "2024-01-01",
+    endDate: "2024-06-01",
+    isPublic: false,
+    userId_expr: "auth.uid"
+  })
+}
+
+query GetPublicStudyPlans @auth(level: PUBLIC) {
+  studyPlans(where: {isPublic: {eq: true}}) {
+    id
+    name
+    description
+    startDate
+    endDate
+  }
+}
+
+query GetMyStudyPlans @auth(level: USER) {
+  studyPlans(where: {userId_expr: "auth.uid"}) {
+    id
+    name
+    description
+    startDate
+    endDate
+  }
+}
+
+mutation UpdateUserProgress($entityId: UUID!, $entityType: String!, $score: Float!) @auth(level: USER) {
+  userProgress_upsert(data: {
+    userId_expr: "auth.uid",
+    entityId: $entityId,
+    entityType: $entityType,
+    score: $score,
+    lastAccessedAt_expr: "request.time",
+    status: "completed"
+  })
+}

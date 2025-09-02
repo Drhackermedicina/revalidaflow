@@ -71,7 +71,7 @@
         </v-btn>
 
         <!-- Resultados das Fases -->
-        <div v-if="agentState.currentStep > 0 && !agentState.isLoading" class="mt-6">
+        <div v-if="agentState.currentStep >= 2 && !agentState.isLoading" class="mt-6">
           <!-- Fase 1: Resumo Clínico -->
           <v-card v-if="agentState.resumoClinico" class="mb-4" color="green-lighten-5">
             <v-card-title class="text-green-darken-2">
@@ -81,83 +81,17 @@
             <v-card-text>
               <div class="prose-content" v-html="renderMarkdown(agentState.resumoClinico)"></div>
             </v-card-text>
-            <v-card-actions v-if="agentState.currentStep === 1">
-              <v-btn
-                @click="handleMostrarSelecaoAbordagens"
-                color="primary"
-                block
-                size="large"
-              >
-                <v-icon class="mr-2">mdi-arrow-right</v-icon>
-                🎯 Prosseguir para Seleção de Abordagens (Fase 2)
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-
-          <!-- Seleção de Abordagens -->
-          <v-card v-if="mostrarSelecaoAbordagens" class="mb-4" color="indigo-lighten-5">
-            <v-card-title class="text-indigo-darken-2">
-              🎯 Fase 2: Selecione as Abordagens Desejadas
-              <v-chip class="ml-2" color="orange" size="small">Personalização</v-chip>
-            </v-card-title>
-            <v-card-text>
-              <v-alert type="info" class="mb-4">
-                <strong>Escolha 1 ou mais abordagens:</strong><br>
-                • Se escolher apenas 1, poderá ir direto para a Fase 3<br>
-                • Se escolher múltiplas, verá todas as propostas para comparar
-              </v-alert>
-
-              <v-row>
-                <v-col v-for="abordagem in abordagensDisponiveis" :key="abordagem.id" cols="12" md="6" lg="4">
-                  <v-card 
-                    :class="['h-100', { 'border-primary': abordagensSelecionadas.includes(abordagem.id) }]"
-                    :color="abordagensSelecionadas.includes(abordagem.id) ? 'primary-lighten-5' : ''"
-                    @click="toggleAbordagem(abordagem.id)"
-                    style="cursor: pointer;"
-                    elevation="2"
-                  >
-                    <v-card-text>
-                      <div class="d-flex align-center mb-2">
-                        <v-checkbox
-                          :model-value="abordagensSelecionadas.includes(abordagem.id)"
-                          @click.stop="toggleAbordagem(abordagem.id)"
-                          hide-details
-                        ></v-checkbox>
-                        <h4 class="ml-2">{{ abordagem.nome }}</h4>
-                      </div>
-                      <p class="text-subtitle2 mb-2">{{ abordagem.descricao }}</p>
-                      <p class="text-body-2 text-grey-darken-1">{{ abordagem.foco }}</p>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <div class="mt-4">
-                <v-btn
-                  @click="handleGerarPropostasComAbordagens"
-                  :disabled="abordagensSelecionadas.length === 0"
-                  :loading="agentState.isLoading"
-                  color="success"
-                  size="large"
-                  block
-                >
-                  <v-icon class="mr-2">mdi-cog</v-icon>
-                  Gerar {{ abordagensSelecionadas.length }} Proposta(s) Selecionada(s)
-                </v-btn>
-              </div>
-            </v-card-text>
           </v-card>
 
           <!-- Fase 2: Propostas Estratégicas -->
-          <v-card v-if="propostasComAbordagens.length > 0" class="mb-4" color="purple-lighten-5">
+          <v-card v-if="agentState.propostas.length > 0" class="mb-4" color="purple-lighten-5">
             <v-card-title class="text-purple-darken-2">
-              ✅ Fase 2: Propostas Estratégicas (com RAG - {{ propostasComAbordagens.length }} abordagem(s))
+              ✅ Fase 2: Propostas Estratégicas Geradas
               <v-chip class="ml-2" color="blue" size="small">Modelo de IA + RAG</v-chip>
-              <v-chip v-if="podeIrDiretoFase3" class="ml-2" color="success" size="small">Pode ir direto à Fase 3</v-chip>
             </v-card-title>
             <v-card-text>
               <v-row>
-                <v-col v-for="(proposta, index) in propostasComAbordagens" :key="index" cols="12" :md="propostasComAbordagens.length === 1 ? 12 : 6" :lg="propostasComAbordagens.length === 1 ? 12 : 4">
+                <v-col v-for="(proposta, index) in agentState.propostas" :key="index" cols="12" :md="agentState.propostas.length === 1 ? 12 : 6" :lg="agentState.propostas.length === 1 ? 12 : 4">
                   <v-card class="proposal-card h-100" elevation="2">
                     <v-card-text>
                       <div class="prose-content" v-html="renderMarkdown(proposta)"></div>
@@ -168,7 +102,7 @@
                         color="success"
                         block
                       >
-                        {{ podeIrDiretoFase3 && propostasComAbordagens.length === 1 ? 'Gerar Estação Final' : 'Gerar Estação com esta Opção' }}
+                        Gerar Estação com esta Opção
                       </v-btn>
                     </v-card-actions>
                   </v-card>
@@ -1685,13 +1619,6 @@ const agentState = ref({
   auditFeedback: ''
 })
 
-// ===== SISTEMA DE SELEÇÃO DE ABORDAGENS (FASE 2) =====
-const abordagensDisponiveis = ref([])
-const abordagensSelecionadas = ref([])
-const mostrarSelecaoAbordagens = ref(false)
-const propostasComAbordagens = ref([])
-const podeIrDiretoFase3 = ref(false)
-
 // ===== SISTEMA DE GERAÇÃO MÚLTIPLA =====
 const multipleGenState = ref({
   temasInput: '',
@@ -1894,82 +1821,9 @@ const resetAgentState = () => {
     newStationId: '',
     analysisResult: ''
   }
-  // Resetar também sistema de abordagens
-  mostrarSelecaoAbordagens.value = false
-  abordagensSelecionadas.value = []
-  propostasComAbordagens.value = []
-  podeIrDiretoFase3.value = false
 }
 
-// ===== FUNÇÕES DO SISTEMA DE ABORDAGENS =====
-const carregarAbordagensDisponiveis = async () => {
-  try {
-    const response = await fetch(`${agentApiUrl}/api/abordagens-padrao`)
-    if (response.ok) {
-      const result = await response.json()
-      abordagensDisponiveis.value = result.abordagens
-    }
-  } catch (error) {
-    console.error('Erro ao carregar abordagens:', error)
-  }
-}
-
-const handleMostrarSelecaoAbordagens = () => {
-  if (agentState.value.currentStep >= 1 && agentState.value.resumoClinico) {
-    mostrarSelecaoAbordagens.value = true
-  }
-}
-
-const toggleAbordagem = (abordagemId) => {
-  const index = abordagensSelecionadas.value.indexOf(abordagemId)
-  if (index > -1) {
-    abordagensSelecionadas.value.splice(index, 1)
-  } else {
-    abordagensSelecionadas.value.push(abordagemId)
-  }
-}
-
-const handleGerarPropostasComAbordagens = async () => {
-  if (abordagensSelecionadas.value.length === 0) {
-    alert('Selecione pelo menos uma abordagem.')
-    return
-  }
-
-  agentState.value.isLoading = true
-  agentState.value.loadingMessage = `Gerando ${abordagensSelecionadas.value.length} proposta(s) selecionada(s)...`
-
-  const formData = new FormData()
-  formData.append('tema', agentState.value.tema)
-  formData.append('especialidade', agentState.value.especialidade)
-  formData.append('resumo_clinico', agentState.value.resumoClinico)
-  formData.append('abordagens_selecionadas', abordagensSelecionadas.value.join(','))
-
-  try {
-    const response = await fetch(`${agentApiUrl}/api/agent/generate-proposals`, {
-      method: 'POST',
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Erro na geração de propostas: ${errorText}`)
-    }
-
-    const result = await response.json()
-    propostasComAbordagens.value = result.propostas.split('---').filter(p => p.trim() !== '')
-    podeIrDiretoFase3.value = result.pode_ir_direto_fase3
-    agentState.value.currentStep = 2
-    mostrarSelecaoAbordagens.value = false
-
-  } catch (error) {
-    console.error('Erro ao gerar propostas:', error)
-    alert(`Falha na geração de propostas: ${error.message}`)
-  } finally {
-    agentState.value.isLoading = false
-  }
-}
-
-// Função para iniciar criação (Apenas Fase 1)
+// Função para iniciar criação (Fases 1 e 2)
 const handleStartCreation = async () => {
   if (!agentState.value.tema || !agentState.value.especialidade) {
     alert('Por favor, preencha o Tema e a Especialidade.')
@@ -1978,36 +1832,27 @@ const handleStartCreation = async () => {
   
   resetAgentState()
   agentState.value.isLoading = true
-  
-  // Mensagem de loading atualizada para Fase 1 apenas
-  agentState.value.loadingMessage = 'Executando Fase 1: Análise Clínica com RAG...'
-
-  // Usar FormData para compatibilidade com o backend
-  const formData = new FormData()
-  formData.append('tema', agentState.value.tema)
-  formData.append('especialidade', agentState.value.especialidade)
-  // Flag enviada ao backend para controlar uso de busca web por requisição
-  formData.append('enable_web_search', enableWebSearch.value ? '1' : '0')
+  agentState.value.loadingMessage = 'Executando Fases 1 e 2: Análise Clínica e Geração de Propostas...'
 
   try {
-    const response = await fetch(`${agentApiUrl}/api/agent/start-creation`, {
+    const response = await fetch(`${agentApiUrl}/api/agent/create-station`, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tema: agentState.value.tema,
+        especialidade: agentState.value.especialidade,
+      }),
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`Erro na Fase 1: ${errorText}`)
+      throw new Error(`Erro nas Fases 1-2: ${errorText}`)
     }
 
     const result = await response.json()
     agentState.value.resumoClinico = result.resumo_clinico
-    // Não usar as propostas do resultado antigo, vamos gerar com seleção
-    agentState.value.currentStep = 1
-
-    // Carregar abordagens e mostrar seleção após Fase 1
-    await carregarAbordagensDisponiveis()
-    mostrarSelecaoAbordagens.value = true
+    agentState.value.propostas = result.propostas.split('---').filter(p => p.trim() !== '')
+    agentState.value.currentStep = 2 // Pula direto para a exibição das propostas
 
   } catch (error) {
     console.error('Erro ao iniciar criação:', error)
@@ -2142,7 +1987,7 @@ const handleStartMultipleGeneration = async () => {
   multipleGenState.value.loadingMessage = 'Iniciando processamento...'
   multipleGenState.value.expandedResults = []
 
-  const agentApiUrl = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:8000'
+  const agentApiUrl = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:8080'
 
   try {
     const requestData = {
@@ -3212,11 +3057,7 @@ watch(activeTab, (newTab) => {
   }
 })
 
-// Hook onMounted para carregar abordagens na inicialização
-onMounted(() => {
-  console.log('🚀 Componente montado - carregando abordagens padrão...')
-  carregarAbordagensDisponiveis()
-})
+
 </script>
 
 <style scoped>

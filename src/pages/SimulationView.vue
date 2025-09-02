@@ -7,6 +7,7 @@ defineProps({
 // Imports
 /* AgentAssistant legacy component import removed during agent cleanup */
 import { useSimulationSocket } from '@/composables/useSimulationSocket.ts';
+import { useSimulationInvites } from '@/composables/useSimulationInvites.js';
 import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
 import { registrarConclusaoEstacao } from '@/services/stationEvaluationService.js';
@@ -194,13 +195,11 @@ async function fetchSimulationData(currentStationId) {
   if (!currentStationId) { errorMessage.value = 'ID da estação inválido.';
     isLoading.value = false; return; }
   isLoading.value = true; errorMessage.value = '';
-  console.log(`FETCH: Buscando Estação ID: ${currentStationId} em 'estacoes_clinicas'`);
   try {
     const stationDocRef = doc(db, 'estacoes_clinicas', currentStationId);
     const stationSnap = await getDoc(stationDocRef);
     if (!stationSnap.exists()) { throw new Error(`Estação ${currentStationId} não encontrada.`); }
     stationData.value = { id: stationSnap.id, ...stationSnap.data() };
-    console.log("FETCH: Estação Carregada:", stationData.value?.tituloEstacao);
 
     const durationFromQuery = route.query.duration ? parseInt(route.query.duration) : null;
     const validOptions = [5, 6, 7, 8, 9, 10];
@@ -222,18 +221,8 @@ async function fetchSimulationData(currentStationId) {
       checklistData.value = stationData.value.padraoEsperadoProcedimento;
       
       // Verifica feedbackEstacao em diferentes locais (estação raiz ou dentro do PEP)
-      console.log("FEEDBACK: Verificando feedbackEstacao...");
-      console.log("FEEDBACK: stationData.feedbackEstacao existe?", !!stationData.value.feedbackEstacao);
-      console.log("FEEDBACK: checklistData.feedbackEstacao existe?", !!checklistData.value.feedbackEstacao);
-      console.log("FEEDBACK: checklistData.feedbackEstacao conteúdo:", checklistData.value.feedbackEstacao);
-      
       if (stationData.value.feedbackEstacao && !checklistData.value.feedbackEstacao) {
         checklistData.value.feedbackEstacao = stationData.value.feedbackEstacao;
-        console.log("FEEDBACK: feedbackEstacao carregado da raiz da estação");
-      } else if (checklistData.value.feedbackEstacao) {
-        console.log("FEEDBACK: feedbackEstacao já presente no PEP - OK!");
-      } else {
-        console.log("FEEDBACK: Nenhum feedbackEstacao encontrado para esta estação");
       }
       
       if (!checklistData.value.itensAvaliacao || !Array.isArray(checklistData.value.itensAvaliacao) || checklistData.value.itensAvaliacao.length === 0) {
@@ -270,7 +259,6 @@ async function fetchSimulationData(currentStationId) {
 function clearSelectedCandidate() {
   try {
     sessionStorage.removeItem('selectedCandidate');
-    console.log('🧹 Candidato selecionado limpo - simulação finalizada');
   } catch (error) {
     console.warn('Erro ao limpar candidato selecionado:', error);
   }
@@ -279,41 +267,47 @@ function clearSelectedCandidate() {
 // --- Função para enviar link via chat privado ---
 async function sendLinkViaPrivateChat() {
   if (!selectedCandidateForSimulation.value || !inviteLinkToShow.value) {
-    console.error('Candidato ou link não disponível');
-    return;
+    loadSelectedCandidate();
+    
+    if (!selectedCandidateForSimulation.value) {
+      alert('❌ ERRO: Nenhum candidato selecionado! Por favor, volte à lista de estações e selecione um candidato antes de iniciar a simulação.');
+      return;
+    }
+    
+    if (!inviteLinkToShow.value) {
+      alert('❌ ERRO: Link de convite não gerado! Clique em "Gerar Link" primeiro.');
+      return;
+    }
   }
 
   sendingChat.value = true;
   chatSentSuccess.value = false;
 
   try {
-    const candidateUid = selectedCandidateForSimulation.value.uid;
-    const linkToSend = inviteLinkToShow.value;
+    const { sendSimulationInvite } = useSimulationInvites();
     
-    if (!candidateUid || !linkToSend || !currentUser.value?.uid) {
-      throw new Error('Dados insuficientes para enviar mensagem');
+    const result = await sendSimulationInvite({
+      candidateUid: selectedCandidateForSimulation.value.uid,
+      candidateName: selectedCandidateForSimulation.value.name,
+      inviteLink: inviteLinkToShow.value,
+      stationTitle: stationData.value?.tituloEstacao || 'Estação',
+      duration: selectedDurationMinutes.value || 10,
+      meetLink: communicationMethod.value === 'meet' ? meetLink.value?.trim() : null,
+      senderName: currentUser.value?.displayName || 'Avaliador',
+      senderUid: currentUser.value?.uid
+    });
+    
+    if (result.success) {
+      chatSentSuccess.value = true;
+      setTimeout(() => {
+        chatSentSuccess.value = false;
+      }, 3000);
+    } else {
+      throw new Error(result.error?.message || 'Falha ao enviar convite');
     }
     
-    const chatId = [currentUser.value.uid, candidateUid].sort().join('_');
-    const messageData = {
-      senderId: currentUser.value.uid,
-      senderName: currentUser.value.displayName || 'Avaliador',
-      senderPhotoURL: currentUser.value.photoURL || '',
-      text: `🎯 **Link da Simulação**\n\n${selectedCandidateForSimulation.value.name}, você foi convidado(a) para participar da simulação da estação **${stationData.value?.tituloEstacao || 'Estação'}**.\n\nClique no link abaixo para acessar:\n${linkToSend}`,
-      timestamp: serverTimestamp(),
-    };
-    
-    await addDoc(collection(db, `chatPrivado_${chatId}`), messageData);
-    console.log('Link enviado via chat privado para:', candidateUid);
-    
-    chatSentSuccess.value = true;
-    setTimeout(() => {
-      chatSentSuccess.value = false;
-    }, 3000);
-    
   } catch (error) {
-    console.error('Erro ao enviar link via chat privado:', error);
-    // Aqui você pode adicionar uma notificação de erro para o usuário
+    console.error('Erro ao enviar convite:', error);
   } finally {
     sendingChat.value = false;
   }
@@ -324,7 +318,7 @@ function connectWebSocket() {
   if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) { console.error("SOCKET: Dados essenciais faltando para conexão.");
     return; }
   // const backendUrl = 'http://localhost:3000'; // Removido, agora usa import
-  console.log(`SOCKET: Conectando a ${backendUrl} para Sessão: ${sessionId.value}, Usuário: ${currentUser.value.uid}, Papel: ${userRole.value}`);
+  console.log('SimulationView: backendUrl sendo usada para Socket.IO:', backendUrl); // NOVO LOG
   connectionStatus.value = 'Conectando';
   if (socket.value && socket.value.connected) { socket.value.disconnect(); }
   socket.value = io(backendUrl, {
@@ -337,9 +331,8 @@ function connectWebSocket() {
       displayName: currentUser.value?.displayName
     }
   });
-  socket.value.on('connect', () => { 
-    connectionStatus.value = 'Conectado'; 
-    console.log('SOCKET: Conectado! ID do Socket:', socket.value.id); 
+  socket.value.on('connect', () => {
+    connectionStatus.value = 'Conectado';
     
     // Delay de 1 segundo para habilitar o botão "Estou pronto" do candidato
     if (userRole.value === 'candidate') {
@@ -379,20 +372,18 @@ function connectWebSocket() {
         errorMessage.value = "Conexão com o servidor de simulação perdida.";
       }
     }
-      console.log(`SOCKET: Desconectado. Razão: ${reason}`);
   });
   socket.value.on('connect_error', (err) => { connectionStatus.value = 'Erro de Conexão'; if(!errorMessage.value) errorMessage.value = `Falha ao conectar: ${err.message}`; console.error('SOCKET: Erro de conexão', err);});
   socket.value.on('SERVER_ERROR', (data) => { console.error('SOCKET: Erro do Servidor:', data.message); errorMessage.value = `Erro do servidor: ${data.message}`; });
-  socket.value.on('SERVER_JOIN_CONFIRMED', (data) => { console.log('>>> EVENTO RECEBIDO: SERVER_JOIN_CONFIRMED <<<', data); });
-  socket.value.on('SERVER_PARTNER_JOINED', (participantInfo) => { console.log('>>> EVENTO RECEBIDO: SERVER_PARTNER_JOINED <<<', participantInfo); if (participantInfo && participantInfo.userId !== currentUser.value?.uid) { partner.value = participantInfo; partnerReadyState.value = participantInfo.isReady || false; errorMessage.value = ''; } });
-  socket.value.on('SERVER_EXISTING_PARTNERS', (participantsList) => { console.log('>>> EVENTO RECEBIDO: SERVER_EXISTING_PARTNERS <<<', participantsList); updatePartnerInfo(participantsList); });
+  socket.value.on('SERVER_JOIN_CONFIRMED', (data) => { });
+  socket.value.on('SERVER_PARTNER_JOINED', (participantInfo) => { if (participantInfo && participantInfo.userId !== currentUser.value?.uid) { partner.value = participantInfo; partnerReadyState.value = participantInfo.isReady || false; errorMessage.value = ''; } });
+  socket.value.on('SERVER_EXISTING_PARTNERS', (participantsList) => { updatePartnerInfo(participantsList); });
   function updatePartnerInfo(participants) { const currentUserId = currentUser.value?.uid;
   if (participants && Array.isArray(participants) && currentUserId) { const otherParticipant = participants.find(p => p.userId !== currentUserId); if(otherParticipant) { partner.value = otherParticipant;
   partnerReadyState.value = partner.value.isReady || false; errorMessage.value = ''; } else { partner.value = null;
   partnerReadyState.value = false;} } else { partner.value = null; partnerReadyState.value = false;} }
 
   socket.value.on('SERVER_PARTNER_LEFT', (data) => {
-    console.log('>>> EVENTO RECEBIDO: SERVER_PARTNER_LEFT <<<', data);
     if (partner.value && partner.value.userId === data.userId) {
       partner.value = null;
       partnerReadyState.value = false;
@@ -414,14 +405,12 @@ function connectWebSocket() {
       }
     }
   });
-  socket.value.on('CANDIDATE_RECEIVE_DATA', (payload) => { console.log('>>> EVENTO RECEBIDO: CANDIDATE_RECEIVE_DATA <<<', payload); const { dataItemId } = payload; if (userRole.value === 'candidate' && stationData.value?.materiaisDisponiveis?.impressos) { const impressoParaLiberar = stationData.value.materiaisDisponiveis.impressos.find(item => item.idImpresso === dataItemId); if (impressoParaLiberar) { releasedData.value[dataItemId] = { ...impressoParaLiberar }; releasedData.value = {...releasedData.value}; } } });
-  socket.value.on('SERVER_PARTNER_READY', (data) => { console.log('>>> EVENTO RECEBIDO: SERVER_PARTNER_READY <<<', data); if (data && data.userId !== currentUser.value?.uid) { if (partner.value && partner.value.userId === data.userId) { partner.value.isReady = data.isReady; } partnerReadyState.value = data.isReady; } });
+  socket.value.on('CANDIDATE_RECEIVE_DATA', (payload) => { const { dataItemId } = payload; if (userRole.value === 'candidate' && stationData.value?.materiaisDisponiveis?.impressos) { const impressoParaLiberar = stationData.value.materiaisDisponiveis.impressos.find(item => item.idImpresso === dataItemId); if (impressoParaLiberar) { releasedData.value[dataItemId] = { ...impressoParaLiberar }; releasedData.value = {...releasedData.value}; } } });
+  socket.value.on('SERVER_PARTNER_READY', (data) => { if (data && data.userId !== currentUser.value?.uid) { if (partner.value && partner.value.userId === data.userId) { partner.value.isReady = data.isReady; } partnerReadyState.value = data.isReady; } });
   socket.value.on('SERVER_START_SIMULATION', (data) => {
-    console.log('>>> EVENTO RECEBIDO: SERVER_START_SIMULATION <<<', data);
     if (data && typeof data.durationSeconds === 'number') {
         simulationTimeSeconds.value = data.durationSeconds;
         timerDisplay.value = formatTime(data.durationSeconds);
-        console.log(`[CLIENT] SERVER_START_SIMULATION recebido. Timer configurado para ${data.durationSeconds}s pelo servidor.`);
     } else {
         console.warn('[CLIENT] SERVER_START_SIMULATION não continha durationSeconds. Timer pode estar dessincronizado com o cliente inicial.');
         timerDisplay.value = formatTime(simulationTimeSeconds.value);
@@ -441,7 +430,6 @@ function connectWebSocket() {
     }
   });
   socket.value.on('TIMER_END', () => {
-    console.log('>>> EVENTO RECEBIDO: TIMER_END <<<');
     timerDisplay.value = "00:00";
     if (!simulationEnded.value) {
       playSoundEffect(); // Som do final da estação
@@ -455,11 +443,9 @@ function connectWebSocket() {
     // Notificação para o candidato
     if (userRole.value === 'candidate') {
       showNotification('Tempo finalizado! Aguardando avaliação do examinador...', 'info');
-      console.log('CANDIDATO: Tempo finalizado. Aguardando avaliação...');
     }
   });
   socket.value.on('TIMER_STOPPED', (data) => {
-    console.log('>>> EVENTO RECEBIDO: TIMER_STOPPED <<<', data);
     const previousTimerDisplay = timerDisplay.value;
 
     if (!simulationEnded.value) {
@@ -474,7 +460,6 @@ function connectWebSocket() {
     // pois ela é usada para desabilitar a 'Submissão de Avaliação'.
     if (data?.reason === 'manual_end') { // Verificando se a razão é 'manual_end'
       simulationWasManuallyEndedEarly.value = true;
-      console.log("Simulação encerrada manualmente ANTES do tempo.");
     } else {
       simulationWasManuallyEndedEarly.value = false; // Garante que é false para outras razões
     }
@@ -492,7 +477,6 @@ function connectWebSocket() {
     }
   });
   socket.value.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (payload) => {
-    console.log('>>> EVENTO RECEBIDO: CANDIDATE_RECEIVE_PEP_VISIBILITY <<<', payload);
     if (userRole.value === 'candidate' && payload && typeof payload.shouldBeVisible === 'boolean') {
       isChecklistVisibleForCandidate.value = payload.shouldBeVisible;
       
@@ -503,7 +487,6 @@ function connectWebSocket() {
     }
   });
   socket.value.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
-    console.log('🎯 CANDIDATO: Recebeu atualização de scores:', data);
     if (userRole.value === 'candidate' && data && data.scores) {
       // Converte para number e atualiza scores do candidato
       const numericScores = {};
@@ -527,11 +510,6 @@ function connectWebSocket() {
         candidateReceivedTotalScore.value = data.totalScore;
         totalScore.value = data.totalScore;
       }
-      
-      // Log especial para scores finais após simulação
-      if (simulationEnded.value && data.totalScore > 0) {
-        console.log('🏁 CANDIDATO: Avaliação final sincronizada - Total:', data.totalScore);
-      }
     }
   });
   socket.value.on('SERVER_BOTH_PARTICIPANTS_READY', () => {
@@ -549,7 +527,6 @@ function connectWebSocket() {
   // Listener específico para sincronização de scores para candidatos
   socket.value.on('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', (data) => {
     if (userRole.value === 'candidate' && data.sessionId === sessionId.value) {
-      console.log('🎯 CANDIDATO: Recebendo avaliações sincronizadas:', data.scores);
       
       // Atualiza os scores locais do candidato
       Object.keys(data.scores).forEach(key => {
@@ -560,7 +537,9 @@ function connectWebSocket() {
       
       // Força atualização da interface se necessário
       if (data.forceSync) {
-        console.log('🔄 SINCRONIZAÇÃO FORÇADA: Atualizando interface do candidato');
+        // Força reatividade
+        evaluationScores.value = { ...evaluationScores.value };
+        
         nextTick(() => {
           // Força reatividade dos scores
           const newScores = { ...evaluationScores.value };
@@ -569,20 +548,24 @@ function connectWebSocket() {
       }
     }
   });
+
+  // Listener para convites internos de simulação
+  socket.value.on('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
 }
 
 // --- Função para carregar candidato selecionado ---
 function loadSelectedCandidate() {
   try {
-    const candidateData = JSON.parse(sessionStorage.getItem('selectedCandidate') || '{}');
+    const storedData = sessionStorage.getItem('selectedCandidate');
+    const candidateData = JSON.parse(storedData || '{}');
+    
     if (candidateData.uid) {
       selectedCandidateForSimulation.value = candidateData;
-      console.log('Candidato carregado para simulação:', candidateData.name);
     } else {
       selectedCandidateForSimulation.value = null;
     }
   } catch (error) {
-    console.warn('Erro ao carregar candidato selecionado:', error);
+    console.error('Erro ao carregar candidato selecionado:', error);
     selectedCandidateForSimulation.value = null;
   }
 }
@@ -599,7 +582,6 @@ function setupSession() {
   }
   
   isSettingUpSession.value = true;
-  console.log("SETUP_SESSION: Iniciando...");
   
   errorMessage.value = '';
   isLoading.value = true;
@@ -640,13 +622,11 @@ function setupSession() {
   const validOptions = [5, 6, 7, 8, 9, 10];
   if (durationFromQuery && validOptions.includes(durationFromQuery)) {
       selectedDurationMinutes.value = durationFromQuery;
-      console.log(`Duração definida pela URL: ${selectedDurationMinutes.value} min`);
   } else {
       selectedDurationMinutes.value = 10;
       if(durationFromQuery) console.warn(`Duração inválida (${durationFromQuery}) na URL, usando padrão ${selectedDurationMinutes.value} min.`);
   }
   timerDisplay.value = formatTime(simulationTimeSeconds.value * 60);
-  console.log("SETUP_SESSION: Dados da Rota:", { params: route.params, query: route.query });
   if (!sessionId.value) {
     errorMessage.value = "Link inválido: ID Sessão não encontrado.";
     isLoading.value = false;
@@ -665,7 +645,6 @@ function setupSession() {
     isSettingUpSession.value = false;
     return;
   }
-  console.log("SETUP_SESSION: Refs atualizados:", { stationId: stationId.value, sessionId: sessionId.value, userRole: userRole.value });
 
   // Inicializa o composable de socket APÓS os refs estarem definidos
   const socketApi = useSimulationSocket({
@@ -705,19 +684,17 @@ watch(bothParticipantsReady, (newValue) => {
       inviteLinkToShow.value // Garante que o link já foi gerado (simulando que a sessão foi iniciada no backend)
       ) {
     const durationToSend = selectedDurationMinutes.value;
-    console.log(`[CLIENT - WATCHER] Preparando para emitir CLIENT_START_SIMULATION (ambos prontos). Duração selecionada:`, durationToSend, 'Tipo:', typeof durationToSend);
     socket.value.emit('CLIENT_START_SIMULATION', {
       sessionId: sessionId.value,
       durationMinutes: durationToSend // Usando a variável durationToSend
     });
   } else if (newValue && userRole.value === 'candidate' && !simulationStarted.value) {
-    console.log("CANDIDATO: Ambos prontos, aguardando início...");
+    // Logs removidos
   }
 });
 // --- Hooks Ciclo de Vida ---
 // CORREÇÃO: Consolidando todos os onMounted em um único para evitar execução múltipla
 onMounted(() => { 
-  console.log("SimulationView Montado. Configurando sessão inicial..."); 
   setupSession(); 
   
   // Verifica link do Meet para candidato
@@ -750,13 +727,12 @@ onMounted(() => {
   });
 });
 
-watch(() => route.fullPath, (newPath, oldPath) => { if (newPath !== oldPath && route.name === 'SimulationView') { console.log("MUDANÇA DE ROTA (SimulationView fullPath):", newPath, "Reconfigurando sessão..."); setupSession(); }});
+watch(() => route.fullPath, (newPath, oldPath) => { if (newPath !== oldPath && route.name === 'SimulationView') { setupSession(); }});
 onUnmounted(() => {
   disconnect();
   // Limpar candidato selecionado ao sair da simulação
   try {
     sessionStorage.removeItem('selectedCandidate');
-    console.log('Candidato selecionado limpo ao sair da simulação');
   } catch (error) {
     console.warn('Erro ao limpar candidato selecionado:', error);
   }
@@ -773,7 +749,6 @@ function updateTimerDisplayFromSelection() {
           if (simulationTimeSeconds.value !== newTimeInSeconds) {
             simulationTimeSeconds.value = newTimeInSeconds;
             timerDisplay.value = formatTime(simulationTimeSeconds.value);
-            console.log(`Duração da estação alterada para: ${selectedDurationMinutes.value} minutos via dropdown.`);
           }
     } else if (simulationStarted.value) {
           console.warn("Não é possível alterar a duração após o início da simulação.");
@@ -828,7 +803,6 @@ function generateInviteLinkWithDuration() {
         if (selectedCandidate.uid) {
           inviteQuery.candidateUid = selectedCandidate.uid;
           inviteQuery.candidateName = selectedCandidate.name;
-          console.log('Link personalizado criado para candidato:', selectedCandidate.name);
         }
         
         if (communicationMethod.value === 'meet') {
@@ -913,19 +887,16 @@ function releaseData(dataItemId) {
   // A validação de `simulationStarted` ou `simulationEnded` será feita no backend.
   // No frontend, apenas verificamos se já foi liberado para evitar spam de botão.
   if (actorReleasedImpressoIds.value[dataItemId]) {
-    console.log(`ATOR: ${dataItemId} já foi liberado.`);
     return;
   }
 
-  console.log(`ATOR: Tentando liberar ${dataItemId}`);
   socket.value.emit('ACTOR_RELEASE_DATA', { sessionId: sessionId.value, dataItemId });
   actorReleasedImpressoIds.value = {...actorReleasedImpressoIds.value, [dataItemId]: true}; // Atualiza localmente
-  console.log("actorReleasedImpressoIds atualizado:", actorReleasedImpressoIds.value);
 }
 
 async function copyInviteLink() { if(!inviteLinkToShow.value) return; try {await navigator.clipboard.writeText(inviteLinkToShow.value); copySuccess.value=true; setTimeout(()=>copySuccess.value=false,2000);
   } catch(e){alert('Falha ao copiar.')} }
-function sendReady() { if (socket.value?.connected && sessionId.value && !myReadyState.value) { console.log(`SOCKET: (${userRole.value}) Enviando CLIENT_IM_READY...`);
+function sendReady() { if (socket.value?.connected && sessionId.value && !myReadyState.value) {
   socket.value.emit('CLIENT_IM_READY', { sessionId: sessionId.value }); myReadyState.value = true; } else { let rsn=""; if(myReadyState.value) rsn="Já pronto."; else if(!socket.value?.connected) rsn="Não conectado.";
   else rsn="Erro."; alert(rsn); } }
 
@@ -933,7 +904,6 @@ function sendReady() { if (socket.value?.connected && sessionId.value && !myRead
 function handleStartSimulationClick() {
   if (socket.value?.connected && sessionId.value && (userRole.value === 'actor' || userRole.value === 'evaluator') && bothParticipantsReady.value && !simulationStarted.value) {
     const durationToSend = selectedDurationMinutes.value;
-    console.log('[CLIENT - BUTTON CLICK] Preparando para emitir CLIENT_START_SIMULATION. Duração selecionada:', durationToSend, 'Tipo:', typeof durationToSend);
     socket.value.emit('CLIENT_START_SIMULATION', {
       sessionId: sessionId.value,
       durationMinutes: durationToSend
@@ -964,7 +934,6 @@ async function submitEvaluation() {
     return;
   }
 
-  console.log(`ATOR/AVALIADOR: Submetendo:`, evaluationScores.value, "Total:", totalScore.value.toFixed(2));
   socket.value.emit('EVALUATOR_SUBMIT_EVALUATION', { 
     sessionId: sessionId.value, 
     stationId: stationId.value, 
@@ -974,7 +943,6 @@ async function submitEvaluation() {
   });
   
   if (pepReleasedToCandidate.value && socket.value?.connected) {
-    console.log('ATOR/AVALIADOR: Re-enviando scores para candidato após submissão final:', evaluationScores.value);
     socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
       sessionId: sessionId.value,
       scores: evaluationScores.value,
@@ -993,7 +961,6 @@ async function submitEvaluation() {
       const selectedCandidate = JSON.parse(sessionStorage.getItem('selectedCandidate') || '{}');
       if (selectedCandidate && selectedCandidate.uid) {
         candidateUid = selectedCandidate.uid;
-        console.log('[AVALIAÇÃO] UID do candidato via sessionStorage:', candidateUid, selectedCandidate);
       }
     } catch (err) {
       console.warn('[AVALIAÇÃO] Erro ao ler candidato do sessionStorage:', err);
@@ -1002,12 +969,10 @@ async function submitEvaluation() {
   // 3. selectedCandidateForSimulation ref
   if (!candidateUid && selectedCandidateForSimulation.value?.uid) {
     candidateUid = selectedCandidateForSimulation.value.uid;
-    console.log('[AVALIAÇÃO] UID do candidato via ref:', candidateUid, selectedCandidateForSimulation.value);
   }
   // 4. route.query (caso venha por URL)
   if (!candidateUid && route.query.candidateUid) {
     candidateUid = route.query.candidateUid;
-    console.log('[AVALIAÇÃO] UID do candidato via route.query:', candidateUid);
   }
 
   // Validação final
@@ -1029,9 +994,7 @@ async function submitEvaluation() {
         especialidade: stationData.value?.especialidade || 'Geral',
         origem: stationData.value?.origem || 'SIMULACAO'
       };
-      console.log('[AVALIAÇÃO] Registrando avaliação:', avaliacaoData);
       await registrarConclusaoEstacao(avaliacaoData);
-      console.log('[AVALIAÇÃO] Sucesso! Avaliação registrada no histórico do candidato:', candidateUid);
     } catch (err) {
       alert('Erro ao registrar avaliação do candidato. Veja o console para detalhes.');
       console.error('[AVALIAÇÃO] Erro ao registrar avaliação no Firestore:', err);
@@ -1048,7 +1011,7 @@ async function submitEvaluation() {
 
 function releasePepToCandidate() {
   if (!socket.value?.connected || !sessionId.value) { alert("Erro: Não conectado."); return; }
-  if (pepReleasedToCandidate.value) { console.log("PEP já foi liberado anteriormente."); return; }
+  if (pepReleasedToCandidate.value) { return; }
   if(userRole.value !== 'actor' && userRole.value !== 'evaluator') {alert("Não autorizado."); return;}
   
   // NOVA VERIFICAÇÃO: Só permite liberar o PEP após o fim da estação
@@ -1068,13 +1031,11 @@ function releasePepToCandidate() {
 
   // Libera o PEP após verificar todas as condições
   const payload = { sessionId: sessionId.value };
-  console.log(`SOCKET: (${userRole.value}) Emitindo ACTOR_RELEASE_PEP:`, payload);
   socket.value.emit('ACTOR_RELEASE_PEP', payload);
   
   // SINCRONIZAÇÃO: Força envio das avaliações atuais imediatamente após liberação
   setTimeout(() => {
     if (Object.keys(currentScores).length > 0) {
-      console.log('🔄 SINCRONIZAÇÃO: Enviando avaliações atuais para candidato:', currentScores);
       socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
         sessionId: sessionId.value,
         scores: currentScores,
@@ -1117,8 +1078,6 @@ function getImageSource(imagePath, imageId) {
 }
 
 function handleImageError(imagePath, imageId) {
-  console.log(`[DEBUG] ❌ DIAGNÓSTICO - Erro ao carregar imagem: ${imagePath} (ID: ${imageId})`);
-  
   // Incrementa tentativas
   const attempts = (imageLoadAttempts.value[imageId] || 0) + 1;
   imageLoadAttempts.value = {
@@ -1126,12 +1085,8 @@ function handleImageError(imagePath, imageId) {
     [imageId]: attempts
   };
   
-  console.log(`[DEBUG] ❌ DIAGNÓSTICO - Tentativa ${attempts}/3 para imagem: ${imageId}`);
-  
   // Máximo de 3 tentativas
   if (attempts <= 3) {
-    console.log(`[DEBUG] 🔄 DIAGNÓSTICO - Tentativa ${attempts}/3 de recarregar imagem: ${imagePath}`);
-    
     // Força recarregamento adicionando timestamp
     const separator = imagePath.includes('?') ? '&' : '?';
     const newUrl = `${imagePath}${separator}reload=${Date.now()}&attempt=${attempts}`;
@@ -1142,11 +1097,8 @@ function handleImageError(imagePath, imageId) {
       [imageId]: newUrl
     };
     
-    console.log(`[DEBUG] ✅ DIAGNÓSTICO - Nova URL da imagem: ${newUrl}`);
-    
     // Tenta novamente após um delay
     setTimeout(() => {
-      console.log(`[DEBUG] 🔄 DIAGNÓSTICO - Tentando recarregar imagem após delay: ${imageId}`);
       preloadSingleImage(newUrl, imageId, 'Imagem do impresso');
     }, 1000 * attempts); // Delay progressivo
     
@@ -1202,13 +1154,10 @@ function openImageZoom(imageSrc, imageAlt) {
   
   if (imageId && imagesPreloadStatus.value[imageId] === 'loaded') {
     // ABERTURA INSTANTÂNEA: Imagem está garantidamente carregada
-    console.log(`[ZOOM] ⚡ INSTANTÂNEO: ${imageAlt}`);
   } else if (allImagesPreloaded.value) {
     // Todas foram pré-carregadas, mas talvez seja um ID diferente
-    console.log(`[ZOOM] ✅ RÁPIDO: ${imageAlt}`);
   } else {
     // Fallback: força carregamento imediato
-    console.log(`[ZOOM] ⚠️ FALLBACK: Forçando carregamento para ${imageAlt}`);
     const img = new Image();
     img.src = imageSrc;
   }
@@ -1240,12 +1189,7 @@ function handleZoomImageError() {
 
 // Função para confirmar carregamento da imagem no modal de zoom
 function handleZoomImageLoad() {
-  console.log(`[DEBUG] ✅ DIAGNÓSTICO - Imagem carregada com sucesso no modal de zoom:`);
-  console.log(`[DEBUG] ✅ DIAGNÓSTICO - URL carregada: ${selectedImageForZoom.value}`);
-  console.log(`[DEBUG] ✅ DIAGNÓSTICO - Timestamp: ${new Date().toISOString()}`);
-  
-  // Confirmar que o evento load está sendo disparado
-  console.log(`[DEBUG] ✅ DIAGNÓSTICO - handleZoomImageLoad DISPARADO - Modal carregou OK!`);
+  // Logs removidos
 }
 
 // --- Função para pré-carregar imagens dos impressos ---
@@ -1267,8 +1211,6 @@ function preloadImpressoImages() {
   // Reset status de pré-carregamento
   allImagesPreloaded.value = false;
   imagesPreloadStatus.value = {};
-
-  console.log(`[PRELOAD] Pré-carregando ${impressosComImagem.length} imagens para abertura instantânea...`);
 
   const imagesToPreload = [];
   
@@ -1300,7 +1242,6 @@ function preloadImpressoImages() {
       // Verifica se todas as imagens foram carregadas
       if (loadedCount === totalImages) {
         allImagesPreloaded.value = true;
-        console.log(`[PRELOAD] ✅ Todas as ${totalImages} imagens pré-carregadas! Abertura será instantânea.`);
       }
     }, () => {
       loadedCount++;
@@ -1326,7 +1267,6 @@ function isImagePreloaded(imageId) {
 // --- Função para forçar pré-carregamento se necessário ---
 function ensureImageIsPreloaded(imagePath, imageId, altText) {
   if (!isImagePreloaded(imageId)) {
-    console.log(`[PRELOAD-ENSURE] ⚠️ CORREÇÃO - Forçando pré-carregamento para: ${imageId}`);
     preloadSingleImage(imagePath, imageId, altText);
   } else {
     // CORREÇÃO: Removendo log excessivo
@@ -1366,7 +1306,6 @@ function preloadSingleImageAdvanced(imagePath, imageId, altText, onSuccess, onEr
     if (loadingComplete) return;
     loadingComplete = true;
     
-    console.log(`[PRELOAD] ❌ ERRO no carregamento: ${imageId}`, error);
     handleImageError(imagePath, imageId);
     onError();
   };
@@ -1389,7 +1328,6 @@ function preloadSingleImageAdvanced(imagePath, imageId, altText, onSuccess, onEr
 function sendEvaluationScores() {
   // Envia os scores iniciais ao liberar o PEP (se já houver algum)
   if (socket.value?.connected) {
-      console.log('ATOR/AVALIADOR: Enviando scores iniciais ao liberar PEP:', evaluationScores.value);
       socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
         sessionId: sessionId.value,
         scores: evaluationScores.value,
@@ -1404,7 +1342,6 @@ function manuallyEndSimulation() {
     }
     if (userRole.value !== 'actor' && userRole.value !== 'evaluator') { alert("Não autorizado."); return;
     }
-    console.log(`SOCKET: (${userRole.value}) Emitindo CLIENT_MANUAL_END_SIMULATION para ${sessionId.value}`);
     socket.value.emit('CLIENT_MANUAL_END_SIMULATION', { sessionId: sessionId.value });
 }
 
@@ -1421,8 +1358,6 @@ watch(evaluationScores, (newScores) => {
         ? parseFloat(newScores[key])
         : newScores[key];
     });
-
-    console.log('ATOR/AVALIADOR: Emitindo EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', numericScores);
 
     socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
       sessionId: sessionId.value,
@@ -1446,7 +1381,6 @@ function toggleScriptContext(idx, event) {
     // Verificar se houve um clique recente para evitar duplicação
     const now = Date.now();
     if (lastClickTime.value[clickKey] && now - lastClickTime.value[clickKey] < 500) {
-      console.log("Ignorando clique rápido subsequente em contexto");
       return;
     }
     
@@ -1476,8 +1410,6 @@ function toggleScriptContext(idx, event) {
           }
         });
       });
-      
-      console.log(`Contexto ${idx} marcado:`, markedScriptContexts.value[idx]);
     }, 10);
   }
 }
@@ -1712,7 +1644,6 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
     // Verificar se houve um clique recente para evitar duplicação
     const now = Date.now();
     if (lastClickTime.value[clickKey] && now - lastClickTime.value[clickKey] < 500) {
-      console.log("Ignorando clique rápido subsequente");
       return;
     }
     
@@ -1726,8 +1657,6 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
       
       // Forçar reatividade criando um novo objeto
       markedParagraphs.value = { ...markedParagraphs.value };
-      
-      console.log(`Parágrafo ${contextIdx}-${paragraphIdx} marcado:`, markedParagraphs.value[key]);
     }, 10);
   }
 }

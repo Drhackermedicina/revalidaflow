@@ -178,6 +178,15 @@ export const routes = [
         },
         props: true,
       },
+      {
+        path: 'test-chat-private',
+        name: 'TestChatPrivate',
+        component: () => import('@/pages/TestChatPrivate.vue'),
+        meta: {
+          requiresAuth: true,
+          layout: 'default',
+        },
+      },
       // {
       //   path: 'task-manager',
       //   name: 'task-manager',

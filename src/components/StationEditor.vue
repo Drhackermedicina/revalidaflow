@@ -69,7 +69,7 @@ async function correctPEPScoring() {
     setTimeout(() => { successMessage.value = ''; }, 5000);
   } catch (error) {
     console.error('Erro ao corrigir PEP:', error);
-    errorMessage.value = `Erro na correção PEP: ${error.message}`;
+    errorMessage.value = `Erro na correção PEP: ${error.message}. Verifique os dados da estação e tente novamente.`;
   }
 }
 
@@ -85,7 +85,7 @@ const isAdmin = computed(() => {
 
 async function fetchStationToEdit() {
   if (!props.stationId) {
-    errorMessage.value = "Nenhum ID de estação fornecido para edição.";
+    errorMessage.value = "Erro: ID da estação não fornecido. Por favor, verifique o link ou tente novamente.";
     isLoading.value = false;
     return;
   }
@@ -117,12 +117,12 @@ async function fetchStationToEdit() {
       await correctPEPScoring();
       await updatePEPStats();
     } else {
-      errorMessage.value = "Estação não encontrada para edição.";
+      errorMessage.value = "Estação não encontrada. Pode ter sido removida ou o ID está incorreto. Por favor, verifique o ID da estação.";
       stationData.value = null;
     }
   } catch (error) {
     console.error("Erro ao buscar estação para edição:", error);
-    errorMessage.value = `Falha ao carregar estação: ${error.message}`;
+    errorMessage.value = `Erro ao carregar estação: ${error.message}. Verifique sua conexão com a internet ou entre em contato com o suporte.`;
     stationData.value = null;
   } finally {
     isLoading.value = false;
@@ -131,11 +131,11 @@ async function fetchStationToEdit() {
 
 async function saveStationChanges() {
   if (!stationData.value || !stationData.value.id) {
-    errorMessage.value = "Nenhum dado da estação para salvar.";
+    errorMessage.value = "Erro: Não há dados da estação para salvar. Recarregue a página e tente novamente.";
     return;
   }
   if (!isAdmin.value) {
-    errorMessage.value = "Apenas administradores podem salvar alterações.";
+    errorMessage.value = "Acesso negado: Apenas administradores podem salvar alterações. Se você deveria ter acesso, entre em contato com o suporte.";
     return;
   }
 
@@ -164,7 +164,7 @@ async function saveStationChanges() {
 
   } catch (error) {
     console.error("Erro ao salvar alterações da estação:", error);
-    errorMessage.value = `Falha ao salvar: ${error.message}`;
+    errorMessage.value = `Erro ao salvar alterações: ${error.message}. Por favor, tente novamente. Se o problema persistir, verifique o console para mais detalhes.`;
   } finally {
     isLoading.value = false;
   }
@@ -368,11 +368,22 @@ watch(() => stationData.value?.padraoEsperadoProcedimento?.itensAvaliacao, () =>
   <VContainer fluid>
     <VRow justify="center">
       <VCol cols="12">
-        <VProgressCircular v-if="isLoading" indeterminate size="64" class="d-block mx-auto" />
         <VAlert v-if="errorMessage" type="error" prominent class="mb-4">{{ errorMessage }}</VAlert>
         <VAlert v-if="successMessage" type="success" prominent class="mb-4">{{ successMessage }}</VAlert>
       </VCol>
     </VRow>
+
+    <VOverlay
+      :model-value="isLoading"
+      class="align-center justify-center"
+      persistent
+    >
+      <VProgressCircular
+        indeterminate
+        size="64"
+        color="primary"
+      ></VProgressCircular>
+    </VOverlay>
 
     <form v-if="stationData && !isLoading && isAdmin" @submit.prevent="saveStationChanges">
       <VChip color="primary" class="d-block mx-auto mb-6">

@@ -23,6 +23,10 @@
           </v-card-title>
           <v-divider />
           <v-card-text class="chat-messages flex-grow-1 pa-4">
+            <div v-if="messages.length === 0" class="text-center text-grey pa-4">
+              Nenhuma mensagem ainda...
+            </div>
+            
             <div v-for="message in messages" :key="message.id" class="message-bubble d-flex mb-4" :class="{ 'justify-end': message.senderId === currentUser?.uid }">
               <v-avatar v-if="message.senderPhotoURL" :image="message.senderPhotoURL" size="32" class="me-2" />
               <div class="message-content pa-3 rounded-lg" :class="message.senderId === currentUser?.uid ? 'bg-primary text-white my-message' : 'bg-grey-lighten-4 other-message'">
@@ -82,10 +86,11 @@
 <script setup>
 import { currentUser } from '@/plugins/auth';
 import { db } from '@/plugins/firebase';
-import { addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useTheme } from 'vuetify';
+import { chatCache } from '@/utils/chatCache';
 
 const route = useRoute();
 const theme = useTheme();
@@ -100,14 +105,25 @@ const newMessage = ref('');
 const messagesEnd = ref(null);
 let unsubscribe = null;
 
-// Busca nome do usuário alvo (corrigido para API v9)
+// Cache local para reduzir leituras desnecessárias
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+// Função para limpar cache quando necessário
+const clearMessageCache = () => {
+  const chatId = [currentUser.value?.uid, otherUserId].sort().join('_');
+  chatCache.invalidateMessages(chatId);
+  if (window._userNameCache) window._userNameCache = {};
+};
+
+// Busca nome do usuário alvo (com cache)
 async function fetchUserName() {
   try {
-    // Cache simples em memória para evitar leituras repetidas
-    if (!window._userNameCache) window._userNameCache = {};
-    const cached = window._userNameCache[otherUserId];
-    if (cached && (Date.now() - cached.ts) < 30 * 1000) {
-      userName.value = cached.name;
+    // Verificar cache primeiro
+    const cachedUser = chatCache.getUser(otherUserId);
+    if (cachedUser) {
+      userName.value = (cachedUser.nome && cachedUser.sobrenome) 
+        ? `${cachedUser.nome} ${cachedUser.sobrenome}` 
+        : cachedUser.displayName || 'Usuário';
       return;
     }
 
@@ -118,49 +134,100 @@ async function fetchUserName() {
       userName.value = (userData.nome && userData.sobrenome) 
         ? `${userData.nome} ${userData.sobrenome}` 
         : userData.displayName || 'Usuário';
-      window._userNameCache[otherUserId] = { ts: Date.now(), name: userName.value };
+      
+      // Salvar no cache
+      chatCache.setUser(otherUserId, userData);
     } else {
       userName.value = 'Usuário não encontrado';
     }
   } catch (error) {
-    // Silencioso - removido log para reduzir poluição do console
     userName.value = 'Erro ao carregar usuário';
   }
 }
 
 onMounted(() => {
   fetchUserName();
+  
   // Listener de mensagens privadas (coleção: chatPrivado_{uid1}_{uid2})
   const chatId = [currentUser.value?.uid, otherUserId].sort().join('_');
   const messagesCollectionRef = collection(db, `chatPrivado_${chatId}`);
-  // Carregar e ouvir apenas as últimas mensagens (tail) para reduzir leituras
-  const mq = query(messagesCollectionRef, orderBy('timestamp', 'asc'), /* servidor ordena asc */ limit(100));
+  
+  // Carregar apenas as 20 mensagens mais recentes para reduzir custos
+  const mq = query(messagesCollectionRef, orderBy('timestamp', 'desc'), limit(20));
+  
   unsubscribe = onSnapshot(mq, (snapshot) => {
-    messages.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    nextTick(() => {
-      scrollToEnd();
-    });
+    // Verificar se há mudanças reais antes de atualizar
+    const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
+    
+    // Verificar cache
+    const cachedMessages = chatCache.getMessages(chatId);
+    
+    // Só atualiza se houver mudanças reais
+    const hasChanges = !cachedMessages || 
+      newMessages.length !== cachedMessages.length || 
+      newMessages.some((msg, idx) => !cachedMessages[idx] || msg.id !== cachedMessages[idx].id);
+    
+    if (hasChanges) {
+      messages.value = newMessages;
+      
+      // Atualiza cache
+      chatCache.setMessages(chatId, newMessages);
+      
+      // Scroll apenas se for uma nova mensagem (não na carga inicial)
+      if (messages.value.length > 0) {
+        nextTick(() => {
+          scrollToEnd();
+        });
+      }
+    }
+  }, (error) => {
+    // Silencioso - removido log para reduzir poluição do console
   });
 });
 
 onUnmounted(() => {
   if (unsubscribe) unsubscribe();
+  // Limpar cache ao sair da página para evitar vazamentos de memória
+  clearMessageCache();
 });
 
 const sendMessage = async () => {
   if (newMessage.value.trim() === '' || !currentUser.value) return;
-  const chatId = [currentUser.value?.uid, otherUserId].sort().join('_');
-  await addDoc(collection(db, `chatPrivado_${chatId}`), {
-    senderId: currentUser.value.uid,
-    senderName: currentUser.value.displayName || 'Anônimo',
-    senderPhotoURL: currentUser.value.photoURL || '',
-    text: newMessage.value.trim(),
-    timestamp: serverTimestamp(),
-  });
-  newMessage.value = '';
-  nextTick(() => {
-    scrollToEnd();
-  });
+  
+  // Evitar envios duplicados
+  const messageText = newMessage.value.trim();
+  if (window._lastSentMessage === messageText && (Date.now() - window._lastSentTime) < 1000) {
+    return;
+  }
+  
+  try {
+    const chatId = [currentUser.value?.uid, otherUserId].sort().join('_');
+    const messageData = {
+      senderId: currentUser.value.uid,
+      senderName: currentUser.value.displayName || 'Anônimo',
+      senderPhotoURL: currentUser.value.photoURL || '',
+      text: messageText,
+      timestamp: serverTimestamp(),
+    };
+    
+    const chatRef = collection(db, `chatPrivado_${chatId}`);
+    await addDoc(chatRef, messageData);
+    
+    // Marcar como enviado para evitar duplicatas
+    window._lastSentMessage = messageText;
+    window._lastSentTime = Date.now();
+    
+    newMessage.value = '';
+    
+    // Invalidar cache para forçar atualização
+    chatCache.invalidateMessages(chatId);
+    
+    nextTick(() => {
+      scrollToEnd();
+    });
+  } catch (error) {
+    // Silencioso - removido log para reduzir poluição do console
+  }
 };
 
 const formatTime = (timestamp) => {

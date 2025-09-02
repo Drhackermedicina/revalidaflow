@@ -3,6 +3,7 @@ import { currentUser } from '@/plugins/auth.js';
 import { db, storage, testStorageConnection } from '@/plugins/firebase.js';
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
+import imageCompression from 'browser-image-compression';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
@@ -782,6 +783,25 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
       userUID: currentUser.value.uid
     });
     
+    // --- INÍCIO DA MODIFICAÇÃO: COMPRESSÃO DE IMAGEM ---
+    console.log('Compressing image...');
+    const options = {
+      maxSizeMB: 1,           // (max file size in MB)
+      maxWidthOrHeight: 1920, // (max width or height in pixels)
+      useWebWorker: true,     // (use web worker for faster compression)
+      fileType: 'image/webp'  // (output file type)
+    };
+    let compressedFile = file;
+    try {
+      compressedFile = await imageCompression(file, options);
+      console.log(`Image compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      errorMessage.value = 'Erro ao comprimir imagem. Tentando upload sem compressão.';
+      // Continue sem compressão se houver erro
+    }
+    // --- FIM DA MODIFICAÇÃO: COMPRESSÃO DE IMAGEM ---
+    
     // Gera nome único e sanitizado para o arquivo
     const timestamp = Date.now();
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -790,6 +810,13 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
     // Cria a referência no Storage
     const imageRef = storageRef(storage, fileName);
     
+    // --- INÍCIO DA MODIFICAÇÃO: METADADOS COM CACHE-CONTROL ---
+    const metadata = {
+      contentType: compressedFile.type, // Use o tipo do arquivo comprimido
+      cacheControl: 'public, max-age=31536000', // Cache por 1 ano
+    };
+    // --- FIM DA MODIFICAÇÃO: METADADOS COM CACHE-CONTROL ---
+    
     // Inicia o upload com indicadores visuais
     uploadingImages.value[`impresso-${impressoIndex}`] = true;
     uploadProgress.value[`impresso-${impressoIndex}`] = 0;
@@ -797,7 +824,9 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
     // Função para upload com timeout
     const uploadWithTimeout = () => {
       return Promise.race([
-        uploadBytes(imageRef, file),
+        // --- MODIFICAÇÃO: USAR compressedFile E metadata ---
+        uploadBytes(imageRef, compressedFile, metadata),
+        // --- FIM DA MODIFICAÇÃO ---
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Upload timeout - tentativa excedeu 60 segundos')), uploadTimeout)
         )

@@ -1,0 +1,67 @@
+mutation SeedDatabase @auth(level: USER) {
+  question_insertMany(data: [
+    {
+      questionText: "What is the capital of France?",
+      correctAnswer: "Paris",
+      options: ["London", "Paris", "Berlin", "Rome"],
+      difficultyLevel: "Easy",
+      phase: "Phase 1",
+      explanation: "Paris is the capital of France.",
+      createdAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      questionText: "What is the highest mountain in the world?",
+      correctAnswer: "Mount Everest",
+      options: ["K2", "Mount Everest", "Kangchenjunga", "Lhotse"],
+      difficultyLevel: "Medium",
+      phase: "Phase 2",
+      explanation: "Mount Everest is the highest mountain in the world.",
+      createdAt: "2024-01-02T00:00:00Z"
+    },
+    {
+      questionText: "What is the largest ocean in the world?",
+      correctAnswer: "Pacific Ocean",
+      options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+      difficultyLevel: "Easy",
+      phase: "Phase 1",
+      explanation: "The Pacific Ocean is the largest ocean in the world.",
+      createdAt: "2024-01-03T00:00:00Z"
+    }
+  ])
+  studyMaterial_insertMany(data: [
+    {
+      title: "Introduction to Anatomy",
+      contentType: "Article",
+      url: "https://www.example.com/anatomy",
+      description: "An introductory article about human anatomy.",
+      phase: "Phase 1",
+      specialty: "Medicine",
+      createdAt: "2024-01-04T00:00:00Z"
+    },
+    {
+      title: "Advanced Surgical Techniques",
+      contentType: "Video",
+      url: "https://www.example.com/surgery",
+      description: "A video demonstrating advanced surgical techniques.",
+      phase: "Phase 3",
+      specialty: "Surgery",
+      createdAt: "2024-01-05T00:00:00Z"
+    }
+  ])
+  trainingStation_insertMany(data: [
+    {
+      title: "Emergency Room Simulation",
+      scenarioDescription: "Simulate a patient arriving at the emergency room.",
+      keyLearningPoints: "Patient assessment and prioritization.",
+      phase: "Phase 2",
+      createdAt: "2024-01-06T00:00:00Z"
+    },
+    {
+      title: "Operating Room Simulation",
+      scenarioDescription: "Simulate a patient undergoing surgery.",
+      keyLearningPoints: "Surgical techniques and teamwork.",
+      phase: "Phase 3",
+      createdAt: "2024-01-07T00:00:00Z"
+    }
+  ])
+}

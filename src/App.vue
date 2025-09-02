@@ -29,7 +29,7 @@ import { RouterView } from 'vue-router'
 // ----------------------
 // Imports de plugins
 // ----------------------
-import { useUserStatus } from '@/composables/useUserStatus'
+
 import { currentUser, waitForAuth } from '@/plugins/auth'
 import { usePrivateChatNotification } from '@/plugins/privateChatListener'
 
@@ -60,8 +60,8 @@ const snackbar = computed(() => notificationStore.snackbar)
 // ----------------------
 // Instâncias de composables
 // ----------------------
-const { updateUserStatus, setStatusOffline } = useUserStatus()
-const { startListener } = usePrivateChatNotification()
+
+usePrivateChatNotification() // Apenas chamar para inicializar o composable
 
 // ----------------------
 // Lifecycle hooks
@@ -70,9 +70,19 @@ onMounted(async () => {
   await waitForAuth()
   if (currentUser.value) {
     userStore.setUser(currentUser.value)
-    startListener()
+    
+    // ❌ REMOVIDO: checkPendingInvites() - estava disparando convites antigos
+    // await checkPendingInvites()
   }
 })
+
+// ✅ FUNÇÃO DESABILITADA: Verificar convites pendentes 
+async function checkPendingInvites() {
+  // ❌ DESABILITADO - estava disparando convites antigos para todos os usuários
+  // Será reativado apenas quando a lógica estiver 100% correta
+  console.log('🔇 checkPendingInvites DESABILITADO temporariamente');
+  return;
+}
 
 // ----------------------
 // Comentários explicativos

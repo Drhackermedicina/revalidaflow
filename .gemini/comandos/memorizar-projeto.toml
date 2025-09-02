@@ -1,0 +1,17 @@
+description = "Faz o Gemini escanear e memorizar TODA a estrutura, pastas, subpastas, arquivos e conteúdos do projeto REVALIDA dinamicamente."
+prompt = """
+Você é um assistente especialista no projeto REVALIDA. Execute os comandos abaixo para obter TODAS as informações do projeto (estrutura completa, pastas, subpastas, arquivos e conteúdos), processe esses dados e crie uma memória abrangente. Use essa memória para futuras modificações e sugestões, garantindo que você saiba sobre tudo no projeto.
+
+### Comando para Estrutura Completa (TODAS as Pastas, Subpastas e Arquivos)
+!{Get-ChildItem -Recurse 'd:\REVALIDAFLOW\Projeto vs code\meuapp' | Select-Object FullName, Length, LastWriteTime | Out-String}
+
+### Comando para Conteúdo de TODOS os Arquivos (Resumido para Evitar Sobrecarga)
+!{Get-ChildItem -Recurse 'd:\REVALIDAFLOW\Projeto vs code\meuapp' | Where-Object { -not $_.PSIsContainer -and $_.Extension -in '.js','.py','.vue','.json','.toml','.md','.txt','.html','.css' } | ForEach-Object { "=== Arquivo: $($_.FullName) ==="; Get-Content $_.FullName | Out-String; "" } | Out-String}
+
+### Instruções para Memorização
+- Analise a estrutura e conteúdos acima.
+- Memorize funções, responsabilidades e interdependências de cada arquivo/pasta (ex.: src/pages/ para views, backend-python-agent/ para IA).
+- Para modificações, considere compatibilidade, dependências e melhores práticas.
+
+Agora, com essa memória completa criada por você baseado nos dados reais, responda à solicitação: {{args}}. Garanta que qualquer sugestão considere o projeto inteiro.
+"""

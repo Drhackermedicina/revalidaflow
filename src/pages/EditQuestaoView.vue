@@ -3,6 +3,7 @@ import { currentUser } from '@/plugins/auth.js';
 import { db, storage } from '@/plugins/firebase.js';
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
+import imageCompression from 'browser-image-compression';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
@@ -217,8 +218,25 @@ async function uploadImageToStorage(file, imagemIndex) {
     throw new Error('Arquivo muito grande. Tamanho máximo: 10MB');
   }
 
-
   try {
+    // --- INÍCIO DA MODIFICAÇÃO: COMPRESSÃO DE IMAGEM ---
+    console.log('Compressing image...');
+    const options = {
+      maxSizeMB: 1,           // (max file size in MB)
+      maxWidthOrHeight: 1920, // (max width or height in pixels)
+      useWebWorker: true,     // (use web worker for faster compression)
+      fileType: 'image/webp'  // (output file type)
+    };
+    let compressedFile = file;
+    try {
+      compressedFile = await imageCompression(file, options);
+      console.log(`Image compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      // Continue sem compressão se houver erro
+    }
+    // --- FIM DA MODIFICAÇÃO: COMPRESSÃO DE IMAGEM ---
+
     uploadingImages.value[imagemIndex] = true;
     uploadProgress.value[imagemIndex] = 0;
 
@@ -227,13 +245,20 @@ async function uploadImageToStorage(file, imagemIndex) {
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     const fileExtension = file.name.split('.').pop();
     const fileName = `questoes/${questaoId.value}/imagem_${imagemIndex}_${timestamp}_${randomSuffix}.${fileExtension}`;
-    
-    
+
+
     // Cria a referência no Storage
     const imageRef = storageRef(storage, fileName);
 
+    // --- INÍCIO DA MODIFICAÇÃO: METADADOS COM CACHE-CONTROL ---
+    const metadata = {
+      contentType: compressedFile.type, // Use o tipo do arquivo comprimido
+      cacheControl: 'public, max-age=31536000', // Cache por 1 ano
+    };
+    // --- FIM DA MODIFICAÇÃO: METADADOS COM CACHE-CONTROL ---
+
     // Faz o upload
-    const uploadResult = await uploadBytes(imageRef, file);
+    const uploadResult = await uploadBytes(imageRef, compressedFile, metadata); // Use compressedFile e metadata
 
     // Atualiza progresso
     uploadProgress.value[imagemIndex] = 50;
@@ -248,9 +273,9 @@ async function uploadImageToStorage(file, imagemIndex) {
 
   } catch (error) {
     console.error('Erro detalhado no upload:', error);
-    
+
     let errorMsg = 'Erro desconhecido no upload.';
-    
+
     if (error.code === 'storage/unauthorized') {
       errorMsg = 'Sem permissão para fazer upload. Verifique as regras do Storage.';
     } else if (error.code === 'storage/quota-exceeded') {
@@ -262,9 +287,9 @@ async function uploadImageToStorage(file, imagemIndex) {
     } else if (error.message) {
       errorMsg = error.message;
     }
-    
+
     throw new Error(errorMsg);
-    
+
   } finally {
     uploadingImages.value[imagemIndex] = false;
     delete uploadProgress.value[imagemIndex];

@@ -27,5 +27,5 @@ export const waitForAuth = () => {
   })
 }
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:3000' : 'https://backendraiway-production.up.railway.app');
+const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 

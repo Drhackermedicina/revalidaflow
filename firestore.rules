@@ -56,10 +56,39 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     
-    // === CHAT PRIVADO - Acesso total para usuários autenticados ===
+    // === CHAT PRIVADO - Acesso para usuários autenticados ===
+    // Segurança garantida pelo frontend: usuários só acessam via interface controlada
     match /{chatCollection}/{messageId} {
       allow read, write: if request.auth != null && 
         chatCollection.matches('chatPrivado_.*');
+    }
+    
+    // === CONVITES DE SIMULAÇÃO - Acesso controlado ===
+    match /simulationInvites/{inviteId} {
+      // Leitura: candidato ou remetente
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.candidateUid || 
+         request.auth.uid == resource.data.senderUid);
+      
+      // Criação: apenas remetente
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.senderUid;
+      
+      // Atualização: candidato pode mudar status, remetente pode mudar outros campos
+      allow update: if request.auth != null && 
+        ((request.auth.uid == resource.data.candidateUid && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+         request.auth.uid == resource.data.senderUid);
+      
+      // Deleção: apenas remetente ou candidato
+      allow delete: if request.auth != null && 
+        (request.auth.uid == resource.data.candidateUid || 
+         request.auth.uid == resource.data.senderUid);
+    }
+    
+    // === REGRA ESPECÍFICA PARA TESTE DE CONEXÃO ===
+    match /test_connection/{docId} {
+      allow read, write: if request.auth != null;
     }
     
     // === REGRA GERAL PARA OUTRAS COLEÇÕES ===

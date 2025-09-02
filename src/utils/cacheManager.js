@@ -60,6 +60,92 @@ class CacheManager {
 // Instância global do cache
 const cacheManager = new CacheManager();
 
+// --- Funções de Cache para localStorage ---
+
+const LOCAL_STORAGE_ACTIVE_USERS_KEY = 'activeUsersCache';
+const LOCAL_STORAGE_ACTIVE_USERS_EXPIRATION_TIME = 60 * 60 * 1000; // 1 hora em ms
+
+export function getActiveUsersCache() {
+  try {
+    const cachedData = localStorage.getItem(LOCAL_STORAGE_ACTIVE_USERS_KEY);
+    if (cachedData) {
+      const { data, timestamp } = JSON.parse(cachedData);
+      if (Date.now() - timestamp < LOCAL_STORAGE_ACTIVE_USERS_EXPIRATION_TIME) {
+        return data;
+      } else {
+        // Cache expirado
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_USERS_KEY);
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao ler cache de usuários ativos do localStorage:', error);
+    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_USERS_KEY); // Limpa cache corrompido
+  }
+  return null;
+}
+
+export function setActiveUsersCache(users) {
+  try {
+    const dataToStore = {
+      data: users,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_USERS_KEY, JSON.stringify(dataToStore));
+  } catch (error) {
+    console.error('Erro ao salvar cache de usuários ativos no localStorage:', error);
+  }
+}
+
+export function clearActiveUsersCache() {
+  try {
+    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_USERS_KEY);
+  } catch (error) {
+    console.error('Erro ao limpar cache de usuários ativos do localStorage:', error);
+  }
+}
+
+const LOCAL_STORAGE_RECENT_CHATS_KEY = 'recentPrivateChats';
+const MAX_RECENT_CHATS = 50; // Limite de chats recentes a serem armazenados
+
+export function getRecentPrivateChats() {
+  try {
+    const cachedData = localStorage.getItem(LOCAL_STORAGE_RECENT_CHATS_KEY);
+    return cachedData ? JSON.parse(cachedData) : [];
+  } catch (error) {
+    console.error('Erro ao ler chats recentes do localStorage:', error);
+    return [];
+  }
+}
+
+export function addRecentPrivateChat(otherUid) {
+  try {
+    let chats = getRecentPrivateChats();
+    // Remove se já existir para mover para o início (mais recente)
+    chats = chats.filter(uid => uid !== otherUid);
+    // Adiciona no início
+    chats.unshift(otherUid);
+    // Limita o tamanho
+    if (chats.length > MAX_RECENT_CHATS) {
+      chats = chats.slice(0, MAX_RECENT_CHATS);
+    }
+    localStorage.setItem(LOCAL_STORAGE_RECENT_CHATS_KEY, JSON.stringify(chats));
+  } catch (error) {
+    console.error('Erro ao adicionar chat recente ao localStorage:', error);
+  }
+}
+
+export function removeRecentPrivateChat(otherUid) {
+  try {
+    let chats = getRecentPrivateChats();
+    chats = chats.filter(uid => uid !== otherUid);
+    localStorage.setItem(LOCAL_STORAGE_RECENT_CHATS_KEY, JSON.stringify(chats));
+  } catch (error) {
+    console.error('Erro ao remover chat recente do localStorage:', error);
+  }
+}
+
+// --- Funções existentes (mantidas) ---
+
 // Função otimizada para verificar hasBeenEdited com cache
 export async function checkStationEditStatus(db, stationId) {
   const cacheKey = cacheManager.generateKey('estacoes_clinicas', stationId, 'hasBeenEdited');

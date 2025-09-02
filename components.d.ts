@@ -17,7 +17,6 @@ declare module 'vue' {
     ChatSettings: typeof import('./src/components/ChatSettings.vue')['default']
     CorrecaoEditores: typeof import('./src/components/CorrecaoEditores.vue')['default']
     ErrorHeader: typeof import('./src/components/ErrorHeader.vue')['default']
-    GlobalAgentAssistant: typeof import('./src/components/GlobalAgentAssistant.vue')['default']
     GlobalLoader: typeof import('./src/components/GlobalLoader.vue')['default']
     MoreBtn: typeof import('./src/@core/components/MoreBtn.vue')['default']
     PerformanceChart: typeof import('./src/components/PerformanceChart.vue')['default']

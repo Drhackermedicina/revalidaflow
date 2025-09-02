@@ -1,0 +1,69 @@
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  photoUrl: String
+  lastLogin: Timestamp
+  studyPhaseGoal: String
+}
+
+type StudyMaterial @table {
+  title: String!
+  contentType: String!
+  phase: String!
+  createdAt: Timestamp!
+  description: String
+  url: String
+  specialty: String
+}
+
+type Question @table {
+  questionText: String!
+  correctAnswer: String!
+  phase: String!
+  createdAt: Timestamp!
+  options: [String]
+  explanation: String
+  specialty: String
+  difficultyLevel: String
+}
+
+type TrainingStation @table {
+  title: String!
+  scenarioDescription: String!
+  keyLearningPoints: String!
+  phase: String!
+  createdAt: Timestamp!
+  patientVitals: String
+  relevantHistory: String
+  idealApproach: String
+  rubricGuidelines: String
+}
+
+type UserProgress @table {
+  user: User!
+  entityId: UUID!
+  entityType: String!
+  status: String!
+  lastAccessedAt: Timestamp!
+  score: Float
+  notes: String
+}
+
+type StudyPlan @table {
+  name: String!
+  startDate: Date!
+  endDate: Date!
+  user: User!
+  createdAt: Timestamp!
+  description: String
+  isPublic: Boolean
+}
+
+type StudyPlanItem @table(key: ["studyPlan", "entityId", "entityType"]) {
+  studyPlan: StudyPlan!
+  entityId: UUID!
+  entityType: String!
+  scheduledDate: Date!
+  status: String
+}

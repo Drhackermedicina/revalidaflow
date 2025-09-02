@@ -68,9 +68,10 @@ export default defineConfig({
       },
       // Redireciona requisições de /api para o backend Python
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://127.0.0.1:8080', // Alterado para 127.0.0.1 para consistência
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        // A reescrita de caminho não é necessária se o backend já espera /api
+        // rewrite: (path) => path.replace(/^\/api/, ''), 
       },
     },
   },

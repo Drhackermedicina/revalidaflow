@@ -4,9 +4,9 @@
 export const DOMAINS = {
   // Domínios de produção
   PRODUCTION: {
-    PRIMARY: 'https://revalidafacilapp.com.br',
-    FIREBASE_WEB: 'https://revalida-companion.web.app', 
-    FIREBASE_APP: 'https://revalida-companion.firebaseapp.com'
+    PRIMARY: '',
+    FIREBASE_WEB: '',
+    FIREBASE_APP: ''
   },
   
   // Domínios de desenvolvimento
@@ -15,10 +15,16 @@ export const DOMAINS = {
     LOCAL_ALT: 'http://localhost:3000'
   },
   
-  // Backend
+  // Backend Principal (Node.js)
   BACKEND: {
     PRODUCTION: '',
     DEVELOPMENT: 'http://localhost:3000'
+  },
+  
+  // Backend Python Agent (apenas para AdminView)
+  PYTHON_AGENT: {
+    PRODUCTION: '',
+    DEVELOPMENT: 'http://localhost:8080'
   }
 }
 

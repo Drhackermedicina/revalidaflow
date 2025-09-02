@@ -5,6 +5,7 @@ export const config = {
   // Backend Configuration
   backend: {
     url: import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:3000' : ''),
+    simulationBackendUrl: import.meta.env.VITE_SIMULATION_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:3001' : ''), // Adicionado
     timeout: 30000,
     retries: 3
   },
