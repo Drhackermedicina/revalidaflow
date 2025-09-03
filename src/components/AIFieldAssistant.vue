@@ -11,7 +11,7 @@
         class="ai-field-button"
         :class="{ 'ai-field-button--active': showDialog }"
         type="button"
-        title="Correção por IA"
+        title="Chat IA Livre"
       >
         <v-icon size="16">mdi-robot</v-icon>
       </button>
@@ -22,43 +22,90 @@
       </div>
     </div>
 
-    <!-- Dialog de correção rápida -->
-    <v-dialog v-model="showDialog" max-width="600" persistent>
+    <!-- Dialog de chat livre -->
+    <v-dialog v-model="showDialog" max-width="700" persistent>
       <v-card>
         <v-card-title class="d-flex align-center">
           <v-icon class="me-2" color="primary">mdi-robot</v-icon>
-          Correção IA - {{ fieldLabel || fieldName }}
+          Chat IA Livre - {{ fieldLabel || fieldName }}
+          
+          <v-spacer />
+          <v-tooltip bottom>
+            <template v-slot:activator="{ props }">
+              <v-icon v-bind="props" size="small" color="info">mdi-information</v-icon>
+            </template>
+            <span>💡 Dica: Selecione uma parte do texto antes de abrir para trabalhar apenas com a seleção</span>
+          </v-tooltip>
         </v-card-title>
         
         <v-card-text>
-          <!-- Ações rápidas -->
-          <v-chip-group v-model="selectedQuickAction" class="mb-3" mandatory>
-            <v-chip 
-              v-for="action in quickActions" 
-              :key="action.value"
-              :value="action.value"
-              size="small"
-            >
-              {{ action.title }}
-            </v-chip>
-          </v-chip-group>
-
-          <!-- Input para instrução personalizada -->
-          <v-textarea
-            v-if="selectedQuickAction === 'custom'"
-            v-model="userInstruction"
-            label="Sua instrução personalizada"
-            placeholder="Ex: 'Organize em tópicos', 'Corrija a gramática', 'Seja mais específico'"
-            rows="2"
-            variant="outlined"
-            class="mb-4"
-          />
+          <!-- Chat livre com a IA -->
+          <div class="mb-4">
+            <label class="text-subtitle-2 font-weight-bold mb-2 d-block">💬 Chat Livre com IA:</label>
+            <v-textarea
+              v-model="freePrompt"
+              label="Digite qualquer instrução para a IA"
+              placeholder="Ex: 'Reescreva isso de forma mais técnica', 'Adicione mais detalhes sobre sintomas', 'Organize em lista numerada', etc."
+              rows="4"
+              variant="outlined"
+              class="mb-2 prompt-field"
+              hint="Chat completamente livre - digite o que quiser que a IA faça"
+              persistent-hint
+              autofocus
+            />
+            
+            <!-- Botões de controle de prompts -->
+            <div class="d-flex gap-2 mb-3">
+              <v-btn
+                @click="saveCurrentPrompt"
+                size="small"
+                color="success"
+                variant="outlined"
+                :disabled="!freePrompt.trim()"
+              >
+                <v-icon class="me-1" size="16">mdi-content-save</v-icon>
+                Salvar Prompt
+              </v-btn>
+              
+              <v-btn
+                @click="showSavedPrompts = true"
+                size="small"
+                color="info"
+                variant="outlined"
+              >
+                <v-icon class="me-1" size="16">mdi-folder-open</v-icon>
+                Meus Prompts ({{ savedPrompts.length }})
+              </v-btn>
+              
+              <v-btn
+                @click="clearPrompt"
+                size="small"
+                color="warning"
+                variant="outlined"
+                :disabled="!freePrompt.trim()"
+              >
+                <v-icon class="me-1" size="16">mdi-eraser</v-icon>
+                Limpar
+              </v-btn>
+            </div>
+          </div>
           
-          <!-- Valor atual -->
+          <!-- Conteúdo atual -->
           <div class="mb-3">
-            <label class="text-subtitle-2 font-weight-bold">📄 Conteúdo Atual:</label>
-            <div class="current-content">
-              {{ currentValue || 'Vazio' }}
+            <h4 class="text-subtitle-2 mb-2">📝 Conteúdo Atual:</h4>
+            <div class="content-preview">
+              {{ modelValue || '(campo vazio)' }}
+            </div>
+            
+            <!-- Detectar texto selecionado -->
+            <div v-if="selectedText" class="mt-2">
+              <h5 class="text-caption text-primary">✂️ Texto Selecionado:</h5>
+              <div class="selected-text-preview">
+                "{{ selectedText }}"
+              </div>
+              <v-alert type="info" density="compact" class="mt-1">
+                A ação será aplicada apenas ao texto selecionado
+              </v-alert>
             </div>
           </div>
           
@@ -68,293 +115,417 @@
             <div class="ai-suggestion">
               {{ aiSuggestion }}
             </div>
+            
+            <!-- Botões para aplicar sugestão -->
+            <div class="mt-2">
+              <v-btn
+                @click="applySuggestion"
+                color="success"
+                size="small"
+                variant="outlined"
+              >
+                <v-icon class="me-1" size="16">mdi-check</v-icon>
+                Aplicar Sugestão
+              </v-btn>
+            </div>
           </div>
         </v-card-text>
         
         <v-card-actions>
           <v-btn @click="closeDialog" variant="text">Cancelar</v-btn>
+          
           <v-spacer />
           
-          <!-- Botão gerar -->
+          <!-- Botão executar -->
           <v-btn
-            v-if="!aiSuggestion"
-            @click="generateCorrection"
+            @click="generateFreeCorrection"
             :loading="isProcessing"
             color="primary"
-            variant="elevated"
+            :disabled="!freePrompt.trim()"
           >
             <v-icon class="me-1">mdi-auto-fix</v-icon>
-            Gerar Correção
+            Executar Prompt
           </v-btn>
-          
-          <!-- Botões aplicar/nova correção -->
-          <template v-else>
-            <v-btn
-              @click="generateCorrection"
-              :loading="isProcessing"
-              color="secondary"
-              variant="outlined"
-            >
-              Nova Correção
-            </v-btn>
-            <v-btn
-              @click="applySuggestion"
-              color="success"
-              variant="elevated"
-            >
-              <v-icon class="me-1">mdi-check</v-icon>
-              Aplicar Agora
-            </v-btn>
-          </template>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <!-- Notificação de sucesso -->
-    <v-snackbar
-      v-model="showSuccess"
-      color="success"
-      timeout="3000"
-      location="top"
-    >
-      ✅ Campo atualizado pela IA com sucesso!
+    <!-- Dialog para prompts salvos -->
+    <v-dialog v-model="showSavedPrompts" max-width="700">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="me-2" color="info">mdi-folder-open</v-icon>
+          Meus Prompts Salvos
+        </v-card-title>
+        
+        <v-card-text>
+          <div v-if="savedPrompts.length === 0" class="text-center py-4">
+            <v-icon size="48" color="grey" class="mb-2">mdi-text-box-outline</v-icon>
+            <p class="text-grey">Nenhum prompt salvo ainda.</p>
+            <p class="text-caption">Crie prompts personalizados e salve para reutilizar!</p>
+          </div>
+          
+          <div v-else>
+            <v-list density="compact">
+              <v-list-item
+                v-for="(prompt, index) in savedPrompts"
+                :key="index"
+                @click="loadPrompt(prompt)"
+                class="mb-2"
+                style="border: 1px solid rgba(var(--v-theme-outline), 0.2); border-radius: 8px;"
+              >
+                <template v-slot:prepend>
+                  <v-icon color="primary">mdi-text-box</v-icon>
+                </template>
+                
+                <v-list-item-title class="text-truncate">
+                  {{ prompt.title || `Prompt ${index + 1}` }}
+                </v-list-item-title>
+                
+                <v-list-item-subtitle class="text-truncate">
+                  {{ prompt.content.substring(0, 80) }}...
+                </v-list-item-subtitle>
+                
+                <template v-slot:append>
+                  <v-btn
+                    @click.stop="deletePrompt(index)"
+                    size="small"
+                    color="error"
+                    variant="text"
+                    icon="mdi-delete"
+                  />
+                </template>
+              </v-list-item>
+            </v-list>
+          </div>
+        </v-card-text>
+        
+        <v-card-actions>
+          <v-btn @click="showSavedPrompts = false" variant="text">Fechar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Snackbar de sucesso -->
+    <v-snackbar v-model="showSuccess" color="success" timeout="3000">
+      ✅ Campo atualizado com sucesso!
     </v-snackbar>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { geminiService } from '@/services/geminiService.js'
-import memoryService from '@/services/memoryService.js'
+import { ref, computed, watch, inject, onMounted } from 'vue'
+import geminiService from '@/services/geminiService.js'
 
+// Props
 const props = defineProps({
-  fieldName: String,
+  modelValue: [String, Array],
+  fieldName: {
+    type: String,
+    required: true
+  },
   fieldLabel: String,
-  modelValue: [String, Number, Array],
-  stationContext: [String, Object],
-  stationId: String,
-  itemIndex: Number // Para campos de array
+  itemIndex: Number,
+  context: {
+    type: String,
+    default: ''
+  }
 })
 
+// Emits
 const emit = defineEmits(['update:modelValue', 'field-updated'])
 
 // Estado do componente
 const showDialog = ref(false)
 const isProcessing = ref(false)
 const showSuccess = ref(false)
-const selectedQuickAction = ref('improve')
-const userInstruction = ref('')
+const freePrompt = ref('')
 const aiSuggestion = ref('')
+const showSavedPrompts = ref(false)
+const savedPrompts = ref([])
+const selectedText = ref('')
 
-// Ações rápidas
-const quickActions = [
-  { title: 'Melhorar', value: 'improve' },
-  { title: 'Expandir', value: 'expand' },
-  { title: 'Corrigir', value: 'grammar' },
-  { title: 'Organizar', value: 'organize' },
-  { title: 'Personalizado', value: 'custom' }
-]
-
+// Computed para valor atual
 const currentValue = computed(() => {
-  if (Array.isArray(props.modelValue)) {
-    return props.modelValue.join('\n')
+  if (props.itemIndex !== undefined && Array.isArray(props.modelValue)) {
+    return props.modelValue[props.itemIndex] || ''
   }
   return props.modelValue || ''
 })
 
-const contextText = computed(() => {
-  if (!props.stationContext) return ''
-  
-  if (typeof props.stationContext === 'string') {
-    return props.stationContext
-  } else if (typeof props.stationContext === 'object') {
-    return props.stationContext.contexto_geral || 
-           JSON.stringify(props.stationContext)
+// Carregar prompts salvos do localStorage
+const loadSavedPrompts = () => {
+  try {
+    const saved = localStorage.getItem('aiFieldAssistant_prompts')
+    if (saved) {
+      savedPrompts.value = JSON.parse(saved)
+    }
+  } catch (error) {
+    console.warn('Erro ao carregar prompts salvos:', error)
   }
-  
-  return ''
-})
+}
 
-// Abrir dialog
+// Mostrar dialog da IA
 const showAIDialog = () => {
+  detectSelectedText()
   showDialog.value = true
-  selectedQuickAction.value = 'improve'
-  userInstruction.value = ''
-  aiSuggestion.value = ''
+}
+
+// Auto-detectar texto selecionado
+const detectSelectedText = () => {
+  try {
+    const selection = window.getSelection()
+    const selectedContent = selection ? selection.toString().trim() : ''
+    
+    if (selectedContent) {
+      console.log('📝 Texto selecionado detectado:', selectedContent)
+      selectedText.value = selectedContent
+    } else {
+      console.log('❌ Nenhum texto selecionado')
+      selectedText.value = ''
+    }
+  } catch (error) {
+    console.warn('⚠️ Erro ao detectar texto selecionado:', error)
+  }
 }
 
 // Fechar dialog
 const closeDialog = () => {
   showDialog.value = false
-  userInstruction.value = ''
+  freePrompt.value = ''
+  aiSuggestion.value = ''
+  selectedText.value = ''
+}
+
+// Limpar prompt atual
+const clearPrompt = () => {
+  freePrompt.value = ''
   aiSuggestion.value = ''
 }
 
-// Gerar correção
-const generateCorrection = async () => {
+// Salvar prompt atual
+const saveCurrentPrompt = async () => {
+  if (!freePrompt.value.trim()) return
+  
+  const promptTitle = prompt('Digite um nome para este prompt (opcional):') || `Prompt ${savedPrompts.value.length + 1}`
+  
+  const newPrompt = {
+    title: promptTitle,
+    content: freePrompt.value.trim(),
+    createdAt: new Date().toISOString(),
+    fieldName: props.fieldName
+  }
+  
+  savedPrompts.value.push(newPrompt)
+  saveSavedPrompts()
+  
+  // Feedback visual
+  aiSuggestion.value = `✅ Prompt "${promptTitle}" salvo com sucesso!`
+  setTimeout(() => {
+    aiSuggestion.value = ''
+  }, 3000)
+}
+
+// Carregar prompt selecionado
+const loadPrompt = (prompt) => {
+  freePrompt.value = prompt.content
+  showSavedPrompts.value = false
+  aiSuggestion.value = `✅ Prompt "${prompt.title}" carregado!`
+  setTimeout(() => {
+    aiSuggestion.value = ''
+  }, 2000)
+}
+
+// Deletar prompt
+const deletePrompt = (index) => {
+  if (confirm('Tem certeza que deseja deletar este prompt?')) {
+    savedPrompts.value.splice(index, 1)
+    saveSavedPrompts()
+  }
+}
+
+// Salvar prompts no localStorage
+const saveSavedPrompts = () => {
+  try {
+    localStorage.setItem('aiFieldAssistant_prompts', JSON.stringify(savedPrompts.value))
+  } catch (error) {
+    console.warn('Erro ao salvar prompts:', error)
+  }
+}
+
+// Gerar correção com chat livre
+const generateFreeCorrection = async () => {
+  console.log('🚀 INÍCIO generateFreeCorrection()')
+  console.log('📊 Estado atual:', {
+    currentValue: currentValue.value,
+    selectedText: selectedText.value,
+    freePrompt: freePrompt.value
+  })
+  
+  if (!currentValue.value && !selectedText.value) {
+    console.log('❌ Campo vazio, abortar')
+    alert('Campo está vazio. Adicione algum conteúdo primeiro.')
+    return
+  }
+
+  if (!freePrompt.value.trim()) {
+    console.log('❌ Prompt livre vazio, abortar')
+    alert('Por favor, digite uma instrução para a IA.')
+    return
+  }
+
+  console.log('✅ Validações passaram, iniciando processamento...')
   isProcessing.value = true
   
   try {
-    const prompt = buildCorrectionPrompt()
-    console.log('🤖 Gerando correção integrada para campo:', props.fieldName)
-    console.log('📝 Prompt enviado:', prompt)
+    console.log('🤖 Gerando correção com chat livre...')
+    console.log('📝 Campo:', props.fieldName)
+    console.log('💭 Prompt livre:', freePrompt.value)
+    console.log('📄 Conteúdo:', currentValue.value)
+    console.log('✂️ Texto selecionado:', selectedText.value)
     
-    // 🔧 CORREÇÃO: Usar método correto do geminiService
-    let response
-    if (props.itemIndex !== undefined) {
-      // Para itens de array
-      response = await geminiService.correctArrayItem(
-        props.fieldName, 
-        props.itemIndex, 
-        currentValue.value, 
-        selectedQuickAction.value === 'custom' ? userInstruction.value : selectedQuickAction.value,
-        contextText.value
-      )
+    // Chat completamente livre - usar prompt exatamente como digitado pelo usuário
+    const targetContent = selectedText.value || currentValue.value
+    
+    console.log('📝 Prompt do usuário:', freePrompt.value)
+    console.log('📄 Conteúdo para trabalhar:', targetContent)
+    
+    // 🎯 PROMPT DIRETO SEM EXPLICAÇÕES (exatamente como funcionava antes)
+    let editPrompt
+    
+    // Detecção especial para comandos de remoção
+    if (freePrompt.value.toLowerCase().includes('remov') && selectedText.value) {
+      editPrompt = `Você deve remover este texto específico do conteúdo:
+
+TEXTO A REMOVER:
+"${selectedText.value}"
+
+CONTEÚDO COMPLETO:
+${currentValue.value}
+
+Retorne o conteúdo completo SEM o texto especificado para remoção. Não adicione explicações.`
     } else {
-      // Para campos simples
-      response = await geminiService.correctField(
-        props.fieldName,
-        currentValue.value,
-        selectedQuickAction.value === 'custom' ? userInstruction.value : selectedQuickAction.value,
-        contextText.value
-      )
+      editPrompt = `${freePrompt.value}
+
+Texto para editar:
+${targetContent}
+
+IMPORTANTE: Retorne APENAS o texto editado, sem explicações ou comentários adicionais.`
     }
+    
+    // Enviar tudo como prompt principal (sem contexto separado)
+    const response = await geminiService.makeRequest(editPrompt)
     
     console.log('📨 Resposta recebida:', response)
     
     if (response) {
-      aiSuggestion.value = response.trim()
-      console.log('✅ Sugestão processada:', response.trim())
+      let cleanResponse = response.trim()
+      console.log('✅ Sugestão processada:', cleanResponse)
       
-      // REMOVIDO: Não salvar aqui, apenas quando aplicar
-      // await saveToMemory()
+      // 🧹 LIMPAR RESPOSTAS EXPLICATIVAS (detectar padrões do problema)
+      if (cleanResponse.includes('Tarefa removida:') || 
+          cleanResponse.includes('Texto resultante:') ||
+          cleanResponse.includes('removida com sucesso') ||
+          cleanResponse.toLowerCase().includes('(nenhum texto restante)')) {
+        console.log('🧹 Detectada resposta explicativa, extraindo resultado...')
+        
+        // Se a IA disse que removeu, então remover o texto selecionado
+        if (selectedText.value && freePrompt.value.toLowerCase().includes('remov')) {
+          // Para remoção: remover o texto selecionado do conteúdo original
+          cleanResponse = currentValue.value.replace(selectedText.value, '').trim()
+          // Limpar linhas vazias duplas
+          cleanResponse = cleanResponse.replace(/\n\s*\n\s*\n/g, '\n\n')
+          console.log('✂️ Texto removido aplicado:', cleanResponse)
+        } else {
+          // Para outros casos explicativos, tentar extrair apenas resultado
+          const lines = cleanResponse.split('\n')
+          const resultLine = lines.find(line => 
+            !line.includes('Tarefa removida') && 
+            !line.includes('Texto resultante') && 
+            line.trim().length > 0 &&
+            !line.includes('nenhum texto restante')
+          )
+          if (resultLine) {
+            cleanResponse = resultLine.trim()
+          }
+        }
+      }
+      
+      // Mostrar sugestão
+      aiSuggestion.value = cleanResponse
+      
+      // 🔧 AUTO-APLICAÇÃO DESABILITADA - usuário deve decidir
+      // Apenas mostrar o resultado, não aplicar automaticamente
+      
     } else {
-      console.warn('⚠️ Resposta vazia do serviço Gemini')
-      alert('Não foi possível gerar uma sugestão. Tente novamente.')
+      console.log('❌ Resposta vazia')
+      alert('A IA não conseguiu gerar uma resposta. Tente reformular o prompt.')
     }
+    
   } catch (error) {
-    console.error('❌ Erro ao gerar correção:', error)
-    console.error('❌ Stack trace:', error.stack)
-    console.error('❌ Detalhes do erro:', {
-      message: error.message,
-      name: error.name,
-      cause: error.cause
-    })
-    
-    let errorMessage = 'Erro desconhecido'
-    if (error.message) {
-      errorMessage = error.message
-    } else if (typeof error === 'string') {
-      errorMessage = error
-    } else if (error.toString) {
-      errorMessage = error.toString()
-    }
-    
-    alert('Erro ao gerar correção: ' + errorMessage)
+    console.error('❌ Erro na geração:', error)
+    alert(`Erro ao processar: ${error.message}`)
   } finally {
     isProcessing.value = false
   }
 }
 
-// Aplicar sugestão DIRETAMENTE
+// Aplicar sugestão manualmente
 const applySuggestion = () => {
   if (!aiSuggestion.value) return
   
-  console.log('✅ Aplicando correção IA integrada:', {
-    field: props.fieldName,
-    newValue: aiSuggestion.value.substring(0, 100) + '...',
-    itemIndex: props.itemIndex
-  })
+  if (selectedText.value) {
+    // Substituir apenas o texto selecionado
+    const newValue = currentValue.value.replace(selectedText.value, aiSuggestion.value)
+    updateValue(newValue)
+  } else {
+    // Substituir todo o conteúdo
+    updateValue(aiSuggestion.value)
+  }
   
-  // 🔧 APLICAÇÃO DIRETA: Atualizar o v-model
-  emit('update:modelValue', aiSuggestion.value)
-  
-  // Emitir evento para notificar o componente pai
-  emit('field-updated', {
-    field: props.fieldName,
-    value: aiSuggestion.value,
-    index: props.itemIndex,
-    original: currentValue.value
-  })
-  
-  // 🔧 AGORA SIM: Salvar na memória apenas quando aplicar
-  saveToMemory()
-  
-  // Mostrar sucesso
   showSuccess.value = true
-  closeDialog()
+  setTimeout(() => {
+    closeDialog()
+    showSuccess.value = false
+  }, 2000)
 }
 
-// Construir prompt baseado na ação selecionada
-const buildCorrectionPrompt = () => {
-  const actionPrompts = {
-    improve: 'Melhore e aperfeiçoe este conteúdo médico, tornando-o mais claro e preciso',
-    expand: 'Expanda e detalhe este conteúdo médico, adicionando informações relevantes',
-    grammar: 'Corrija a gramática, ortografia e pontuação deste texto médico',
-    organize: 'Organize este conteúdo médico de forma mais estruturada e didática',
-    custom: userInstruction.value || 'Melhore este conteúdo médico'
+// Atualizar valor
+const updateValue = (newValue) => {
+  if (props.itemIndex !== undefined) {
+    // Para arrays
+    const newArray = [...(props.modelValue || [])]
+    newArray[props.itemIndex] = newValue
+    emit('update:modelValue', newArray)
+  } else {
+    // Para campos simples
+    emit('update:modelValue', newValue)
   }
   
-  const instruction = actionPrompts[selectedQuickAction.value]
-  
-  return `
-Você é um especialista em criar estações clínicas para exames médicos.
-
-INSTRUÇÃO: ${instruction}
-
-CONTEXTO DA ESTAÇÃO:
-${contextText.value || 'Estação clínica médica'}
-
-CAMPO: ${props.fieldLabel || props.fieldName}
-${props.itemIndex !== undefined ? `(Item ${props.itemIndex + 1} de uma lista)` : ''}
-
-CONTEÚDO ATUAL:
-${currentValue.value || 'Vazio'}
-
-REGRAS IMPORTANTES:
-1. Mantenha o conteúdo médico tecnicamente correto
-2. Use linguagem clara e objetiva
-3. Seja específico e detalhado quando apropriado
-4. Mantenha a formatação apropriada para o tipo de campo
-5. Retorne APENAS o conteúdo corrigido/melhorado, sem explicações ou comentários
-
-CONTEÚDO CORRIGIDO:
-`
+  emit('field-updated', {
+    fieldName: props.fieldName,
+    oldValue: currentValue.value,
+    newValue: newValue,
+    itemIndex: props.itemIndex,
+    field: props.fieldName,  // Adicionar campo 'field' para compatibilidade
+    value: newValue,         // Adicionar campo 'value' para compatibilidade
+    index: props.itemIndex   // Adicionar campo 'index' para compatibilidade
+  })
 }
 
-// Salvar na memória
-const saveToMemory = async () => {
-  if (!props.stationId) return
-  
-  try {
-    const actionTitles = {
-      improve: 'Melhoria',
-      expand: 'Expansão',
-      grammar: 'Correção',
-      organize: 'Organização',
-      custom: 'Personalizado'
-    }
-    
-    await memoryService.savePrompt(props.stationId, {
-      fieldName: props.fieldName,
-      itemIndex: props.itemIndex,
-      title: `${actionTitles[selectedQuickAction.value]} - ${props.fieldLabel || props.fieldName}`,
-      userRequest: selectedQuickAction.value === 'custom' ? userInstruction.value : actionTitles[selectedQuickAction.value],
-      originalValue: currentValue.value,
-      correctedValue: aiSuggestion.value
-    })
-    
-    console.log('💾 Correção salva na memória')
-  } catch (error) {
-    console.warn('⚠️ Erro ao salvar na memória:', error)
-  }
-}
+// Watch para detectar mudanças
+watch(() => props.modelValue, () => {
+  selectedText.value = ''
+}, { deep: true })
+
+onMounted(() => {
+  loadSavedPrompts()
+})
 </script>
 
 <style scoped>
 .ai-field-wrapper {
   position: relative;
-  display: inline-block;
   width: 100%;
 }
 
@@ -367,103 +538,61 @@ const saveToMemory = async () => {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgb(var(--v-theme-primary));
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  z-index: 10;
+  background: rgba(var(--v-theme-primary), 0.1);
+  border: 1px solid rgba(var(--v-theme-primary), 0.3);
+  border-radius: 4px;
+  padding: 4px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  z-index: 1001;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
-  font-size: 18px;
+  transition: all 0.2s;
 }
 
 .ai-field-button:hover {
-  background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
-  color: white;
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-  border-color: #fff;
+  background: rgba(var(--v-theme-primary), 0.2);
+  transform: scale(1.05);
 }
 
 .ai-field-button--active {
-  background: rgb(var(--v-theme-primary));
-  color: white;
+  background: rgba(var(--v-theme-primary), 0.3);
 }
 
 .ai-processing-indicator {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(var(--v-theme-surface), 0.9);
-  border-radius: 6px;
   z-index: 10;
+  padding: 4px;
 }
 
-.current-content {
-  background: rgba(var(--v-theme-warning), 0.1);
-  border: 1px solid rgba(var(--v-theme-warning), 0.3);
-  border-radius: 4px;
+.content-preview {
+  background: #f5f5f5;
   padding: 12px;
-  max-height: 120px;
+  border-radius: 4px;
+  max-height: 150px;
   overflow-y: auto;
-  font-family: monospace;
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-size: 0.9em;
   white-space: pre-wrap;
+}
+
+.selected-text-preview {
+  background: rgba(var(--v-theme-primary), 0.1);
+  padding: 8px;
+  border-radius: 4px;
+  font-style: italic;
+  border-left: 3px solid rgb(var(--v-theme-primary));
 }
 
 .ai-suggestion {
   background: rgba(var(--v-theme-success), 0.1);
-  border: 1px solid rgba(var(--v-theme-success), 0.3);
-  border-radius: 4px;
   padding: 12px;
-  max-height: 120px;
-  overflow-y: auto;
-  font-family: monospace;
-  font-size: 0.875rem;
-  line-height: 1.4;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--v-theme-success), 0.3);
   white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
-.ai-processing {
-  opacity: 0.7;
-}
-
-/* Ajustes para diferentes tipos de campo */
-.ai-field-wrapper :deep(textarea),
-.ai-field-wrapper :deep(input) {
-  padding-right: 52px !important;
-}
-
-.ai-field-wrapper :deep(.v-field__field) {
-  padding-right: 52px !important;
-}
-
-.ai-field-wrapper :deep(.v-input__control) {
-  position: relative;
-}
-
-.ai-field-wrapper :deep(.v-field__input) {
-  padding-right: 52px !important;
-}
-
-/* Garantir que o wrapper seja relativo */
-.ai-field-wrapper {
-  position: relative !important;
-}
-
-.ai-field-wrapper .field-container {
-  position: relative !important;
+.prompt-field {
+  font-family: 'Courier New', monospace;
 }
 </style>

@@ -266,13 +266,13 @@ const router = useRouter();
 
 // Debug das verificações de admin
 watch([isAuthorizedAdmin, isLoading, isAdmin, hasAdminRole], () => {
-  console.log('Admin auth state changed:', {
-    isAuthorizedAdmin: isAuthorizedAdmin.value,
-    isLoading: isLoading.value,
-    isAdmin: isAdmin.value,
-    hasAdminRole: hasAdminRole.value,
-    currentUser: currentUser.value
-  });
+  // console.log('Admin auth state changed:', {
+  //   isAuthorizedAdmin: isAuthorizedAdmin.value,
+  //   isLoading: isLoading.value,
+  //   isAdmin: isAdmin.value,
+  //   hasAdminRole: hasAdminRole.value,
+  //   currentUser: currentUser.value
+  // });
 }, { immediate: true });
 
 // Não redirecionar automaticamente - deixar o usuário ver a mensagem

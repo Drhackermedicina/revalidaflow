@@ -194,7 +194,7 @@ const deleteInviteFromFirestore = async (candidateUid, senderUid, stationTitle) 
     
     // Log apenas em desenvolvimento
     if (querySnapshot.docs.length > 0 && process.env.NODE_ENV === 'development') {
-      console.log(`🗑️ ${querySnapshot.docs.length} convite(s) deletado(s) do Firestore`)
+      // console.log(`🗑️ ${querySnapshot.docs.length} convite(s) deletado(s) do Firestore`)
     }
   } catch (error) {
     console.error('Erro ao deletar convite do Firestore:', error)

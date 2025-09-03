@@ -245,7 +245,7 @@ const preloadEditStatuses = async (stations) => {
   const stationIds = stations.map(station => station.id);
   
   if (isDevelopment.value) {
-    console.log(`[CACHE] 🔍 Pré-carregando ${stations.length} verificações de edição`);
+    // console.log(`[CACHE] 🔍 Pré-carregando ${stations.length} verificações de edição`);
   }
 
   try {
@@ -267,7 +267,7 @@ const preloadEditStatuses = async (stations) => {
     });
 
     if (isDevelopment.value) {
-      console.log(`[CACHE] ✅ Pré-carregamento concluído para ${Object.keys(results).length} estações`);
+      // console.log(`[CACHE] ✅ Pré-carregamento concluído para ${Object.keys(results).length} estações`);
     }
   } catch (error) {
     console.error('[CACHE] ❌ Erro no pré-carregamento:', error);
@@ -376,7 +376,7 @@ const editStatusCache = new Map();
 function clearEditStatusCache() {
   editStatusCache.clear();
   if (isDevelopment.value) {
-    console.log('🧹 Cache de status de edição limpo');
+    // console.log('🧹 Cache de status de edição limpo');
   }
 }
 
@@ -422,7 +422,7 @@ function verificarEdicaoHibrida(station) {
   }
   
   if (isDevelopment.value) {
-    console.log('🔍 Verificando edição para estação:', station.id);
+    // console.log('🔍 Verificando edição para estação:', station.id);
   }
   
   let result;
@@ -433,7 +433,7 @@ function verificarEdicaoHibrida(station) {
       : null;
     
     if (isDevelopment.value) {
-      console.log('🎯 Campo hasBeenEdited encontrado no banco:', station.hasBeenEdited);
+      // console.log('🎯 Campo hasBeenEdited encontrado no banco:', station.hasBeenEdited);
     }
     
     result = {
@@ -450,7 +450,7 @@ function verificarEdicaoHibrida(station) {
     const hasModernEdit = station.editHistory.length > 0;
     const lastEdit = hasModernEdit ? station.editHistory[station.editHistory.length - 1] : null;
     
-    console.log('✅ Sistema moderno detectado:', { hasEdit: hasModernEdit, totalEdits: station.editHistory.length });
+    // console.log('✅ Sistema moderno detectado:', { hasEdit: hasModernEdit, totalEdits: station.editHistory.length });
     
     result = {
       hasBeenEdited: hasModernEdit,
@@ -472,12 +472,12 @@ function verificarEdicaoHibrida(station) {
       const ultimaAtualizacao = atualizadoEm.toDate ? atualizadoEm.toDate() : new Date(atualizadoEm);
       const hasLegacyEdit = ultimaAtualizacao.getTime() !== cadastro.getTime();
       
-      console.log('🔧 Sistema legacy detectado:', { 
-        hasEdit: hasLegacyEdit, 
-        cadastro: safeToISOString(criadoEm), 
-        ultimaAtualizacao: safeToISOString(atualizadoEm),
-        editadoPor: editadoPor
-      });
+      // console.log('🔧 Sistema legacy detectado:', { 
+      //   hasEdit: hasLegacyEdit, 
+      //   cadastro: safeToISOString(criadoEm), 
+      //   ultimaAtualizacao: safeToISOString(atualizadoEm),
+      //   editadoPor: editadoPor
+      // });
       
       result = {
         hasBeenEdited: hasLegacyEdit,
@@ -490,7 +490,7 @@ function verificarEdicaoHibrida(station) {
       };
     } else if (isValidTimestamp(atualizadoEm)) {
       const ultimaAtualizacao = atualizadoEm.toDate ? atualizadoEm.toDate() : new Date(atualizadoEm);
-      console.log('🔧 Sistema legacy (só atualização) detectado');
+      // console.log('🔧 Sistema legacy (só atualização) detectado');
       
       result = {
         hasBeenEdited: true,
@@ -503,7 +503,7 @@ function verificarEdicaoHibrida(station) {
       };
     }
     else if (station.hasBeenEdited !== undefined) {
-      console.log('📝 Campo hasBeenEdited detectado:', station.hasBeenEdited);
+      // console.log('📝 Campo hasBeenEdited detectado:', station.hasBeenEdited);
       result = {
         hasBeenEdited: !!station.hasBeenEdited,
         method: 'boolean',
@@ -515,7 +515,7 @@ function verificarEdicaoHibrida(station) {
       };
     }
     else {
-      console.log('ℹ️ Sem dados de edição válidos encontrados para:', station.id);
+      // console.log('ℹ️ Sem dados de edição válidos encontrados para:', station.id);
       result = {
         hasBeenEdited: false,
         method: 'none',
@@ -1167,7 +1167,7 @@ async function fetchCandidateScores(candidateUid) {
     }
     
     selectedCandidateScores.value = scores;
-    console.log('Pontuações do candidato carregadas:', scores);
+    // console.log('Pontuações do candidato carregadas:', scores);
     
   } catch (error) {
     console.error('Erro ao buscar pontuações do candidato:', error);
@@ -1287,7 +1287,7 @@ function goToAdminUpload() {
 function copyLink() {
   try {
     navigator.clipboard.writeText(generatedCandidateLink.value);
-    console.log('Link copiado!');
+    // console.log('Link copiado!');
   } catch (error) {
     console.error('Falha ao copiar link:', error);
   }

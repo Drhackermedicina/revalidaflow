@@ -15,8 +15,6 @@ export const backendUrl = (
     : defaultUrl // Caso contrário, usa a URL padrão de desenvolvimento
 )
 
-// Log para debug (será removido em produção)
-
-console.log('Backend URL sendo usada:', backendUrl);
+// Log para debug removido para produção
 
 export default backendUrl

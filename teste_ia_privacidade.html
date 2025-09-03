@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste IA - Remoção de Dados Privados</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-container { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; }
+        .error { color: red; }
+        .success { color: green; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔒 Teste de Remoção de Dados Privados - IA</h1>
+    
+    <div class="test-container">
+        <h3>Cenário de Teste:</h3>
+        <p>Vamos testar se a IA remove corretamente dados identificadores de um caso clínico.</p>
+        
+        <h4>Texto com dados privados:</h4>
+        <div class="result">
+            <p><strong>Texto original:</strong><br>
+            "João, 8 meses de idade, natural de São Paulo, comparece ao pronto-socorro com a mãe Maria Silva relatando febre há 2 dias. O bebê João apresenta irritabilidade e recusa alimentar."</p>
+        </div>
+        
+        <button onclick="testarRemocaoPrivacidade()">🧪 Testar Remoção de Privacidade</button>
+        
+        <div id="resultado" class="result" style="display: none;">
+            <h4>Resultado da IA:</h4>
+            <p id="textoResultado"></p>
+            <p id="analisePrivacidade"></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { geminiService } from './src/services/geminiService.js';
+        
+        window.testarRemocaoPrivacidade = async function() {
+            const resultadoDiv = document.getElementById('resultado');
+            const textoResultado = document.getElementById('textoResultado');
+            const analisePrivacidade = document.getElementById('analisePrivacidade');
+            
+            try {
+                console.log('🧪 Iniciando teste de privacidade...');
+                
+                const textoComDadosPrivados = 'João, 8 meses de idade, natural de São Paulo, comparece ao pronto-socorro com a mãe Maria Silva relatando febre há 2 dias. O bebê João apresenta irritabilidade e recusa alimentar.';
+                
+                // Simular correção de campo de descrição de caso
+                const resultado = await geminiService.correctField(
+                    'descricaoCasoCompleta',
+                    textoComDadosPrivados,
+                    'Remova todos os dados de identificação e mantenha apenas informações clínicas relevantes',
+                    'Estação de Pediatria - Emergência'
+                );
+                
+                console.log('✅ Resultado recebido:', resultado);
+                
+                // Exibir resultado
+                textoResultado.innerHTML = `<strong>Texto corrigido:</strong><br>${resultado}`;
+                
+                // Analisar se ainda há dados privados
+                const problemasEncontrados = [];
+                
+                if (resultado.match(/João|Maria/gi)) {
+                    problemasEncontrados.push('❌ Ainda contém nomes próprios');
+                }
+                
+                if (resultado.match(/\b\d+\s*meses?\b/gi)) {
+                    problemasEncontrados.push('❌ Ainda contém idade específica');
+                }
+                
+                if (resultado.match(/São Paulo/gi)) {
+                    problemasEncontrados.push('❌ Ainda contém procedência específica');
+                }
+                
+                if (problemasEncontrados.length === 0) {
+                    analisePrivacidade.innerHTML = '<span class="success">✅ SUCESSO: Todos os dados identificadores foram removidos!</span>';
+                } else {
+                    analisePrivacidade.innerHTML = `<span class="error">⚠️ PROBLEMAS ENCONTRADOS:<br>${problemasEncontrados.join('<br>')}</span>`;
+                }
+                
+                resultadoDiv.style.display = 'block';
+                
+            } catch (error) {
+                console.error('❌ Erro no teste:', error);
+                textoResultado.innerHTML = `<span class="error">Erro: ${error.message}</span>`;
+                resultadoDiv.style.display = 'block';
+            }
+        };
+    </script>
+</body>
+</html>

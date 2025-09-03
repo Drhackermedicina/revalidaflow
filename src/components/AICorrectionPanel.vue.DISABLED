@@ -570,7 +570,7 @@ async function savePrompt() {
       originalValue: currentValue.value || ''
     };
 
-    console.log('🔍 Dados do prompt preparados:', promptData);
+    
 
     await memoryService.savePrompt(props.stationId, promptData);
     

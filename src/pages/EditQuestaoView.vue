@@ -220,7 +220,7 @@ async function uploadImageToStorage(file, imagemIndex) {
 
   try {
     // --- INÍCIO DA MODIFICAÇÃO: COMPRESSÃO DE IMAGEM ---
-    console.log('Compressing image...');
+    // console.log('Compressing image...');
     const options = {
       maxSizeMB: 1,           // (max file size in MB)
       maxWidthOrHeight: 1920, // (max width or height in pixels)
@@ -230,7 +230,7 @@ async function uploadImageToStorage(file, imagemIndex) {
     let compressedFile = file;
     try {
       compressedFile = await imageCompression(file, options);
-      console.log(`Image compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+      // console.log(`Image compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
     } catch (error) {
       console.error('Error compressing image:', error);
       // Continue sem compressão se houver erro

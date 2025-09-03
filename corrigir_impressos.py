@@ -118,7 +118,8 @@ def corrigir_secao_manual(secao_str: str) -> Dict[str, Any]:
             itens.append({"chave": chave, "valor": valor})
 
         return {"tituloSecao": titulo, "itens": itens}
-    except:
+    except Exception as e:
+        print(f"Erro na correção manual: {e}")
         return {"tituloSecao": "Seção", "itens": []}
 
 def adicionar_sistema_neurologico_se_necessario(secoes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -235,7 +236,8 @@ def converter_tabela_para_secoes(conteudo_tabela: Dict[str, Any]) -> Dict[str, A
                         'valor': f"{resultado}" + (f" (VR: {vr})" if vr else "")
                     }
                     secao_atual['itens'].append(item)
-            except:
+            except Exception as e:
+                print(f"Erro ao processar linha da tabela: {e}")
                 continue
 
     if secao_atual['itens']:
@@ -333,30 +335,30 @@ impressos_problematicos = '''[
 
 def main():
     """Função principal para demonstrar a correção"""
-    print("🔧 CORRETOR DE IMPRESSOS JSON")
+    print("Tool: JSON IMPRESSOS CORRECTOR")
     print("=" * 50)
 
-    print("\n📋 IMPRESSOS ORIGINAIS (com problemas):")
+    print("\nOriginal Impressos (with problems):")
     print(impressos_problematicos[:500] + "...")
 
     # Corrigir os impressos
     impressos_corrigidos = corrigir_impressos_json(impressos_problematicos)
 
-    print("\n\n✅ IMPRESSOS CORRIGIDOS:")
+    print("\n\nSUCCESS: CORRECTED IMPRESSOS:")
     print(impressos_corrigidos)
 
     # Salvar em arquivo
     with open('impressos_corrigidos.json', 'w', encoding='utf-8') as f:
         f.write(impressos_corrigidos)
 
-    print("\n💾 Arquivo 'impressos_corrigidos.json' salvo com sucesso!")
+    print("\nFile 'impressos_corrigidos.json' saved successfully!")
 
     # Validar JSON
     try:
         json.loads(impressos_corrigidos)
-        print("✅ JSON válido!")
+        print("SUCCESS: Valid JSON!")
     except Exception as e:
-        print(f"❌ Erro no JSON: {e}")
+        print(f"ERROR: JSON error: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

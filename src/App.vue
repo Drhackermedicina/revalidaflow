@@ -80,7 +80,7 @@ onMounted(async () => {
 async function checkPendingInvites() {
   // ❌ DESABILITADO - estava disparando convites antigos para todos os usuários
   // Será reativado apenas quando a lógica estiver 100% correta
-  console.log('🔇 checkPendingInvites DESABILITADO temporariamente');
+  // console.log('🔇 checkPendingInvites DESABILITADO temporariamente');
   return;
 }
 

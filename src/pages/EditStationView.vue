@@ -14,7 +14,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 import AIFieldAssistant from '@/components/AIFieldAssistant.vue';
 import { geminiService } from '@/services/geminiService.js';
-import memoryService from '@/services/memoryService.js';
 
 // Debug do storage
 console.log('🔧 Configuração de Storage:');
@@ -59,10 +58,7 @@ const uploadProgress = ref({});
 
 // 🤖 Variáveis para o sistema de IA
 const stationContext = ref('');
-// DESABILITADO: Painel antigo removido em favor do sistema integrado
-// const showAIPanel = ref(false);
 const isGeneratingContext = ref(false);
-// const aiPanelPosition = ref('right'); // 'right', 'bottom', 'floating'
 
 // Função para obter o estado inicial do formulário
 function getInitialFormData() {
@@ -351,43 +347,24 @@ async function loadOrGenerateStationContext() {
   if (!stationId.value) return;
 
   try {
-    // Tentar carregar contexto existente
-    const existingContext = await memoryService.loadStationContext(stationId.value);
-    
-    if (existingContext) {
-      stationContext.value = existingContext;
-      console.log('✅ Contexto da estação carregado do cache');
-      return;
-    }
-
-    // Se não existir, gerar novo contexto
-    console.log('🤖 Gerando contexto da estação pela primeira vez...');
+    // Gerar contexto sem salvar na memória
+    console.log('🤖 Gerando contexto da estação...');
     isGeneratingContext.value = true;
-    
+
     const context = await geminiService.generateStationContext(formData.value);
-    
+
     if (context) {
       stationContext.value = context;
-      await memoryService.saveStationContext(stationId.value, context);
-      console.log('✅ Contexto da estação gerado e salvo');
+      console.log('✅ Contexto da estação gerado');
     }
   } catch (error) {
-    console.error('❌ Erro ao carregar/gerar contexto:', error);
+    console.error('❌ Erro ao gerar contexto:', error);
     // Contexto padrão se falhar
     stationContext.value = `Estação clínica: ${formData.value.tituloEstacao || 'Sem título'} - ${formData.value.especialidade || 'Especialidade não definida'}`;
   } finally {
     isGeneratingContext.value = false;
   }
 }
-
-// DESABILITADO: Função do painel antigo
-// function toggleAIPanel() {
-//   showAIPanel.value = !showAIPanel.value;
-//   
-//   if (showAIPanel.value && !stationContext.value) {
-//     loadOrGenerateStationContext();
-//   }
-// }
 
 // Função para lidar com atualização de campo pela IA INTEGRADA
 function handleAIFieldUpdate({ field, value, index, original }) {
@@ -434,13 +411,6 @@ function showAIError(message) {
   setTimeout(() => {
     errorMessage.value = '';
   }, 5000);
-}
-
-// Função para alternar posição do painel de IA
-function toggleAIPanelPosition() {
-  const positions = ['right', 'bottom', 'floating'];
-  const currentIndex = positions.indexOf(aiPanelPosition.value);
-  aiPanelPosition.value = positions[(currentIndex + 1) % positions.length];
 }
 
 // ===================================================
@@ -1896,22 +1866,8 @@ watch(() => props.id, (newId) => {
       </button>
       <h2>Editar Estação Clínica</h2>
       <div class="action-buttons">
-        <!-- Botão do Painel de IA -->
+        <!-- Botão do Painel de IA REMOVIDO -->
         <!-- REMOVIDO: Botão do painel antigo - agora usamos IA integrada em cada campo -->
-        <!-- 
-        <button 
-          v-if="stationId && !isLoading" 
-          @click="toggleAIPanel"
-          :disabled="isSaving"
-          class="ai-panel-button"
-          :class="{ 'active': showAIPanel }"
-          title="Abrir painel de correção por IA"
-        >
-          <span v-if="isGeneratingContext">🔄</span>
-          <span v-else>🤖</span>
-          IA
-        </button>
-        -->
         
         <!-- Botões de Download -->
         <button 
@@ -2500,45 +2456,7 @@ watch(() => props.id, (newId) => {
       </div> <!-- Fim edit-scrollable-content -->
     </div> <!-- Fim edit-content-area -->
     
-    <!-- REMOVIDO: Painel de IA antigo - agora usamos IA integrada em cada campo -->
-    <!--
-    <div v-if="showAIPanel" class="ai-panel-sidebar">
-      <!-- Cabeçalho do Painel -->
-      <div class="ai-panel-header">
-        <div class="d-flex align-center">
-          <v-icon icon="mdi-robot" color="primary" class="me-2" />
-          <span class="font-weight-bold">Correção por IA</span>
-          <v-chip 
-            v-if="isGeneratingContext"
-            size="small" 
-            color="warning" 
-            variant="tonal"
-            class="ml-2"
-          >
-            Gerando contexto...
-          </v-chip>
-        </div>
-        
-        <div class="d-flex align-center gap-2">
-          <!-- Botão para alternar posição -->
-          <v-btn
-            size="small"
-            variant="text"
-            icon="mdi-dock-window"
-            @click="toggleAIPanelPosition"
-            title="Alternar posição do painel"
-          />
-          
-          <!-- Botão para fechar -->
-          <v-btn
-            size="small"
-            variant="text"
-            icon="mdi-close"
-            @click="showAIPanel = false"
-            title="Fechar painel"
-          />
-        </div>
-      </div>
+    <!-- PAINEL DE IA COMPLETAMENTE REMOVIDO -->
     
   </div> <!-- Fim edit-station-main-container -->
   
@@ -2551,12 +2469,11 @@ watch(() => props.id, (newId) => {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Container principal com grid para layout lado a lado */
+/* Container principal - layout simples sem painel lateral */
 .edit-station-main-container {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr auto; /* Editor expansível + painel fixo */
-  gap: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -2570,11 +2487,11 @@ watch(() => props.id, (newId) => {
   color: rgb(var(--v-theme-on-background));
 }
 
-/* Área de conteúdo principal (editor) */
+/* Área de conteúdo principal (editor) - ocupa todo o espaço */
 .edit-content-area {
+  flex: 1;
   overflow: hidden;
   position: relative;
-  min-width: 0; /* Permite que o grid funcione corretamente */
 }
 
 /* Área rolável interna do editor */
@@ -2640,7 +2557,7 @@ watch(() => props.id, (newId) => {
   100% { transform: rotate(360deg); }
 }
 
-.back-button, .delete-button, .download-button, .download-all-button, .ai-panel-button {
+.back-button, .delete-button, .download-button, .download-all-button {
   padding: 10px 20px;
   border: none;
   border-radius: 5px;
@@ -2708,30 +2625,6 @@ watch(() => props.id, (newId) => {
 .delete-button:disabled {
   background-color: #adb5bd;
   cursor: not-allowed;
-}
-
-.ai-panel-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  position: relative;
-  overflow: hidden;
-}
-
-.ai-panel-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.ai-panel-button.active {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
-  box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
-}
-
-.ai-panel-button:disabled {
-  background: #adb5bd;
-  cursor: not-allowed;
-  opacity: 0.6;
 }
 
 .tab-content .card { 
@@ -3546,153 +3439,5 @@ watch(() => props.id, (newId) => {
 .status-value {
   font-weight: 600;
   color: #495057;
-}
-
-/* 🤖 ============ ESTILOS DO PAINEL DE IA ============ */
-
-/* Estilos do painel de IA na sidebar (layout à direita) */
-.ai-panel-sidebar {
-  width: 480px; /* Aumentado para 480px para melhor aproveitamento */
-  max-width: 40vw; /* Aumentado para 40% da tela */
-  min-width: 360px; /* Aumentado mínimo para 360px */
-  height: 100%;
-  background: rgb(var(--v-theme-surface));
-  border-left: 1px solid rgb(var(--v-theme-outline-variant));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: width 0.2s ease;
-  flex-shrink: 0; /* Impede que o painel seja comprimido */
-}
-
-.ai-panel-sidebar .ai-panel-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgb(var(--v-theme-surface-container-high));
-  min-height: 56px;
-  flex-shrink: 0;
-}
-
-/* Estilos para outros layouts do painel de IA */
-.ai-panel-container {
-  position: fixed;
-  background: white;
-  border: 2px solid rgb(var(--v-theme-primary));
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-  backdrop-filter: blur(10px);
-  z-index: 1000;
-  max-height: 90vh;
-  overflow-y: auto;
-  transition: all 0.3s ease;
-}
-
-.ai-panel-right {
-  top: 80px;
-  right: 20px;
-  width: 400px;
-  max-width: calc(100vw - 40px);
-}
-
-.ai-panel-bottom {
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80%;
-  max-width: 800px;
-  max-height: 50vh;
-}
-
-.ai-panel-floating {
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-}
-
-.ai-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.12);
-  background: rgba(var(--v-theme-primary), 0.05);
-  border-radius: 10px 10px 0 0;
-}
-
-.ai-panel-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 999;
-  backdrop-filter: blur(2px);
-}
-
-.gap-2 {
-  gap: 8px;
-}
-
-/* Responsividade para o painel de IA */
-@media (max-width: 1024px) {
-  .ai-panel-sidebar {
-    width: 380px;
-    max-width: 40vw;
-  }
-}
-
-@media (max-width: 768px) {
-  /* Em telas pequenas, o layout grid vira coluna */
-  .edit-station-main-container {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
-  }
-  
-  .ai-panel-sidebar {
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-    height: 50vh;
-    border-left: none;
-    border-top: 1px solid rgb(var(--v-theme-outline-variant));
-  }
-  
-  .ai-panel-right {
-    width: calc(100vw - 20px);
-    right: 10px;
-    left: 10px;
-  }
-  
-  .ai-panel-bottom {
-    width: calc(100vw - 20px);
-    left: 10px;
-    transform: none;
-  }
-  
-  .ai-panel-floating {
-    width: calc(100vw - 20px);
-    height: calc(100vh - 40px);
-    max-height: none;
-    top: 20px;
-    left: 10px;
-    transform: none;
-  }
-}
-
-/* Tema escuro para o painel de IA */
-.v-theme--dark .ai-panel-container {
-  background: rgb(var(--v-theme-surface));
-  border-color: rgb(var(--v-theme-primary));
-}
-
-.v-theme--dark .ai-panel-header {
-  background: rgba(var(--v-theme-primary), 0.1);
 }
 </style>

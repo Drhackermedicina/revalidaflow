@@ -148,6 +148,16 @@ const isAdmin = computed(() => {
   );
 });
 
+// Função para abrir a página de edição em uma nova aba
+function openEditPage() {
+  if (stationId.value) {
+    const routeData = router.resolve({
+      path: `/app/edit-station/${stationId.value}`,
+    });
+    window.open(routeData.href, '_blank');
+  }
+}
+
 // Refs para estado de prontidão e controle da simulação
 const myReadyState = ref(false);
 const partnerReadyState = ref(false);
@@ -235,10 +245,10 @@ async function fetchSimulationData(currentStationId) {
     
     // Pré-carrega imagens dos impressos após carregar dados com sucesso
     // SILENCIOSO: Removido logs de fetch - apenas executa
-    // console.log('[FETCH] ✅ CORREÇÃO - Dados carregados, iniciando pré-carregamento para eliminação de delay');
+    // // console.log('[FETCH] ✅ CORREÇÃO - Dados carregados, iniciando pré-carregamento para eliminação de delay');
     // Adiciona um pequeno delay para garantir que os dados estão totalmente processados
     setTimeout(() => {
-      // console.log('[FETCH] ✅ CORREÇÃO - Executando preloadImpressoImages após delay');
+      // // console.log('[FETCH] ✅ CORREÇÃO - Executando preloadImpressoImages após delay');
       preloadImpressoImages();
     }, 100);
     
@@ -246,7 +256,7 @@ async function fetchSimulationData(currentStationId) {
     errorMessage.value = `Falha ao carregar dados da estação: ${error.message}`; stationData.value = null;
     checklistData.value = null;}
   finally {
-    isLoading.value = false; console.log("FETCH: Finalizado. isLoading:", isLoading.value, "stationData:", !!stationData.value, "checklistData:", !!checklistData.value);
+    isLoading.value = false; // console.log("FETCH: Finalizado. isLoading:", isLoading.value, "stationData:", !!stationData.value, "checklistData:", !!checklistData.value);
     if (stationData.value && !errorMessage.value && sessionId.value && userRole.value && stationId.value && currentUser.value?.uid) {
       if (!socket.value || !socket.value.connected) { connectWebSocket();
       }
@@ -318,7 +328,7 @@ function connectWebSocket() {
   if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) { console.error("SOCKET: Dados essenciais faltando para conexão.");
     return; }
   // const backendUrl = 'http://localhost:3000'; // Removido, agora usa import
-  console.log('SimulationView: backendUrl sendo usada para Socket.IO:', backendUrl); // NOVO LOG
+  // console.log('SimulationView: backendUrl sendo usada para Socket.IO:', backendUrl); // NOVO LOG
   connectionStatus.value = 'Conectando';
   if (socket.value && socket.value.connected) { socket.value.disconnect(); }
   socket.value = io(backendUrl, {
@@ -577,7 +587,7 @@ const isSettingUpSession = ref(false);
 function setupSession() {
   // CORREÇÃO: Previne execuções múltiplas simultâneas
   if (isSettingUpSession.value) {
-    console.log("SETUP_SESSION: ⚠️ Já está em execução, ignorando chamada duplicada");
+    // console.log("SETUP_SESSION: ⚠️ Já está em execução, ignorando chamada duplicada");
     return;
   }
   
@@ -695,6 +705,7 @@ watch(bothParticipantsReady, (newValue) => {
 // --- Hooks Ciclo de Vida ---
 // CORREÇÃO: Consolidando todos os onMounted em um único para evitar execução múltipla
 onMounted(() => { 
+
   setupSession(); 
   
   // Verifica link do Meet para candidato
@@ -857,7 +868,7 @@ function openCandidateMeet() {
 // CORREÇÃO: Removendo onMounted duplicado - já consolidado acima
 // Atualiza ao montar e ao mudar rota - MOVIDO PARA O onMounted PRINCIPAL
 // onMounted(() => {
-//   console.log("SimulationView Montado. Configurando sessão inicial...");
+//   // console.log("SimulationView Montado. Configurando sessão inicial...");
 //   setupSession();
 //   checkCandidateMeetLink();
 //   
@@ -871,7 +882,7 @@ function openCandidateMeet() {
 // });
 watch(() => route.fullPath, (newPath, oldPath) => {
   if (newPath !== oldPath && route.name === 'SimulationView') {
-    console.log("MUDANÇA DE ROTA (SimulationView fullPath):", newPath, "Reconfigurando sessão...");
+    // console.log("MUDANÇA DE ROTA (SimulationView fullPath):", newPath, "Reconfigurando sessão...");
     setupSession();
     checkCandidateMeetLink();
   }
@@ -1062,7 +1073,7 @@ function getImageSource(imagePath, imageId) {
   }
   
   // Se não foi pré-carregada, registra a URL original (SEM LOG INICIAL)
-  // console.log(`[CACHE] ⚠️ PRIMEIRA VEZ - Imagem não pré-carregada: ${imageId}`);
+  // // console.log(`[CACHE] ⚠️ PRIMEIRA VEZ - Imagem não pré-carregada: ${imageId}`);
   
   // Registra imediatamente no cache para evitar múltiplas tentativas
   imageLoadSources.value = {
@@ -1127,8 +1138,8 @@ function handleImageLoad(imageId) {
   // const isFirstLoad = !imageLoadSources.value[imageId + '_loaded'];
   
   // if (isFirstLoad) {
-  //   console.log(`[DEBUG] ✅ PRIMEIRA CARGA - Imagem carregada: ${imageId}`);
-  //   console.log(`[DEBUG] ✅ PRIMEIRA CARGA - Timestamp: ${new Date().toISOString()}`);
+  //   // console.log(`[DEBUG] ✅ PRIMEIRA CARGA - Imagem carregada: ${imageId}`);
+  //   // console.log(`[DEBUG] ✅ PRIMEIRA CARGA - Timestamp: ${new Date().toISOString()}`);
   //   
   //   // Marca como carregada para evitar logs futuros
   //   imageLoadSources.value[imageId + '_loaded'] = true;
@@ -1170,7 +1181,7 @@ function openImageZoom(imageSrc, imageAlt) {
 // Função para fechar zoom da imagem
 function closeImageZoom() {
   // SILENCIOSO: Removido log de fechamento
-  // console.log(`[ZOOM] 🔍 Fechando modal de zoom`);
+  // // console.log(`[ZOOM] 🔍 Fechando modal de zoom`);
   imageZoomDialog.value = false;
   selectedImageForZoom.value = '';
   selectedImageAlt.value = '';
@@ -1250,7 +1261,7 @@ function preloadImpressoImages() {
       // Mesmo com erro, verifica se é a última
       if (loadedCount === totalImages) {
         allImagesPreloaded.value = true;
-        console.log(`[PRELOAD] ⚠️ Pré-carregamento finalizado com algumas falhas. Total: ${totalImages}`);
+        // console.log(`[PRELOAD] ⚠️ Pré-carregamento finalizado com algumas falhas. Total: ${totalImages}`);
       }
     });
   });
@@ -1260,7 +1271,7 @@ function preloadImpressoImages() {
 function isImagePreloaded(imageId) {
   const isInCache = !!imageLoadSources.value[imageId];
   // CORREÇÃO: Removendo log excessivo que aparecia constantemente
-  // console.log(`[PRELOAD-CHECK] ✅ CORREÇÃO - Verificando ${imageId}: ${isInCache ? 'DISPONÍVEL' : 'NÃO DISPONÍVEL'}`);
+  // // console.log(`[PRELOAD-CHECK] ✅ CORREÇÃO - Verificando ${imageId}: ${isInCache ? 'DISPONÍVEL' : 'NÃO DISPONÍVEL'}`);
   return isInCache;
 }
 
@@ -1270,7 +1281,7 @@ function ensureImageIsPreloaded(imagePath, imageId, altText) {
     preloadSingleImage(imagePath, imageId, altText);
   } else {
     // CORREÇÃO: Removendo log excessivo
-    // console.log(`[PRELOAD-ENSURE] ✅ CORREÇÃO - Imagem ${imageId} já disponível para uso instantâneo`);
+    // // console.log(`[PRELOAD-ENSURE] ✅ CORREÇÃO - Imagem ${imageId} já disponível para uso instantâneo`);
   }
 }
 
@@ -1761,16 +1772,29 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                     <VIcon icon="ri-menu-line" />
                 </VBtn>
                 <div>
-                    <h2 class="text-h5">{{ 
-                      isCandidate 
-                        ? stationData.especialidade 
-                        : `${stationData.especialidade} - ${stationData.tituloEstacao}` 
+                    <h2 class="text-h5">{{
+                      isCandidate
+                        ? stationData.especialidade
+                        : `${stationData.especialidade} - ${stationData.tituloEstacao}`
                     }}</h2>
                 </div>
             </div>
 
             <!-- Timer -->
             <div class="d-flex align-center gap-3">
+              <!-- Botão de Edição para Admins -->
+              <VBtn
+                v-if="isAdmin && stationId"
+                icon
+                variant="text"
+                size="small"
+                color="warning"
+                title="Editar Estação (abrir em nova aba)"
+                @click="openEditPage"
+                style="background-color: yellow !important; color: black !important;"
+              >
+                <VIcon icon="ri-pencil-line" style="color: black !important;" />
+              </VBtn>
               <div v-if="isActorOrEvaluator && !simulationStarted && !simulationEnded" style="width: 150px;">
                 <VSelect
                   v-model="selectedDurationMinutes"

@@ -19,10 +19,6 @@ export function useAdminAuth() {
   // Verifica se o usuário atual é admin
   const isAdmin = computed(() => {
     if (isLoading.value || !currentUser.value) {
-      console.log('Loading or no user:', {
-        isLoading: isLoading.value,
-        currentUser: currentUser.value
-      })
       return false
     }
     
@@ -39,13 +35,6 @@ export function useAdminAuth() {
     
     // Modo de desenvolvimento removido - usando apenas verificação por UID
 
-    console.log('Admin check:', {
-      userUID,
-      adminUIDs,
-      isUserAdmin,
-      currentUserData: currentUser.value
-    })
-    
     return isUserAdmin
   })
 
@@ -57,12 +46,6 @@ export function useAdminAuth() {
     const userRole = currentUser.value.role || currentUser.value.customClaims?.role
     const hasRole = userRole === 'admin' || userRole === 'administrator'
 
-    console.log('Role check:', {
-      userRole,
-      hasRole,
-      customClaims: currentUser.value.customClaims
-    })
-    
     return hasRole
   })
 
@@ -70,13 +53,6 @@ export function useAdminAuth() {
   const isAuthorizedAdmin = computed(() => {
     const authorized = isAdmin.value || hasAdminRole.value
 
-    console.log('Combined admin check:', {
-      isAdmin: isAdmin.value,
-      hasAdminRole: hasAdminRole.value,
-      isAuthorizedAdmin: authorized,
-      isLoading: isLoading.value
-    })
-    
     return authorized
   })
 
