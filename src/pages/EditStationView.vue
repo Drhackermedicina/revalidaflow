@@ -1,4 +1,9 @@
 <script setup>
+// 🔧 CORREÇÃO: Definir props para aceitar ID da rota
+const props = defineProps({
+  id: String // Para aceitar o ID da rota sem warnings
+})
+
 import { currentUser } from '@/plugins/auth.js';
 import { db, storage, testStorageConnection } from '@/plugins/firebase.js';
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -7,6 +12,9 @@ import imageCompression from 'browser-image-compression';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
+import AIFieldAssistant from '@/components/AIFieldAssistant.vue';
+import { geminiService } from '@/services/geminiService.js';
+import memoryService from '@/services/memoryService.js';
 
 // Debug do storage
 console.log('🔧 Configuração de Storage:');
@@ -20,7 +28,25 @@ const theme = useTheme();
 // Computed para detectar tema escuro
 const isDarkTheme = computed(() => theme.global.name.value === 'dark');
 
-const stationId = ref(null);
+// 🔧 CORREÇÃO: Usar props.id se disponível
+const stationId = ref(props.id || route.params.id || null);
+
+// Debug da inicialização
+console.log('🔍 Inicialização do stationId:', {
+  propsId: props.id,
+  routeParamsId: route.params.id,
+  finalStationId: stationId.value,
+  routePath: route.path,
+  routeName: route.name
+});
+
+console.log('🔍 Valores detalhados:', {
+  'props.id': props.id,
+  'route.params.id': route.params.id,
+  'stationId.value': stationId.value,
+  'route.params': JSON.stringify(route.params),
+  'route.path': route.path
+});
 const isLoading = ref(true);
 const errorMessage = ref('');
 const successMessage = ref('');
@@ -30,6 +56,13 @@ const keyboardShortcutUsed = ref(false);
 // Variáveis para controle de upload de imagens
 const uploadingImages = ref({});
 const uploadProgress = ref({});
+
+// 🤖 Variáveis para o sistema de IA
+const stationContext = ref('');
+// DESABILITADO: Painel antigo removido em favor do sistema integrado
+// const showAIPanel = ref(false);
+const isGeneratingContext = ref(false);
+// const aiPanelPosition = ref('right'); // 'right', 'bottom', 'floating'
 
 // Função para obter o estado inicial do formulário
 function getInitialFormData() {
@@ -311,9 +344,113 @@ async function normalizarHistoricoEdicao(stationData) {
   return normalizedData;
 }
 
+// 🤖 ============ FUNÇÕES DO SISTEMA DE IA ============
+
+// Função para carregar ou gerar contexto da estação
+async function loadOrGenerateStationContext() {
+  if (!stationId.value) return;
+
+  try {
+    // Tentar carregar contexto existente
+    const existingContext = await memoryService.loadStationContext(stationId.value);
+    
+    if (existingContext) {
+      stationContext.value = existingContext;
+      console.log('✅ Contexto da estação carregado do cache');
+      return;
+    }
+
+    // Se não existir, gerar novo contexto
+    console.log('🤖 Gerando contexto da estação pela primeira vez...');
+    isGeneratingContext.value = true;
+    
+    const context = await geminiService.generateStationContext(formData.value);
+    
+    if (context) {
+      stationContext.value = context;
+      await memoryService.saveStationContext(stationId.value, context);
+      console.log('✅ Contexto da estação gerado e salvo');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar/gerar contexto:', error);
+    // Contexto padrão se falhar
+    stationContext.value = `Estação clínica: ${formData.value.tituloEstacao || 'Sem título'} - ${formData.value.especialidade || 'Especialidade não definida'}`;
+  } finally {
+    isGeneratingContext.value = false;
+  }
+}
+
+// DESABILITADO: Função do painel antigo
+// function toggleAIPanel() {
+//   showAIPanel.value = !showAIPanel.value;
+//   
+//   if (showAIPanel.value && !stationContext.value) {
+//     loadOrGenerateStationContext();
+//   }
+// }
+
+// Função para lidar com atualização de campo pela IA INTEGRADA
+function handleAIFieldUpdate({ field, value, index, original }) {
+  console.log('🤖 Campo atualizado pela IA integrada:', { 
+    field, 
+    value: value?.substring(0, 50) + '...', 
+    index 
+  })
+  
+  if (!field || !formData.value) {
+    console.error('❌ Dados insuficientes para atualização:', { field: !!field, formData: !!formData.value })
+    return
+  }
+  
+  try {
+    // 🔧 APLICAÇÃO DIRETA: A IA integrada já emitiu update:modelValue
+    // Esta função é apenas para logging e notificações
+    
+    if (typeof index === 'number') {
+      console.log('✅ Item de array atualizado via IA integrada:', { field, index })
+    } else {
+      console.log('✅ Campo simples atualizado via IA integrada:', { field })
+    }
+    
+    // Mostrar sucesso
+    showAISuccess('Campo atualizado pela IA!')
+    
+  } catch (error) {
+    console.error('❌ Erro ao processar atualização da IA:', error)
+  }
+}
+
+// Função para mostrar mensagem de sucesso
+function showAISuccess(message) {
+  successMessage.value = message;
+  setTimeout(() => {
+    successMessage.value = '';
+  }, 4000);
+}
+
+// Função para mostrar mensagem de erro
+function showAIError(message) {
+  errorMessage.value = message;
+  setTimeout(() => {
+    errorMessage.value = '';
+  }, 5000);
+}
+
+// Função para alternar posição do painel de IA
+function toggleAIPanelPosition() {
+  const positions = ['right', 'bottom', 'floating'];
+  const currentIndex = positions.indexOf(aiPanelPosition.value);
+  aiPanelPosition.value = positions[(currentIndex + 1) % positions.length];
+}
+
+// ===================================================
+
 // Função para carregar estação do Firestore
 async function fetchStationData() {
+  console.log('🚀 fetchStationData chamada com stationId:', stationId.value);
+  
   if (!stationId.value) {
+    console.error('❌ Nenhum ID de estação fornecido');
     errorMessage.value = "Nenhum ID de estação fornecido para edição.";
     isLoading.value = false;
     return;
@@ -403,6 +540,9 @@ const convertTimestampToDate = (timestamp) => {
       loadStationIntoForm(stationDataNormalized);
       successMessage.value = `Estação "${stationDataNormalized.tituloEstacao}" carregada com sucesso!`;
       setTimeout(() => { successMessage.value = ''; }, 3000);
+      
+      // 🤖 Carregar contexto da IA após carregar a estação
+      loadOrGenerateStationContext();
     } else {
       errorMessage.value = "Estação não encontrada.";
     }
@@ -1634,6 +1774,27 @@ function handleKeydown(event) {
 
 // Lifecycle
 onMounted(async () => {
+  // Debug adicional
+  console.log('🔧 onMounted - Debug completo:', {
+    routePath: route.path,
+    routeName: route.name,
+    routeParams: route.params,
+    propsId: props.id,
+    currentStationId: stationId.value,
+    isLoading: isLoading.value
+  });
+  
+  // 🔧 BACKUP: Se stationId existe mas ainda está loading, forçar carregamento
+  if (stationId.value && isLoading.value) {
+    console.log('🔄 BACKUP: Forçando fetchStationData no onMounted');
+    setTimeout(() => {
+      if (isLoading.value) {
+        console.log('🚨 TIMEOUT: Ainda carregando, executando fetchStationData agora!');
+        fetchStationData();
+      }
+    }, 1000);
+  }
+  
   // O watch com immediate: true já chama fetchStationData na montagem se route.params.id estiver presente
   
   // Debug e teste do Storage no mount
@@ -1665,8 +1826,40 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown);
 });
 
+// 🔧 CORREÇÃO: Watch mais robusto com debug
 watch(() => route.params.id, (newId) => {
+  console.log('🔍 Watch route.params.id:', { 
+    newId, 
+    currentStationId: stationId.value,
+    newIdType: typeof newId,
+    currentStationIdType: typeof stationId.value,
+    areEqual: newId === stationId.value,
+    truthyNewId: !!newId
+  });
+  
   if (newId) {
+    if (newId !== stationId.value) {
+      console.log('📥 Atualizando stationId e carregando dados:', newId);
+      stationId.value = newId;
+      fetchStationData();
+    } else {
+      console.log('🔄 ID igual, não recarregando - MAS VAMOS FORÇAR O CARREGAMENTO!');
+      // 🔧 CORREÇÃO: Forçar carregamento se ainda estiver loading
+      if (isLoading.value) {
+        console.log('🔄 Ainda está carregando, forçando fetchStationData');
+        fetchStationData();
+      }
+    }
+  } else {
+    console.log('⚠️ Nenhum ID na rota');
+  }
+}, { immediate: true });
+
+// Também watch props.id se vier direto
+watch(() => props.id, (newId) => {
+  console.log('🔍 Watch props.id:', { newId, currentStationId: stationId.value });
+  if (newId && newId !== stationId.value) {
+    console.log('📥 Atualizando stationId via props:', newId);
     stationId.value = newId;
     fetchStationData();
   }
@@ -1674,24 +1867,52 @@ watch(() => route.params.id, (newId) => {
 </script>
 
 <template>
+  <!-- 🎨 NOVO LAYOUT: Container principal otimizado -->
   <div 
     :class="[
-      'edit-station-container',
-      isDarkTheme ? 'edit-station-container--dark' : 'edit-station-container--light'
+      'edit-station-main-container',
+      isDarkTheme ? 'edit-station-main-container--dark' : 'edit-station-main-container--light'
+      // REMOVIDO: { 'with-ai-panel': showAIPanel } - painel antigo desabilitado
     ]"
   >
-    <div 
-      :class="[
-        'admin-upload-page',
-        isDarkTheme ? 'admin-upload-page--dark' : 'admin-upload-page--light'
-      ]"
-    >
+    <!-- 📝 Área de edição (esquerda) -->
+    <div class="edit-content-area">
+      <div class="edit-scrollable-content">
+        <div 
+          :class="[
+            'edit-station-container',
+            isDarkTheme ? 'edit-station-container--dark' : 'edit-station-container--light'
+          ]"
+        >
+          <div 
+            :class="[
+              'admin-upload-page',
+              isDarkTheme ? 'admin-upload-page--dark' : 'admin-upload-page--light'
+            ]"
+          >
     <div class="d-flex justify-space-between align-center mb-4">
       <button @click="router.push('/app/station-list')" class="back-button">
         ← Voltar para Lista
       </button>
       <h2>Editar Estação Clínica</h2>
       <div class="action-buttons">
+        <!-- Botão do Painel de IA -->
+        <!-- REMOVIDO: Botão do painel antigo - agora usamos IA integrada em cada campo -->
+        <!-- 
+        <button 
+          v-if="stationId && !isLoading" 
+          @click="toggleAIPanel"
+          :disabled="isSaving"
+          class="ai-panel-button"
+          :class="{ 'active': showAIPanel }"
+          title="Abrir painel de correção por IA"
+        >
+          <span v-if="isGeneratingContext">🔄</span>
+          <span v-else>🤖</span>
+          IA
+        </button>
+        -->
+        
         <!-- Botões de Download -->
         <button 
           v-if="stationId" 
@@ -1779,7 +2000,16 @@ watch(() => route.params.id, (newId) => {
           </div>
           <div class="form-group">
             <label for="manualTituloEstacao">Título da Estação (como aparecerá na lista):</label>
-            <input type="text" id="manualTituloEstacao" v-model="formData.tituloEstacao" required placeholder="Ex: Atendimento ao Paciente com Dor Torácica Aguda">
+            <AIFieldAssistant
+              field-name="tituloEstacao"
+              field-label="Título da Estação"
+              v-model="formData.tituloEstacao"
+              :station-context="stationContext"
+              :station-id="stationId"
+              @field-updated="handleAIFieldUpdate"
+            >
+              <input type="text" id="manualTituloEstacao" v-model="formData.tituloEstacao" required placeholder="Ex: Atendimento ao Paciente com Dor Torácica Aguda">
+            </AIFieldAssistant>
           </div>
           
           <div class="form-group">
@@ -1811,11 +2041,29 @@ watch(() => route.params.id, (newId) => {
           <h4>Instruções para o Participante (Candidato)</h4>
           <div class="form-group">
             <label for="manualDescricaoCaso">Descrição Completa do Caso para o Candidato:</label>
-            <textarea id="manualDescricaoCaso" v-model="formData.descricaoCasoCompleta" rows="5" required placeholder="Descreva o cenário clínico que o candidato encontrará..."></textarea>
+            <AIFieldAssistant
+              field-name="descricaoCasoCompleta"
+              field-label="Descrição do Caso"
+              v-model="formData.descricaoCasoCompleta"
+              :station-context="stationContext"
+              :station-id="stationId"
+              @field-updated="handleAIFieldUpdate"
+            >
+              <textarea id="manualDescricaoCaso" v-model="formData.descricaoCasoCompleta" rows="5" required placeholder="Descreva o cenário clínico que o candidato encontrará..."></textarea>
+            </AIFieldAssistant>
           </div>
           <div class="form-group">
             <label for="manualTarefasPrincipais">Tarefas Principais do Candidato (uma por linha):</label>
-            <textarea id="manualTarefasPrincipais" v-model="formData.tarefasPrincipais" rows="4" required placeholder="Ex: Realizar anamnese completa.&#10;Interpretar o ECG.&#10;Propor conduta inicial."></textarea>
+            <AIFieldAssistant
+              field-name="tarefasPrincipais"
+              field-label="Tarefas Principais"
+              v-model="formData.tarefasPrincipais"
+              :station-context="stationContext"
+              :station-id="stationId"
+              @field-updated="handleAIFieldUpdate"
+            >
+              <textarea id="manualTarefasPrincipais" v-model="formData.tarefasPrincipais" rows="4" required placeholder="Ex: Realizar anamnese completa.&#10;Interpretar o ECG.&#10;Propor conduta inicial."></textarea>
+            </AIFieldAssistant>
           </div>
           <div class="form-group">
             <label for="manualAvisosImportantes">Avisos Importantes para o Candidato (um por linha, opcional):</label>
@@ -1877,11 +2125,31 @@ watch(() => route.params.id, (newId) => {
             </div>
             <div class="form-group">
               <label :for="'infoVerbalContexto' + index">Contexto ou Pergunta-Chave do Candidato:</label>
-              <input type="text" :id="'infoVerbalContexto' + index" v-model="info.contextoOuPerguntaChave" placeholder="Ex: Se o candidato perguntar sobre alergias...">
+              <AIFieldAssistant
+                :field-name="`informacoesVerbaisSimulado.${index}.contextoOuPerguntaChave`"
+                field-label="Contexto da Informação Verbal"
+                v-model="info.contextoOuPerguntaChave"
+                :station-context="stationContext"
+                :station-id="stationId"
+                :item-index="index"
+                @field-updated="handleAIFieldUpdate"
+              >
+                <input type="text" :id="'infoVerbalContexto' + index" v-model="info.contextoOuPerguntaChave" placeholder="Ex: Se o candidato perguntar sobre alergias...">
+              </AIFieldAssistant>
             </div>
             <div class="form-group">
               <label :for="'infoVerbalInformacao' + index">Informação a ser Fornecida pelo Ator:</label>
-              <textarea :id="'infoVerbalInformacao' + index" v-model="info.informacao" rows="2" placeholder="Ex: Diga que o paciente é alérgico à penicilina."></textarea>
+              <AIFieldAssistant
+                :field-name="`informacoesVerbaisSimulado.${index}.informacao`"
+                field-label="Informação do Ator"
+                v-model="info.informacao"
+                :station-context="stationContext"
+                :station-id="stationId"
+                :item-index="index"
+                @field-updated="handleAIFieldUpdate"
+              >
+                <textarea :id="'infoVerbalInformacao' + index" v-model="info.informacao" rows="2" placeholder="Ex: Diga que o paciente é alérgico à penicilina."></textarea>
+              </AIFieldAssistant>
             </div>
           </div>
           <button type="button" @click="adicionarInfoVerbal" class="add-item-button">+ Adicionar Informação Verbal</button>
@@ -2227,14 +2495,93 @@ watch(() => route.params.id, (newId) => {
         <button type="button" @click="cancelarAdicaoInfoVerbal" class="cancel-button">Cancelar</button>
       </div>
     </div>
-  </div>
-  </div>
-</template>
-
-<style scoped>
+        </div>
+      </div>
+      </div> <!-- Fim edit-scrollable-content -->
+    </div> <!-- Fim edit-content-area -->
+    
+    <!-- REMOVIDO: Painel de IA antigo - agora usamos IA integrada em cada campo -->
+    <!--
+    <div v-if="showAIPanel" class="ai-panel-sidebar">
+      <!-- Cabeçalho do Painel -->
+      <div class="ai-panel-header">
+        <div class="d-flex align-center">
+          <v-icon icon="mdi-robot" color="primary" class="me-2" />
+          <span class="font-weight-bold">Correção por IA</span>
+          <v-chip 
+            v-if="isGeneratingContext"
+            size="small" 
+            color="warning" 
+            variant="tonal"
+            class="ml-2"
+          >
+            Gerando contexto...
+          </v-chip>
+        </div>
+        
+        <div class="d-flex align-center gap-2">
+          <!-- Botão para alternar posição -->
+          <v-btn
+            size="small"
+            variant="text"
+            icon="mdi-dock-window"
+            @click="toggleAIPanelPosition"
+            title="Alternar posição do painel"
+          />
+          
+          <!-- Botão para fechar -->
+          <v-btn
+            size="small"
+            variant="text"
+            icon="mdi-close"
+            @click="showAIPanel = false"
+            title="Fechar painel"
+          />
+        </div>
+      </div>
+    
+  </div> <!-- Fim edit-station-main-container -->
+  
+</template><style scoped>
 /* Estilos base do container */
 .edit-station-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Container principal com grid para layout lado a lado */
+.edit-station-main-container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto; /* Editor expansível + painel fixo */
+  gap: 0;
+  overflow: hidden;
+}
+
+.edit-station-main-container--light {
+  background-color: rgb(var(--v-theme-background));
+  color: rgb(var(--v-theme-on-background));
+}
+
+.edit-station-main-container--dark {
+  background-color: rgb(var(--v-theme-background));
+  color: rgb(var(--v-theme-on-background));
+}
+
+/* Área de conteúdo principal (editor) */
+.edit-content-area {
+  overflow: hidden;
+  position: relative;
+  min-width: 0; /* Permite que o grid funcione corretamente */
+}
+
+/* Área rolável interna do editor */
+.edit-scrollable-content {
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px 4px 16px 16px; /* Reduzido padding superior e direito */
 }
 
 .edit-station-container--light {
@@ -2249,9 +2596,9 @@ watch(() => route.params.id, (newId) => {
 
 /* Estilos da página de upload */
 .admin-upload-page { 
-  max-width: 950px; 
-  margin: 20px auto; 
-  padding: 20px; 
+  /* Removido max-width e margin para permitir layout full-width */
+  width: 100%;
+  padding: 8px 16px; /* Reduzido padding para maximizar espaço */
   font-family: 'Inter', sans-serif;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
@@ -2293,7 +2640,7 @@ watch(() => route.params.id, (newId) => {
   100% { transform: rotate(360deg); }
 }
 
-.back-button, .delete-button, .download-button, .download-all-button {
+.back-button, .delete-button, .download-button, .download-all-button, .ai-panel-button {
   padding: 10px 20px;
   border: none;
   border-radius: 5px;
@@ -2361,6 +2708,30 @@ watch(() => route.params.id, (newId) => {
 .delete-button:disabled {
   background-color: #adb5bd;
   cursor: not-allowed;
+}
+
+.ai-panel-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-panel-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.ai-panel-button.active {
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+}
+
+.ai-panel-button:disabled {
+  background: #adb5bd;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .tab-content .card { 
@@ -3175,5 +3546,153 @@ watch(() => route.params.id, (newId) => {
 .status-value {
   font-weight: 600;
   color: #495057;
+}
+
+/* 🤖 ============ ESTILOS DO PAINEL DE IA ============ */
+
+/* Estilos do painel de IA na sidebar (layout à direita) */
+.ai-panel-sidebar {
+  width: 480px; /* Aumentado para 480px para melhor aproveitamento */
+  max-width: 40vw; /* Aumentado para 40% da tela */
+  min-width: 360px; /* Aumentado mínimo para 360px */
+  height: 100%;
+  background: rgb(var(--v-theme-surface));
+  border-left: 1px solid rgb(var(--v-theme-outline-variant));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.2s ease;
+  flex-shrink: 0; /* Impede que o painel seja comprimido */
+}
+
+.ai-panel-sidebar .ai-panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgb(var(--v-theme-surface-container-high));
+  min-height: 56px;
+  flex-shrink: 0;
+}
+
+/* Estilos para outros layouts do painel de IA */
+.ai-panel-container {
+  position: fixed;
+  background: white;
+  border: 2px solid rgb(var(--v-theme-primary));
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  max-height: 90vh;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.ai-panel-right {
+  top: 80px;
+  right: 20px;
+  width: 400px;
+  max-width: calc(100vw - 40px);
+}
+
+.ai-panel-bottom {
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  max-width: 800px;
+  max-height: 50vh;
+}
+
+.ai-panel-floating {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+}
+
+.ai-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.12);
+  background: rgba(var(--v-theme-primary), 0.05);
+  border-radius: 10px 10px 0 0;
+}
+
+.ai-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+/* Responsividade para o painel de IA */
+@media (max-width: 1024px) {
+  .ai-panel-sidebar {
+    width: 380px;
+    max-width: 40vw;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Em telas pequenas, o layout grid vira coluna */
+  .edit-station-main-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+  
+  .ai-panel-sidebar {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    height: 50vh;
+    border-left: none;
+    border-top: 1px solid rgb(var(--v-theme-outline-variant));
+  }
+  
+  .ai-panel-right {
+    width: calc(100vw - 20px);
+    right: 10px;
+    left: 10px;
+  }
+  
+  .ai-panel-bottom {
+    width: calc(100vw - 20px);
+    left: 10px;
+    transform: none;
+  }
+  
+  .ai-panel-floating {
+    width: calc(100vw - 20px);
+    height: calc(100vh - 40px);
+    max-height: none;
+    top: 20px;
+    left: 10px;
+    transform: none;
+  }
+}
+
+/* Tema escuro para o painel de IA */
+.v-theme--dark .ai-panel-container {
+  background: rgb(var(--v-theme-surface));
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.v-theme--dark .ai-panel-header {
+  background: rgba(var(--v-theme-primary), 0.1);
 }
 </style>

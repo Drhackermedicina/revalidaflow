@@ -9,6 +9,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     AdminAgentAssistant: typeof import('./src/components/AdminAgentAssistant.vue')['default']
     AgentAssistant: typeof import('./src/components/AgentAssistant.vue')['default']
+    AICorrectionPanel: typeof import('./src/components/AICorrectionPanel.vue')['default']
+    AIFieldAssistant: typeof import('./src/components/AIFieldAssistant.vue')['default']
     AppBreadcrumbs: typeof import('./src/components/AppBreadcrumbs.vue')['default']
     CardStatisticsHorizontal: typeof import('./src/@core/components/cards/CardStatisticsHorizontal.vue')['default']
     CardStatisticsVertical: typeof import('./src/@core/components/cards/CardStatisticsVertical.vue')['default']
