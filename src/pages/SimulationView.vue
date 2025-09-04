@@ -25,6 +25,7 @@ import {
   splitIntoParagraphs
 } from '@/utils/simulationUtils.ts';
 import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { io } from 'socket.io-client';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -171,6 +172,10 @@ const simulationTimeSeconds = ref(10 * 60);
 const timerDisplay = ref(formatTime(simulationTimeSeconds.value));
 const selectedDurationMinutes = ref(10);
 
+// NOVO: Ref para controlar ativação do backend (delayed activation)
+const backendActivated = ref(false);
+const localSessionId = ref(null); // Temporary session ID for view mode
+
 // --- Função Helper para Formatar Tempo ---
 
 // --- Função para Tocar Som (Início/Fim) ---
@@ -202,14 +207,44 @@ function playSoundEffect() {
 
 // --- Função para Buscar Dados da Estação e Checklist ---
 async function fetchSimulationData(currentStationId) {
-  if (!currentStationId) { errorMessage.value = 'ID da estação inválido.';
-    isLoading.value = false; return; }
-  isLoading.value = true; errorMessage.value = '';
+  console.log('[DIAGNOSTIC] fetchSimulationData iniciado para stationId:', currentStationId);
+  
+  if (!currentStationId) {
+    errorMessage.value = 'ID da estação inválido.';
+    isLoading.value = false;
+    console.error('[DIAGNOSTIC] Erro: ID da estação não fornecido');
+    return;
+  }
+  
+  isLoading.value = true;
+  errorMessage.value = '';
+  
   try {
+    console.log('[DIAGNOSTIC] Verificando autenticação Firebase...');
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('Usuário não autenticado no Firebase');
+    }
+    console.log('[DIAGNOSTIC] Usuário autenticado:', user.uid);
+    
+    console.log('[DIAGNOSTIC] Iniciando busca no Firestore para coleção: estacoes_clinicas, documento:', currentStationId);
     const stationDocRef = doc(db, 'estacoes_clinicas', currentStationId);
     const stationSnap = await getDoc(stationDocRef);
-    if (!stationSnap.exists()) { throw new Error(`Estação ${currentStationId} não encontrada.`); }
-    stationData.value = { id: stationSnap.id, ...stationSnap.data() };
+    
+    console.log('[DIAGNOSTIC] Firestore response recebido:', stationSnap.exists() ? 'Documento existe' : 'Documento não existe');
+    
+    if (!stationSnap.exists()) {
+      throw new Error(`Estação ${currentStationId} não encontrada no Firestore.`);
+    }
+    
+    const stationDataRaw = stationSnap.data();
+    console.log('[DIAGNOSTIC] Dados brutos da estação:', stationDataRaw ? 'Disponíveis' : 'Nulos');
+    console.log('[DIAGNOSTIC] Campos disponíveis:', stationDataRaw ? Object.keys(stationDataRaw) : 'Nenhum');
+    
+    stationData.value = { id: stationSnap.id, ...stationDataRaw };
+    console.log('[DIAGNOSTIC] stationData definido com sucesso');
 
     const durationFromQuery = route.query.duration ? parseInt(route.query.duration) : null;
     const validOptions = [5, 6, 7, 8, 9, 10];
@@ -229,6 +264,7 @@ async function fetchSimulationData(currentStationId) {
 
     if (stationData.value?.padraoEsperadoProcedimento) {
       checklistData.value = stationData.value.padraoEsperadoProcedimento;
+      console.log('[DIAGNOSTIC] PEP encontrado:', checklistData.value ? 'Sim' : 'Não');
       
       // Verifica feedbackEstacao em diferentes locais (estação raiz ou dentro do PEP)
       if (stationData.value.feedbackEstacao && !checklistData.value.feedbackEstacao) {
@@ -236,32 +272,52 @@ async function fetchSimulationData(currentStationId) {
       }
       
       if (!checklistData.value.itensAvaliacao || !Array.isArray(checklistData.value.itensAvaliacao) || checklistData.value.itensAvaliacao.length === 0) {
-        console.warn("FETCH: PEP não contém 'itensAvaliacao' válidos.");
+        console.warn("[DIAGNOSTIC] PEP não contém 'itensAvaliacao' válidos.");
+      } else {
+        console.log('[DIAGNOSTIC] Itens de avaliação encontrados:', checklistData.value.itensAvaliacao.length);
       }
     } else {
-      console.warn(`FETCH: 'padraoEsperadoProcedimento' não encontrado na estação. PEP (checklistData) será nulo.`);
+      console.warn("[DIAGNOSTIC] 'padraoEsperadoProcedimento' não encontrado na estação. PEP (checklistData) será nulo.");
       checklistData.value = null;
     }
     
     // Pré-carrega imagens dos impressos após carregar dados com sucesso
-    // SILENCIOSO: Removido logs de fetch - apenas executa
-    // // console.log('[FETCH] ✅ CORREÇÃO - Dados carregados, iniciando pré-carregamento para eliminação de delay');
-    // Adiciona um pequeno delay para garantir que os dados estão totalmente processados
+    console.log('[DIAGNOSTIC] Iniciando pré-carregamento de imagens...');
     setTimeout(() => {
-      // // console.log('[FETCH] ✅ CORREÇÃO - Executando preloadImpressoImages após delay');
       preloadImpressoImages();
+      console.log('[DIAGNOSTIC] Pré-carregamento de imagens concluído');
     }, 100);
     
-  } catch (error) { console.error("FETCH: Erro ao buscar dados:", error);
-    errorMessage.value = `Falha ao carregar dados da estação: ${error.message}`; stationData.value = null;
-    checklistData.value = null;}
-  finally {
-    isLoading.value = false; // console.log("FETCH: Finalizado. isLoading:", isLoading.value, "stationData:", !!stationData.value, "checklistData:", !!checklistData.value);
-    if (stationData.value && !errorMessage.value && sessionId.value && userRole.value && stationId.value && currentUser.value?.uid) {
-      if (!socket.value || !socket.value.connected) { connectWebSocket();
-      }
-    } else { console.warn("FETCH: Dados faltando para conectar ao WebSocket ou erro no fetch.");
+    console.log('[DIAGNOSTIC] fetchSimulationData concluído com sucesso');
+    
+  } catch (error) {
+    console.error("[DIAGNOSTIC] Erro ao buscar dados:", error);
+    console.error("[DIAGNOSTIC] Tipo de erro:", error.name);
+    console.error("[DIAGNOSTIC] Mensagem de erro:", error.message);
+    console.error("[DIAGNOSTIC] Stack trace:", error.stack);
+    
+    // Classificação de erros para melhor feedback ao usuário
+    if (error.message.includes('permission-denied') || error.message.includes('Permission denied')) {
+      errorMessage.value = 'Permissão negada: Verifique se você está autenticado e tem acesso a esta estação.';
+    } else if (error.message.includes('not-found') || error.message.includes('not found')) {
+      errorMessage.value = `Estação ${currentStationId} não encontrada no banco de dados.`;
+    } else if (error.message.includes('network') || error.message.includes('Network')) {
+      errorMessage.value = 'Erro de rede: Verifique sua conexão com a internet.';
+    } else {
+      errorMessage.value = `Falha ao carregar dados da estação: ${error.message}`;
     }
+    
+    stationData.value = null;
+    checklistData.value = null;
+  } finally {
+    isLoading.value = false;
+    console.log("[DIAGNOSTIC] Finalizado. isLoading:", isLoading.value,
+                "stationData:", !!stationData.value,
+                "checklistData:", !!checklistData.value,
+                "errorMessage:", errorMessage.value);
+    
+    // WebSocket connection will be initiated only when backend is activated (on second user ready)
+    console.log("FETCH: Dados carregados em modo de visualização. WebSocket será conectado quando backend for ativado.");
   }
 }
 
@@ -344,12 +400,11 @@ function connectWebSocket() {
   socket.value.on('connect', () => {
     connectionStatus.value = 'Conectado';
     
+    console.log("SOCKET: Conectado.");
+
     // Delay de 1 segundo para habilitar o botão "Estou pronto" do candidato
     if (userRole.value === 'candidate') {
-      candidateReadyButtonEnabled.value = false;
-      setTimeout(() => {
-        candidateReadyButtonEnabled.value = true;
-      }, 1000);
+      candidateReadyButtonEnabled.value = true; // Habilita o botão após a conexão
     }
   });
   socket.value.on('disconnect', (reason) => {
@@ -637,12 +692,7 @@ function setupSession() {
       if(durationFromQuery) console.warn(`Duração inválida (${durationFromQuery}) na URL, usando padrão ${selectedDurationMinutes.value} min.`);
   }
   timerDisplay.value = formatTime(simulationTimeSeconds.value * 60);
-  if (!sessionId.value) {
-    errorMessage.value = "Link inválido: ID Sessão não encontrado.";
-    isLoading.value = false;
-    isSettingUpSession.value = false;
-    return;
-  }
+  // Allow view mode without sessionId
   if (!stationId.value) {
     errorMessage.value = "Link inválido: ID Estação não encontrado.";
     isLoading.value = false;
@@ -673,6 +723,11 @@ function setupSession() {
   // Chama fetchSimulationData e libera o lock ao finalizar
   fetchSimulationData(stationId.value).finally(() => {
     isSettingUpSession.value = false;
+    // Se já temos um sessionId (vindo da URL, por exemplo), conectamos o WebSocket
+    if (sessionId.value) {
+      console.log("[SETUP SESSION] sessionId presente, conectando WebSocket...");
+      connectWebSocket();
+    }
   });
 }
 
@@ -686,27 +741,29 @@ const totalScore = computed(() => {
 // --- Computed Property e Watch para 'bothParticipantsReady' ---
 const bothParticipantsReady = computed(() => myReadyState.value && partnerReadyState.value && !!partner.value);
 watch(bothParticipantsReady, (newValue) => {
-  if (newValue &&
-      (userRole.value === 'actor' || userRole.value === 'evaluator') &&
-      socket.value?.connected &&
-      !simulationStarted.value &&
-      !simulationEnded.value &&
-      inviteLinkToShow.value // Garante que o link já foi gerado (simulando que a sessão foi iniciada no backend)
-      ) {
-    const durationToSend = selectedDurationMinutes.value;
-    socket.value.emit('CLIENT_START_SIMULATION', {
-      sessionId: sessionId.value,
-      durationMinutes: durationToSend // Usando a variável durationToSend
-    });
-  } else if (newValue && userRole.value === 'candidate' && !simulationStarted.value) {
-    // Logs removidos
+  console.log("[bothParticipantsReady WATCH] newValue:", newValue, "myReadyState:", myReadyState.value, "partnerReadyState:", partnerReadyState.value, "partner:", partner.value, "backendActivated:", backendActivated.value, "simulationStarted:", simulationStarted.value, "simulationEnded:", simulationEnded.value);
+  if (newValue && !backendActivated.value) {
+    console.log("[bothParticipantsReady WATCH] Ambos prontos e backend não ativado. Chamando activateBackend().");
+    activateBackend();
+  } else if (newValue && backendActivated.value && !simulationStarted.value && !simulationEnded.value) {
+    // Backend is activated, proceed with simulation start
+    if (userRole.value === 'actor' || userRole.value === 'evaluator') {
+      console.log("[bothParticipantsReady WATCH] SIMULATION START: Backend ativado, emitindo CLIENT_START_SIMULATION.");
+      const durationToSend = selectedDurationMinutes.value;
+      socket.value.emit('CLIENT_START_SIMULATION', {
+        sessionId: sessionId.value,
+        durationMinutes: durationToSend
+      });
+    } else if (userRole.value === 'candidate' && !simulationStarted.value) {
+      console.log("[bothParticipantsReady WATCH] CANDIDATE READY: Aguardando início da simulação.");
+    }
   }
 });
 // --- Hooks Ciclo de Vida ---
 // CORREÇÃO: Consolidando todos os onMounted em um único para evitar execução múltipla
-onMounted(() => { 
+onMounted(() => {
 
-  setupSession(); 
+  setupSession();
   
   // Verifica link do Meet para candidato
   checkCandidateMeetLink();
@@ -777,7 +834,7 @@ function updateTimerDisplayFromSelection() {
   }
 }
 
-function generateInviteLinkWithDuration() {
+async function generateInviteLinkWithDuration() {
   if (isLoading.value) {
     errorMessage.value = "Aguarde o carregamento dos dados da estação.";
     return;
@@ -786,6 +843,52 @@ function generateInviteLinkWithDuration() {
     errorMessage.value = "Dados da estação ainda não carregados. Tente novamente em instantes.";
     return;
   }
+
+  // Se não houver sessionId, ativamos o backend para criar um
+  if (!sessionId.value) {
+    try {
+      console.log("[GENERATE INVITE LINK] sessionId ausente. Ativando backend para obter um...");
+      const response = await fetch(`${backendUrl}/api/create-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stationId: stationId.value,
+          durationMinutes: selectedDurationMinutes.value,
+          localSessionId: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` // Gerar um localSessionId temporário
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const sessionData = await response.json();
+      sessionId.value = sessionData.sessionId; // Define o sessionId real
+      console.log("[GENERATE INVITE LINK] sessionId obtido do backend:", sessionId.value);
+      // Conectar WebSocket imediatamente após obter o sessionId e aguardar a conexão
+      console.log("[GENERATE INVITE LINK] Conectando WebSocket e aguardando conexão...");
+      connectWebSocket(); // Inicia a tentativa de conexão
+
+      let connectionAttempts = 0;
+      const maxAttempts = 10; // Tentar por até 5 segundos (10 * 500ms)
+      while (!socket.value?.connected && connectionAttempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        connectionAttempts++;
+      }
+      if (!socket.value?.connected) {
+        throw new Error("WebSocket connection failed after multiple attempts during invite link generation.");
+      }
+      console.log("[GENERATE INVITE LINK] WebSocket conectado com sucesso após geração do link.");
+
+    } catch (error) {
+      console.error("[GENERATE INVITE LINK] Erro ao criar sessão ou conectar WebSocket no backend:", error);
+      errorMessage.value = `Não foi possível gerar link de convite: ${error.message}`;
+      return;
+    }
+  }
+
   if ((userRole.value === 'actor' || userRole.value === 'evaluator') && stationId.value && sessionId.value) {
     if (communicationMethod.value === 'meet') {
       if (!meetLink.value) {
@@ -841,7 +944,7 @@ function generateInviteLinkWithDuration() {
       }
     }
   } else {
-    errorMessage.value = "Não foi possível gerar link de convite neste momento.";
+    errorMessage.value = "Não foi possível gerar link de convite neste momento. Verifique se todos os dados necessários estão disponíveis.";
   }
 }
 
@@ -907,20 +1010,130 @@ function releaseData(dataItemId) {
 
 async function copyInviteLink() { if(!inviteLinkToShow.value) return; try {await navigator.clipboard.writeText(inviteLinkToShow.value); copySuccess.value=true; setTimeout(()=>copySuccess.value=false,2000);
   } catch(e){alert('Falha ao copiar.')} }
-function sendReady() { if (socket.value?.connected && sessionId.value && !myReadyState.value) {
-  socket.value.emit('CLIENT_IM_READY', { sessionId: sessionId.value }); myReadyState.value = true; } else { let rsn=""; if(myReadyState.value) rsn="Já pronto."; else if(!socket.value?.connected) rsn="Não conectado.";
-  else rsn="Erro."; alert(rsn); } }
+function sendReady() {
+  // First click: Set local ready state
+  if (!myReadyState.value) {
+    myReadyState.value = true;
+
+    // Generate local session ID for view mode if not exists
+    if (!localSessionId.value) {
+      localSessionId.value = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    // Se o socket estiver conectado, emite o estado de prontidão.
+    if (socket.value?.connected) {
+      console.log("[sendReady] Emitindo CLIENT_READY. myReadyState:", myReadyState.value, "partnerReadyState:", partnerReadyState.value);
+      socket.value.emit('CLIENT_READY', {
+        sessionId: sessionId.value,
+        userId: currentUser.value?.uid,
+        role: userRole.value,
+        isReady: myReadyState.value
+      });
+    } else {
+      console.log("[sendReady] Socket não conectado, não emitindo CLIENT_READY.");
+    }
+  } else {
+    // Já está pronto - apenas emite o estado de prontidão novamente se conectado
+    if (socket.value?.connected) {
+      console.log("[sendReady] Já pronto, re-emitindo CLIENT_READY. myReadyState:", myReadyState.value, "partnerReadyState:", partnerReadyState.value);
+      socket.value.emit('CLIENT_READY', {
+        sessionId: sessionId.value,
+        userId: currentUser.value?.uid,
+        role: userRole.value,
+        isReady: myReadyState.value
+      });
+    }
+    alert("Você já está pronto. Aguardando o outro participante.");
+  }
+}
+
+// Function to activate backend when both users are ready
+async function activateBackend() {
+  if (backendActivated.value) {
+    console.log("[activateBackend] Backend já ativado, ignorando.");
+    return;
+  }
+
+  try {
+    console.log("[activateBackend] Iniciando ativação do backend.");
+
+    // Se o sessionId já foi definido (ex: pela geração do link de convite), não recriar
+    if (!sessionId.value) {
+      console.log("[activateBackend] sessionId ausente. Criando nova sessão com o backend...");
+      const response = await fetch(`${backendUrl}/api/create-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stationId: stationId.value,
+          durationMinutes: selectedDurationMinutes.value,
+          localSessionId: localSessionId.value
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const sessionData = await response.json();
+      sessionId.value = sessionData.sessionId; // Define o sessionId real
+      console.log("[activateBackend] Sessão criada com ID:", sessionId.value);
+    } else {
+      console.log("[activateBackend] Usando sessionId existente:", sessionId.value);
+    }
+
+    // Conectar WebSocket com o sessionId real (se ainda não estiver conectado)
+    if (!socket.value?.connected) {
+      console.log("[activateBackend] Conectando WebSocket...");
+      connectWebSocket();
+      // Esperar pela conexão do socket
+      let connectionAttempts = 0;
+      const maxAttempts = 10;
+      while (!socket.value?.connected && connectionAttempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        connectionAttempts++;
+      }
+      if (!socket.value?.connected) {
+        throw new Error("WebSocket connection failed after multiple attempts");
+      }
+      console.log("[activateBackend] WebSocket conectado.");
+    } else {
+      console.log("[activateBackend] WebSocket já conectado.");
+    }
+
+    // Mark backend as activated
+    backendActivated.value = true;
+    console.log("[activateBackend] BACKEND ACTIVATION COMPLETE");
+
+    // A emissão de CLIENT_START_SIMULATION será feita pelo watch(bothParticipantsReady)
+    // ou pelo clique no botão "Iniciar Simulação" se for ator/avaliador.
+
+  } catch (error) {
+    console.error("[activateBackend] ERRO NA ATIVAÇÃO DO BACKEND:", error);
+    errorMessage.value = `Erro ao ativar backend: ${error.message}`;
+
+    // Reset states on error
+    myReadyState.value = false;
+    partnerReadyState.value = false;
+    backendActivated.value = false;
+  }
+}
 
 // MODIFICAÇÃO 2: Nova função para lidar com o clique do botão "Iniciar Simulação"
 function handleStartSimulationClick() {
-  if (socket.value?.connected && sessionId.value && (userRole.value === 'actor' || userRole.value === 'evaluator') && bothParticipantsReady.value && !simulationStarted.value) {
+  if (backendActivated.value && socket.value?.connected && sessionId.value && (userRole.value === 'actor' || userRole.value === 'evaluator') && bothParticipantsReady.value && !simulationStarted.value) {
     const durationToSend = selectedDurationMinutes.value;
     socket.value.emit('CLIENT_START_SIMULATION', {
       sessionId: sessionId.value,
       durationMinutes: durationToSend
     });
+  } else if (!backendActivated.value) {
+    console.error("[CLIENT - BUTTON CLICK] Backend não ativado ainda. Aguarde ambos os usuários clicarem em 'Estou Pronto'.");
+    alert("Aguarde ambos os usuários clicarem em 'Estou Pronto' para ativar o backend.");
   } else {
     console.error("[CLIENT - BUTTON CLICK] Não foi possível emitir CLIENT_START_SIMULATION. Condições não atendidas:", {
+      backendActivated: backendActivated.value,
       connected: socket.value?.connected,
       sessionId: sessionId.value,
       userRole: userRole.value,
@@ -1203,6 +1416,80 @@ function handleZoomImageLoad() {
   // Logs removidos
 }
 
+// --- Função para pré-carregar uma única imagem (versão simples) ---
+function preloadSingleImage(imagePath, imageId, altText) {
+  if (!imagePath || !imageId) {
+    console.warn(`[PRELOAD] ⚠️ Parâmetros inválidos para preloadSingleImage: ${imagePath}, ${imageId}`);
+    return;
+  }
+
+  // Verifica se já foi pré-carregada
+  if (imageLoadSources.value[imageId]) {
+    // console.log(`[PRELOAD] ✅ Já pré-carregada: ${imageId}`);
+    return;
+  }
+
+  // Cria nova imagem para pré-carregamento
+  const img = new Image();
+
+  // Configura handlers
+  img.onload = () => {
+    // console.log(`[PRELOAD] ✅ Pré-carregada com sucesso: ${imageId}`);
+    imageLoadSources.value = {
+      ...imageLoadSources.value,
+      [imageId]: imagePath
+    };
+    handleImageLoad(imageId);
+  };
+
+  img.onerror = () => {
+    console.error(`[PRELOAD] ❌ Erro ao pré-carregar: ${imageId} - ${imagePath}`);
+    handleImageError(imagePath, imageId);
+  };
+
+  // Inicia pré-carregamento
+  img.src = imagePath;
+}
+
+// --- Função para pré-carregar uma única imagem (versão avançada com callback) ---
+function preloadSingleImageAdvanced(imagePath, imageId, altText, onSuccess) {
+  if (!imagePath || !imageId) {
+    console.warn(`[PRELOAD] ⚠️ Parâmetros inválidos para preloadSingleImageAdvanced: ${imagePath}, ${imageId}`);
+    return;
+  }
+
+  // Verifica se já foi pré-carregada
+  if (imageLoadSources.value[imageId]) {
+    // console.log(`[PRELOAD] ✅ Já pré-carregada: ${imageId}`);
+    if (onSuccess) onSuccess();
+    return;
+  }
+
+  // Cria nova imagem para pré-carregamento
+  const img = new Image();
+
+  // Configura handlers
+  img.onload = () => {
+    // console.log(`[PRELOAD] ✅ Pré-carregada com sucesso (avançada): ${imageId}`);
+    imageLoadSources.value = {
+      ...imageLoadSources.value,
+      [imageId]: imagePath
+    };
+    imagesPreloadStatus.value[imageId] = 'loaded';
+    handleImageLoad(imageId);
+    if (onSuccess) onSuccess();
+  };
+
+  img.onerror = () => {
+    console.error(`[PRELOAD] ❌ Erro ao pré-carregar (avançada): ${imageId} - ${imagePath}`);
+    imagesPreloadStatus.value[imageId] = 'error';
+    handleImageError(imagePath, imageId);
+  };
+
+  // Inicia pré-carregamento
+  img.src = imagePath;
+}
+
 // --- Função para pré-carregar imagens dos impressos ---
 function preloadImpressoImages() {
   if (!stationData.value?.materiaisDisponiveis?.impressos) {
@@ -1285,55 +1572,7 @@ function ensureImageIsPreloaded(imagePath, imageId, altText) {
   }
 }
 
-// --- Função avançada para pré-carregamento garantido ---
-function preloadSingleImageAdvanced(imagePath, imageId, altText, onSuccess, onError) {
-  // Verifica se já está carregada
-  if (imageLoadSources.value[imageId]) {
-    onSuccess();
-    return;
-  }
 
-  // Cria múltiplas instâncias para garantir carregamento
-  const img1 = new Image();
-  const img2 = new Image(); // Backup para maior garantia
-  
-  let loadingComplete = false;
-  
-  const handleSuccess = () => {
-    if (loadingComplete) return;
-    loadingComplete = true;
-    
-    // Registra no cache
-    imageLoadSources.value = {
-      ...imageLoadSources.value,
-      [imageId]: imagePath
-    };
-    
-    handleImageLoad(imageId);
-    onSuccess();
-  };
-  
-  const handleFailure = (error) => {
-    if (loadingComplete) return;
-    loadingComplete = true;
-    
-    handleImageError(imagePath, imageId);
-    onError();
-  };
-  
-  // Configura primeira imagem
-  img1.onload = handleSuccess;
-  img1.onerror = () => {
-    // Se primeira falha, tenta a segunda
-    img2.onload = handleSuccess;
-    img2.onerror = handleFailure;
-    img2.src = imagePath + '?retry=1'; // URL ligeiramente diferente
-  };
-  
-  // Inicia carregamento
-  img1.src = imagePath;
-  img1.alt = altText || 'Imagem do impresso';
-}
 
 // Função para manter os callbacks de avaliação
 function sendEvaluationScores() {
@@ -1716,7 +1955,7 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
     </div>
 
     <!-- Conteúdo Principal da Simulação -->
-    <div v-else-if="stationData && sessionId">
+    <div v-else-if="stationData">
       <!-- CABEÇALHO E CONTROLES PRINCIPAIS -->
       <VCard 
         :class="[
@@ -1895,7 +2134,7 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
           </div>
 
           <VBtn
-            v-if="isActorOrEvaluator && bothParticipantsReady && !simulationStarted"
+            v-if="isActorOrEvaluator && bothParticipantsReady && backendActivated && !simulationStarted"
             block size="large" color="success" prepend-icon="ri-play-line" class="mt-4"
             @click="handleStartSimulationClick"
           >
@@ -2326,7 +2565,7 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                                 size="large"
                                 :color="myReadyState ? 'default' : 'success'"
                                 @click="sendReady"
-                                :disabled="(!!candidateMeetLink && !candidateOpenedMeet) || !candidateReadyButtonEnabled"
+                                :disabled="!!candidateMeetLink && !candidateOpenedMeet"
                                 >
                                 <VIcon :icon="myReadyState ? 'ri-checkbox-circle-line' : 'ri-checkbox-blank-circle-line'" class="me-2"/>
                                 {{ myReadyState ? 'Pronto!' : 'Estou Pronto!' }}

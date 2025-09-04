@@ -1,4 +1,6 @@
 /* eslint-disable regex/invalid */
+import { Icon } from '@iconify/vue'
+import { h } from 'vue'
 import checkboxChecked from '@images/svg/checkbox-checked.svg'
 import checkboxIndeterminate from '@images/svg/checkbox-indeterminate.svg'
 import checkboxUnchecked from '@images/svg/checkbox-unchecked.svg'
@@ -14,7 +16,7 @@ const customIcons = {
 }
 
 const aliases = {
-  info: 'ri-error-warning-line',
+  info: 'ri-user-line',
   success: 'ri-checkbox-circle-line',
   warning: 'ri-alert-line',
   error: 'ri-error-warning-line',
@@ -57,16 +59,25 @@ export const iconify = {
       if (iconComponent)
         return h(iconComponent)
     }
-    
-    return h(props.tag, {
+
+    // Convert hyphen format to colon format for Iconify
+    let iconName = props.icon
+    if (typeof iconName === 'string' && iconName.includes('-') && !iconName.includes(':')) {
+      // Convert ri-user-line to ri:user-line
+      const parts = iconName.split('-')
+      if (parts.length >= 2) {
+        const prefix = parts[0]
+        const name = parts.slice(1).join('-')
+        iconName = `${prefix}:${name}`
+      }
+    }
+
+    // Use Iconify for other icons
+    return h(Icon, {
+      icon: iconName,
       ...props,
-
-      // As we are using class based icons
-      class: [props.icon],
-
       // Remove used props from DOM rendering
       tag: undefined,
-      icon: undefined,
     })
   },
 }

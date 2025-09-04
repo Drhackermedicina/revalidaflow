@@ -31,7 +31,7 @@ function openGeminiIA() {
               @click="toggleVerticalOverlayNavActive(true)"
               v-bind="props"
             >
-              <VIcon icon="ri-menu-line" />
+              <VIcon icon="ri-menu-line" aria-hidden="true" />
             </IconBtn>
           </template>
           Abrir menu
@@ -52,7 +52,7 @@ function openGeminiIA() {
         <div class="d-flex align-center">
           <!-- Sininho -->
           <IconBtn>
-            <VIcon icon="ri-notification-line" />
+            <VIcon icon="ri-notification-line" aria-hidden="true" />
           </IconBtn>
 
           <!-- Tema claro/escuro -->
@@ -66,7 +66,7 @@ function openGeminiIA() {
 
     <template #vertical-nav-header="{ toggleIsOverlayNavActive }">
       <div class="sidebar-header-modern d-flex align-center justify-center py-4">
-        <VIcon icon="ri-shield-star-fill" color="#7b1fa2" size="32" class="me-2" />
+        <VIcon icon="ri-shield-star-fill" color="#7b1fa2" size="32" class="me-2" aria-hidden="true" />
         <span class="sidebar-title">Revalida Fácil</span>
         <VTooltip location="right">
           <template #activator="{ props }">
@@ -75,7 +75,7 @@ function openGeminiIA() {
               @click="toggleIsOverlayNavActive(false)"
               v-bind="props"
             >
-              <VIcon icon="ri-close-line" />
+              <VIcon icon="ri-close-line" aria-hidden="true" />
             </IconBtn>
           </template>
           Fechar menu

@@ -81,6 +81,14 @@ export default defineConfig({
     chunkSizeWarningLimit: 5000,
     minify: 'terser',
     treeshake: true,
+    cssMinify: false,
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/[name]-[hash].js`,
+        chunkFileNames: `assets/[name]-[hash].js`,
+        assetFileNames: `assets/[name]-[hash].[ext]`
+      }
+    }
   },
   optimizeDeps: {
     exclude: ['vuetify'],

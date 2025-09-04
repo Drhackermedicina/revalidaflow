@@ -473,16 +473,60 @@ IMPORTANTE: Retorne APENAS o texto editado, sem explicações ou comentários ad
 // Aplicar sugestão manualmente
 const applySuggestion = () => {
   if (!aiSuggestion.value) return
-  
+
+  console.log('🎯 Aplicando sugestão:', {
+    aiSuggestion: aiSuggestion.value,
+    aiSuggestionType: typeof aiSuggestion.value,
+    selectedText: selectedText.value,
+    selectedTextType: typeof selectedText.value,
+    currentValue: currentValue.value,
+    currentValueType: typeof currentValue.value,
+    itemIndex: props.itemIndex,
+    fieldName: props.fieldName
+  })
+
+  let finalValue
+
   if (selectedText.value) {
-    // Substituir apenas o texto selecionado
-    const newValue = currentValue.value.replace(selectedText.value, aiSuggestion.value)
-    updateValue(newValue)
+    // 🔧 SIMPLIFICAÇÃO: Quando há texto selecionado, substituir todo o conteúdo
+    // Isso evita problemas com a função replace que podem corromper a string
+    console.log('✂️ Texto selecionado detectado, substituindo todo o conteúdo')
+    finalValue = String(aiSuggestion.value || '')
   } else {
     // Substituir todo o conteúdo
-    updateValue(aiSuggestion.value)
+    finalValue = String(aiSuggestion.value || '')
+    console.log('📝 Substituindo todo o conteúdo:', finalValue)
   }
+
+  // 🔧 SIMPLIFICAÇÃO: Sempre emitir apenas o valor final
+  // Deixar que o Vue cuide da atualização do v-model
+  console.log('📤 Emitindo valor final:', finalValue)
   
+  // 🛡️ VERIFICAÇÃO FINAL: Garantir que seja sempre uma string válida
+  const safeValue = typeof finalValue === 'string' ? finalValue : 
+                   Array.isArray(finalValue) ? finalValue.join('') : 
+                   String(finalValue || '')
+  
+  console.log('🛡️ Valor seguro final:', {
+    original: finalValue,
+    originalType: typeof finalValue,
+    safe: safeValue,
+    safeType: typeof safeValue
+  })
+  
+  emit('update:modelValue', safeValue)
+
+  // Emitir evento de atualização para o pai
+  emit('field-updated', {
+    fieldName: props.fieldName,
+    oldValue: currentValue.value,
+    newValue: finalValue,
+    itemIndex: props.itemIndex,
+    field: props.fieldName,
+    value: finalValue,
+    index: props.itemIndex
+  })
+
   showSuccess.value = true
   setTimeout(() => {
     closeDialog()
@@ -490,28 +534,7 @@ const applySuggestion = () => {
   }, 2000)
 }
 
-// Atualizar valor
-const updateValue = (newValue) => {
-  if (props.itemIndex !== undefined) {
-    // Para arrays
-    const newArray = [...(props.modelValue || [])]
-    newArray[props.itemIndex] = newValue
-    emit('update:modelValue', newArray)
-  } else {
-    // Para campos simples
-    emit('update:modelValue', newValue)
-  }
-  
-  emit('field-updated', {
-    fieldName: props.fieldName,
-    oldValue: currentValue.value,
-    newValue: newValue,
-    itemIndex: props.itemIndex,
-    field: props.fieldName,  // Adicionar campo 'field' para compatibilidade
-    value: newValue,         // Adicionar campo 'value' para compatibilidade
-    index: props.itemIndex   // Adicionar campo 'index' para compatibilidade
-  })
-}
+// � REMOVIDA: Função updateValue separada - agora tudo é feito em applySuggestion
 
 // Watch para detectar mudanças
 watch(() => props.modelValue, () => {

@@ -1214,7 +1214,7 @@ async function startSimulationAsActor(stationId) {
     creatingSessionForStationId.value = stationId;
     isLoadingSession.value = true;
     errorApi.value = '';
-    
+
     if (selectedCandidate.value) {
       const candidateData = {
         uid: selectedCandidate.value.uid,
@@ -1224,50 +1224,20 @@ async function startSimulationAsActor(stationId) {
         selectedAt: Date.now(),
         sessionId: null
       };
-      
+
       sessionStorage.setItem('selectedCandidate', JSON.stringify(candidateData));
     }
-    
-    const response = await fetch(`${backendUrl}/api/create-session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        stationId: stationId
-      }),
+
+    // Navigate to simulation view without sessionId (view mode)
+    router.push({
+      path: `/app/simulation/${stationId}`,
+      query: {
+        role: 'actor'
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Erro HTTP ${response.status}:`, errorText);
-      throw new Error(`Erro na resposta: ${response.status} - ${errorText}`);
-    }
-    
-    const result = await response.json();
-    if (result.sessionId) {
-      if (selectedCandidate.value) {
-        const candidateData = JSON.parse(sessionStorage.getItem('selectedCandidate'));
-        if (candidateData) {
-          candidateData.sessionId = result.sessionId;
-          sessionStorage.setItem('selectedCandidate', JSON.stringify(candidateData));
-        }
-      }
-      
-      router.push({
-        path: `/app/simulation/${stationId}`,
-        query: {
-          sessionId: result.sessionId,
-          role: 'actor'
-        }
-      });
-    } else {
-      console.error('sessionId não encontrado na resposta:', result);
-      throw new Error('Sessão criada mas sessionId não retornado');
-    }
-
   } catch (error) {
-    console.error('Erro completo ao criar sessão:', error);
+    console.error('Erro ao navegar para simulação:', error);
     errorApi.value = `Erro: ${error.message}`;
     alert(`Erro ao iniciar simulação: ${error.message}`);
   } finally {

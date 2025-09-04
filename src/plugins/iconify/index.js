@@ -1,4 +1,4 @@
 import './icons.css';
-export default function () {
+export default function (app) {
     // This plugin just requires icons import
 }

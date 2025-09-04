@@ -10,8 +10,6 @@ declare module 'vue' {
     AdminAgentAssistant: typeof import('./src/components/AdminAgentAssistant.vue')['default']
     AgentAssistant: typeof import('./src/components/AgentAssistant.vue')['default']
     AIFieldAssistant: typeof import('./src/components/AIFieldAssistant.vue')['default']
-    AIFieldAssistant_NEW: typeof import('./src/components/AIFieldAssistant_NEW.vue')['default']
-    AIFieldAssistant_OLD: typeof import('./src/components/AIFieldAssistant_OLD.vue')['default']
     AppBreadcrumbs: typeof import('./src/components/AppBreadcrumbs.vue')['default']
     CardStatisticsHorizontal: typeof import('./src/@core/components/cards/CardStatisticsHorizontal.vue')['default']
     CardStatisticsVertical: typeof import('./src/@core/components/cards/CardStatisticsVertical.vue')['default']
@@ -31,7 +29,6 @@ declare module 'vue' {
     ThemeCustomizer: typeof import('./src/components/ThemeCustomizer.vue')['default']
     ThemeSwitcher: typeof import('./src/@core/components/ThemeSwitcher.vue')['default']
     TiptapEditor: typeof import('./src/components/TiptapEditor.vue')['default']
-    VirtualAgentAssistant: typeof import('./src/components/VirtualAgentAssistant.vue')['default']
     WelcomeCard: typeof import('./src/components/WelcomeCard.vue')['default']
   }
 }

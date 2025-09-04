@@ -25,6 +25,7 @@ const isOpen = ref(false)
             :icon="item.icon || 'ri-checkbox-blank-circle-line'"
             class="nav-item-icon"
             :color="item.iconColor || undefined"
+            aria-hidden="true"
           />
         </template>
         {{ item.title }}
@@ -39,6 +40,7 @@ const isOpen = ref(false)
       <VIcon
         icon="ri-arrow-right-s-line"
         class="nav-group-arrow"
+        aria-hidden="true"
       />
     </div>
     <div class="nav-group-children-wrapper">
