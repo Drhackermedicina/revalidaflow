@@ -1,0 +1,19 @@
+{
+    "workbench.commandPalette.experimental.askChatLocation": "chatView",
+    "workbench.commandPalette.experimental.suggestCommands": false,
+    "workbench.commandPalette.preserveInput": false,
+    "chat.agentSessionsViewLocation": "showChatsMenu",
+    "chat.checkpoints.showFileChanges": true,
+    "chat.editing.autoAcceptDelay": 30,
+    "chat.mcp.assisted.nuget.enabled": true,
+    "chat.math.enabled": true,
+    "chat.todoListTool.enabled": true,
+    "inlineChat.accessibleDiffView": "on",
+    "telemetry.editStats.details.enabled": true,
+    "telemetry.editStats.showStatusBar": true,
+    "microsoft-sovereign-cloud.environment": "USGovernment",
+    "roo-cline.autoImportSettingsPath": "D:\\PROJETOS VS CODE\\REVALIDAFLOW\\FRONTEND E BACKEND\\.roo\\rules-orchestrator",
+    "roo-cline.codeIndex.embeddingBatchSize": 120,
+    "roo-cline.newTaskRequireTodos": true,
+    "vue.autoInsert.dotValue": true
+}

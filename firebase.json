@@ -12,7 +12,7 @@
       "**/.*",
       "**/node_modules/**",
       "backend",
-      "backend-python-agent"
+      "gerador-de-estacoes"
     ],
     "rewrites": [
       {

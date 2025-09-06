@@ -7,7 +7,7 @@
 *
 * Ações sugeridas:
 *  - Remover componentes da UI que dependem de adminAgentService, OU
-*  - Redirecionar para o agente Python (backend-python-agent) — posso fazer isso se confirmar.
+*  - Redirecionar para o agente Python (gerador-de-estacoes) — posso fazer isso se confirmar.
 */
 export const adminAgentService = {
  async analyzeStation() {

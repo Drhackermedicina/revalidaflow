@@ -6,7 +6,7 @@
 * `/api/agent` do backend Node legado (rota removida).
 *
 * A aplicação deve:
-*  - migrar chamadas para o agente Python (backend-python-agent) OU
+*  - migrar chamadas para o agente Python (gerador-de-estacoes) OU
 *  - remover UI/fluxos que dependem do agente antigo.
 *
 * Se quiser que eu redirecione automaticamente para o agente Python (localhost:8080),
@@ -15,7 +15,7 @@
 export const agentAssistantService = {
  async query() {
    throw new Error(
-     'Serviço de agente legado removido. Atualize o frontend para usar o agente Python em backend-python-agent ou remova chamadas a /api/agent.'
+     'Serviço de agente legado removido. Atualize o frontend para usar o agente Python em gerador-de-estacoes ou remova chamadas a /api/agent.'
    );
  }
 };

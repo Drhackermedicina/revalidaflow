@@ -1,3 +1,0 @@
-QDRANT - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwiZXhwIjoxNzYzNzcxNjIwfQ.tchWhOFvhbpWB-nMkuLSYTEFVfAUVxlgzLGE0kmD5Ps
-Nvidia - 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
-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 open router

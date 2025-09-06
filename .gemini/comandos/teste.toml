@@ -1,2 +1,0 @@
-description = "Um comando de teste simples para demonstrar argumentos."
-prompt = "Olá, Gemini! Isso é um teste. O usuário disse: {{args}}"
