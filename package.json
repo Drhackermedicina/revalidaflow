@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config config/vite.config.js",
     "dev:local": "vite --mode development",
     "dev:cloud": "vite --mode production",
     "build": "vite build",

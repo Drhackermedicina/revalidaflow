@@ -1,37 +1,36 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAdminAuth } from '../../src/composables/useAdminAuth'
+import { ref } from 'vue'
 
 // Mock simples do currentUser
-let mockCurrentUser = null
+let mockCurrentUser = ref(null)
 
 vi.mock('../../src/plugins/auth', () => ({
   get currentUser() {
-    return {
-      value: mockCurrentUser
-    }
+    return mockCurrentUser
   }
 }))
 
 describe('useAdminAuth', () => {
   beforeEach(() => {
     // Resetar o mock antes de cada teste
-    mockCurrentUser = null
+    mockCurrentUser.value = null
   })
 
   it('deve retornar false quando usuário não está logado', () => {
-    mockCurrentUser = null
+    mockCurrentUser.value = null
     const { isAdmin } = useAdminAuth()
     expect(isAdmin.value).toBe(false)
   })
 
   it('deve identificar usuários administradores', () => {
-    mockCurrentUser = { uid: 'RtfNENOqMUdw7pvgeeaBVSuin662' } // UID de administrador
+    mockCurrentUser.value = { uid: 'RtfNENOqMUdw7pvgeeaBVSuin662' } // UID de administrador
     const { isAdmin } = useAdminAuth()
     expect(isAdmin.value).toBe(true)
   })
 
   it('deve retornar false para usuários não administradores', () => {
-    mockCurrentUser = { uid: 'non-admin-user-id' }
+    mockCurrentUser.value = { uid: 'non-admin-user-id' }
     const { isAdmin } = useAdminAuth()
     expect(isAdmin.value).toBe(false)
   })

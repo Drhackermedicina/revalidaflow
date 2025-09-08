@@ -1,17 +1,17 @@
-import App from '@/App.vue'
+import App from './App.vue'
 import { registerPlugins } from '@core/utils/plugins'
 import { createApp } from 'vue'
 
 // O plugin de autenticação não precisa mais ser importado aqui
 
 // Monitor de CSP para resolver problemas após inatividade
-import '@/utils/csp-monitor.js'
+import './utils/csp-monitor.js'
 
 // Interceptor de fetch para problemas de CSP
-import '@/utils/fetch-interceptor.js'
+import './utils/fetch-interceptor.js'
 
 // Vigia de deploy para lidar com erros de carregamento de chunk
-import '@/utils/deployment-watcher.js'
+import './utils/deployment-watcher.js'
 
 // Styles
 import '@core/scss/template/index.scss'
@@ -19,7 +19,7 @@ import '@layouts/styles/index.scss'
 import '@styles/styles.scss'
 
 // Performance optimizations
-import '@/assets/performance-optimizations.css'
+import './assets/performance-optimizations.css'
 
 // Expor adminAgentService globalmente no modo de desenvolvimento
 import { adminAgentService } from './services/adminAgentService'

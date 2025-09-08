@@ -10,16 +10,23 @@
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
     "checkJs": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "types": ["vite/client"]
   },
   "include": [
-    "src/**/*",
-    "backend/lixo/useAuth.ts.txtlixo",
-    "backend/lixo/useTextFormatting.js.txt(disable)",
-    "backend/lixo/useWebSocket.js.txt(precisa)"
+    "../src/**/*.ts",
+    "../src/**/*.d.ts",
+    "../src/**/*.tsx",
+    "../src/**/*.vue",
+    "../auto-imports.d.ts",
+    "../components.d.ts"
   ],
   "exclude": [
-    "node_modules",
-    "dist"
+    "../node_modules",
+    "../dist"
   ]
 }
