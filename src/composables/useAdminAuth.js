@@ -30,10 +30,8 @@ export function useAdminAuth() {
       'lNwhdYgMwLhS1ZyufRzw9xLD10y1', // Admin adicional
     ]
 
-    // Normaliza comparações removendo espaços em branco indesejados
-    const userUID = currentUser.value.uid?.trim()
-    const normalizedAdminUIDs = adminUIDs.map(u => u.trim())
-    const isUserAdmin = normalizedAdminUIDs.includes(userUID)
+    const userUID = currentUser.value.uid
+    const isUserAdmin = adminUIDs.includes(userUID)
 
     // Modo de desenvolvimento removido - usando apenas verificação por UID
 

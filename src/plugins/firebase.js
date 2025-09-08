@@ -3,7 +3,7 @@
 import { getApp, initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
-import { getStorage, ref } from 'firebase/storage'
+import { getStorage } from 'firebase/storage'
 
 // Configuração do seu projeto Firebase usando variáveis de ambiente quando disponíveis
 const firebaseConfig = {
@@ -76,9 +76,10 @@ try {
 export { storage }
 
 // Função para verificar conectividade do Storage
-export function testStorageConnection() {
+export async function testStorageConnection() {
   try {
     // Tenta criar uma referência simples para testar conectividade
+    const { ref } = await import('firebase/storage');
     const testRef = ref(storage, 'test-connection');
     return true;
   } catch (error) {

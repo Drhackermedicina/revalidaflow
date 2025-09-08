@@ -106,7 +106,8 @@ function getInitialFormData() {
   };
 }
 
-const formData = shallowRef(getInitialFormData());
+// Use ref em vez de shallowRef para garantir reatividade profunda nos arrays e objetos aninhados
+const formData = ref(getInitialFormData());
 
 // Variável para armazenar dados originais que devem ser preservados
 const originalStationData = ref(null);

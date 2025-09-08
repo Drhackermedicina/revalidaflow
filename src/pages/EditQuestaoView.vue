@@ -141,13 +141,11 @@ const subespecialidadesDisponiveis = computed(() => {
 
 // Verifica se o usuário atual é admin
 const isAdmin = computed(() => {
-  if (!currentUser.value || !currentUser.value.uid) return false;
-  const uid = (currentUser.value.uid || '').trim();
-  return (
-    uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
-    uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
-    uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3' ||
-    uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
+  return currentUser.value && (
+    currentUser.value.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
+    currentUser.value.uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
+    currentUser.value.uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3  ' ||
+    currentUser.value.uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
   );
 });
 

@@ -95,6 +95,5 @@ export function isAdmin() {
     'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
   ];
 
-  const normalized = adminUids.map(u => u.trim());
-  return normalized.includes((user.uid || '').trim());
+  return adminUids.includes(user.uid);
 }
