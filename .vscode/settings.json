@@ -1,4 +1,9 @@
 {
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "volar.takeOverMode": true,
+    "javascript.validate.enable": false,
+    "typescript.validate.enable": false,
+    // removed editor.codeActionsOnSave to avoid schema validation error in this workspace
     "workbench.commandPalette.experimental.askChatLocation": "chatView",
     "workbench.commandPalette.experimental.suggestCommands": false,
     "workbench.commandPalette.preserveInput": false,

@@ -155,32 +155,52 @@
   </v-container>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { currentUser } from '@/plugins/auth';
 import { db } from '@/plugins/firebase';
-import { addDoc, collection, deleteDoc, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, getDocs, limit, onSnapshot, orderBy, query, where, Unsubscribe } from 'firebase/firestore';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 
-const users = ref([]);
-const loadingUsers = ref(true);
-const errorUsers = ref('');
-const messages = ref([]);
-const newMessage = ref('');
-const messagesEnd = ref(null);
+// Tipagens locais
+interface User {
+  uid: string;
+  nome?: string;
+  sobrenome?: string;
+  displayName?: string;
+  photoURL?: string;
+  avatar?: string;
+  status?: string;
+}
+
+interface Message {
+  id: string;
+  senderId?: string;
+  senderName?: string;
+  senderPhotoURL?: string;
+  text?: string;
+  timestamp?: any;
+}
+
+const users = ref<User[]>([]);
+const loadingUsers = ref<boolean>(true);
+const errorUsers = ref<string>('');
+const messages = ref<Message[]>([]);
+const newMessage = ref<string>('');
+const messagesEnd = ref<HTMLElement | null>(null);
 const router = useRouter();
-const snackbar = ref({ show: false, text: '', color: 'primary' });
+const snackbar = ref<{ show: boolean; text: string; color: string }>({ show: false, text: '', color: 'primary' });
 const theme = useTheme();
 
 // Computed para detectar tema escuro
 const isDarkTheme = computed(() => theme.global.name.value === 'dark');
 
 // Listener de usuários online
-let unsubscribeUsers = null;
-let unsubscribeMessages = null;
+let unsubscribeUsers: Unsubscribe | null = null;
+let unsubscribeMessages: Unsubscribe | null = null;
 
-function getUserAvatar(user) {
+function getUserAvatar(user: User) {
   // Se for o usuário logado, prioriza o photoURL do auth
   if (user.uid === currentUser.value?.uid && currentUser.value?.photoURL) {
     return currentUser.value.photoURL;
@@ -188,7 +208,7 @@ function getUserAvatar(user) {
   return user.photoURL || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome || user.displayName || 'User')}`;
 }
 
-function openPrivateChat(user) {
+function openPrivateChat(user: User) {
   if (!user.uid || user.uid === currentUser.value?.uid) return;
   // Exemplo: navega para rota de chat privado (ajuste conforme sua estrutura de rotas)
   router.push({ name: 'ChatPrivateView', params: { uid: user.uid } });
@@ -215,9 +235,9 @@ const cleanOldMessages = async () => {
     }
     
     // Remover mensagens em lote
-    const deletePromises = [];
+    const deletePromises: Promise<void>[] = [];
     querySnapshot.forEach((doc) => {
-      deletePromises.push(deleteDoc(doc.ref));
+      deletePromises.push(deleteDoc(doc.ref) as Promise<void>);
     });
     
     await Promise.all(deletePromises);
@@ -228,7 +248,7 @@ const cleanOldMessages = async () => {
 };
 
 // Configurar limpeza automática a cada 24 horas
-let cleanupInterval = null;
+let cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 const startAutoCleanup = () => {
   // Limpar interval anterior se existir
@@ -261,10 +281,10 @@ onMounted(() => {
   // Query filtrada para usuários online/treinando e limitada para reduzir leituras
   const q = query(usersCollectionRef, where('status', 'in', ['disponivel', 'treinando']), orderBy('lastActive', 'desc'), limit(100));
   unsubscribeUsers = onSnapshot(q, (snapshot) => {
-    users.value = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+    users.value = snapshot.docs.map(doc => ({ uid: doc.id, ...(doc.data() as any) } as User));
     loadingUsers.value = false;
   }, (error) => {
-    errorUsers.value = 'Erro ao buscar usuários: ' + error.message;
+    errorUsers.value = 'Erro ao buscar usuários: ' + (error as Error).message;
     loadingUsers.value = false;
   });
 
@@ -272,9 +292,8 @@ onMounted(() => {
   const messagesCollectionRef = collection(db, 'chatMessages');
   // Obter apenas as últimas mensagens (query desc + limit) e inverter para exibir asc
   const mq = query(messagesCollectionRef, orderBy('timestamp', 'desc'), limit(200));
-  let lastMessageId = null;
   unsubscribeMessages = onSnapshot(mq, (snapshot) => {
-    const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
+    const newMessages = snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as Message)).reverse();
     // Detecta nova mensagem recebida (não enviada pelo usuário atual)
     if (messages.value.length > 0 && newMessages.length > messages.value.length) {
       const lastMsg = newMessages[newMessages.length - 1];
@@ -319,7 +338,7 @@ const sendMessage = async () => {
   });
 };
 
-const formatTime = (timestamp) => {
+const formatTime = (timestamp: any): string => {
   if (!timestamp) return '';
   try {
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -330,13 +349,13 @@ const formatTime = (timestamp) => {
 };
 
 const scrollToEnd = () => {
-  if (messagesEnd.value) {
-    messagesEnd.value.scrollIntoView({ behavior: 'smooth' });
+  if (messagesEnd.value && typeof messagesEnd.value.scrollIntoView === 'function') {
+    messagesEnd.value.scrollIntoView({ behavior: 'smooth' } as ScrollIntoViewOptions);
   }
 };
 
 // Função para detectar e formatar links no texto
-const formatMessageText = (text) => {
+const formatMessageText = (text?: string) => {
   if (!text) return '';
   
   // Regex para detectar URLs (http/https)
@@ -348,14 +367,14 @@ const formatMessageText = (text) => {
 };
 
 // Função para verificar se a mensagem contém links
-const hasLinks = (text) => {
+const hasLinks = (text?: string) => {
   if (!text) return false;
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return urlRegex.test(text);
 };
 
 // Função para copiar links da mensagem
-const copyMessageLinks = async (text) => {
+const copyMessageLinks = async (text?: string) => {
   if (!text) return;
   
   const urlRegex = /(https?:\/\/[^\s]+)/g;
