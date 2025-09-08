@@ -6,15 +6,20 @@
 class GeminiService {
   constructor() {
     // 🔑 API Keys para Gemini (Google AI Studio)
-    this.apiKeys = [
-      'AIzaSyB6Lj_5p11hJKbZAnb3oRK5h3lxgVZIl8U', // Chave principal
-      'AIzaSyAlvMR2zOJDZbwBBpP0sl1JHp2fb9uQiy4', // Chave fallback 1
-      'AIzaSyDBBrr3WWQqQMQGdXPTELZYhYrbW_CfgRA', // Chave fallback 2
-      'AIzaSyDnv2FGgXC1bKZ7Sfrsz4RBjwfsu5h3J_I', // Chave fallback 3
-    ];
+    // Usar variável de ambiente ou fallback para desenvolvimento
+    const apiKeyFromEnv = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    this.apiKeys = apiKeyFromEnv
+      ? [apiKeyFromEnv]
+      : [
+          'AIzaSyB6Lj_5p11hJKbZAnb3oRK5h3lxgVZIl8U', // Chave principal
+          'AIzaSyAlvMR2zOJDZbwBBpP0sl1JHp2fb9uQiy4', // Chave fallback 1
+          'AIzaSyDBBrr3WWQqQMQGdXPTELZYhYrbW_CfgRA', // Chave fallback 2
+          'AIzaSyDnv2FGgXC1bKZ7Sfrsz4RBjwfsu5h3J_I', // Chave fallback 3
+        ];
 
-    // Configurações do modelo
-    this.model = 'gemini-2.0-flash-exp';
+    // Configurações do modelo - atualizado para Gemini 2.5 Flash
+    this.model = 'gemini-2.5-flash';
     this.endpoint = 'https://generativelanguage.googleapis.com/v1beta/models';
 
     this.currentKeyIndex = 0;
@@ -72,11 +77,29 @@ class GeminiService {
               }]
             }],
             generationConfig: {
-              temperature: 0.1,
+              temperature: 0.7, // Temperatura mais alta para chat
               topK: 40,
               topP: 0.95,
-              maxOutputTokens: 2048,
-            }
+              maxOutputTokens: 4096, // Mais tokens para respostas mais longas
+            },
+            safetySettings: [
+              {
+                category: 'HARM_CATEGORY_HARASSMENT',
+                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+              },
+              {
+                category: 'HARM_CATEGORY_HATE_SPEECH',
+                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+              },
+              {
+                category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+              },
+              {
+                category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+              }
+            ]
           })
         });
 

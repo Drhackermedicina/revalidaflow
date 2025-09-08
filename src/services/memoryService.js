@@ -441,8 +441,8 @@ class MemoryService {
    */
   async updatePrompt(stationId, promptId, updatedData) {
     try {
-      const memoryRef = doc(db, 'memorias_prompts', stationId);
-      const promptRef = doc(collection(memoryRef, 'prompts'), promptId);
+      // Usar coleção simples 'memorias_prompts' com ID direto do documento
+      const promptRef = doc(db, 'memorias_prompts', promptId);
       
       await updateDoc(promptRef, {
         ...updatedData,
@@ -463,8 +463,8 @@ class MemoryService {
    */
   async deletePrompt(stationId, promptId) {
     try {
-      const memoryRef = doc(db, 'memorias_prompts', stationId);
-      const promptRef = doc(collection(memoryRef, 'prompts'), promptId);
+      // Usar coleção simples 'memorias_prompts' com ID direto do documento
+      const promptRef = doc(db, 'memorias_prompts', promptId);
       
       await deleteDoc(promptRef);
       

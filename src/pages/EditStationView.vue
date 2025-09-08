@@ -106,7 +106,7 @@ function getInitialFormData() {
   };
 }
 
-const formData = ref(getInitialFormData());
+const formData = shallowRef(getInitialFormData());
 
 // Variável para armazenar dados originais que devem ser preservados
 const originalStationData = ref(null);
@@ -130,45 +130,52 @@ const isAdmin = computed(() => {
 });
 
 // Computed para calcular pontuação total do PEP
-const calcularPontuacaoTotalPEP = computed(() => {
-  if (!formData.value.padraoEsperadoProcedimento?.itensAvaliacao?.length) return 0;
-  
-  const total = formData.value.padraoEsperadoProcedimento.itensAvaliacao.reduce((acc, item) => {
-    const pontosAdequado = parseFloat(item.pontuacoes?.adequado?.pontos) || 0;
-    return acc + pontosAdequado;
-  }, 0);
-  
-  return total;
-});
+// Watch específico para calcular e atualizar a pontuação total do PEP
+watch(
+  () => formData.value.padraoEsperadoProcedimento?.itensAvaliacao,
+  (newItems) => {
+    if (!newItems) return;
+    
+    const total = newItems.reduce((acc, item) => {
+      const pontosAdequado = parseFloat(item.pontuacoes?.adequado?.pontos) || 0;
+      return acc + pontosAdequado;
+    }, 0);
+    
+    // Atualiza a pontuação total diretamente
+    if (formData.value.padraoEsperadoProcedimento) {
+      formData.value.padraoEsperadoProcedimento.pontuacaoTotalEstacao = total;
+    }
+    
+    // Atualiza mensagens de validação
+    const isTotalValid = Math.abs(total - 10) < 0.001;
+    const diferenca = (10 - total).toFixed(3);
+    
+    if (total === 0) {
+      alertaPontuacaoTotal.value = '';
+    } else if (total < 10) {
+      alertaPontuacaoTotal.value = `⚠️ ATENÇÃO: A pontuação total está ${diferenca} pontos ABAIXO de 10. Ajuste os valores dos campos "Adequado".`;
+    } else if (total > 10) {
+      alertaPontuacaoTotal.value = `⚠️ ATENÇÃO: A pontuação total está ${diferenca} pontos ACIMA de 10. Ajuste os valores dos campos "Adequado".`;
+    } else {
+      alertaPontuacaoTotal.value = '';
+    }
+  },
+  { deep: true, immediate: true }
+);
+
+// Ref para armazenar a mensagem de alerta da pontuação
+const alertaPontuacaoTotal = ref('');
 
 // Computed para verificar se a pontuação total está correta (deve ser 10)
 const isPontuacaoTotalValida = computed(() => {
-  const total = calcularPontuacaoTotalPEP.value;
-  return Math.abs(total - 10) < 0.001; // Usa tolerância para comparação de float
+  const total = formData.value.padraoEsperadoProcedimento?.pontuacaoTotalEstacao || 0;
+  return Math.abs(total - 10) < 0.001;
 });
 
-// Computed para mensagem de alerta da pontuação
-const alertaPontuacaoTotal = computed(() => {
-  const total = calcularPontuacaoTotalPEP.value;
-  if (total === 0) return '';
-  
-  if (total < 10) {
-    const diferenca = (10 - total).toFixed(3);
-    return `⚠️ ATENÇÃO: A pontuação total está ${diferenca} pontos ABAIXO de 10. Ajuste os valores dos campos "Adequado".`;
-  } else if (total > 10) {
-    const diferenca = (total - 10).toFixed(3);
-    return `⚠️ ATENÇÃO: A pontuação total está ${diferenca} pontos ACIMA de 10. Ajuste os valores dos campos "Adequado".`;
-  }
-  
-  return '';
+// Computed para expor a pontuação total calculada
+const calcularPontuacaoTotalPEP = computed(() => {
+  return formData.value.padraoEsperadoProcedimento?.pontuacaoTotalEstacao || 0;
 });
-
-// Watch para atualizar pontuação total automaticamente
-watch(calcularPontuacaoTotalPEP, (novaTotal) => {
-  if (formData.value.padraoEsperadoProcedimento) {
-    formData.value.padraoEsperadoProcedimento.pontuacaoTotalEstacao = novaTotal;
-  }
-}, { immediate: true });
 
 // Função para detectar campos alterados comparando dados originais com formulário atual
 function detectChangedFields() {

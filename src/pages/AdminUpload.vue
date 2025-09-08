@@ -6,12 +6,18 @@ import { db } from '../plugins/firebase.js';
 
 const activeTab = ref('manualCreate');
 
-const nomeArquivo = ref('');
+const nomeArquivoEstacoes = ref('');
+const nomeArquivoQuestoes = ref('');
+const nomeArquivoQuestoesBatch = ref('');
 const estacaoCarregadaDoJson = ref(null);
+const questaoCarregadaDoJson = ref(null);
 const mensagemStatusUpload = ref('');
 const tipoMensagemUpload = ref('info');
 const estaProcessandoUpload = ref(false);
 const fileInputRef = ref(null);
+const fileInputQuestoesRef = ref(null);
+const fileInputQuestoesBatchRef = ref(null);
+const batchQuestionsFile = ref(null);
 
 function getInitialFormNovaEstacao() {
   return {
@@ -55,7 +61,7 @@ function handleFileUpload(event) {
   mensagemStatusUpload.value = '';
   tipoMensagemUpload.value = 'info';
   estacaoCarregadaDoJson.value = null;
-  nomeArquivo.value = '';
+ nomeArquivoEstacoes.value = '';
   const arquivo = event.target.files[0];
 
   if (!arquivo) {
@@ -63,7 +69,16 @@ function handleFileUpload(event) {
     tipoMensagemUpload.value = 'erro';
     return;
   }
-  nomeArquivo.value = arquivo.name;
+  
+  // Verificar se o arquivo está vazio
+  if (arquivo.size === 0) {
+    mensagemStatusUpload.value = `O arquivo "${arquivo.name}" está vazio.`;
+    tipoMensagemUpload.value = 'erro';
+    limparInputArquivo();
+    return;
+  }
+  
+  nomeArquivoEstacoes.value = arquivo.name;
   if (arquivo.type !== "application/json") {
     mensagemStatusUpload.value = `O arquivo "${arquivo.name}" não é do tipo JSON.`;
     tipoMensagemUpload.value = 'erro';
@@ -84,7 +99,7 @@ function handleFileUpload(event) {
         estacaoCarregadaDoJson.value = null;
         return;
       }
-      mensagemStatusUpload.value = `Arquivo "${nomeArquivo.value}" carregado. Pronto para validação ou edição.`;
+      mensagemStatusUpload.value = `Arquivo "${nomeArquivoEstacoes.value}" carregado. Pronto para validação ou edição.`;
       tipoMensagemUpload.value = 'info';
     } catch (error) {
       mensagemStatusUpload.value = `Erro ao processar JSON: ${error.message}`;
@@ -94,9 +109,69 @@ function handleFileUpload(event) {
     }
   };
   leitor.onerror = () => {
-    mensagemStatusUpload.value = `Erro ao tentar ler o arquivo "${nomeArquivo.value}".`;
+    mensagemStatusUpload.value = `Erro ao tentar ler o arquivo "${nomeArquivoEstacoes.value}".`;
     tipoMensagemUpload.value = 'erro';
     estacaoCarregadaDoJson.value = null;
+ };
+    leitor.readAsText(arquivo);
+ }
+
+
+function handleFileUploadQuestoes(event) {
+  mensagemStatusUpload.value = '';
+  tipoMensagemUpload.value = 'info';
+  questaoCarregadaDoJson.value = null;
+ nomeArquivoQuestoes.value = '';
+  const arquivo = event.target.files[0];
+
+  if (!arquivo) {
+    mensagemStatusUpload.value = 'Nenhum arquivo selecionado.';
+    tipoMensagemUpload.value = 'erro';
+    return;
+  }
+  
+  // Verificar se o arquivo está vazio
+  if (arquivo.size === 0) {
+    mensagemStatusUpload.value = `O arquivo "${arquivo.name}" está vazio.`;
+    tipoMensagemUpload.value = 'erro';
+    limparInputArquivoQuestoes();
+    return;
+  }
+  
+  nomeArquivoQuestoes.value = arquivo.name;
+  if (arquivo.type !== "application/json") {
+    mensagemStatusUpload.value = `O arquivo "${arquivo.name}" não é do tipo JSON.`;
+    tipoMensagemUpload.value = 'erro';
+    limparInputArquivoQuestoes();
+    return;
+  }
+  const leitor = new FileReader();
+  leitor.onload = (e) => {
+    try {
+      const dadosJson = JSON.parse(e.target.result);
+      if (typeof dadosJson === 'object' && dadosJson !== null && !Array.isArray(dadosJson)) {
+        questaoCarregadaDoJson.value = dadosJson;
+      } else if (Array.isArray(dadosJson) && dadosJson.length === 1) {
+        questaoCarregadaDoJson.value = dadosJson[0];
+      } else {
+        mensagemStatusUpload.value = `Erro: O arquivo JSON não contém um único objeto de questão.`;
+        tipoMensagemUpload.value = 'erro';
+        questaoCarregadaDoJson.value = null;
+        return;
+      }
+      mensagemStatusUpload.value = `Arquivo "${nomeArquivoQuestoes.value}" carregado. Pronto para validação ou edição.`;
+      tipoMensagemUpload.value = 'info';
+    } catch (error) {
+      mensagemStatusUpload.value = `Erro ao processar JSON: ${error.message}`;
+      tipoMensagemUpload.value = 'erro';
+      console.error("Erro no JSON:", error);
+      questaoCarregadaDoJson.value = null;
+    }
+  };
+  leitor.onerror = () => {
+    mensagemStatusUpload.value = `Erro ao tentar ler o arquivo "${nomeArquivoQuestoes.value}".`;
+    tipoMensagemUpload.value = 'erro';
+    questaoCarregadaDoJson.value = null;
   };
     leitor.readAsText(arquivo);
   }
@@ -117,6 +192,143 @@ function validarEstruturaEstacao(estacao) {
     // Se o campo for opcional no JSON mas obrigatório no final, o processamento deve garantir um valor numérico.
   }
   return true;
+}
+
+/**
+ * Valida a estrutura de uma questão carregada de um arquivo JSON
+ * @param {Object} questao - Objeto representando a questão
+ * @returns {boolean} - true se a questão for válida, false caso contrário
+ */
+function validarEstruturaQuestao(questao) {
+  // Verifica se a questão é um objeto válido
+  if (!questao || typeof questao !== 'object') {
+    console.error('validarEstruturaQuestao: Questão não é um objeto válido:', questao);
+    return false;
+  }
+
+  // Valida campos obrigatórios básicos
+  if (!questao.id || typeof questao.id !== 'string' || questao.id.trim() === '') {
+    console.error('validarEstruturaQuestao: Campo ID inválido:', questao.id);
+    return false;
+  }
+  if (!questao.banca || typeof questao.banca !== 'string' || questao.banca.trim() === '') {
+    console.error('validarEstruturaQuestao: Campo banca inválido:', questao.banca);
+    return false;
+  }
+  if (!questao.enunciado || typeof questao.enunciado !== 'string' || questao.enunciado.trim() === '') {
+    console.error('validarEstruturaQuestao: Campo enunciado inválido:', questao.enunciado);
+    return false;
+  }
+  // Valida o campo 'respostaCorreta' - pode ser string ou convertido de string
+  let respostaCorreta = questao.respostaCorreta;
+  if (respostaCorreta === null || respostaCorreta === undefined) {
+    // Se for null/undefined, verificar nas opções qual seria a resposta padrão (primeira opção)
+    if (questao.opcoes && Array.isArray(questao.opcoes) && questao.opcoes.length > 0) {
+      respostaCorreta = questao.opcoes[0].letra;
+      console.warn('validarEstruturaQuestao: respostaCorreta era null, usando primeira opção:', respostaCorreta);
+    } else {
+      console.error('validarEstruturaQuestao: Campo respostaCorreta inválido:', questao.respostaCorreta);
+      return false;
+    }
+  }
+  
+  if (!respostaCorreta || typeof respostaCorreta !== 'string' || respostaCorreta.trim() === '') {
+    console.error('validarEstruturaQuestao: Campo respostaCorreta inválido após processamento:', respostaCorreta);
+    return false;
+  }
+
+  // Valida o campo 'ano' - deve ser um número
+  if (!questao.ano || typeof questao.ano !== 'number' || isNaN(questao.ano)) {
+    console.error('validarEstruturaQuestao: Campo ano inválido:', questao.ano);
+    return false;
+  }
+
+  // Valida o campo 'especialidade' - deve ser uma string não vazia
+  // Se não tiver 'especialidade', tenta usar 'area' (para compatibilidade com FAMERP)
+  const especialidade = questao.especialidade || (questao.area && Array.isArray(questao.area) && questao.area.length > 0 ? questao.area[0] : null);
+  if (!especialidade || typeof especialidade !== 'string' || especialidade.trim() === '') {
+    return false;
+  }
+
+  // Valida o campo 'opcoes' - deve ser um objeto (array ou objeto simples) e ter pelo menos uma opção
+  if (!questao.opcoes || typeof questao.opcoes !== 'object') {
+    console.error('validarEstruturaQuestao: Campo opcoes inválido:', questao.opcoes);
+    return false;
+  }
+
+  // Verifica se as opções estão em um dos formatos esperados
+  const opcoes = questao.opcoes;
+  let opcoesValidas = false;
+
+  console.log('validarEstruturaQuestao: Validando opções:', {
+    tipo: Array.isArray(opcoes) ? 'array' : 'objeto',
+    opcoes: opcoes
+  });
+
+  // Formato novo: array de objetos [{letra: "A", texto: "texto"}, ...]
+  if (Array.isArray(opcoes)) {
+    if (opcoes.length === 0) {
+      console.error('validarEstruturaQuestao: Array de opções vazio');
+      return false; // Deve ter pelo menos uma opção
+    }
+    // Verifica se cada opção tem os campos necessários
+    opcoesValidas = opcoes.every(opcao =>
+      opcao &&
+      typeof opcao === 'object' &&
+      opcao.letra &&
+      typeof opcao.letra === 'string' &&
+      opcao.texto &&
+      typeof opcao.texto === 'string'
+    );
+    if (!opcoesValidas) {
+      console.error('validarEstruturaQuestao: Opções em formato de array inválidas:', opcoes);
+    }
+  }
+  // Formato antigo: objeto simples {A: "texto", B: "texto", ...}
+  else {
+    const keys = Object.keys(opcoes);
+    if (keys.length === 0) {
+      console.error('validarEstruturaQuestao: Objeto de opções vazio');
+      return false; // Deve ter pelo menos uma opção
+    }
+    // Verifica se todos os valores são strings
+    opcoesValidas = keys.every(key =>
+      typeof key === 'string' &&
+      typeof opcoes[key] === 'string'
+    );
+    if (!opcoesValidas) {
+      console.error('validarEstruturaQuestao: Opções em formato de objeto inválidas:', opcoes);
+    }
+  }
+
+  if (!opcoesValidas) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Normaliza o campo 'opcoes' de uma questão para um formato padrão (array de objetos)
+ * @param {Object|Array} opcoes - As opções da questão no formato antigo ou novo
+ * @returns {Array} - As opções normalizadas no formato padrão
+ */
+function normalizarOpcoes(opcoes) {
+  // Se já estiver no formato novo (array de objetos), retorna como está
+  if (Array.isArray(opcoes)) {
+    return opcoes;
+  }
+  
+  // Se estiver no formato antigo (objeto simples), converte para o formato novo
+  if (typeof opcoes === 'object' && opcoes !== null) {
+    return Object.entries(opcoes).map(([letra, texto]) => ({
+      letra,
+      texto
+    }));
+  }
+  
+  // Se não for nenhum dos formatos esperados, retorna um array vazio
+  return [];
 }
 
 async function processarEstacaoDoJson() {
@@ -182,7 +394,149 @@ async function processarEstacaoDoJson() {
   }
 }
 
-function limparInputArquivo() { if (fileInputRef.value) { fileInputRef.value.value = null; } nomeArquivo.value = ''; }
+async function processarQuestaoDoJson() {
+  if (!questaoCarregadaDoJson.value) {
+    mensagemStatusUpload.value = "Nenhum JSON carregado para processar.";
+    tipoMensagemUpload.value = 'erro';
+    return;
+  }
+
+  estaProcessandoUpload.value = true;
+  mensagemStatusUpload.value = "Validando para salvamento direto...";
+  tipoMensagemUpload.value = 'info';
+
+  // Criar uma cópia da questão para não modificar o original
+  const questaoParaProcessar = JSON.parse(JSON.stringify(questaoCarregadaDoJson.value));
+
+  if (!validarEstruturaQuestao(questaoParaProcessar)) {
+    mensagemStatusUpload.value = "Falha na validação da estrutura do JSON. Verifique o console para detalhes e se os campos 'id', 'banca', 'enunciado', 'opcoes' e 'respostaCorreta' estão presentes e preenchidos.";
+    tipoMensagemUpload.value = 'erro';
+    estaProcessandoUpload.value = false;
+    return;
+  }
+
+  // Normalizar o campo 'opcoes' para um formato padrão
+  questaoParaProcessar.opcoes = normalizarOpcoes(questaoParaProcessar.opcoes);
+
+  // Verificar se a resposta correta está presente nas opções
+  const opcoesDisponiveis = questaoParaProcessar.opcoes.map(opcao => opcao.letra);
+  if (!opcoesDisponiveis.includes(questaoParaProcessar.respostaCorreta)) {
+    mensagemStatusUpload.value = `Erro: A resposta correta "${questaoParaProcessar.respostaCorreta}" não está presente nas opções disponíveis.`;
+    tipoMensagemUpload.value = 'erro';
+    estaProcessandoUpload.value = false;
+    return;
+  }
+
+  const questionTitleForMessage = questaoParaProcessar.id || "Questão sem ID";
+  mensagemStatusUpload.value = `Validado. Salvando "${questionTitleForMessage}" no Firestore...`;
+
+  try {
+    // Verificar se o Firestore está em modo mock antes de tentar salvar
+    if (typeof window !== 'undefined' && window.firebaseMockMode) {
+      console.warn("Firestore está em modo mock. A questão não será salva.");
+      mensagemStatusUpload.value = `Questão "${questionTitleForMessage}" validada com sucesso, mas não foi salva pois o Firestore está em modo mock.`;
+      tipoMensagemUpload.value = 'info';
+      questaoCarregadaDoJson.value = null;
+      limparInputArquivoQuestoes();
+      return;
+    }
+
+    const questoesColRef = collection(db, 'questoes');
+    
+    // Garantir que o campo 'especialidade' esteja preenchido corretamente
+    // Se não tiver 'especialidade', usar o primeiro elemento de 'area'
+    const dadosParaSalvar = {
+      ...questaoParaProcessar,
+      especialidade: questaoParaProcessar.especialidade || (questaoParaProcessar.area && Array.isArray(questaoParaProcessar.area) && questaoParaProcessar.area.length > 0 ? questaoParaProcessar.area[0] : questaoParaProcessar.especialidade),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    const docRef = await addDoc(questoesColRef, dadosParaSalvar);
+    
+    mensagemStatusUpload.value = `Questão "${questionTitleForMessage}" salva com sucesso no Firestore! ID do Documento: ${docRef.id}`;
+    tipoMensagemUpload.value = 'sucesso';
+    
+    questaoCarregadaDoJson.value = null;
+    limparInputArquivoQuestoes();
+  } catch (error) {
+    console.error("Erro CRÍTICO ao salvar questão do JSON no Firestore:", error);
+    let detalheErro = error.message;
+    if (error.code === 'permission-denied') {
+        detalheErro += " (ERRO DE PERMISSÃO DO FIRESTORE - Verifique as regras de segurança e o UID do admin)";
+    }
+    mensagemStatusUpload.value = `Erro ao salvar questão no JSON no Firestore: ${detalheErro}`;
+    tipoMensagemUpload.value = 'erro';
+  } finally {
+    estaProcessandoUpload.value = false;
+  }
+}
+
+function limparInputArquivo() { if (fileInputRef.value) { fileInputRef.value.value = null; } nomeArquivoEstacoes.value = ''; }
+function limparInputArquivoQuestoes() { if (fileInputQuestoesRef.value) { fileInputQuestoesRef.value.value = null; } nomeArquivoQuestoes.value = ''; }
+function limparInputArquivoQuestoesBatch() { if (fileInputQuestoesBatchRef.value) { fileInputQuestoesBatchRef.value.value = null; } nomeArquivoQuestoesBatch.value = ''; }
+
+function limparFormularioQuestoes() {
+  questaoCarregadaDoJson.value = null;
+  limparInputArquivoQuestoes();
+  mensagemStatusUpload.value = '';
+  tipoMensagemUpload.value = 'info';
+}
+
+function handleBatchQuestionsFileUpload(event) {
+  mensagemStatusUpload.value = '';
+  tipoMensagemUpload.value = 'info';
+  batchQuestionsFile.value = null;
+  nomeArquivoQuestoesBatch.value = '';
+  const arquivo = event.target.files[0];
+
+  if (!arquivo) {
+    mensagemStatusUpload.value = 'Nenhum arquivo selecionado.';
+    tipoMensagemUpload.value = 'erro';
+    return;
+  }
+  nomeArquivoQuestoesBatch.value = arquivo.name;
+  if (arquivo.type !== "application/json") {
+    mensagemStatusUpload.value = `O arquivo "${arquivo.name}" não é do tipo JSON.`;
+    tipoMensagemUpload.value = 'erro';
+    limparInputArquivoQuestoesBatch();
+    return;
+  }
+  
+  batchQuestionsFile.value = arquivo;
+ mensagemStatusUpload.value = `Arquivo "${nomeArquivoQuestoesBatch.value}" selecionado. Clique em "Carregar Questões" para processar.`;
+  tipoMensagemUpload.value = 'info';
+}
+
+async function processarBatchQuestions() {
+  if (!batchQuestionsFile.value) {
+    mensagemStatusUpload.value = "Nenhum arquivo selecionado para processar.";
+    tipoMensagemUpload.value = 'erro';
+    return;
+  }
+
+  estaProcessandoUpload.value = true;
+  mensagemStatusUpload.value = "Processando arquivo de questões...";
+  tipoMensagemUpload.value = 'info';
+
+  try {
+    // Criar um novo evento para passar para a função existente
+    const event = {
+      target: {
+        files: [batchQuestionsFile.value]
+      }
+    };
+    
+    // Chamar a função existente onBatchQuestionsJsonUpload
+    await onBatchQuestionsJsonUpload(event);
+  } catch (error) {
+    console.error("Erro ao processar questões em batch:", error);
+    mensagemStatusUpload.value = `Erro ao processar questões: ${error.message}`;
+    tipoMensagemUpload.value = 'erro';
+  } finally {
+    estaProcessandoUpload.value = false;
+  }
+}
 
 function mapJsonToFormData(jsonData) {
     const form = getInitialFormNovaEstacao();
@@ -346,9 +700,9 @@ function carregarJsonParaFormularioDeEdicao() {
     try {
         formNovaEstacao.value = mapJsonToFormData(estacaoCarregadaDoJson.value);
         activeTab.value = 'manualCreate';
-        mensagemStatusManual.value = `Dados do arquivo "${nomeArquivo.value}" carregados para edição. Revise e salve quando pronto.`;
+        mensagemStatusManual.value = `Dados do arquivo "${nomeArquivoEstacoes.value}" carregados para edição. Revise e salve quando pronto.`;
         tipoMensagemManual.value = 'info';
-        mensagemStatusUpload.value = ''; 
+        mensagemStatusUpload.value = '';
     } catch (error) {
         console.error("Erro ao mapear JSON para formulário:", error);
         mensagemStatusManual.value = "Ocorreu um erro ao tentar carregar os dados do JSON para o formulário de edição.";
@@ -400,7 +754,7 @@ function adicionarInfoVerbal() { formNovaEstacao.value.informacoesVerbaisSimulad
 function removerInfoVerbal(index) {formNovaEstacao.value.informacoesVerbaisSimulado.splice(index, 1);}
 
 function adicionarImpresso() {
-  const novoIdImpresso = `imp_${Date.now()}_${formNovaEstacao.value.impressos.length + 1}`;
+ const novoIdImpresso = `imp_${Date.now()}_${formNovaEstacao.value.impressos.length + 1}`;
   formNovaEstacao.value.impressos.push({ idImpresso: novoIdImpresso, tituloImpresso: '', tipoConteudo: 'texto_simples', conteudo: { texto: '' } });
 }
 function removerImpresso(index) {formNovaEstacao.value.impressos.splice(index, 1);}
@@ -563,7 +917,7 @@ async function salvarEstacaoManualmente() {
   }
 
   mensagemStatusManual.value = `Estação "${novaEstacaoObjeto.tituloEstacao}" pronta. Tentando salvar no Firestore...`;
-  tipoMensagemManual.value = 'info';
+ tipoMensagemManual.value = 'info';
 
   try {
     const estacoesColRef = collection(db, 'estacoes_clinicas');
@@ -640,15 +994,82 @@ async function onBatchStationsJsonUpload(event) {
   mensagemStatusUpload.value = `Processo concluído: ${sucesso} estações salvas, ${falha} falharam.`;
   tipoMensagemUpload.value = falha === 0 ? 'sucesso' : 'erro';
 }
+
+async function onBatchQuestionsJsonUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  let questions;
+  try {
+    const text = await file.text();
+    questions = JSON.parse(text);
+    if (!Array.isArray(questions)) throw new Error('O JSON deve ser um array de questões.');
+  } catch (e) {
+    mensagemStatusUpload.value = 'Arquivo JSON inválido ou formato incorreto.';
+    tipoMensagemUpload.value = 'erro';
+    return;
+  }
+  
+  const questoesColRef = collection(db, 'questoes');
+  let sucesso = 0, falha = 0;
+  
+  for (const question of questions) {
+    try {
+      // Validar a estrutura da questão
+      if (!validarEstruturaQuestao(question)) {
+        console.error('Questão inválida:', question);
+        falha++;
+        continue;
+      }
+      
+      // Normalizar o campo 'opcoes' para um formato padrão
+      question.opcoes = normalizarOpcoes(question.opcoes);
+      
+      // Verificar se a resposta correta está presente nas opções
+      const opcoesDisponiveis = question.opcoes.map(opcao => opcao.letra);
+      if (!opcoesDisponiveis.includes(question.respostaCorreta)) {
+        console.error(`A resposta correta "${question.respostaCorreta}" não está presente nas opções disponíveis.`, question);
+        falha++;
+        continue;
+      }
+      
+      // Verificar se o Firestore está em modo mock antes de tentar salvar
+      if (typeof window !== 'undefined' && window.firebaseMockMode) {
+        console.warn("Firestore está em modo mock. A questão não será salva.");
+        falha++;
+        continue;
+      }
+      
+      // Garantir que o campo 'especialidade' esteja preenchido corretamente
+      // Se não tiver 'especialidade', usar o primeiro elemento de 'area'
+      const dadosParaSalvar = {
+        ...question,
+        especialidade: question.especialidade || (question.area && Array.isArray(question.area) && question.area.length > 0 ? question.area[0] : question.especialidade),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      await addDoc(questoesColRef, dadosParaSalvar);
+      sucesso++;
+    } catch (e) {
+      falha++;
+      console.error('Falha ao salvar questão:', question, e);
+    }
+  }
+  
+  mensagemStatusUpload.value = `Processo concluído: ${sucesso} questões salvas, ${falha} falharam.`;
+  tipoMensagemUpload.value = falha === 0 ? 'sucesso' : 'erro';
+}
 </script>
 
 <template>
-  <div class="admin-upload-page">
-    <h2>Gerenciamento de Estações Clínicas</h2>
+ <div class="admin-upload-page">
+    <h2>Gerenciamento de Estações Clínicas e Questões</h2>
     <div class="tab-navigation">
-      <button @click="activeTab = 'uploadJson'" :class="['tab-button', { 'active': activeTab === 'uploadJson' }]">Carregar via Arquivo JSON</button>
-      <button @click="activeTab = 'manualCreate'" :class="['tab-button', { 'active': activeTab === 'manualCreate' }]">Criar/Editar Estação Manualmente</button>
-    </div>
+          <button @click="activeTab = 'uploadJson'" :class="['tab-button', { 'active': activeTab === 'uploadJson' }]">Carregar Estação via JSON</button>
+          <button @click="activeTab = 'uploadJsonQuestoes'" :class="['tab-button', { 'active': activeTab === 'uploadJsonQuestoes' }]">Carregar Questão via JSON</button>
+          <button @click="activeTab = 'uploadJsonQuestoesBatch'" :class="['tab-button', { 'active': activeTab === 'uploadJsonQuestoesBatch' }]">Carregar Múltiplas Questões</button>
+          <button @click="activeTab = 'manualCreate'" :class="['tab-button', { 'active': activeTab === 'manualCreate' }]">Criar/Editar Estação Manualmente</button>
+        </div>
 
     <div class="tab-content">
       <div v-if="activeTab === 'uploadJson'" class="upload-json-section card">
@@ -656,8 +1077,8 @@ async function onBatchStationsJsonUpload(event) {
         <p>Selecione um arquivo <code>.json</code> contendo os dados de uma única estação clínica. Certifique-se de que o JSON inclui o campo <code>"numeroDaEstacao"</code> (numérico) para ordenação correta.</p>
         <div class="upload-box-internal">
           <label for="json-file-input" class="custom-file-upload-label-internal">
-            <span v-if="!nomeArquivo">Clique para selecionar o arquivo JSON</span>
-            <span v-else>Arquivo selecionado: {{ nomeArquivo }}</span>
+            <span v-if="!nomeArquivoEstacoes">Clique para selecionar o arquivo JSON</span>
+            <span v-else>Arquivo selecionado: {{ nomeArquivoEstacoes }}</span>
           </label>
           <input id="json-file-input" type="file" @change="handleFileUpload" accept=".json" ref="fileInputRef"/>
         </div>
@@ -682,6 +1103,75 @@ async function onBatchStationsJsonUpload(event) {
             <pre>{{ JSON.stringify(estacaoCarregadaDoJson, null, 2) }}</pre>
           </details>
         </div>
+      </div>
+
+      <div v-if="activeTab === 'uploadJsonQuestoes'" class="upload-json-questoes-section card">
+        <h3>Carregar Questão Individual via Arquivo JSON</h3>
+        <p>Selecione um arquivo <code>.json</code> contendo os dados de uma única questão.</p>
+        <div class="upload-box-internal">
+          <label for="json-file-input-questoes" class="custom-file-upload-label-internal">
+            <span v-if="!nomeArquivoQuestoes">Clique para selecionar o arquivo JSON</span>
+            <span v-else>Arquivo selecionado: {{ nomeArquivoQuestoes }}</span>
+          </label>
+          <input id="json-file-input-questoes" type="file" @change="handleFileUploadQuestoes" accept=".json" ref="fileInputQuestoesRef"/>
+        </div>
+        <div v-if="questaoCarregadaDoJson" class="json-actions">
+          <button @click="processarQuestaoDoJson" :disabled="estaProcessandoUpload" class="process-button-internal">
+            <span v-if="estaProcessandoUpload && mensagemStatusUpload.includes('Salvando')">Salvando...</span>
+            <span v-else>Validar e Salvar JSON Diretamente</span>
+          </button>
+          <button @click="limparFormularioQuestoes" class="edit-button-internal">
+            Limpar Formulário
+          </button>
+        </div>
+        <div v-if="mensagemStatusUpload" :class="['status-message-internal', tipoMensagemUpload]">{{ mensagemStatusUpload }}</div>
+        <div v-if="questaoCarregadaDoJson && !estaProcessandoUpload" class="preview-section-internal">
+          <h4>Prévia da Questão Carregada do JSON:</h4>
+          <p><strong>ID da Questão (do JSON):</strong> {{ questaoCarregadaDoJson.id }}</p>
+          <p><strong>Banca:</strong> {{ questaoCarregadaDoJson.banca }}</p>
+          <p><strong>Ano:</strong> {{ questaoCarregadaDoJson.ano }}</p>
+          <p><strong>Especialidade:</strong> {{ questaoCarregadaDoJson.especialidade || (questaoCarregadaDoJson.area && Array.isArray(questaoCarregadaDoJson.area) && questaoCarregadaDoJson.area.length > 0 ? questaoCarregadaDoJson.area[0] : 'Não especificada') }}</p>
+          <div v-if="questaoCarregadaDoJson.enunciado">
+            <p><strong>Enunciado (resumo):</strong> {{ questaoCarregadaDoJson.enunciado.substring(0, 200) }}{{ questaoCarregadaDoJson.enunciado.length > 200 ? '...' : '' }}</p>
+          </div>
+          <div v-if="questaoCarregadaDoJson.opcoes">
+            <p><strong>Opções:</strong></p>
+            <ul>
+              <li v-for="(opcao, index) in questaoCarregadaDoJson.opcoes" :key="index">
+                <span v-if="Array.isArray(questaoCarregadaDoJson.opcoes)">
+                  {{ opcao.letra }}) {{ opcao.texto }}
+                </span>
+                <span v-else>
+                  {{ index }}) {{ opcao }}
+                </span>
+              </li>
+            </ul>
+          </div>
+          <div v-if="questaoCarregadaDoJson.respostaCorreta">
+            <p><strong>Resposta Correta:</strong> {{ questaoCarregadaDoJson.respostaCorreta }}</p>
+          </div>
+          <details>
+            <summary>Ver mais dados do JSON (estrutura crua)</summary>
+            <pre>{{ JSON.stringify(questaoCarregadaDoJson, null, 2) }}</pre>
+          </details>
+        </div>
+      </div>
+
+      <div v-if="activeTab === 'uploadJsonQuestoesBatch'" class="upload-json-questoes-batch-section card">
+        <h3>Carregar Múltiplas Questões via Arquivo JSON</h3>
+        <p>Selecione um arquivo <code>.json</code> contendo um array de questões.</p>
+        <div class="upload-box-internal">
+                  <label for="json-file-input-questoes-batch" class="custom-file-upload-label-internal">
+                    <span v-if="!nomeArquivoQuestoesBatch">Clique para selecionar o arquivo JSON</span>
+                    <span v-else>Arquivo selecionado: {{ nomeArquivoQuestoesBatch }}</span>
+                  </label>
+                  <input id="json-file-input-questoes-batch" type="file" @change="handleBatchQuestionsFileUpload" accept=".json" ref="fileInputQuestoesBatchRef"/>
+                </div>
+                <button @click="processarBatchQuestions" :disabled="estaProcessandoUpload" class="process-button-internal">
+                  <span v-if="estaProcessandoUpload">Processando...</span>
+                  <span v-else>Carregar Questões</span>
+                </button>
+                <div v-if="mensagemStatusUpload" :class="['status-message-internal', tipoMensagemUpload]">{{ mensagemStatusUpload }}</div>
       </div>
 
       <div v-if="activeTab === 'manualCreate'" class="manual-create-section card">
@@ -843,7 +1333,7 @@ async function onBatchStationsJsonUpload(event) {
 .manual-form input[type="number"],
 .manual-form select,
 .manual-form textarea {
-  width: 100%;
+ width: 100%;
   padding: 10px 12px;
   border: 1px solid #ced4da;
   border-radius: 4px;
@@ -856,7 +1346,7 @@ async function onBatchStationsJsonUpload(event) {
 .manual-form select:focus,
 .manual-form textarea:focus {
   border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+  box-shadow: 0 0.2rem rgba(0,123,255,.25);
   outline: none;
 }
 .manual-form textarea { resize: vertical; min-height: 80px; }
@@ -972,3 +1462,85 @@ async function onBatchStationsJsonUpload(event) {
 .preview-section-internal pre { background-color: #e9ecef; padding: 10px; border-radius: 4px; max-height: 300px; overflow: auto;}
 
 </style>
+
+
+<!--
+  Testes para a função validarEstruturaQuestao (adicionar ao final do arquivo quando necessário):
+
+  // Teste 1: Questão válida no formato novo (array de opções)
+ const questaoValidaFormatoNovo = {
+    id: "questao_001",
+    banca: "CESPE",
+    enunciado: "Qual é a capital do Brasil?",
+    ano: 2023,
+    especialidade: "Geografia",
+    opcoes: [
+      { letra: "A", texto: "São Paulo" },
+      { letra: "B", texto: "Rio de Janeiro" },
+      { letra: "C", texto: "Brasília" },
+      { letra: "D", texto: "Salvador" }
+    ],
+    respostaCorreta: "C"
+  };
+  console.log("Teste 1 - Formato novo válido:", validarEstruturaQuestao(questaoValidaFormatoNovo)); // Deve retornar true
+
+  // Teste 2: Questão válida no formato antigo (objeto de opções)
+  const questaoValidaFormatoAntigo = {
+    id: "questao_002",
+    banca: "FGV",
+    enunciado: "Quanto é 2 + 2?",
+    ano: 2022,
+    especialidade: "Matemática",
+    opcoes: {
+      A: "3",
+      B: "4",
+      C: "5",
+      D: "6"
+    },
+    respostaCorreta: "B"
+  };
+  console.log("Teste 2 - Formato antigo válido:", validarEstruturaQuestao(questaoValidaFormatoAntigo)); // Deve retornar true
+
+  // Teste 3: Questão inválida (faltando campos obrigatórios)
+  const questaoInvalidaFaltandoCampos = {
+    id: "questao_003",
+    banca: "CESPE",
+    // enunciado está faltando
+    ano: 2023,
+    especialidade: "Geografia",
+    opcoes: [
+      { letra: "A", texto: "São Paulo" },
+      { letra: "B", texto: "Rio de Janeiro" }
+    ],
+    respostaCorreta: "A"
+  };
+  console.log("Teste 3 - Faltando campos:", validarEstruturaQuestao(questaoInvalidaFaltandoCampos)); // Deve retornar false
+
+  // Teste 4: Questão inválida (formato de opções incorreto)
+  const questaoInvalidaFormatoOpcoes = {
+    id: "questao_004",
+    banca: "FGV",
+    enunciado: "Quanto é 3 + 3?",
+    ano: 2022,
+    especialidade: "Matemática",
+    opcoes: [
+      { texto: "5" }, // Faltando campo 'letra'
+      { letra: "B", texto: "6" },
+      { letra: "C", texto: "7" }
+    ],
+    respostaCorreta: "B"
+  };
+  console.log("Teste 4 - Formato de opções incorreto:", validarEstruturaQuestao(questaoInvalidaFormatoOpcoes)); // Deve retornar false
+
+  // Teste 5: Questão inválida (opções vazias)
+  const questaoInvalidaOpcoesVazias = {
+    id: "questao_005",
+    banca: "CESPE",
+    enunciado: "Qual é a cor do céu?",
+    ano: 2023,
+    especialidade: "Ciências",
+    opcoes: [],
+    respostaCorreta: "A"
+  };
+  console.log("Teste 5 - Opções vazias:", validarEstruturaQuestao(questaoInvalidaOpcoesVazias)); // Deve retornar false
+-->

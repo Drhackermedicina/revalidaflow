@@ -74,7 +74,7 @@
                 </v-chip>
               </template>
               <template v-slot:item.ultimaEdicao="{ item }">
-                {{ item.hasBeenEdited ? formatDate(item.normalizedUpdatedAt) : 'N/A' }}
+                {{ item.hasBeenEdited ? formatDate(item.lastEditDate || item.normalizedUpdatedAt) : 'N/A' }}
               </template>
               <template v-slot:item.editadoPor="{ item }">
                 <v-chip size="small" color="blue" v-if="item.hasBeenEdited && item.lastEditBy">
@@ -118,7 +118,7 @@
                 <v-chip size="small" color="teal">{{ simplifySpecialty(item.especialidade) }}</v-chip>
               </template>
               <template v-slot:item.criadoEm="{ item }">
-                {{ formatDate(item.criadoEmTimestamp || item.normalizedCreatedAt) }}
+                {{ formatDate(item.normalizedCreatedAt) }}
               </template>
               <template v-slot:item.actions="{ item }">
                 <div class="d-flex gap-1">
@@ -156,7 +156,7 @@
                 <v-chip size="small" color="teal">{{ simplifySpecialty(item.especialidade) }}</v-chip>
               </template>
               <template v-slot:item.criadoEm="{ item }">
-                {{ formatDate(item.criadoEmTimestamp || item.normalizedCreatedAt) }}
+                {{ formatDate(item.normalizedCreatedAt) }}
               </template>
               <template v-slot:item.atualizadoEm="{ item }">
                 {{ formatDate(item.lastEditDate || item.normalizedUpdatedAt) }}
@@ -171,7 +171,7 @@
               </template>
               <template v-slot:item.atualizadoPor="{ item }">
                 <v-chip size="small" color="green">
-                  {{ item.lastEditBy || item.atualizadoPor || 'N/A' }}
+                  {{ item.lastEditBy || 'N/A' }}
                 </v-chip>
               </template>
               <template v-slot:item.actions="{ item }">
@@ -215,7 +215,10 @@ const router = useRouter()
 const isLoading = ref(true)
 const stations = ref([])
 const activeTab = ref('recent')
-const stationsCache = shallowRef(new Map())
+// Cache para armazenar informações processadas das estações
+const processedStationsCache = shallowRef(new Map())
+// Marcações de tempo para detectar mudanças nas estações
+const stationLastProcessed = shallowRef(new Map())
 
 // Headers
 const headersNotEdited = [
@@ -263,41 +266,79 @@ const normalizeStationTimestamps = (station) => {
   const possibleCreatedFields = ['criadoEmTimestamp', 'dataCadastro', 'createdAt', 'timestamp']
   let createdTimestamp = null
   for (const field of possibleCreatedFields) {
-    if (station[field]) { createdTimestamp = station[field]; break }
+    if (station[field]) {
+      createdTimestamp = station[field]
+      break
+    }
+  }
+
+  // Se não encontrou nos campos diretos, tenta encontrar em objetos aninhados
+  if (!createdTimestamp && station.metadata && station.metadata.createdAt) {
+    createdTimestamp = station.metadata.createdAt
   }
 
   const possibleUpdatedFields = ['atualizadoEmTimestamp', 'dataUltimaAtualizacao', 'updatedAt', 'editHistory']
   let updatedTimestamp = null
 
+  // Primeiro verifica se tem histórico de edições
   if (station.editHistory && Array.isArray(station.editHistory) && station.editHistory.length > 0) {
     const lastEdit = station.editHistory[station.editHistory.length - 1]
     updatedTimestamp = lastEdit.timestamp || lastEdit.data || lastEdit.date
   } else {
+    // Se não tem histórico, procura nos campos diretos
     for (const field of possibleUpdatedFields) {
-      if (station[field] && field !== 'editHistory') { updatedTimestamp = station[field]; break }
+      if (station[field] && field !== 'editHistory') {
+        updatedTimestamp = station[field]
+        break
+      }
     }
   }
 
+  // Se não encontrou nos campos diretos, tenta encontrar em objetos aninhados
+  if (!updatedTimestamp && station.metadata && station.metadata.updatedAt) {
+    updatedTimestamp = station.metadata.updatedAt
+  }
+
+  // Normaliza os timestamps para milissegundos
+  const normalizedCreated = normalizeTimestampToMs(createdTimestamp)
+  const normalizedUpdated = normalizeTimestampToMs(updatedTimestamp)
+
+  // Determina se foi editado
+  let hasBeenEdited = false
+  if (station.editHistory && Array.isArray(station.editHistory) && station.editHistory.length > 0) {
+    // Se tem histórico de edições, considera como editado
+    hasBeenEdited = true
+  } else if (station.hasBeenEdited !== undefined) {
+    // Se tem o campo booleano explícito, usa ele
+    hasBeenEdited = !!station.hasBeenEdited
+  } else if (normalizedCreated && normalizedUpdated) {
+    // Se tem ambos timestamps, compara
+    hasBeenEdited = normalizedUpdated > normalizedCreated
+  }
+
   return {
-    normalizedCreatedAt: createdTimestamp,
-    normalizedUpdatedAt: updatedTimestamp,
-    hasBeenEdited: !!(station.editHistory && station.editHistory.length > 0) || (createdTimestamp && updatedTimestamp && normalizeTimestampToMs(updatedTimestamp) > normalizeTimestampToMs(createdTimestamp)) || !!station.hasBeenEdited
+    normalizedCreatedAt: normalizedCreated || createdTimestamp,
+    normalizedUpdatedAt: normalizedUpdated || updatedTimestamp,
+    hasBeenEdited
   }
 }
 
 const verificarEdicaoHibridaAdmin = (station) => {
   const normalized = normalizeStationTimestamps(station)
-  if (station.editHistory && Array.isArray(station.editHistory)) {
+  
+  // Caso 1: Tem histórico de edições moderno
+  if (station.editHistory && Array.isArray(station.editHistory) && station.editHistory.length > 0) {
     const lastEdit = station.editHistory[station.editHistory.length - 1]
     return {
       hasBeenEdited: true,
       method: 'modern',
       lastEditDate: lastEdit?.timestamp || lastEdit?.data || lastEdit?.date || null,
       totalEdits: station.editHistory.length,
-      lastEditBy: lastEdit?.editadoPor || lastEdit?.userId || lastEdit?.userName || null
+      lastEditBy: lastEdit?.editadoPor || lastEdit?.userId || lastEdit?.userName || lastEdit?.user || null
     }
   }
 
+  // Caso 2: Tem timestamps normalizados
   const createdDate = normalized.normalizedCreatedAt
   const updatedDate = normalized.normalizedUpdatedAt
 
@@ -305,21 +346,37 @@ const verificarEdicaoHibridaAdmin = (station) => {
     const createdTime = normalizeTimestampToMs(createdDate)
     const updatedTime = normalizeTimestampToMs(updatedDate)
     const hasLegacyEdit = updatedTime && createdTime && updatedTime > createdTime
+    
+    // Tenta encontrar informações do editor
+    let editor = null
+    if (station.lastEditBy) {
+      editor = station.lastEditBy
+    } else if (station.atualizadoPor) {
+      editor = station.atualizadoPor
+    } else if (station.editadoPor) {
+      editor = station.editadoPor
+    } else if (station.updatedBy) {
+      editor = station.updatedBy
+    } else if (station.criadoPor && createdTime !== updatedTime) {
+      editor = station.criadoPor
+    }
+    
     return {
       hasBeenEdited: hasLegacyEdit,
       method: 'legacy',
       totalEdits: hasLegacyEdit ? 1 : 0,
       lastEditDate: hasLegacyEdit ? updatedDate : null,
-      lastEditBy: station.atualizadoPor || station.editadoPor || station.updatedBy || station.criadoPor
+      lastEditBy: editor
     }
   }
 
+  // Caso 3: Usa o campo booleano explícito ou retorna valores padrão
   return {
-    hasBeenEdited: normalized.hasBeenEdited,
+    hasBeenEdited: normalized.hasBeenEdited || false,
     method: station.hasBeenEdited !== undefined ? 'boolean' : 'none',
     totalEdits: normalized.hasBeenEdited ? 1 : 0,
-    lastEditDate: updatedDate,
-    lastEditBy: station.atualizadoPor || station.updatedBy
+    lastEditDate: updatedDate || null,
+    lastEditBy: station.lastEditBy || station.atualizadoPor || station.updatedBy || station.editadoPor || null
   }
 }
 
@@ -356,56 +413,151 @@ const formatDate = (timestamp, options = {}) => {
   }
 }
 
-// Computed filters
+// Função para gerar uma marcação de tempo baseada no estado atual da estação
+const getStationTimestamp = (station) => {
+  // Prioriza campos que indicam atualização
+  if (station.normalizedUpdatedAt) return station.normalizedUpdatedAt;
+  if (station.atualizadoEmTimestamp) return station.atualizadoEmTimestamp;
+  if (station.dataUltimaAtualizacao) return station.dataUltimaAtualizacao;
+  if (station.editHistory && station.editHistory.length > 0) return station.editHistory[station.editHistory.length - 1].timestamp;
+  
+  // Caso contrário, usa a data de criação
+  return station.normalizedCreatedAt || station.criadoEmTimestamp || station.dataCadastro;
+};
+
+// Função para verificar se a estação foi modificada desde o último processamento
+const isStationModified = (station) => {
+  if (!station.id) return true;
+  
+  const currentTimestamp = getStationTimestamp(station);
+  const lastProcessed = stationLastProcessed.value.get(station.id);
+  
+  // Se nunca processamos ou o timestamp mudou, a estação foi modificada
+  return !lastProcessed || lastProcessed !== currentTimestamp;
+};
+
+// Função para atualizar o cache de uma estação específica
+const updateStationCache = (station) => {
+  if (!station.id) return;
+  
+  const normalized = normalizeStationTimestamps(station);
+  const editInfo = verificarEdicaoHibridaAdmin(station);
+  
+  const processed = {
+    ...station,
+    normalizedCreatedAt: normalized.normalizedCreatedAt,
+    normalizedUpdatedAt: normalized.normalizedUpdatedAt,
+    hasBeenEdited: editInfo.hasBeenEdited,
+    totalEdits: editInfo.totalEdits,
+    lastEditBy: editInfo.lastEditBy,
+    lastEditDate: editInfo.lastEditDate,
+    createdTime: normalizeTimestampToMs(normalized.normalizedCreatedAt) || 0,
+    updatedTime: normalizeTimestampToMs(editInfo.lastEditDate) || normalizeTimestampToMs(normalized.normalizedUpdatedAt) || 0
+  };
+  
+  processedStationsCache.value.set(station.id, processed);
+  stationLastProcessed.value.set(station.id, getStationTimestamp(station));
+};
+
+// Limpa o cache para estações específicas
+const clearStationCache = (stationIds) => {
+  stationIds.forEach(id => {
+    processedStationsCache.value.delete(id);
+    stationLastProcessed.value.delete(id);
+  });
+};
+
+// Watcher para atualizar o cache incrementalmente
+watch(stations, (newStations) => {
+  const modifiedStations = [];
+  const newStationIds = new Set();
+  
+  // Identifica estações modificadas ou novas
+  for (const station of newStations) {
+    if (!station.id) continue;
+    
+    newStationIds.add(station.id);
+    if (isStationModified(station)) {
+      modifiedStations.push(station);
+    }
+  }
+  
+  // Limpa cache para estações removidas
+  const cachedIds = Array.from(processedStationsCache.value.keys());
+  const removedIds = cachedIds.filter(id => !newStationIds.has(id));
+  if (removedIds.length > 0) {
+    clearStationCache(removedIds);
+  }
+  
+  // Atualiza cache para estações modificadas
+  for (const station of modifiedStations) {
+    updateStationCache(station);
+  }
+}, { deep: true });
+
+// Função para obter informações processadas da estação com cache otimizado
+const getProcessedStationInfo = (station) => {
+  if (!station.id) {
+    // Para estações sem ID (raro), processa diretamente sem cache
+    const normalized = normalizeStationTimestamps(station);
+    const editInfo = verificarEdicaoHibridaAdmin(station);
+    
+    return {
+      ...station,
+      normalizedCreatedAt: normalized.normalizedCreatedAt,
+      normalizedUpdatedAt: normalized.normalizedUpdatedAt,
+      hasBeenEdited: editInfo.hasBeenEdited,
+      totalEdits: editInfo.totalEdits,
+      lastEditBy: editInfo.lastEditBy,
+      lastEditDate: editInfo.lastEditDate,
+      createdTime: normalizeTimestampToMs(normalized.normalizedCreatedAt) || 0,
+      updatedTime: normalizeTimestampToMs(editInfo.lastEditDate) || normalizeTimestampToMs(normalized.normalizedUpdatedAt) || 0
+    };
+  }
+  
+  // Primeiro verifica se precisa atualizar o cache
+  if (isStationModified(station)) {
+    updateStationCache(station);
+  }
+  
+  // Retorna do cache (sempre atualizado graças ao watcher)
+  return processedStationsCache.value.get(station.id) || station;
+};
+
+// Computed filters com memoização baseada em cache
 const stationsNotEdited = computed(() => {
-  const result = stations.value.filter(station => {
-    const normalized = normalizeStationTimestamps(station)
-    return !normalized.hasBeenEdited
-  }).map(station => {
-    const normalized = normalizeStationTimestamps(station)
-    return { ...station, normalizedCreatedAt: normalized.normalizedCreatedAt, normalizedUpdatedAt: normalized.normalizedUpdatedAt, hasBeenEdited: normalized.hasBeenEdited }
-  }).sort((a,b) => {
-    const dateA = normalizeTimestampToMs(a.normalizedCreatedAt) || 0
-    const dateB = normalizeTimestampToMs(b.normalizedCreatedAt) || 0
-    return dateB - dateA
-  })
-  return result
-})
+  return stations.value
+    .filter(station => {
+      const processed = getProcessedStationInfo(station);
+      return !processed.hasBeenEdited;
+    })
+    .map(station => getProcessedStationInfo(station))
+    .sort((a, b) => b.createdTime - a.createdTime);
+});
 
 const stationsEdited = computed(() => {
-  const result = stations.value.filter(station => {
-    const normalized = normalizeStationTimestamps(station)
-    return normalized.hasBeenEdited
-  }).map(station => {
-    const normalized = normalizeStationTimestamps(station)
-    const editInfo = verificarEdicaoHibridaAdmin(station)
-    return { ...station, normalizedCreatedAt: normalized.normalizedCreatedAt, normalizedUpdatedAt: normalized.normalizedUpdatedAt, hasBeenEdited: normalized.hasBeenEdited, totalEdits: editInfo.totalEdits, lastEditBy: editInfo.lastEditBy, lastEditDate: editInfo.lastEditDate }
-  }).sort((a,b) => {
-    const dateA = normalizeTimestampToMs(a.lastEditDate) || normalizeTimestampToMs(a.normalizedUpdatedAt) || 0
-    const dateB = normalizeTimestampToMs(b.lastEditDate) || normalizeTimestampToMs(b.normalizedUpdatedAt) || 0
-    return dateB - dateA
-  })
-  return result
-})
+  return stations.value
+    .filter(station => {
+      const processed = getProcessedStationInfo(station);
+      return processed.hasBeenEdited;
+    })
+    .map(station => getProcessedStationInfo(station))
+    .sort((a, b) => b.updatedTime - a.updatedTime);
+});
 
 const stationsRecent = computed(() => {
-  const fiveDaysAgo = new Date(); fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
-  const fiveDaysAgoTimestamp = fiveDaysAgo.getTime()
-  const result = stations.value.filter(station => {
-    const normalized = normalizeStationTimestamps(station)
-    const createdTime = normalizeTimestampToMs(normalized.normalizedCreatedAt)
-    if (!createdTime) return false
-    return createdTime >= fiveDaysAgoTimestamp
-  }).map(station => {
-    const normalized = normalizeStationTimestamps(station)
-    return { ...station, normalizedCreatedAt: normalized.normalizedCreatedAt, normalizedUpdatedAt: normalized.normalizedUpdatedAt, hasBeenEdited: normalized.hasBeenEdited }
-  }).sort((a,b) => {
-    const dateA = normalizeTimestampToMs(a.normalizedCreatedAt) || 0
-    const dateB = normalizeTimestampToMs(b.normalizedCreatedAt) || 0
-    return dateB - dateA
-  })
-  return result
-})
+  const fiveDaysAgo = new Date();
+  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+  const fiveDaysAgoTimestamp = fiveDaysAgo.getTime();
+
+  return stations.value
+    .filter(station => {
+      const processed = getProcessedStationInfo(station);
+      return processed.createdTime >= fiveDaysAgoTimestamp;
+    })
+    .map(station => getProcessedStationInfo(station))
+    .sort((a, b) => b.createdTime - a.createdTime);
+});
 
 const editStation = (stationId) => {
   router.push(`/app/edit-station/${stationId}`)

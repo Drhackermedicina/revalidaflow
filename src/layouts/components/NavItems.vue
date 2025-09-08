@@ -139,7 +139,7 @@ const rankingMeta = 98;
         title: 'Renovação',
         icon: 'ri-refresh-fill',
         iconColor: '#00bcd4',
-        to: '/assinatura/renovacao',
+        to: '/pagamento',
       }"
     />
   </VerticalNavGroup>

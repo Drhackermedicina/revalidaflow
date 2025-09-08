@@ -216,6 +216,7 @@
 <script setup>
 import { ref, computed, watch, inject, onMounted } from 'vue'
 import geminiService from '@/services/geminiService.js'
+import memoryService from '@/services/memoryService.js'
 
 // Props
 const props = defineProps({
@@ -253,15 +254,34 @@ const currentValue = computed(() => {
   return props.modelValue || ''
 })
 
-// Carregar prompts salvos do localStorage
-const loadSavedPrompts = () => {
+// Carregar prompts salvos usando MemoryService
+const loadSavedPrompts = async () => {
   try {
-    const saved = localStorage.getItem('aiFieldAssistant_prompts')
-    if (saved) {
-      savedPrompts.value = JSON.parse(saved)
-    }
+    // Para AIFieldAssistant, usamos uma "stationId" genérica
+    const stationId = 'ai-field-assistant-global'
+    const memories = await memoryService.loadMemories(stationId)
+    
+    // Converter memórias para formato de prompts
+    savedPrompts.value = memories.map(memory => ({
+      title: memory.title || `Prompt ${memory.id}`,
+      content: memory.userRequest || memory.correctedValue || '',
+      createdAt: memory.timestamp?.toISOString?.() || new Date().toISOString(),
+      fieldName: memory.fieldName || '',
+      memoryId: memory.id
+    }))
+    
+    console.log('✅ Prompts carregados do Firestore:', savedPrompts.value.length)
   } catch (error) {
-    console.warn('Erro ao carregar prompts salvos:', error)
+    console.warn('Erro ao carregar prompts do Firestore, usando localStorage:', error)
+    // Fallback para localStorage
+    try {
+      const saved = localStorage.getItem('aiFieldAssistant_prompts')
+      if (saved) {
+        savedPrompts.value = JSON.parse(saved)
+      }
+    } catch (localError) {
+      console.warn('Erro ao carregar prompts do localStorage:', localError)
+    }
   }
 }
 
@@ -317,7 +337,7 @@ const saveCurrentPrompt = async () => {
   }
   
   savedPrompts.value.push(newPrompt)
-  saveSavedPrompts()
+  await saveSavedPrompts()
   
   // Feedback visual
   aiSuggestion.value = `✅ Prompt "${promptTitle}" salvo com sucesso!`
@@ -337,19 +357,62 @@ const loadPrompt = (prompt) => {
 }
 
 // Deletar prompt
-const deletePrompt = (index) => {
+const deletePrompt = async (index) => {
   if (confirm('Tem certeza que deseja deletar este prompt?')) {
+    const promptToDelete = savedPrompts.value[index]
+    
+    // Tentar deletar do Firestore se tiver memoryId
+    if (promptToDelete.memoryId) {
+      try {
+        const stationId = 'ai-field-assistant-global'
+        await memoryService.deletePrompt(stationId, promptToDelete.memoryId)
+        console.log('✅ Prompt deletado do Firestore')
+      } catch (error) {
+        console.warn('Erro ao deletar prompt do Firestore:', error)
+      }
+    }
+    
     savedPrompts.value.splice(index, 1)
-    saveSavedPrompts()
+    await saveSavedPrompts()
   }
 }
 
-// Salvar prompts no localStorage
-const saveSavedPrompts = () => {
+// Salvar prompts usando MemoryService
+const saveSavedPrompts = async () => {
   try {
-    localStorage.setItem('aiFieldAssistant_prompts', JSON.stringify(savedPrompts.value))
+    // Backup no localStorage
+    try {
+      localStorage.setItem('aiFieldAssistant_prompts', JSON.stringify(savedPrompts.value))
+    } catch (localError) {
+      console.warn('Erro ao salvar no localStorage:', localError)
+    }
+    
+    // Salvar no Firestore através do MemoryService
+    const stationId = 'ai-field-assistant-global'
+    
+    // Para cada prompt, salvar como memória no Firestore
+    for (const prompt of savedPrompts.value) {
+      if (!prompt.memoryId) { // Apenas salvar se ainda não foi salvo no Firestore
+        await memoryService.savePrompt(stationId, {
+          fieldName: prompt.fieldName || props.fieldName,
+          itemIndex: props.itemIndex,
+          title: prompt.title,
+          userRequest: prompt.content,
+          originalValue: '', // Não temos valor original específico
+          correctedValue: prompt.content // Usar o próprio conteúdo como valor corrigido
+        })
+      }
+    }
+    
+    console.log('✅ Prompts salvos no Firestore')
   } catch (error) {
-    console.warn('Erro ao salvar prompts:', error)
+    console.warn('Erro ao salvar prompts no Firestore:', error)
+    // Continuar com localStorage apenas
+    try {
+      localStorage.setItem('aiFieldAssistant_prompts', JSON.stringify(savedPrompts.value))
+    } catch (localError) {
+      console.warn('Erro ao salvar no localStorage:', localError)
+    }
   }
 }
 

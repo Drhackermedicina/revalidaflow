@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "checkJs": true,
+    "outDir": "./dist"
+  },
+  "include": [
+    "src/**/*",
+    "backend/lixo/useAuth.ts.txtlixo",
+    "backend/lixo/useTextFormatting.js.txt(disable)",
+    "backend/lixo/useWebSocket.js.txt(precisa)"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

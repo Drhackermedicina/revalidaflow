@@ -1,6 +1,7 @@
 <script setup>
 import NavItems from '@/layouts/components/NavItems.vue'
 import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
+import GeminiChat from '@/components/GeminiChat.vue'
 
 // Components
 import Footer from '@/layouts/components/Footer.vue'
@@ -8,14 +9,18 @@ import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 /* GlobalAgentAssistant (legado) removido durante limpeza do agente */
 
+import { ref } from 'vue'
+
 // Função exemplo para abrir Google Meet
 function openGoogleMeet() {
   window.open('https://meet.google.com/new', '_blank')
 }
 
-// Função exemplo para abrir Gemini IA (ajuste para seu fluxo real)
+// Estado do chat Gemini
+const showGeminiChat = ref(false)
+
 function openGeminiIA() {
-  window.open('https://gemini.google.com/app', '_blank')
+  showGeminiChat.value = true
 }
 </script>
 
@@ -95,6 +100,19 @@ function openGeminiIA() {
       <Footer />
     </template>
   </VerticalNavLayout>
+
+  <!-- Diálogo do Chat Gemini -->
+  <VDialog
+    v-model="showGeminiChat"
+    max-width="800px"
+    fullscreen
+    scrollable
+  >
+    <GeminiChat
+      :is-open="showGeminiChat"
+      @close="showGeminiChat = false"
+    />
+  </VDialog>
 </template>
 
 <style lang="scss" scoped>

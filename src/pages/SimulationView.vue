@@ -31,6 +31,39 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 
+// --- Funções Utilitárias para Otimização de Performance ---
+function memoize(func) {
+  const cache = new Map();
+  return (...args) => {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) return cache.get(key);
+    const result = func(...args);
+    cache.set(key, result);
+    return result;
+  };
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+// Funções de formatação memoizadas
+const memoizedFormatActorText = memoize(formatActorText);
+const memoizedFormatIdentificacaoPaciente = memoize(formatIdentificacaoPaciente);
+const memoizedFormatItemDescriptionForDisplay = memoize(formatItemDescriptionForDisplay);
+// Funções de eventos com debounce
+const debouncedToggleScriptContext = debounce((idx, event) => {
+  toggleScriptContext(idx, event);
+}, 100);
+
+const debouncedToggleParagraphMark = debounce((contextIdx, paragraphIdx, event) => {
+  toggleParagraphMark(contextIdx, paragraphIdx, event);
+}, 100);
+
 // Configuração do tema
 const theme = useTheme();
 const isDarkTheme = computed(() => theme.global.name.value === 'dark');
@@ -41,7 +74,7 @@ const isDarkTheme = computed(() => theme.global.name.value === 'dark');
 const processRoteiro = computed(() => {
   return (text) => {
     if (!text) return '';
-    return formatActorText(text);
+    return memoizedFormatActorText(text);
   }
 });
 
@@ -50,9 +83,9 @@ const processRoteiroActor = computed(() => {
   return (text) => {
     if (!text) return '';
     if (isActorOrEvaluator.value) {
-      return formatActorText(text);
+      return memoizedFormatActorText(text);
     }
-    return formatActorText(text);
+    return memoizedFormatActorText(text);
   }
 });
 
@@ -66,7 +99,7 @@ function editStationData(field, value) {
     stationData.value[field] = value;  // Atualiza o campo
     // Reaplica formatação se necessário
     if (field === 'descricaoCasoCompleta' || field.includes('informacoesVerbaisSimulado')) {
-      stationData.value[field] = formatActorText(value);  // Mantém formatação
+      stationData.value[field] = memoizedFormatActorText(value);  // Mantém formatação
     }
   }
 }
@@ -848,6 +881,7 @@ async function generateInviteLinkWithDuration() {
   if (!sessionId.value) {
     try {
       console.log("[GENERATE INVITE LINK] sessionId ausente. Ativando backend para obter um...");
+      
       const response = await fetch(`${backendUrl}/api/create-session`, {
         method: 'POST',
         headers: {
@@ -2277,7 +2311,7 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                                 'marked-context-primary': markedScriptContexts[idx],
                                 'uppercase-title': !markedScriptContexts[idx]
                               }"
-                              @click="(e) => toggleScriptContext(idx, e)"
+                              @click="(e) => debouncedToggleScriptContext(idx, e)"
                               v-html="processRoteiroActor(info.contextoOuPerguntaChave)">
                             </span>
                           </div>
@@ -2291,8 +2325,8 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                                      :class="{ 
                                        'marked-warning': isParagraphMarked(idx, 0)
                                      }"
-                                     @click="(e) => toggleParagraphMark(idx, 0, e)"
-                                     v-html="formatIdentificacaoPaciente(info.informacao, info.contextoOuPerguntaChave)">
+                                     @click="(e) => debouncedToggleParagraphMark(idx, 0, e)"
+                                     v-html="memoizedFormatIdentificacaoPaciente(info.informacao, info.contextoOuPerguntaChave)">
                                    </span>
                                  </div>
                                  
@@ -2305,7 +2339,7 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                                      :class="{ 
                                        'marked-warning': isParagraphMarked(idx, pIdx)
                                      }"
-                                     @click="(e) => toggleParagraphMark(idx, pIdx, e)"
+                                     @click="(e) => debouncedToggleParagraphMark(idx, pIdx, e)"
                                      v-html="processRoteiroActor(paragraph)">
                                    </span>
                                  </div>
@@ -2445,7 +2479,7 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                         {{ item.descricaoItem ? item.descricaoItem.split(':')[0].trim() : 'Item' }}
                       </p>
                       <!-- Apenas a descrição formatada, sem duplicar o título -->
-                      <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')" v-html="formatItemDescriptionForDisplay(item.descricaoItem, item.descricaoItem.split(':')[0].trim())" />
+                      <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')" v-html="memoizedFormatItemDescriptionForDisplay(item.descricaoItem, item.descricaoItem.split(':')[0].trim())" />
                       
                       <!-- Critérios de Avaliação Integrados -->
                       <div class="criterios-integrados mt-2">
@@ -2749,7 +2783,7 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                                   {{ item.descricaoItem ? item.descricaoItem.split(':')[0].trim() : 'Item' }}
                                 </p>
                                 <!-- Apenas a descrição formatada, sem duplicar o título -->
-                                <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')" v-html="formatItemDescriptionForDisplay(item.descricaoItem, item.descricaoItem.split(':')[0].trim())" />
+                                <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')" v-html="memoizedFormatItemDescriptionForDisplay(item.descricaoItem, item.descricaoItem.split(':')[0].trim())" />
                                 
                                 <!-- Critérios de Avaliação Integrados para o Candidato -->
                                 <div class="criterios-integrados mt-2">

@@ -8,24 +8,19 @@ export const DOMAINS = {
     FIREBASE_WEB: '',
     FIREBASE_APP: ''
   },
-  
+
   // Domínios de desenvolvimento
   DEVELOPMENT: {
     LOCAL: 'http://localhost:5173',
     LOCAL_ALT: 'http://localhost:3000'
   },
-  
+
   // Backend Principal (Node.js)
   BACKEND: {
-    PRODUCTION: '',
-    DEVELOPMENT: 'http://localhost:3000'
+    PRODUCTION: 'https://revalida-backend-772316263153.southamerica-east1.run.app',
+    DEVELOPMENT: 'https://revalida-backend-772316263153.southamerica-east1.run.app'
   },
-  
-  // Backend Python Agent (apenas para AdminView)
-  PYTHON_AGENT: {
-    PRODUCTION: '',
-    DEVELOPMENT: 'http://localhost:8080'
-  }
+
 }
 
 // Função para detectar o domínio atual

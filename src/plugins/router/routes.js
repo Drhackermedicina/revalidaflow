@@ -68,11 +68,6 @@ export const routes = [
         component: () => import('@/pages/form-layouts.vue'),
       },
       {
-        path: 'teste-ia',
-        name: 'teste-ia',
-        component: () => import('@/pages/teste-ia.vue'),
-      },
-      {
         path: 'admin-upload',
         name: 'admin-upload',
         component: () => import('@/pages/AdminUpload.vue'),
@@ -177,15 +172,6 @@ export const routes = [
           layout: 'default',
         },
         props: true,
-      },
-      {
-        path: 'test-chat-private',
-        name: 'TestChatPrivate',
-        component: () => import('@/pages/TestChatPrivate.vue'),
-        meta: {
-          requiresAuth: true,
-          layout: 'default',
-        },
       },
       // {
       //   path: 'task-manager',

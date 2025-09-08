@@ -1,0 +1,68 @@
+{
+  "include": [
+    "./vite.config.*",
+    "./src/pages/AdminView.vue",
+    "./src/pages/ChatView.vue",
+    "./src/@core/**/*",
+    "./src/@layouts/**/*",
+    "./src/components/**/*",
+    "./src/assets/**/*",
+    "./src/composables/**/*",
+    "./src/config/**/*",
+    "./src/layouts/**/*",
+    "./src/pages/**/*",
+    "./src/plugins/**/*",
+    "./src/services/**/*",
+    "./src/stores/**/*",
+    "./src/utils/**/*",
+    "./src/views/**/*",
+    "./themeConfig.js",
+    "backend/lixo/useAuth.ts.txtlixo",
+    "backend/lixo/useTextFormatting.js.txt(disable)",
+    "backend/lixo/useWebSocket.js.txt(precisa)"
+  ],
+  "exclude": [
+    "./dist",
+    "./node_modules",
+    "./src/pages/ChatView.vue",
+    "./src/pages/AdminResetUsers_*.vue",
+    "./temp_*.vue",
+    "./**/*_Backup*.vue",
+    "./**/*_Original*.vue",
+    "./**/*_backup*.vue",
+    "./**/*_original*.vue"
+  ],
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@layouts/*": [
+        "./src/@layouts/*"
+      ],
+      "@layouts": [
+        "./src/@layouts"
+      ],
+      "@core/*": [
+        "./src/@core/*"
+      ],
+      "@core": [
+        "./src/@core"
+      ],
+      "@images/*": [
+        "./src/assets/images/*"
+      ],
+      "@styles/*": [
+        "./src/styles/*"
+      ]
+    },
+    "types": [
+      "vite/client",
+      "vite-plugin-vue-layouts/client"
+    ]
+  }
+}
