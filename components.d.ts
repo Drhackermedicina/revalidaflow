@@ -8,7 +8,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AdminAgentAssistant: typeof import('./src/components/AdminAgentAssistant.vue')['default']
-    AgentAssistant: typeof import('./src/components/AgentAssistant.vue')['default']
     AIFieldAssistant: typeof import('./src/components/AIFieldAssistant.vue')['default']
     AppBreadcrumbs: typeof import('./src/components/AppBreadcrumbs.vue')['default']
     CardStatisticsHorizontal: typeof import('./src/@core/components/cards/CardStatisticsHorizontal.vue')['default']
@@ -25,7 +24,6 @@ declare module 'vue' {
     RankingCard: typeof import('./src/components/RankingCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    StationEditor: typeof import('./src/components/StationEditor.vue')['default']
     TaskManager: typeof import('./src/components/TaskManager.vue')['default']
     ThemeCustomizer: typeof import('./src/components/ThemeCustomizer.vue')['default']
     ThemeSwitcher: typeof import('./src/@core/components/ThemeSwitcher.vue')['default']
