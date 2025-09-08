@@ -8,7 +8,7 @@ import { computed, ref, watch } from 'vue'
 export function useAdminAuth() {
   // Estado de loading para aguardar o currentUser
   const isLoading = ref(true)
-  
+
   // Watch para aguardar o currentUser ser carregado
   watch(currentUser, (user) => {
     if (user !== undefined) {
@@ -21,18 +21,20 @@ export function useAdminAuth() {
     if (isLoading.value || !currentUser.value) {
       return false
     }
-    
+
     // Lista de UIDs de administradores
     const adminUIDs = [
       'RtfNENOqMUdw7pvgeeaBVSuin662', // Seu UID - identificado pelos logs de sucesso
       'KiSITAxXMAY5uU3bOPW5JMQPent2', // Admin adicional
-      'UD7S8aiyR8TJXHyxdw29BHNfjEf1', // Admin adicional  
+      '24aZT7dURHd9r9PcCZe5U1WHt0A3', // Admin adicional  
       'lNwhdYgMwLhS1ZyufRzw9xLD10y1', // Admin adicional
     ]
-    
-    const userUID = currentUser.value.uid
-    const isUserAdmin = adminUIDs.includes(userUID)
-    
+
+    // Normaliza comparações removendo espaços em branco indesejados
+    const userUID = currentUser.value.uid?.trim()
+    const normalizedAdminUIDs = adminUIDs.map(u => u.trim())
+    const isUserAdmin = normalizedAdminUIDs.includes(userUID)
+
     // Modo de desenvolvimento removido - usando apenas verificação por UID
 
     return isUserAdmin
@@ -41,7 +43,7 @@ export function useAdminAuth() {
   // Verifica se o usuário tem papel de admin (se implementado no futuro)
   const hasAdminRole = computed(() => {
     if (isLoading.value || !currentUser.value) return false
-    
+
     // Verificar se existe um campo 'role' no usuário
     const userRole = currentUser.value.role || currentUser.value.customClaims?.role
     const hasRole = userRole === 'admin' || userRole === 'administrator'

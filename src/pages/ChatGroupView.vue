@@ -70,7 +70,7 @@
             <!-- Botão de teste para limpeza (apenas para admins) -->
             <v-spacer />
             <v-btn 
-              v-if="currentUser?.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2'"
+              v-if="(currentUser?.uid || '').trim() === 'KiSITAxXMAY5uU3bOPW5JMQPent2'"
               icon
               variant="text"
               color="warning"
@@ -83,7 +83,7 @@
           </v-card-title>
           <v-divider />
           <v-card-text class="chat-messages flex-grow-1 pa-4">
-            <div v-for="message in messages" :key="message.id" class="message-bubble d-flex mb-4" :class="{ 'justify-end': message.senderId === currentUser?.uid }">
+            <div v-for="message in messages" :key="message.id" class="message-bubble d-flex mb-4" :class="{ 'justify-end': (message.senderId || '') === (currentUser?.uid || '') }">
               <v-avatar v-if="message.senderPhotoURL" :image="message.senderPhotoURL" size="32" class="me-2" />
               <div 
                 :class="[

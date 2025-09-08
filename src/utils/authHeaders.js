@@ -6,18 +6,18 @@ import { currentUser } from '@/plugins/auth.js';
  */
 export function getAuthHeaders() {
   const user = currentUser.value;
-  
+
   if (!user) {
     return {};
   }
-  
+
   // Se o usuário tem um token de acesso
   if (user.accessToken) {
     return {
       'Authorization': `Bearer ${user.accessToken}`
     };
   }
-  
+
   // Se precisar obter o token via getIdToken
   if (user.getIdToken && typeof user.getIdToken === 'function') {
     // Nota: Esta é uma implementação síncrona, pode precisar ser async
@@ -35,7 +35,7 @@ export function getAuthHeaders() {
       return {};
     }
   }
-  
+
   return {};
 }
 
@@ -44,14 +44,14 @@ export function getAuthHeaders() {
  */
 export async function getAuthHeadersAsync() {
   const user = currentUser.value;
-  
+
   if (!user) {
     return {};
   }
-  
+
   try {
     let token = null;
-    
+
     // Se já tem token disponível
     if (user.accessToken) {
       token = user.accessToken;
@@ -60,7 +60,7 @@ export async function getAuthHeadersAsync() {
     else if (user.getIdToken && typeof user.getIdToken === 'function') {
       token = await user.getIdToken();
     }
-    
+
     if (token) {
       return {
         'Authorization': `Bearer ${token}`
@@ -69,7 +69,7 @@ export async function getAuthHeadersAsync() {
   } catch (error) {
     console.error('Erro ao obter token de autenticação:', error);
   }
-  
+
   return {};
 }
 
@@ -86,14 +86,15 @@ export function isAuthenticated() {
 export function isAdmin() {
   const user = currentUser.value;
   if (!user) return false;
-  
+
   // Lista de UIDs de administradores
   const adminUids = [
     'KiSITAxXMAY5uU3bOPW5JMQPent2',
     'RtfNENOqMUdw7pvgeeaBVSuin662',
-    'UD7S8aiyR8TJXHyxdw29BHNfjEf1',
+    '24aZT7dURHd9r9PcCZe5U1WHt0A3',
     'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
   ];
-  
-  return adminUids.includes(user.uid);
+
+  const normalized = adminUids.map(u => u.trim());
+  return normalized.includes((user.uid || '').trim());
 }

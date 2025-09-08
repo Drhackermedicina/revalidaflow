@@ -174,11 +174,13 @@ const sendingChat = ref(false);
 const chatSentSuccess = ref(false);
 
 const isAdmin = computed(() => {
-  return currentUser.value && (
-    currentUser.value.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
-    currentUser.value.uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
-    currentUser.value.uid === 'UD7S8aiyR8TJXHyxdw29BHNfjEf1' ||
-    currentUser.value.uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
+  if (!currentUser.value || !currentUser.value.uid) return false;
+  const uid = (currentUser.value.uid || '').trim();
+  return (
+    uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
+    uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
+    uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3' ||
+    uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
   );
 });
 
