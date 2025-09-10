@@ -8,15 +8,15 @@ class GeminiService {
     // 🔑 API Keys para Gemini (Google AI Studio)
     // Usar variável de ambiente ou fallback para desenvolvimento
     const apiKeyFromEnv = import.meta.env.VITE_GEMINI_API_KEY;
-    
+
     this.apiKeys = apiKeyFromEnv
       ? [apiKeyFromEnv]
       : [
-          'AIzaSyB6Lj_5p11hJKbZAnb3oRK5h3lxgVZIl8U', // Chave principal
-          'AIzaSyAlvMR2zOJDZbwBBpP0sl1JHp2fb9uQiy4', // Chave fallback 1
-          'AIzaSyDBBrr3WWQqQMQGdXPTELZYhYrbW_CfgRA', // Chave fallback 2
-          'AIzaSyDnv2FGgXC1bKZ7Sfrsz4RBjwfsu5h3J_I', // Chave fallback 3
-        ];
+        'AIzaSyB6Lj_5p11hJKbZAnb3oRK5h3lxgVZIl8U', // Chave principal
+        'AIzaSyAlvMR2zOJDZbwBBpP0sl1JHp2fb9uQiy4', // Chave fallback 1
+        'AIzaSyDBBrr3WWQqQMQGdXPTELZYhYrbW_CfgRA', // Chave fallback 2
+        'AIzaSyDnv2FGgXC1bKZ7Sfrsz4RBjwfsu5h3J_I', // Chave fallback 3
+      ];
 
     // Configurações do modelo - atualizado para Gemini 2.5 Flash
     this.model = 'gemini-2.5-flash';
@@ -24,6 +24,11 @@ class GeminiService {
 
     this.currentKeyIndex = 0;
     this.cache = new Map(); // Cache para modo offline
+
+    // Valor configurável via env. Deve ficar no intervalo [1, 8192].
+    const envMax = parseInt(import.meta.env.VITE_GEMINI_MAX_OUTPUT_TOKENS, 10);
+    this.defaultMaxOutputTokens = Number.isInteger(envMax) && envMax > 0 ? envMax : 4096;
+    this.MAX_OUTPUT_TOKENS_LIMIT = 8192; // exclusivo superior na API -> máximo permitido = 8192
   }
 
   /**
@@ -65,6 +70,9 @@ class GeminiService {
 
         const fullPrompt = context ? `${context}\n\n${prompt}` : prompt;
 
+        // Garantir que o valor enviado esteja dentro do intervalo suportado
+        const safeMaxOutput = Math.min(this.defaultMaxOutputTokens, this.MAX_OUTPUT_TOKENS_LIMIT);
+
         const response = await fetch(`${this.endpoint}/${this.model}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: {
@@ -80,7 +88,7 @@ class GeminiService {
               temperature: 0.7, // Temperatura mais alta para chat
               topK: 40,
               topP: 0.95,
-              maxOutputTokens: 4096, // Mais tokens para respostas mais longas
+              maxOutputTokens: safeMaxOutput, // Mais tokens para respostas mais longas (sempre com clamp)
             },
             safetySettings: [
               {
@@ -114,7 +122,20 @@ class GeminiService {
           return generatedText;
 
         } else {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          // Tentar extrair corpo com detalhes do erro para depuração
+          let errorBody = '';
+          try {
+            const errJson = await response.json();
+            errorBody = JSON.stringify(errJson);
+          } catch (e) {
+            try {
+              errorBody = await response.text();
+            } catch (e2) {
+              errorBody = '<body unavailable>';
+            }
+          }
+
+          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorBody}`);
         }
 
       } catch (error) {
@@ -197,7 +218,7 @@ Por favor, corrija o campo conforme solicitado, mantendo o formato adequado para
 
     try {
       const result = await this.makeRequest(prompt, stationContext);
-      
+
       // Verificação adicional para campo de descrição de caso
       if (fieldName === 'descricaoCasoCompleta') {
         // Padrões comuns que devem ser removidos
@@ -206,16 +227,16 @@ Por favor, corrija o campo conforme solicitado, mantendo o formato adequado para
           /\b\d+\s*(?:meses?|anos?|dias?)\b/gi, // Idades específicas
           /\bJoão\b/gi, /\bMaria\b/gi, /\bPedro\b/gi, // Nomes comuns
         ];
-        
+
         let cleanedResult = result;
         // Substituir padrões problemáticos por termos genéricos
         cleanedResult = cleanedResult.replace(/\bJoão\b/gi, 'o paciente');
         cleanedResult = cleanedResult.replace(/\b\d+\s*meses?\b/gi, 'lactente');
         cleanedResult = cleanedResult.replace(/\bbebê\s+[A-Z][a-z]+/gi, 'o lactente');
-        
+
         return cleanedResult;
       }
-      
+
       return result;
     } catch (error) {
       console.error('Erro ao corrigir campo:', error);
@@ -288,41 +309,41 @@ Texto corrigido:
    */
   sanitizeText(text) {
     if (!text) return text;
-    
+
     let cleanText = text;
-    
+
     // Remover nomes próprios comuns - APENAS quando claramente são nomes de pessoas
     const nomes = [
       'João', 'Maria', 'José', 'Ana', 'Pedro', 'Paulo', 'Carlos', 'Luiz', 'Fernando',
       'Antonio', 'Marcos', 'Rafael', 'Lucas', 'Bruno', 'Guilherme', 'Ricardo',
       'Adriana', 'Juliana', 'Patricia', 'Fernanda', 'Mariana', 'Gabriela'
     ];
-    
+
     nomes.forEach(nome => {
       // Usar regex mais específica para evitar substituições incorretas
       const regexNome = new RegExp(`\\b(o\\s+bebê\\s+|a\\s+criança\\s+|paciente\\s+)?${nome}\\b`, 'gi');
       cleanText = cleanText.replace(regexNome, 'o paciente');
     });
-    
+
     // Remover idades específicas - APENAS quando é claramente idade
     cleanText = cleanText.replace(/\b\d+\s*meses?\s+(de\s+idade)?\b/gi, 'alguns meses');
     cleanText = cleanText.replace(/\b\d+\s*anos?\s+(de\s+idade)?\b/gi, 'alguns anos');
     cleanText = cleanText.replace(/\b\d+\s*dias?\s+(de\s+idade)?\b/gi, 'alguns dias');
-    
+
     // Correções para contextos específicos que podem ter sido mal interpretados
     cleanText = cleanText.replace(/febre alta há lactente/gi, 'febre alta há alguns dias');
     cleanText = cleanText.replace(/febre alta há criança/gi, 'febre alta há alguns dias');
     cleanText = cleanText.replace(/febre alta há recém-nascido/gi, 'febre alta há alguns dias');
     cleanText = cleanText.replace(/há alguns meses\b/gi, 'há alguns dias');
-    
+
     // Remover referências específicas de sexo quando desnecessárias
     cleanText = cleanText.replace(/\bmenino\s+de\b/gi, 'criança de');
     cleanText = cleanText.replace(/\bmenina\s+de\b/gi, 'criança de');
-    
+
     // Remover procedência específica
     cleanText = cleanText.replace(/\bnatural de [^,\.]+/gi, '');
     cleanText = cleanText.replace(/\bprocedente de [^,\.]+/gi, '');
-    
+
     return cleanText.trim();
   }
 }

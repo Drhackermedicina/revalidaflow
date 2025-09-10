@@ -1,8 +1,8 @@
 <script setup>
 import { currentUser } from '@/plugins/auth.js';
-import { db, storage } from '@/plugins/firebase.js';
+import { db, storage, storageRef, uploadBytes, getDownloadURL } from '@/plugins/firebase.js';
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
+// Removendo importações diretas do firebase/storage, agora vêm do plugin
 import imageCompression from 'browser-image-compression';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';

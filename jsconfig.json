@@ -64,5 +64,8 @@
       "vite/client",
       "vite-plugin-vue-layouts/client"
     ]
+  },
+  "vueCompilerOptions": {
+    "globalTypesPath": "./node_modules/@types"
   }
 }

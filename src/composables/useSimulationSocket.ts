@@ -1,6 +1,6 @@
 // src/composables/useSimulationSocket.ts
-import { io, Socket } from 'socket.io-client'
-import { ref, onBeforeUnmount } from 'vue'
+import { io, Socket } from 'socket.io-client';
+import { ref, onBeforeUnmount } from 'vue';
 
 interface SimulationSocketOptions {
   backendUrl: string
@@ -13,7 +13,7 @@ interface SimulationSocketOptions {
 
 export function useSimulationSocket(options: SimulationSocketOptions) {
   const socket = ref<Socket | null>(null)
-  const connectionStatus = ref<'Desconectado' | 'Conectando' | 'Conectado' | 'Erro de Conexão'>('Desconectado')
+  const connectionStatus = ref('Desconectado')
 
   function connect() {
     if (socket.value && socket.value.connected) {

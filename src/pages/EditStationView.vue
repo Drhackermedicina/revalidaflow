@@ -5,15 +5,15 @@ const props = defineProps({
 })
 
 import { currentUser } from '@/plugins/auth.js';
-import { db, storage, testStorageConnection } from '@/plugins/firebase.js';
+import { db, storage, testStorageConnection, getDownloadURL, storageRef, uploadBytes } from '@/plugins/firebase.js';
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import imageCompression from 'browser-image-compression';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 import AIFieldAssistant from '@/components/AIFieldAssistant.vue';
 import { geminiService } from '@/services/geminiService.js';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 // Debug do storage
 console.log('🔧 Configuração de Storage:');
@@ -52,6 +52,8 @@ const successMessage = ref('');
 const isSaving = ref(false);
 const keyboardShortcutUsed = ref(false);
 
+const alertaPontuacaoTotal = ref(''); // Mover declaração para uma posição mais global
+
 // Variáveis para controle de upload de imagens
 const uploadingImages = ref({});
 const uploadProgress = ref({});
@@ -59,6 +61,372 @@ const uploadProgress = ref({});
 // 🤖 Variáveis para o sistema de IA
 const stationContext = ref('');
 const isGeneratingContext = ref(false);
+// Estado de loading para sugerir por campo (chave: fieldName)
+const aiLoading = ref({});
+
+// Debounce simples por fieldName (timestamp)
+const aiLastRequested = ref({});
+
+// Estado para sugestões em lote (bulk) - impresso / PEP / imagem
+const aiBulkDialog = ref(false);
+const aiBulkSuggestions = ref([]); // { fieldName, label, suggestion, index }
+const aiBulkLoading = ref(false);
+
+function prettyFieldLabel(fieldName) {
+  // Gera um rótulo legível a partir do caminho do campo
+  if (!fieldName) return '';
+  const parts = fieldName.split('.');
+  // Remover índices numéricos para legibilidade
+  const cleaned = parts.map(p => (/^\d+$/.test(p) ? '[#]' : p)).join(' > ');
+  return cleaned;
+}
+
+async function suggestForImpresso(index) {
+  if (typeof index !== 'number' || !formData.value.impressos[index]) return;
+  const imp = formData.value.impressos[index];
+  const fields = [];
+  // Campos básicos para sugestão bulk
+  fields.push({ fieldName: `impressos.${index}.tituloImpresso`, currentValue: imp.tituloImpresso || '' });
+
+  if (imp.tipoConteudo === 'texto_simples') {
+    fields.push({ fieldName: `impressos.${index}.conteudo.texto`, currentValue: imp.conteudo?.texto || '' });
+  } else if (imp.tipoConteudo === 'imagem_com_texto') {
+    // Texto descritivo e laudo serão sugeridos em bulk. A URL (caminhoImagem) fica sob botão separado.
+    fields.push({ fieldName: `impressos.${index}.conteudo.textoDescritivo`, currentValue: imp.conteudo?.textoDescritivo || '' });
+    fields.push({ fieldName: `impressos.${index}.conteudo.laudo`, currentValue: imp.conteudo?.laudo || '' });
+  } else if (imp.tipoConteudo === 'lista_chave_valor_secoes') {
+    // Evitar sugerir itens profundamente aninhados em bulk por agora; sugerir título do impresso
+    fields.push({ fieldName: `impressos.${index}.tituloImpresso`, currentValue: imp.tituloImpresso || '' });
+  }
+
+  // Executar chamadas em sequência e reunir resultados
+  aiBulkLoading.value = true;
+  aiBulkSuggestions.value = [];
+  try {
+    for (const f of fields) {
+      try {
+        const suggestion = await fetchSuggestionForField(f.fieldName, f.currentValue, index);
+        aiBulkSuggestions.value.push({ fieldName: f.fieldName, label: prettyFieldLabel(f.fieldName), suggestion: suggestion || '', index });
+      } catch (errField) {
+        console.warn('Erro ao obter sugestão para campo bulk:', f.fieldName, errField);
+        aiBulkSuggestions.value.push({ fieldName: f.fieldName, label: prettyFieldLabel(f.fieldName), suggestion: '', index });
+      }
+    }
+    aiBulkDialog.value = true;
+  } finally {
+    aiBulkLoading.value = false;
+  }
+}
+
+// Sugestão específica para o campo de URL da imagem (caminhoImagem)
+async function suggestForImageUrl(index) {
+  // Nova lógica: buscar na web possíveis URLs/links relacionados ao impresso
+  if (typeof index !== 'number' || !formData.value.impressos[index]) return;
+  const imp = formData.value.impressos[index];
+  const fieldName = `impressos.${index}.conteudo.caminhoImagem`;
+
+  // Montar prompt usando título, diagnóstico (se disponível), texto descritivo e laudo (se disponível)
+  const title = (imp.tituloImpresso || '').trim();
+  const desc = (imp.conteudo?.textoDescritivo || '').trim();
+  const laudo = (imp.conteudo?.laudo || '').trim();
+
+  // Prioridade de busca: primeiro o TÍTULO do impresso (guia), depois o LAUDO para refinamento.
+  // O feedback/`stationContext` deve ser usado SOMENTE para extrair menções a exames de imagem
+  // (ex: radiografia, tomografia, ressonância, ecocardiograma, ECG) e incluí-las como auxílio quando relevantes.
+  const imagingKeywords = ['radiografia', 'raio-x', 'rx', 'tomografia', 'tc', 'ressonancia', 'ressonância', 'rn', 'rm', 'rmn', 'ecografia', 'ultrassonografia', 'ecocardiograma', 'ecg', 'eletrocardiograma', 'angio', 'angiografia'];
+
+  // Extrair trechos relevantes do stationContext que mencionem exames de imagem
+  let feedbackImagingSnippet = '';
+  try {
+    const ctx = String(stationContext.value || '').trim();
+    if (ctx) {
+      const sentences = ctx.split(/(?<=[\.\?\!])\s+/);
+      const matches = [];
+      for (const s of sentences) {
+        const lower = s.toLowerCase();
+        for (const kw of imagingKeywords) {
+          if (lower.includes(kw)) {
+            matches.push(s.trim());
+            break;
+          }
+        }
+      }
+      if (matches.length) {
+        feedbackImagingSnippet = matches.slice(0, 5).join(' | ');
+      }
+    }
+  } catch (e) {
+    // silent
+  }
+
+  const combinedContextParts = [];
+  if (title) combinedContextParts.push(`Título do impresso (prioridade máxima): ${title}`);
+  if (laudo) combinedContextParts.push(`Laudo (texto) (uso para refinamento): ${laudo}`);
+  // incluir descrição apenas se não houver título/ laudo suficientes
+  if (!laudo && desc) combinedContextParts.push(`Descrição da imagem/texto descritivo: ${desc}`);
+  if (feedbackImagingSnippet) combinedContextParts.push(`Trechos relevantes do feedback da estação sobre exames de imagem: ${feedbackImagingSnippet}`);
+  const combinedContext = combinedContextParts.join('\n\n');
+
+  // Domínios preferenciais (fornecidos por você) - o modelo deve priorizar estes sites
+  const preferredDomains = [
+    'radiopaedia.org',
+    'radiopaedia.org/search',
+    'radiologymasterclass.co.uk',
+    'radiologyassistant.nl',
+    'radiologyassistant.nl',
+    'radiologymasterclass.co.uk/gallery',
+    'msdmanuals.com',
+    'scielo.org',
+    'scielo.br',
+    'researchgate.net',
+    'wikipedia.org',
+    'pt.wikipedia.org',
+    'es.wikipedia.org',
+    'sanarmed.com',
+    'google.com'
+  ];
+
+  const prompt = `Você é um assistente que pesquisa a web por recursos públicos relevantes (imagens, laudos, exemplos, PDFs, URLs) para um material impresso em uma estação clínica. Priorize resultados que venham dos seguintes domínios, nesta ordem quando possível: ${preferredDomains.join(', ')}.
+
+Importante: PRIORIZE o TÍTULO do impresso como guia principal na busca por imagens ou páginas relacionadas; use o LAUDO apenas para refinamento/filtragem dos resultados. Use o feedback da estação APENAS para identificar menções a exames de IMAGEM e incluí-las como auxílio à busca quando existirem (não use o feedback como base primária de busca).
+
+Use as informações a seguir para encontrar até 10 URLs públicas úteis (uma por linha). Priorize imagens e páginas que contenham imagens ou laudos de exames relacionados ao caso. Foque sua busca no título e no laudo conforme descrito.
+
+Informações (use APENAS o que for relevante para localizar URLs):
+${combinedContext}
+
+Regras de formatação:
+- Retorne APENAS as URLs, uma por linha. Não adicione explicações.
+- Prefira links diretos para a página/recursos (https) e evite caminhos locais ou instruções de upload.
+- Se o modelo não souber URLs exatas, retorne os domínios mais relevantes (ex: 'https://radiopaedia.org').
+`;
+
+  try {
+    aiBulkLoading.value = true;
+    // Usar geminiService.makeRequest diretamente para maior controle
+    const raw = await geminiService.makeRequest(prompt, stationContext.value);
+
+    // Extrair linhas não vazias
+    const lines = (raw || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+    // Regex que captura URLs com ou sem esquema (ex: https://..., www...., domain/slug)
+    const urlRegex = /(https?:\/\/[^\s"'<>]+)|(www\.[^\s"'<>]+)|([^\s"'<>]+\.(?:org|com|net|br|uk)(?:\/[^\s"'<>]*)?)/i;
+
+    // Normalizar e extrair até 15 candidatos
+    let candidates = [];
+    for (const line of lines) {
+      const m = line.match(urlRegex);
+      if (m) {
+        const found = m[0];
+        // Prefixar esquema se necessário
+        const normalized = found.startsWith('http') ? found : `https://${found.replace(/^[\.\/]+/, '')}`;
+        candidates.push(normalized);
+      } else {
+        // Se a linha parecer apenas um domínio (como 'radiopaedia.org'), prefixar
+        if (/^[a-z0-9.-]+\.(org|com|net|br|uk)$/i.test(line)) {
+          candidates.push(`https://${line}`);
+        }
+      }
+      if (candidates.length >= 15) break;
+    }
+
+    // Remover duplicados mantendo ordem
+    candidates = [...new Set(candidates)];
+
+    // Ordenar por prioridade de domínio (os preferenciais primeiro)
+    const domainPriority = (url) => {
+      try {
+        const u = new URL(url);
+        const host = u.hostname.replace(/^www\./, '');
+        const idx = preferredDomains.findIndex(d => host.includes(d.replace(/^www\./, '')));
+        return idx === -1 ? preferredDomains.length + 1 : idx;
+      } catch (e) {
+        return preferredDomains.length + 2;
+      }
+    };
+
+    candidates.sort((a, b) => domainPriority(a) - domainPriority(b));
+
+    const urls = candidates.slice(0, 10);
+
+    aiBulkSuggestions.value = urls.map(u => ({ fieldName, label: prettyFieldLabel(fieldName), suggestion: u, index }));
+    aiBulkDialog.value = true;
+  } catch (err) {
+    console.error('Erro em suggestForImageUrl (nova lógica):', err);
+    showAIError('Erro ao buscar URLs relacionadas ao impresso');
+  } finally {
+    aiBulkLoading.value = false;
+  }
+}
+
+// Sugestão bulk para um item de PEP (descrição + critérios)
+async function suggestForPepItem(index) {
+  if (typeof index !== 'number' || !formData.value.padraoEsperadoProcedimento.itensAvaliacao[index]) return;
+  const item = formData.value.padraoEsperadoProcedimento.itensAvaliacao[index];
+  const fields = [
+    { fieldName: `padraoEsperadoProcedimento.itensAvaliacao.${index}.descricaoItem`, currentValue: item.descricaoItem || '' },
+    { fieldName: `padraoEsperadoProcedimento.itensAvaliacao.${index}.pontuacoes.adequado.criterio`, currentValue: item.pontuacoes?.adequado?.criterio || '' },
+    { fieldName: `padraoEsperadoProcedimento.itensAvaliacao.${index}.pontuacoes.parcialmenteAdequado.criterio`, currentValue: item.pontuacoes?.parcialmenteAdequado?.criterio || '' },
+    { fieldName: `padraoEsperadoProcedimento.itensAvaliacao.${index}.pontuacoes.inadequado.criterio`, currentValue: item.pontuacoes?.inadequado?.criterio || '' }
+  ];
+
+  aiBulkLoading.value = true;
+  aiBulkSuggestions.value = [];
+  try {
+    for (const f of fields) {
+      try {
+        const suggestion = await fetchSuggestionForField(f.fieldName, f.currentValue, index);
+        aiBulkSuggestions.value.push({ fieldName: f.fieldName, label: prettyFieldLabel(f.fieldName), suggestion: suggestion || '', index });
+      } catch (errField) {
+        console.warn('Erro ao obter sugestão para campo PEP bulk:', f.fieldName, errField);
+        aiBulkSuggestions.value.push({ fieldName: f.fieldName, label: prettyFieldLabel(f.fieldName), suggestion: '', index });
+      }
+    }
+    aiBulkDialog.value = true;
+  } finally {
+    aiBulkLoading.value = false;
+  }
+}
+
+// Aplicar uma sugestão individual no formData (não aplica automaticamente se vazio)
+function applyBulkSuggestion(sugg) {
+  if (!sugg || !sugg.fieldName) return;
+  const valueToApply = String(sugg.suggestion || '').trim();
+  if (!valueToApply) {
+    showAIError('Sugestão vazia - nada a aplicar');
+    return;
+  }
+  // Atribuir por caminho
+  const path = sugg.fieldName.split('.');
+  let target = formData.value;
+  for (let i = 0; i < path.length - 1; i++) {
+    target = target[path[i]];
+    if (!target) break;
+  }
+  const lastKey = path[path.length - 1];
+  if (target && lastKey) {
+    target[lastKey] = valueToApply;
+    showAISuccess(`Aplicado: ${sugg.label}`);
+    // Atualizar sugestão para refletir aplicação
+    sugg.applied = true;
+  } else {
+    showAIError('Falha ao aplicar sugestão: caminho inválido');
+  }
+}
+
+// Aplicar todas as sugestões do diálogo
+function applyAllBulkSuggestions() {
+  for (const s of aiBulkSuggestions.value) {
+    try { applyBulkSuggestion(s); } catch (e) { console.warn('Erro aplicando sugestão bulk:', e); }
+  }
+  // Fechar diálogo após aplicar
+  aiBulkDialog.value = false;
+}
+
+function isAILoadingFor(fieldName) {
+  return !!aiLoading.value[fieldName];
+}
+
+async function suggestForField(fieldName, currentValue, index = null) {
+  if (!fieldName) return;
+
+  // Evita chamadas muito frequentes (throttle simples)
+  const now = Date.now();
+  const last = aiLastRequested.value[fieldName] || 0;
+  if (now - last < 1500) { // 1.5s min entre solicitações para o mesmo campo
+    console.log('⏱️ Requisição IA ignorada (throttle):', fieldName);
+    return;
+  }
+  aiLastRequested.value[fieldName] = now;
+
+  // Lock
+  aiLoading.value = { ...aiLoading.value, [fieldName]: true };
+
+  try {
+    // Decidir entre array item vs field simples com heurística no nome
+    let suggestion = null;
+    if (fieldName.startsWith('impressos.') || fieldName.startsWith('informacoesVerbaisSimulado.')) {
+      // extrair índices e caminho
+      // Quando for array, usar correctArrayItem
+      // Ex: impressos.0.conteudo.texto => arrayType = 'impressos', itemIndex = 0, currentValue
+      const parts = fieldName.split('.');
+      const arrayType = parts[0];
+      const itemIndex = parseInt(parts[1], 10);
+      suggestion = await geminiService.correctArrayItem(arrayType === 'impressos' ? 'impressos' : arrayType, itemIndex, currentValue, `Sugira um texto para o campo ${parts.slice(2).join('.')} baseado no contexto e no feedback da estação.`, stationContext.value);
+    } else if (fieldName.startsWith('padraoEsperadoProcedimento.itensAvaliacao')) {
+      // padraoEsperadoProcedimento.itensAvaliacao.0.descricaoItem
+      const parts = fieldName.split('.');
+      const itemIndex = parseInt(parts[2], 10);
+      suggestion = await geminiService.correctArrayItem('padraoEsperadoProcedimento.itensAvaliacao', itemIndex, currentValue, `Gere/aperfeiçoe o texto do item do checklist (descrição/critério) com base no contexto e nas fontes.`, stationContext.value);
+    } else {
+      // Campo simples
+      suggestion = await geminiService.correctField(fieldName, currentValue, `Sugira uma versão melhorada deste campo com base no contexto e nas referências da estação.`, stationContext.value);
+    }
+
+    if (suggestion && typeof suggestion === 'string' && suggestion.trim().length > 0) {
+      // Aplicar alteração no formData conforme fieldName
+      try {
+        // Se é campo simples direto no formData
+        if (!fieldName.includes('.')) {
+          formData.value[fieldName] = suggestion.trim();
+        } else {
+          // Atribui por caminho (suporta arrays simples como impressos.0.conteudo.texto)
+          const path = fieldName.split('.');
+          let target = formData.value;
+          for (let i = 0; i < path.length - 1; i++) {
+            const key = path[i];
+            // se for índice numérico
+            if (/^\d+$/.test(path[i + 1])) {
+              target = target[key];
+            } else {
+              target = target[key];
+            }
+            if (!target) break;
+          }
+          const lastKey = path[path.length - 1];
+          if (target && lastKey) {
+            target[lastKey] = suggestion.trim();
+          }
+        }
+
+        showAISuccess('Sugestão aplicada ao campo');
+      } catch (errApply) {
+        console.warn('⚠️ Falha ao aplicar sugestão localmente:', errApply.message || errApply);
+      }
+    } else {
+      showAIError('Nenhuma sugestão gerada pela IA.');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao obter sugestão IA:', error);
+    showAIError('Erro ao consultar IA: ' + (error.message || error));
+  } finally {
+    aiLoading.value = { ...aiLoading.value, [fieldName]: false };
+  }
+}
+
+// Obter sugestão da IA sem aplicar ao formData (retorna string ou null)
+async function fetchSuggestionForField(fieldName, currentValue, index = null) {
+  if (!fieldName) return null;
+
+  try {
+    // Reaproveitar a mesma lógica de seleção de método do geminiService
+    if (fieldName.startsWith('impressos.') || fieldName.startsWith('informacoesVerbaisSimulado.')) {
+      const parts = fieldName.split('.');
+      const arrayType = parts[0];
+      const itemIndex = parseInt(parts[1], 10);
+      return await geminiService.correctArrayItem(arrayType === 'impressos' ? 'impressos' : arrayType, itemIndex, currentValue, `Sugira um texto para o campo ${parts.slice(2).join('.')} baseado no contexto e no feedback da estação.`, stationContext.value);
+    } else if (fieldName.startsWith('padraoEsperadoProcedimento.itensAvaliacao')) {
+      const parts = fieldName.split('.');
+      const itemIndex = parseInt(parts[2], 10);
+      return await geminiService.correctArrayItem('padraoEsperadoProcedimento.itensAvaliacao', itemIndex, currentValue, `Gere/aperfeiçoe o texto do item do checklist (descrição/critério) com base no contexto e nas fontes.`, stationContext.value);
+    }
+
+    return await geminiService.correctField(fieldName, currentValue, `Sugira uma versão melhorada deste campo com base no contexto e nas referências da estação.`, stationContext.value);
+  } catch (error) {
+    console.error('Erro em fetchSuggestionForField:', error);
+    return null;
+  }
+}
 
 // Função para obter o estado inicial do formulário
 function getInitialFormData() {
@@ -153,12 +521,16 @@ watch(
     const isTotalValid = Math.abs(total - 10) < 0.001;
     const diferenca = (10 - total).toFixed(3);
     
+    // 🔧 CORREÇÃO: A verificação de 'alertaPontuacaoTotal' foi removida para evitar
+    // o ReferenceError na inicialização. A lógica interna foi ajustada para
+    // garantir que o alerta não seja exibido no estado inicial (total 0) e
+    // para corrigir a mensagem quando a pontuação excede 10.
     if (total === 0) {
       alertaPontuacaoTotal.value = '';
     } else if (total < 10) {
       alertaPontuacaoTotal.value = `⚠️ ATENÇÃO: A pontuação total está ${diferenca} pontos ABAIXO de 10. Ajuste os valores dos campos "Adequado".`;
     } else if (total > 10) {
-      alertaPontuacaoTotal.value = `⚠️ ATENÇÃO: A pontuação total está ${diferenca} pontos ACIMA de 10. Ajuste os valores dos campos "Adequado".`;
+      alertaPontuacaoTotal.value = `⚠️ ATENÇÃO: A pontuação total está ${Math.abs(diferenca).toFixed(3)} pontos ACIMA de 10. Ajuste os valores dos campos "Adequado".`;
     } else {
       alertaPontuacaoTotal.value = '';
     }
@@ -167,7 +539,6 @@ watch(
 );
 
 // Ref para armazenar a mensagem de alerta da pontuação
-const alertaPontuacaoTotal = ref('');
 
 // Computed para verificar se a pontuação total está correta (deve ser 10)
 const isPontuacaoTotalValida = computed(() => {
@@ -361,11 +732,56 @@ async function loadOrGenerateStationContext() {
     console.log('🤖 Gerando contexto da estação...');
     isGeneratingContext.value = true;
 
-    const context = await geminiService.generateStationContext(formData.value);
+    // 1) Buscar contexto salvo no documento da estação (se houver)
+    try {
+      const stationDocRef = doc(db, 'estacoes_clinicas', stationId.value);
+      const stationSnap = await getDoc(stationDocRef);
+      if (stationSnap.exists()) {
+        const data = stationSnap.data();
+        // Prioriza contexto salvo (campo opcional 'iaContext' ou similar)
+        if (data.iaContext && typeof data.iaContext === 'string' && data.iaContext.trim().length > 20) {
+          stationContext.value = data.iaContext;
+          console.log('ℹ️ Contexto carregado a partir do documento Firestore (iaContext)');
+          isGeneratingContext.value = false;
+          return;
+        }
 
-    if (context) {
-      stationContext.value = context;
-      console.log('✅ Contexto da estação gerado');
+        // Se existir feedback técnico, inclua-no no prompt de contexto
+        if (data.padraoEsperadoProcedimento && data.padraoEsperadoProcedimento.feedbackEstacao) {
+          const fb = data.padraoEsperadoProcedimento.feedbackEstacao;
+          const resumo = fb.resumoTecnico || '';
+          const fontes = Array.isArray(fb.fontes) ? fb.fontes.join('; ') : '';
+          if (resumo || fontes) {
+            stationContext.value += `\nFeedback da estação (resumo): ${resumo} \nFontes: ${fontes}`;
+          }
+        }
+      }
+    } catch (errLoad) {
+      console.warn('⚠️ Não foi possível carregar contexto salvo da estação:', errLoad.message || errLoad);
+    }
+
+    // 2) Carregar prompts salvos na coleção 'ia_prompts' (ex: prompts utilizados previamente)
+    try {
+      const promptsCol = collection(db, 'ia_prompts');
+      // Filtrar por estaçãoId quando disponível
+      const q = stationId.value ? query(promptsCol, where('stationId', '==', stationId.value)) : promptsCol;
+      const promptSnaps = await getDocs(q);
+      const savedPrompts = [];
+      promptSnaps.forEach(p => savedPrompts.push(p.data()));
+      if (savedPrompts.length > 0) {
+        const joined = savedPrompts.map(p => p.prompt || p.text || JSON.stringify(p)).join('\n---\n');
+        stationContext.value = (stationContext.value || '') + `\nPrompts salvos:\n${joined}`;
+        console.log('ℹ️ Prompts salvos carregados para contexto IA:', savedPrompts.length);
+      }
+    } catch (errPrompts) {
+      console.warn('⚠️ Falha ao carregar prompts salvos:', errPrompts.message || errPrompts);
+    }
+
+    // 3) Gerar contexto a partir do formData e do geminiService, passando o contexto parcial que já consolidamos
+    const generatedContext = await geminiService.generateStationContext(formData.value, { baseContext: stationContext.value });
+    if (generatedContext) {
+      stationContext.value = generatedContext;
+      console.log('✅ Contexto da estação gerado pelo geminiService');
     }
   } catch (error) {
     console.error('❌ Erro ao gerar contexto:', error);
@@ -404,6 +820,39 @@ function handleAIFieldUpdate({ field, value, index, original }) {
     
   } catch (error) {
     console.error('❌ Erro ao processar atualização da IA:', error)
+  }
+}
+
+// Handler chamado quando AIFieldAssistant emite 'suggest-requested'
+async function onAISuggestRequested(payload) {
+  try {
+    const { fieldName, currentValue, itemIndex, respond } = payload || {};
+    if (!fieldName) {
+      console.warn('onAISuggestRequested sem fieldName');
+      return;
+    }
+
+    // O pai só deve obter a sugestão e retornar ao filho via callback
+    // marcaremos loading localmente aqui para o field
+    const now = Date.now();
+    const last = aiLastRequested.value[fieldName] || 0;
+    if (now - last < 1500) {
+      console.log('⏱️ Requisição IA ignorada (throttle):', fieldName);
+      return;
+    }
+    aiLastRequested.value[fieldName] = now;
+    aiLoading.value = { ...aiLoading.value, [fieldName]: true };
+
+    try {
+      const suggestion = await fetchSuggestionForField(fieldName, currentValue, itemIndex);
+      if (typeof respond === 'function') {
+        respond(suggestion || '');
+      }
+    } finally {
+      aiLoading.value = { ...aiLoading.value, [fieldName]: false };
+    }
+  } catch (err) {
+    console.error('Erro em onAISuggestRequested:', err);
   }
 }
 
@@ -903,24 +1352,23 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
       userUID: currentUser.value.uid
     });
     
-    // --- INÍCIO DA MODIFICAÇÃO: COMPRESSÃO DE IMAGEM ---
-    console.log('Compressing image...');
-    const options = {
-      maxSizeMB: 1,           // (max file size in MB)
-      maxWidthOrHeight: 1920, // (max width or height in pixels)
-      useWebWorker: true,     // (use web worker for faster compression)
-      fileType: 'image/webp'  // (output file type)
-    };
+    // --- DEBUG: COMPRESSÃO DE IMAGEM TEMPORARIAMENTE DESABILITADA ---
+    console.log('Compressão de imagem desabilitada para teste.');
     let compressedFile = file;
-    try {
-      compressedFile = await imageCompression(file, options);
-      console.log(`Image compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
-    } catch (error) {
-      console.error('Error compressing image:', error);
-      errorMessage.value = 'Erro ao comprimir imagem. Tentando upload sem compressão.';
-      // Continue sem compressão se houver erro
-    }
-    // --- FIM DA MODIFICAÇÃO: COMPRESSÃO DE IMAGEM ---
+    // const options = {
+    //   maxSizeMB: 1,
+    //   maxWidthOrHeight: 1920,
+    //   useWebWorker: true,
+    //   fileType: 'image/webp'
+    // };
+    // try {
+    //   compressedFile = await imageCompression(file, options);
+    //   console.log(`Image compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+    // } catch (error) {
+    //   console.error('Error compressing image:', error);
+    //   errorMessage.value = 'Erro ao comprimir imagem. Tentando upload sem compressão.';
+    // }
+    // --- FIM DO DEBUG ---
     
     // Gera nome único e sanitizado para o arquivo
     const timestamp = Date.now();
@@ -941,21 +1389,15 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
     uploadingImages.value[`impresso-${impressoIndex}`] = true;
     uploadProgress.value[`impresso-${impressoIndex}`] = 0;
     
-    // Função para upload com timeout
-    const uploadWithTimeout = () => {
-      return Promise.race([
-        // --- MODIFICAÇÃO: USAR compressedFile E metadata ---
-        uploadBytes(imageRef, compressedFile, metadata),
-        // --- FIM DA MODIFICAÇÃO ---
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Upload timeout - tentativa excedeu 60 segundos')), uploadTimeout)
-        )
-      ]);
-    };
-    
-    // Executa o upload
+    // Executa o upload diretamente, removendo o Promise.race para timeout
+    console.log('--- Debug Upload Image ---');
+    console.log('Image Ref:', imageRef.fullPath);
+    console.log('Compressed File Size:', compressedFile.size, 'bytes');
+    console.log('Compressed File Type:', compressedFile.type);
+    console.log('Metadata:', metadata);
+    console.log('--------------------------');
     console.log('📤 Executando upload para:', fileName);
-    const snapshot = await uploadWithTimeout();
+    const snapshot = await uploadBytes(imageRef, compressedFile, metadata);
     console.log('✅ Upload concluído! Snapshot:', {
       fullPath: snapshot.ref.fullPath,
       bucket: snapshot.ref.bucket,
@@ -1973,8 +2415,12 @@ watch(() => props.id, (newId) => {
               :station-context="stationContext"
               :station-id="stationId"
               @field-updated="handleAIFieldUpdate"
+              @suggest-requested="onAISuggestRequested"
             >
-              <input type="text" id="manualTituloEstacao" v-model="formData.tituloEstacao" required placeholder="Ex: Atendimento ao Paciente com Dor Torácica Aguda">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input type="text" id="manualTituloEstacao" v-model="formData.tituloEstacao" required placeholder="Ex: Atendimento ao Paciente com Dor Torácica Aguda">
+                <!-- Botão de sugestão movido para dentro do AIFieldAssistant -->
+              </div>
             </AIFieldAssistant>
           </div>
           
@@ -2014,8 +2460,12 @@ watch(() => props.id, (newId) => {
               :station-context="stationContext"
               :station-id="stationId"
               @field-updated="handleAIFieldUpdate"
+              @suggest-requested="onAISuggestRequested"
             >
-              <textarea id="manualDescricaoCaso" v-model="formData.descricaoCasoCompleta" rows="5" required placeholder="Descreva o cenário clínico que o candidato encontrará..."></textarea>
+              <div style="display:flex; gap:8px; align-items:flex-start;">
+                <textarea id="manualDescricaoCaso" v-model="formData.descricaoCasoCompleta" rows="5" required placeholder="Descreva o cenário clínico que o candidato encontrará..."></textarea>
+                <!-- Botão de sugestão movido para dentro do AIFieldAssistant -->
+              </div>
             </AIFieldAssistant>
           </div>
           <div class="form-group">
@@ -2160,6 +2610,11 @@ watch(() => props.id, (newId) => {
                   </button>
                 </div>
                 <button type="button" @click="removerImpresso(index)" class="remove-item-button-header">Remover Impresso</button>
+                
+                <!-- Botão IA bulk para todo o impresso -->
+                <button type="button" @click.prevent="suggestForImpresso(index)" class="ai-bulk-button" :disabled="aiBulkLoading">
+                  🤖 Sugerir (Impresso)
+                </button>
               </div>
             </div>
             <div class="form-group" style="display: none;">
@@ -2168,7 +2623,21 @@ watch(() => props.id, (newId) => {
             </div>
             <div class="form-group">
               <label :for="'impressoTitulo' + index">Título do Impresso (Ex: ECG de 12 Derivações):</label>
-              <input type="text" :id="'impressoTitulo' + index" v-model="impresso.tituloImpresso" required>
+              <AIFieldAssistant
+                :field-name="`impressos.${index}.tituloImpresso`"
+                field-label="Título do Impresso"
+                v-model="impresso.tituloImpresso"
+                :station-context="stationContext"
+                :station-id="stationId"
+                :item-index="index"
+                @field-updated="handleAIFieldUpdate"
+                @suggest-requested="onAISuggestRequested"
+              >
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <input type="text" :id="'impressoTitulo' + index" v-model="impresso.tituloImpresso" required>
+                  <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                </div>
+              </AIFieldAssistant>
             </div>
             <div class="form-group">
               <label :for="'impressoTipoConteudo' + index">Tipo de Conteúdo do Impresso:</label>
@@ -2181,12 +2650,38 @@ watch(() => props.id, (newId) => {
 
             <div v-if="impresso.tipoConteudo === 'texto_simples'" class="form-group">
               <label :for="'impressoConteudoTexto' + index">Conteúdo (texto):</label>
-              <textarea :id="'impressoConteudoTexto' + index" v-model="impresso.conteudo.texto" rows="3" placeholder="Insira o texto do impresso aqui..."></textarea>
+              <AIFieldAssistant
+                :field-name="`impressos.${index}.conteudo.texto`"
+                field-label="Conteúdo do Impresso"
+                v-model="impresso.conteudo.texto"
+                :station-context="stationContext"
+                :station-id="stationId"
+                :item-index="index"
+        @field-updated="handleAIFieldUpdate"
+        @suggest-requested="onAISuggestRequested"
+              >
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                  <textarea :id="'impressoConteudoTexto' + index" v-model="impresso.conteudo.texto" rows="3" placeholder="Insira o texto do impresso aqui..."></textarea>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+          <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                  </div>
+                </div>
+              </AIFieldAssistant>
             </div>
             <div v-if="impresso.tipoConteudo === 'imagem_com_texto'">
               <div class="form-group">
                 <label :for="'impressoConteudoImgDesc' + index">Texto Descritivo (opcional):</label>
-                <textarea :id="'impressoConteudoImgDesc' + index" v-model="impresso.conteudo.textoDescritivo" rows="2"></textarea>
+                <AIFieldAssistant
+                  :field-name="`impressos.${index}.conteudo.textoDescritivo`"
+                  field-label="Texto Descritivo do Impresso"
+                  v-model="impresso.conteudo.textoDescritivo"
+                  :station-context="stationContext"
+                  :station-id="stationId"
+                  :item-index="index"
+                  @field-updated="handleAIFieldUpdate"
+                >
+                  <textarea :id="'impressoConteudoImgDesc' + index" v-model="impresso.conteudo.textoDescritivo" rows="2"></textarea>
+                </AIFieldAssistant>
               </div>
               <div class="form-group">
                 <label :for="'impressoConteudoImgPath' + index">Caminho/URL da Imagem:</label>
@@ -2218,10 +2713,25 @@ watch(() => props.id, (newId) => {
                     <small>💡 Formatos aceitos: JPG, PNG, GIF, WebP. Máximo: 10MB</small>
                   </div>
                 </div>
+                <!-- Botão IA para sugerir URL ou descrição da imagem -->
+                <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+                  <button type="button" @click.prevent="suggestForImageUrl(index)" class="ai-bulk-button" :disabled="aiBulkLoading" title="Buscar na web por URLs públicas relevantes usando título, texto descritivo e laudo deste impresso">🤖 Buscar URLs relacionadas</button>
+                  <small style="color:#666;">Busca baseada no título, texto descritivo e laudo (apenas links públicos)</small>
+                </div>
               </div>
               <div class="form-group">
                 <label :for="'impressoConteudoImgLaudo' + index">Laudo da Imagem (opcional):</label>
-                <textarea :id="'impressoConteudoImgLaudo' + index" v-model="impresso.conteudo.laudo" rows="3"></textarea>
+                <AIFieldAssistant
+                  :field-name="`impressos.${index}.conteudo.laudo`"
+                  field-label="Laudo da Imagem"
+                  v-model="impresso.conteudo.laudo"
+                  :station-context="stationContext"
+                  :station-id="stationId"
+                  :item-index="index"
+                  @field-updated="handleAIFieldUpdate"
+                >
+                  <textarea :id="'impressoConteudoImgLaudo' + index" v-model="impresso.conteudo.laudo" rows="3"></textarea>
+                </AIFieldAssistant>
               </div>
             </div>
             <div v-if="impresso.tipoConteudo === 'lista_chave_valor_secoes'">
@@ -2232,11 +2742,53 @@ watch(() => props.id, (newId) => {
                 </div>
                 <div class="form-group">
                   <label :for="'secaoTitulo' + index + '_' + secaoIndex">Título da Seção:</label>
-                  <input type="text" :id="'secaoTitulo' + index + '_' + secaoIndex" v-model="secao.tituloSecao" placeholder="Ex: Hemograma">
+                  <AIFieldAssistant
+                      :field-name="`impressos.${index}.conteudo.secoes.${secaoIndex}.tituloSecao`"
+                      field-label="Título da Seção do Impresso"
+                      v-model="secao.tituloSecao"
+                      :station-context="stationContext"
+                      :station-id="stationId"
+                      :item-index="index"
+                        @field-updated="handleAIFieldUpdate"
+                        @suggest-requested="onAISuggestRequested"
+                    >
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="text" :id="'secaoTitulo' + index + '_' + secaoIndex" v-model="secao.tituloSecao" placeholder="Ex: Hemograma">
+                        <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                      </div>
+                    </AIFieldAssistant>
                 </div>
                 <div v-for="(itemSecao, itemSecaoIndex) in (secao?.itens || [])" :key="itemSecaoIndex" class="dynamic-item-group-very-nested">
-                  <input type="text" v-model="itemSecao.chave" placeholder="Chave (Ex: Hb)" style="flex-basis: 40%;">
-                  <input type="text" v-model="itemSecao.valor" placeholder="Valor (Ex: 12.5 g/dL)" style="flex-basis: 40%;">
+                  <AIFieldAssistant
+                    :field-name="`impressos.${index}.conteudo.secoes.${secaoIndex}.itens.${itemSecaoIndex}.chave`"
+                    field-label="Chave do Exame"
+                    v-model="itemSecao.chave"
+                    :station-context="stationContext"
+                    :station-id="stationId"
+                    :item-index="index"
+                    @field-updated="handleAIFieldUpdate"
+                    @suggest-requested="onAISuggestRequested"
+                  >
+                    <div style="display:flex; gap:8px; align-items:center;">
+                      <input type="text" v-model="itemSecao.chave" placeholder="Chave (Ex: Hb)" style="flex-basis: 40%;">
+                      <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                    </div>
+                  </AIFieldAssistant>
+                  <AIFieldAssistant
+                    :field-name="`impressos.${index}.conteudo.secoes.${secaoIndex}.itens.${itemSecaoIndex}.valor`"
+                    field-label="Valor do Exame"
+                    v-model="itemSecao.valor"
+                    :station-context="stationContext"
+                    :station-id="stationId"
+                    :item-index="index"
+                    @field-updated="handleAIFieldUpdate"
+                    @suggest-requested="onAISuggestRequested"
+                  >
+                    <div style="display:flex; gap:8px; align-items:center;">
+                      <input type="text" v-model="itemSecao.valor" placeholder="Valor (Ex: 12.5 g/dL)" style="flex-basis: 40%;">
+                      <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                    </div>
+                  </AIFieldAssistant>
                   <button type="button" @click="removerItemSecao(secao, itemSecaoIndex)" class="remove-item-button-small" style="flex-basis: auto;">X</button>
                 </div>
                 <button type="button" @click="adicionarItemSecao(secao)" class="add-item-button-small">+ Item na Seção</button>
@@ -2315,25 +2867,87 @@ watch(() => props.id, (newId) => {
             </div>
             <div class="form-group">
               <label :for="'pepItemDescricao' + index">Descrição do Item de Avaliação:</label>
-              <textarea :id="'pepItemDescricao' + index" v-model="item.descricaoItem" rows="2" required placeholder="Descreva o que deve ser avaliado..."></textarea>
+              <AIFieldAssistant
+                :field-name="`padraoEsperadoProcedimento.itensAvaliacao.${index}.descricaoItem`"
+                field-label="Descrição do Item (PEP)"
+                v-model="item.descricaoItem"
+                :station-context="stationContext"
+                :station-id="stationId"
+                :item-index="index"
+        @field-updated="handleAIFieldUpdate"
+        @suggest-requested="onAISuggestRequested"
+              >
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                  <textarea :id="'pepItemDescricao' + index" v-model="item.descricaoItem" rows="2" required placeholder="Descreva o que deve ser avaliado..."></textarea>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+          <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                  </div>
+                </div>
+              </AIFieldAssistant>
+              <!-- Botão IA bulk para item PEP -->
+              <div style="margin-top:6px;">
+                <button type="button" @click.prevent="suggestForPepItem(index)" class="ai-bulk-button" :disabled="aiBulkLoading">🤖 Sugerir (Item PEP)</button>
+              </div>
             </div>
             <fieldset class="pontuacoes-group">
               <legend>Critérios e Pontuações do Item</legend>
               <div>
                 <label :for="'pepItemAdequadoCriterio' + index">Critério - Adequado:</label>
-                <input type="text" :id="'pepItemAdequadoCriterio' + index" v-model="item.pontuacoes.adequado.criterio" placeholder="Ex: Realizou completamente e corretamente.">
+                <AIFieldAssistant
+                  :field-name="`padraoEsperadoProcedimento.itensAvaliacao.${index}.pontuacoes.adequado.criterio`"
+                  field-label="Critério Adequado"
+                  v-model="item.pontuacoes.adequado.criterio"
+                  :station-context="stationContext"
+                  :station-id="stationId"
+                  :item-index="index"
+                  @field-updated="handleAIFieldUpdate"
+                  @suggest-requested="onAISuggestRequested"
+                >
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" :id="'pepItemAdequadoCriterio' + index" v-model="item.pontuacoes.adequado.criterio" placeholder="Ex: Realizou completamente e corretamente.">
+                    <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                  </div>
+                </AIFieldAssistant>
                 <label :for="'pepItemAdequadoPontos' + index">Pontos:</label>
                 <input type="number" step="0.001" :id="'pepItemAdequadoPontos' + index" v-model.number="item.pontuacoes.adequado.pontos">
               </div>
               <div>
                 <label :for="'pepItemParcialCriterio' + index">Critério - Parcialmente Adequado:</label>
-                <input type="text" :id="'pepItemParcialCriterio' + index" v-model="item.pontuacoes.parcialmenteAdequado.criterio" placeholder="Ex: Realizou parcialmente ou com pequenas falhas.">
+                <AIFieldAssistant
+                  :field-name="`padraoEsperadoProcedimento.itensAvaliacao.${index}.pontuacoes.parcialmenteAdequado.criterio`"
+                  field-label="Critério Parcialmente Adequado"
+                  v-model="item.pontuacoes.parcialmenteAdequado.criterio"
+                  :station-context="stationContext"
+                  :station-id="stationId"
+                  :item-index="index"
+          @field-updated="handleAIFieldUpdate"
+          @suggest-requested="onAISuggestRequested"
+                >
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" :id="'pepItemParcialCriterio' + index" v-model="item.pontuacoes.parcialmenteAdequado.criterio" placeholder="Ex: Realizou parcialmente ou com pequenas falhas.">
+            <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                  </div>
+                </AIFieldAssistant>
                 <label :for="'pepItemParcialPontos' + index">Pontos:</label>
                 <input type="number" step="0.001" :id="'pepItemParcialPontos' + index" v-model.number="item.pontuacoes.parcialmenteAdequado.pontos">
               </div>
               <div>
                 <label :for="'pepItemInadequadoCriterio' + index">Critério - Inadequado / Não Fez:</label>
-                <input type="text" :id="'pepItemInadequadoCriterio' + index" v-model="item.pontuacoes.inadequado.criterio" placeholder="Ex: Não realizou ou realizou incorretamente.">
+                <AIFieldAssistant
+                  :field-name="`padraoEsperadoProcedimento.itensAvaliacao.${index}.pontuacoes.inadequado.criterio`"
+                  field-label="Critério Inadequado"
+                  v-model="item.pontuacoes.inadequado.criterio"
+                  :station-context="stationContext"
+                  :station-id="stationId"
+                  :item-index="index"
+                    @field-updated="handleAIFieldUpdate"
+                    @suggest-requested="onAISuggestRequested"
+                >
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" :id="'pepItemInadequadoCriterio' + index" v-model="item.pontuacoes.inadequado.criterio" placeholder="Ex: Não realizou ou realizou incorretamente.">
+                    <!-- Sugestão movida para dentro do AIFieldAssistant -->
+                  </div>
+                </AIFieldAssistant>
                 <label :for="'pepItemInadequadoPontos' + index">Pontos:</label>
                 <input type="number" step="0.001" :id="'pepItemInadequadoPontos' + index" v-model.number="item.pontuacoes.inadequado.pontos">
               </div>
@@ -2469,7 +3083,29 @@ watch(() => props.id, (newId) => {
     <!-- PAINEL DE IA COMPLETAMENTE REMOVIDO -->
     
   </div> <!-- Fim edit-station-main-container -->
-  
+    <!-- Diálogo simples para revisão de sugestões IA bulk -->
+    <div v-if="aiBulkDialog" class="dialog-overlay" @click="aiBulkDialog = false">
+      <div class="dialog-content" @click.stop>
+        <h3>Revisar Sugestões da IA</h3>
+        <p>Revise as sugestões abaixo. Aplique individualmente ou clique em "Aplicar todas".</p>
+        <div style="max-height: 50vh; overflow:auto; margin-top: 12px;">
+          <div v-for="(s, idx) in aiBulkSuggestions" :key="s.fieldName + idx" style="border-bottom:1px solid #eee; padding:8px 0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+              <strong>{{ s.label }}</strong>
+              <div>
+                <button type="button" @click.prevent="applyBulkSuggestion(s)" class="ai-bulk-button">Aplicar</button>
+              </div>
+            </div>
+            <pre style="white-space:pre-wrap; background:#fafafa; padding:8px; border-radius:6px; margin-top:6px;">{{ s.suggestion || '(sem sugestão)' }}</pre>
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
+          <button type="button" @click.prevent="aiBulkDialog = false" class="ai-bulk-button">Fechar</button>
+          <button type="button" @click.prevent="applyAllBulkSuggestions" class="ai-bulk-button">Aplicar todas</button>
+        </div>
+      </div>
+    </div>
+
 </template><style scoped>
 /* Estilos base do container */
 .edit-station-container {
@@ -2519,6 +3155,20 @@ watch(() => props.id, (newId) => {
 .edit-station-container--dark {
   background-color: rgb(var(--v-theme-background));
   color: rgb(var(--v-theme-on-background));
+}
+
+/* Estilos simples para botões IA bulk */
+.ai-bulk-button {
+  background: rgba(0, 123, 255, 0.08);
+  border: 1px solid rgba(0, 123, 255, 0.12);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.ai-bulk-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Estilos da página de upload */
@@ -3449,5 +4099,19 @@ watch(() => props.id, (newId) => {
 .status-value {
   font-weight: 600;
   color: #495057;
+}
+
+/* Estilo simples para botão de sugestão IA */
+.suggest-button {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+.suggest-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

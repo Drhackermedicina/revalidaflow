@@ -2,10 +2,34 @@
  * Serviço para gerenciar memórias de correções no Firestore
  */
 import { db } from '@/plugins/firebase.js';
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, serverTimestamp, collection, getDocs, query, orderBy, limit, deleteDoc, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion, serverTimestamp, collection, getDocs, query, orderBy, limit, deleteDoc, where, addDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
+// Debug flag (controla logs verbosos). Pode ser ativado via Vite env VITE_AI_DEBUG='true' ou
+// colocando window.AI_FIELD_ASSISTANT_DEBUG = true no devtools, ou localStorage.setItem('AI_DEBUG','1')
+const DEBUG = (() => {
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_AI_DEBUG === 'true' || import.meta.env.VITE_AI_DEBUG === '1')) return true
+  } catch (e) { }
+  try {
+    if (typeof window !== 'undefined') {
+      if (window.AI_FIELD_ASSISTANT_DEBUG) return true
+      if (localStorage.getItem && localStorage.getItem('AI_DEBUG') === '1') return true
+    }
+  } catch (e) { }
+  return false
+})();
+
+const dLog = (...args) => { if (DEBUG) console.log(...args) }
+const dWarn = (...args) => { if (DEBUG) console.warn(...args) }
+
 class MemoryService {
+  constructor() {
+    // Cache simples para reduzir queries repetidas ao Firestore (stationId -> { ts, value })
+    this._cache = new Map()
+    // TTL do cache em ms
+    this._cacheTTL = 15 * 1000 // 15s
+  }
   /**
    * Salvar contexto geral da estação
    */
@@ -20,7 +44,7 @@ class MemoryService {
       };
 
       await setDoc(doc(db, 'contextos_estacoes', stationId), contextDoc);
-      console.log('✅ Contexto da estação salvo com sucesso');
+      dLog('✅ Contexto da estação salvo com sucesso');
       return true;
     } catch (error) {
       console.error('❌ Erro ao salvar contexto da estação:', error);
@@ -35,10 +59,10 @@ class MemoryService {
     try {
       const contextDoc = await getDoc(doc(db, 'contextos_estacoes', stationId));
       if (contextDoc.exists()) {
-        console.log('✅ Contexto da estação carregado');
+        dLog('✅ Contexto da estação carregado');
         return contextDoc.data();
       }
-      console.log('ℹ️ Nenhum contexto encontrado para a estação');
+      dLog('ℹ️ Nenhum contexto encontrado para a estação');
       return null;
     } catch (error) {
       console.error('❌ Erro ao carregar contexto da estação:', error);
@@ -51,7 +75,7 @@ class MemoryService {
    */
   async savePrompt(stationId, promptData) {
     try {
-      console.log('💾 Salvando prompt na memória...', { stationId, promptData });
+      dLog('💾 Salvando prompt na memória...', { stationId, promptData });
 
       if (!stationId || !promptData) {
         console.warn('⚠️ Dados insuficientes para salvar prompt:', { stationId, promptData: !!promptData });
@@ -60,7 +84,7 @@ class MemoryService {
 
       // 🔧 DEBUG: Verificar autenticação
       const currentUser = this.getCurrentUserId();
-      console.log('🔐 Usuário atual:', currentUser);
+      dLog('🔐 Usuário atual:', currentUser);
 
       if (!currentUser) {
         console.warn('⚠️ Usuário não autenticado! Salvando apenas no localStorage');
@@ -94,21 +118,25 @@ class MemoryService {
         type: 'correction'
       };
 
-      console.log('📤 Enviando para Firestore:', memoryEntry);
+      dLog('📤 Enviando para Firestore:', memoryEntry);
       await setDoc(memoryRef, memoryEntry);
-      console.log('✅ Documento salvo no Firestore com ID:', memoryId);
+      dLog('✅ Documento salvo no Firestore com ID:', memoryId);
 
       // Backup no localStorage
       await this.saveToLocalStorage(stationId, memoryEntry);
 
-      console.log('✅ Prompt salvo na memória com sucesso!', memoryId);
+      // Invalidar cache para stationId para próxima leitura
+      try { this._cache.delete(stationId) } catch (e) { }
+
+      dLog('✅ Prompt salvo na memória com sucesso!', memoryId);
       return memoryId;
 
     } catch (error) {
       console.error('❌ Erro ao salvar prompt no Firebase:', error);
       console.error('❌ Detalhes do erro:', error.message);
-      console.error('❌ Stack trace:', error.stack);
-      console.log('🔄 Tentando salvar no localStorage...');
+      // Não imprimir stack trace em excesso no console do usuário em produção
+      if (DEBUG) console.error('❌ Stack trace:', error.stack);
+      dLog('🔄 Tentando salvar no localStorage...');
       return await this.saveToLocalStorage(stationId, {
         stationId,
         fieldName: promptData.fieldName || '',
@@ -134,16 +162,16 @@ class MemoryService {
         id: Date.now().toString(),
         ...memoryEntry
       });
-      
+
       // Manter apenas os últimos 50
       if (existing.length > 50) {
         existing.splice(50);
       }
-      
+
       localStorage.setItem(key, JSON.stringify(existing));
-      console.log('✅ Prompt salvo no localStorage');
+      dLog('✅ Prompt salvo no localStorage');
       return Date.now().toString();
-      
+
     } catch (error) {
       console.error('❌ Erro ao salvar no localStorage:', error);
       return null;
@@ -158,9 +186,9 @@ class MemoryService {
       const key = `prompts_${stationId}`;
       const data = localStorage.getItem(key);
       const memories = data ? JSON.parse(data) : [];
-      console.log('✅ Memórias carregadas do localStorage:', memories.length);
+      dLog('✅ Memórias carregadas do localStorage:', memories.length);
       return memories;
-      
+
     } catch (error) {
       console.error('❌ Erro ao carregar do localStorage:', error);
       return [];
@@ -172,23 +200,32 @@ class MemoryService {
    */
   async loadMemories(stationId) {
     try {
-      console.log('🔍 Carregando memórias...', { stationId });
+      dLog('🔍 Carregando memórias...', { stationId });
 
       if (!stationId) {
         console.warn('⚠️ StationId não fornecido para carregar memórias');
         return [];
       }
 
+      // Verificar cache simples
+      try {
+        const cached = this._cache.get(stationId)
+        if (cached && (Date.now() - cached.ts) < this._cacheTTL) {
+          dLog('♻️ Retornando memórias do cache para', stationId)
+          return cached.value
+        }
+      } catch (e) { dWarn('Erro ao ler cache:', e) }
+
       // Verificar se usuário está autenticado
       const currentUser = this.getCurrentUserId();
-      console.log('🔐 Usuário atual para carregar memórias:', currentUser);
+      dLog('🔐 Usuário atual para carregar memórias:', currentUser);
 
       if (!currentUser) {
         console.warn('⚠️ Usuário não autenticado, usando memória local');
         return await this.loadFromLocalStorage(stationId);
       }
 
-      console.log('🔍 Fazendo query no Firestore...');
+      dLog('🔍 Fazendo query no Firestore...');
       // 🔧 QUERY SIMPLES SEM ÍNDICE COMPOSTO
       const q = query(
         collection(db, 'memorias_prompts'),
@@ -197,7 +234,7 @@ class MemoryService {
       );
       const snapshot = await getDocs(q);
 
-      console.log('📊 Snapshot recebido:', {
+      dLog('📊 Snapshot recebido:', {
         size: snapshot.size,
         empty: snapshot.empty
       });
@@ -205,7 +242,7 @@ class MemoryService {
       const memories = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        console.log('📄 Documento encontrado:', { id: doc.id, data });
+        dLog('📄 Documento encontrado:', { id: doc.id, data });
         memories.push({
           id: doc.id,
           ...data
@@ -219,16 +256,19 @@ class MemoryService {
         return timeB - timeA; // Mais recente primeiro
       });
 
-      console.log('✅ Memórias carregadas do Firebase:', memories.length);
-      console.log('📋 Lista de memórias:', memories.map(m => ({ id: m.id, fieldName: m.fieldName, timestamp: m.timestamp })));
+      dLog('✅ Memórias carregadas do Firebase:', memories.length);
+      dLog('📋 Lista de memórias:', memories.map(m => ({ id: m.id, fieldName: m.fieldName, timestamp: m.timestamp })));
+
+      // Salvar no cache
+      try { this._cache.set(stationId, { ts: Date.now(), value: memories }) } catch (e) { dWarn('Erro ao setar cache:', e) }
 
       return memories;
 
     } catch (error) {
       console.error('❌ Erro ao carregar memória do Firebase:', error);
       console.error('❌ Detalhes do erro:', error.message);
-      console.error('❌ Stack trace:', error.stack);
-      console.log('🔄 Tentando carregar do localStorage...');
+      if (DEBUG) console.error('❌ Stack trace:', error.stack);
+      dLog('🔄 Tentando carregar do localStorage...');
       return await this.loadFromLocalStorage(stationId);
     }
   }
@@ -250,10 +290,10 @@ class MemoryService {
       // Salvar no Firebase
       const docRef = await addDoc(collection(db, 'custom_guidelines'), customGuidelines)
       console.log('✅ Orientações personalizadas salvas:', docRef.id)
-      
+
       // Backup no localStorage
       this.saveCustomGuidelinesToLocal(stationId, guidelines)
-      
+
       return docRef.id
     } catch (error) {
       console.error('❌ Erro ao salvar orientações:', error)
@@ -273,17 +313,17 @@ class MemoryService {
         where('stationId', '==', stationId),
         limit(10)
       )
-      
+
       const snapshot = await getDocs(q)
       const guidelines = []
-      
+
       snapshot.forEach(doc => {
         guidelines.push({
           id: doc.id,
           ...doc.data()
         })
       })
-      
+
       return guidelines
     } catch (error) {
       console.error('❌ Erro ao carregar orientações:', error)
@@ -321,7 +361,7 @@ class MemoryService {
    */
   async getRelevantMemories(fieldName, itemIndex = null, currentStationId = null) {
     try {
-      console.log('🔍 Buscando memórias relevantes...', { fieldName, itemIndex, currentStationId });
+      dLog('🔍 Buscando memórias relevantes...', { fieldName, itemIndex, currentStationId });
 
       const currentUser = this.getCurrentUserId();
       if (!currentUser) {
@@ -352,7 +392,7 @@ class MemoryService {
         }
       });
 
-      console.log(`📊 Encontradas ${allMemories.length} memórias do usuário`);
+      dLog(`📊 Encontradas ${allMemories.length} memórias do usuário`);
 
       // 🔍 FILTRAR E PONTUAR MEMÓRIAS POR RELEVÂNCIA
       const scoredMemories = allMemories.map(memory => {
@@ -402,7 +442,7 @@ class MemoryService {
         .sort((a, b) => b.relevanceScore - a.relevanceScore)
         .slice(0, 20); // Top 20 mais relevantes
 
-      console.log(`✅ Encontradas ${relevantMemories.length} memórias relevantes:`,
+      dLog(`✅ Encontradas ${relevantMemories.length} memórias relevantes:`,
         relevantMemories.map(m => `${m.title} (${m.relevanceReason}, score: ${m.relevanceScore})`));
 
       return relevantMemories;
@@ -443,15 +483,15 @@ class MemoryService {
     try {
       // Usar coleção simples 'memorias_prompts' com ID direto do documento
       const promptRef = doc(db, 'memorias_prompts', promptId);
-      
+
       await updateDoc(promptRef, {
         ...updatedData,
         timestamp: serverTimestamp()
       });
-      
+
       console.log('✅ Prompt atualizado com sucesso');
       return true;
-      
+
     } catch (error) {
       console.error('❌ Erro ao atualizar prompt:', error);
       return false;
@@ -465,15 +505,111 @@ class MemoryService {
     try {
       // Usar coleção simples 'memorias_prompts' com ID direto do documento
       const promptRef = doc(db, 'memorias_prompts', promptId);
-      
+
       await deleteDoc(promptRef);
-      
+
       console.log('✅ Prompt deletado com sucesso');
       return true;
-      
+
     } catch (error) {
       console.error('❌ Erro ao deletar prompt:', error);
       return false;
+    }
+  }
+
+  /**
+   * Salvar uma sugestão aplicada (histórico por campo)
+   * @param {string} stationId
+   * @param {Object} suggestionData - { fieldName, itemIndex, suggestion, originalValue, source }
+   */
+  async saveAppliedSuggestion(stationId, suggestionData) {
+    try {
+      if (!stationId || !suggestionData) {
+        dWarn('saveAppliedSuggestion: dados insuficientes', { stationId, suggestionData });
+        return null;
+      }
+
+      const currentUser = this.getCurrentUserId() || 'local-user';
+
+      const entry = {
+        stationId,
+        fieldName: suggestionData.fieldName || '',
+        itemIndex: suggestionData.itemIndex ?? null,
+        suggestion: suggestionData.suggestion || '',
+        originalValue: suggestionData.originalValue || '',
+        newValue: suggestionData.newValue || suggestionData.suggestion || '',
+        source: suggestionData.source || 'unknown',
+        userId: currentUser,
+        timestamp: serverTimestamp(),
+        type: 'applied_suggestion'
+      };
+
+      // Tentar salvar no Firestore
+      try {
+        const ref = await addDoc(collection(db, 'suggestions_history'), entry);
+        dLog('✅ Applied suggestion salvo no Firestore:', ref.id);
+        // Invalidar cache da estação
+        try { this._cache.delete(stationId) } catch (e) { }
+        return ref.id;
+      } catch (e) {
+        dWarn('Erro ao salvar applied suggestion no Firestore, salvando localmente:', e);
+        // Fallback para localStorage
+        const key = `applied_suggestions_${stationId}`;
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        existing.unshift({ id: Date.now().toString(), ...entry, timestamp: new Date().toISOString() });
+        if (existing.length > 100) existing.splice(100);
+        localStorage.setItem(key, JSON.stringify(existing));
+        return Date.now().toString();
+      }
+
+    } catch (error) {
+      console.error('❌ Erro em saveAppliedSuggestion:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Carregar histórico de sugestões aplicadas para um campo
+   * @param {string} stationId
+   * @param {string} fieldName
+   * @param {number|null} itemIndex
+   */
+  async loadAppliedSuggestions(stationId, fieldName, itemIndex = null) {
+    try {
+      if (!stationId) return [];
+
+      // Usuário não autenticado: carregar do localStorage
+      const currentUser = this.getCurrentUserId();
+      if (!currentUser) {
+        dWarn('Usuário não autenticado, carregando applied suggestions do localStorage');
+        const key = `applied_suggestions_${stationId}`;
+        const data = JSON.parse(localStorage.getItem(key) || '[]');
+        return data.filter(d => (!fieldName || d.fieldName === fieldName) && (itemIndex === null || d.itemIndex === itemIndex));
+      }
+
+      // Query no Firestore
+      const q = query(
+        collection(db, 'suggestions_history'),
+        where('stationId', '==', stationId),
+        where('fieldName', '==', fieldName),
+        orderBy('timestamp', 'desc'),
+        limit(50)
+      );
+
+      const snapshot = await getDocs(q);
+      const results = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        // Filtrar por itemIndex se fornecido
+        if (itemIndex === null || data.itemIndex === itemIndex) {
+          results.push({ id: doc.id, ...data, timestamp: data.timestamp?.toDate?.() || new Date(data.timestamp) });
+        }
+      });
+
+      return results;
+    } catch (error) {
+      console.error('❌ Erro ao carregar applied suggestions:', error);
+      return [];
     }
   }
 

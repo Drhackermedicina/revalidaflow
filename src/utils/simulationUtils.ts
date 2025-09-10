@@ -190,3 +190,25 @@ export function processInfrastructureItems(items: string[]): string[] {
   });
   return processedItems.filter(item => item.length > 0);
 }
+
+export function parseEnumeratedItems(descriptionText: string): { text: string; index: number }[] {
+  const items: { text: string; index: number }[] = [];
+  if (!descriptionText || typeof descriptionText !== 'string') {
+    return items;
+  }
+
+  // Remove o título principal e o ":" inicial se existirem
+  let cleanedText = descriptionText.replace(/^[^:]+:\s*/, '').trim();
+
+  // Regex para encontrar padrões como "(1) Texto do item"
+  const regex = /\((\d+)\)\s*(.*?)(?=\s*\(\d+\)|$)/g;
+  let match;
+
+  while ((match = regex.exec(cleanedText)) !== null) {
+    const index = parseInt(match[1], 10) - 1; // Ajusta para índice baseado em 0
+    const text = match[2].trim();
+    items.push({ text, index });
+  }
+
+  return items;
+}

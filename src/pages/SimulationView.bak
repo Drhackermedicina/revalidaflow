@@ -1,3 +1,4 @@
+  parseEnumeratedItems,
 <script setup>
 // Aceitar props para evitar warnings do Vue Router
 defineProps({
@@ -3092,58 +3093,16 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
  .simulation-page-container {
      font-size: 1.1rem; /* Aumenta a fonte base */
  }
-
-/* Realce geral dos cards dentro da página de simulação: borda um pouco mais espessa,
-   cor baseada nas variáveis de tema para respeitar light/dark e aspecto profissional */
-.simulation-page-container :where(.v-card) {
-  /* Fallback neutro para cards */
-  border: 1.4px solid rgba(0,0,0,0.05) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.04) !important;
-}
-
-:deep(.v-theme--light) .simulation-page-container :where(.v-card) {
-  border: 1.6px solid rgba(0,0,0,0.08) !important;
-}
-
-:deep(.v-theme--dark) .simulation-page-container :where(.v-card) {
-  border: 1.6px solid rgba(255,255,255,0.06) !important;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.18) !important;
-}
  
-.pep-split-view-border-right {
-  /* Fallback neutro */
-  border-right: 1.6px solid rgba(0,0,0,0.06);
-  padding-right: 18px; /* Adiciona um padding para a borda não ficar colada no conteúdo */
-}
-
-:deep(.v-theme--light) .pep-split-view-border-right {
-  border-right: 1.6px solid rgba(0,0,0,0.08) !important;
-}
-:deep(.v-theme--dark) .pep-split-view-border-right {
-  border-right: 1.6px solid rgba(255,255,255,0.06) !important;
-}
+ .pep-split-view-border-right {
+   border-right: 1px solid rgba(var(--v-theme-outline), 0.3);
+   padding-right: 16px; /* Adiciona um padding para a borda não ficar colada no conteúdo */
+ }
  
  /* Estilos para o PepSideView dentro da split view */
  .pep-side-view-card {
    padding-left: 16px; /* Adiciona um padding para o conteúdo não ficar colado na borda */
  }
-
-/* Realce visual extra para o PepSideView: contorno e divisórias internas mais perceptíveis */
-:deep(.pep-side-view) {
-  border: 1.2px solid rgba(var(--v-theme-outline), 0.24);
-  border-radius: 8px;
-  padding: 6px;
-}
-
-:deep(.pep-side-view .pep-group-divider) {
-  border-bottom: 1.6px solid rgba(var(--v-theme-outline), 0.32) !important;
-  margin-bottom: 8px !important;
-}
-
-:deep(.v-theme--dark) .pep-side-view .pep-group-divider {
-  border-bottom: 1.6px solid rgba(var(--v-theme-outline), 0.40) !important;
-}
  
  @media (max-width: 960px) { /* md breakpoint for Vuetify is 960px */
    .pep-split-view-border-right {
@@ -3203,13 +3162,13 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
  }
  
  .impresso-imagem {
-  width: 650px;
-  height: 480px;
-  max-width: 100%;
-  object-fit: contain;
-  border: 1.4px solid rgba(var(--v-theme-outline), 0.32);
-  margin: 10px 0;
-  background-color: rgba(var(--v-theme-surface-variant), 0.5);
+   width: 650px;
+   height: 480px;
+   max-width: 100%;
+   object-fit: contain;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3);
+   margin: 10px 0;
+   background-color: rgba(var(--v-theme-surface-variant), 0.5);
  }
  
  /* Estilo para imagens clicáveis */

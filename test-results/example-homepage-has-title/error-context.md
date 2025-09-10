@@ -1,0 +1,142 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - heading "REVALIDA FÁCIL Sua plataforma de simulação médica" [level=1] [ref=e11]:
+          - generic [ref=e12]: REVALIDA FÁCIL
+          - text: Sua plataforma de simulação médica
+        - paragraph [ref=e13]: Prepare-se para o exame REVALIDA com simulações realistas e avaliação profissional. Nossa plataforma oferece estações clínicas interativas que simulam situações reais do exercício da medicina no Brasil.
+        - generic [ref=e14]:
+          - link "Fazer Login" [ref=e15] [cursor=pointer]:
+            - /url: /login
+            - generic [ref=e16] [cursor=pointer]:
+              - img [ref=e17] [cursor=pointer]
+              - text: Fazer Login
+          - link "Criar Conta" [ref=e19] [cursor=pointer]:
+            - /url: /register
+            - generic [ref=e20] [cursor=pointer]: Criar Conta
+      - generic [ref=e22]:
+        - generic [ref=e23]: 🩺
+        - generic [ref=e24]: 📊
+        - generic [ref=e25]: 📋
+    - generic [ref=e27]:
+      - heading "Como Funciona o REVALIDA FÁCIL" [level=2] [ref=e28]
+      - generic [ref=e29]:
+        - generic [ref=e31]:
+          - img [ref=e32]
+          - generic [ref=e34]: Simulação Realista
+          - generic [ref=e35]: Estações clínicas que reproduzem cenários reais do exercício médico, com pacientes simulados e situações autênticas.
+        - generic [ref=e37]:
+          - img [ref=e38]
+          - generic [ref=e40]: Tempo Controlado
+          - generic [ref=e41]: Pratique sob pressão temporal real, com cronômetro e gestão de tempo igual ao exame oficial do REVALIDA.
+        - generic [ref=e43]:
+          - img [ref=e44]
+          - generic [ref=e46]: Avaliação Profissional
+          - generic [ref=e47]: Receba feedback detalhado de avaliadores qualificados usando critérios oficiais do exame REVALIDA.
+        - generic [ref=e49]:
+          - img [ref=e50]
+          - generic [ref=e52]: Relatórios Detalhados
+          - generic [ref=e53]: Acompanhe seu progresso com relatórios completos de performance e áreas para melhoria.
+        - generic [ref=e55]:
+          - img [ref=e56]
+          - generic [ref=e58]: Acesso Online
+          - generic [ref=e59]: Participe de simulações de qualquer lugar, conectando-se com outros candidatos e avaliadores.
+        - generic [ref=e61]:
+          - img [ref=e62]
+          - generic [ref=e64]: Foco no REVALIDA
+          - generic [ref=e65]: Conteúdo específico e atualizado conforme as diretrizes mais recentes do exame de revalidação médica.
+    - generic [ref=e67]:
+      - heading "Como Participar das Simulações" [level=2] [ref=e68]
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e72]:
+            - generic [ref=e73]: 1. Cadastre-se
+            - generic [ref=e74]: Crie sua conta gratuita e acesse a plataforma de simulações médicas.
+          - img [ref=e79]
+        - generic [ref=e83]:
+          - generic [ref=e85]:
+            - generic [ref=e86]: 2. Escolha uma Estação
+            - generic [ref=e87]: Selecione entre diversas estações clínicas disponíveis para praticar.
+          - img [ref=e92]
+        - generic [ref=e95]:
+          - generic [ref=e97]:
+            - generic [ref=e98]: 3. Conecte-se
+            - generic [ref=e99]: Entre em uma sessão de simulação com outros candidatos e avaliadores.
+          - img [ref=e104]
+        - generic [ref=e107]:
+          - generic [ref=e109]:
+            - generic [ref=e110]: 4. Pratique
+            - generic [ref=e111]: Realize a simulação seguindo as instruções e interagindo com o paciente simulado.
+          - img [ref=e116]
+        - generic [ref=e119]:
+          - generic [ref=e121]:
+            - generic [ref=e122]: 5. Receba Feedback
+            - generic [ref=e123]: Obtenha avaliação detalhada e dicas para melhorar sua performance.
+          - img [ref=e128]
+    - generic [ref=e133]:
+      - heading "Pronto para Começar sua Preparação?" [level=2] [ref=e134]
+      - paragraph [ref=e135]: Junte-se a centenas de médicos que já estão se preparando para o REVALIDA com nossa plataforma.
+      - generic [ref=e136]:
+        - link "Começar Agora - É Grátis" [ref=e137] [cursor=pointer]:
+          - /url: /register
+          - generic [ref=e138] [cursor=pointer]: Começar Agora - É Grátis
+        - link "Já tenho conta" [ref=e139] [cursor=pointer]:
+          - /url: /login
+          - generic [ref=e140] [cursor=pointer]: Já tenho conta
+    - contentinfo [ref=e141]:
+      - generic [ref=e142]:
+        - generic [ref=e144]:
+          - link "Revalida Fácil Logo REVALIDA FÁCIL" [ref=e146] [cursor=pointer]:
+            - /url: /app/dashboard
+            - img "Revalida Fácil Logo" [ref=e147] [cursor=pointer]
+            - heading "REVALIDA FÁCIL" [level=2] [ref=e148] [cursor=pointer]
+          - paragraph [ref=e149]: Sua preparação para o exame de revalidação médica.
+        - separator [ref=e150]
+        - generic [ref=e151]: © 2025 REVALIDA FÁCIL — Todos os direitos reservados.
+  - generic:
+    - button [ref=e152] [cursor=pointer]:
+      - img [ref=e154] [cursor=pointer]
+    - navigation [ref=e156]:
+      - generic [ref=e158]:
+        - generic [ref=e159]:
+          - heading "Personalizador" [level=5] [ref=e160]
+          - button [ref=e161] [cursor=pointer]:
+            - img [ref=e163] [cursor=pointer]
+        - separator [ref=e165]
+        - generic [ref=e166]:
+          - paragraph [ref=e167]: Tema Global
+          - generic [ref=e168]:
+            - button "Claro" [ref=e169] [cursor=pointer]:
+              - generic [ref=e170] [cursor=pointer]: Claro
+            - button "Escuro" [ref=e171] [cursor=pointer]:
+              - generic [ref=e172] [cursor=pointer]: Escuro
+          - separator [ref=e173]
+          - paragraph [ref=e174]: Cor Primária (Ações)
+          - generic [ref=e180]:
+            - button [ref=e182] [cursor=pointer]:
+              - img [ref=e184] [cursor=pointer]
+            - slider [ref=e194] [cursor=pointer]
+          - separator [ref=e225]
+          - paragraph [ref=e226]: Fundo do Menu Lateral
+          - generic [ref=e231]:
+            - button [ref=e233] [cursor=pointer]:
+              - img [ref=e235] [cursor=pointer]
+            - slider [ref=e245] [cursor=pointer]
+          - separator [ref=e276]
+          - paragraph [ref=e277]: Item Ativo do Menu
+          - generic [ref=e282]:
+            - button [ref=e284] [cursor=pointer]:
+              - img [ref=e286] [cursor=pointer]
+            - slider [ref=e296] [cursor=pointer]
+          - separator [ref=e327]
+          - paragraph [ref=e328]: Salvar Configurações
+          - generic [ref=e329]:
+            - button "Salvar" [ref=e330] [cursor=pointer]:
+              - generic [ref=e331] [cursor=pointer]: Salvar
+            - button "Resetar" [ref=e332] [cursor=pointer]:
+              - generic [ref=e333] [cursor=pointer]: Resetar
+```

@@ -1,3 +1,38 @@
+index.js:97 [Vue Router warn]: uncaught error during route navigation:
+warn @ vue-router.js?v=e6052d13:49
+triggerError @ vue-router.js?v=e6052d13:2616
+(anonymous) @ vue-router.js?v=e6052d13:2399
+Promise.catch
+pushWithRedirect @ vue-router.js?v=e6052d13:2390
+push @ vue-router.js?v=e6052d13:2326
+install @ vue-router.js?v=e6052d13:2681
+use @ chunk-4EPKHDIW.js?v=e6052d13:6042
+default @ index.js:97
+(anonymous) @ plugins.js:48
+registerPlugins @ plugins.js:45
+(anonymous) @ main.js:45
+index.js:97 TypeError: Failed to fetch dynamically imported module: http://localhost:5173/src/pages/SimulationView.vue
+triggerError @ vue-router.js?v=e6052d13:2618
+(anonymous) @ vue-router.js?v=e6052d13:2399
+Promise.catch
+pushWithRedirect @ vue-router.js?v=e6052d13:2390
+push @ vue-router.js?v=e6052d13:2326
+install @ vue-router.js?v=e6052d13:2681
+use @ chunk-4EPKHDIW.js?v=e6052d13:6042
+default @ index.js:97
+(anonymous) @ plugins.js:48
+registerPlugins @ plugins.js:45
+(anonymous) @ main.js:45
+index.js:97 [Vue Router warn]: Unexpected error when starting the router: TypeError: Failed to fetch dynamically imported module: http://localhost:5173/src/pages/SimulationView.vue
+warn @ vue-router.js?v=e6052d13:49
+(anonymous) @ vue-router.js?v=e6052d13:2683
+Promise.catch
+install @ vue-router.js?v=e6052d13:2681
+use @ chunk-4EPKHDIW.js?v=e6052d13:6042
+default @ index.js:97
+(anonymous) @ plugins.js:48
+registerPlugins @ plugins.js:45
+(anonymous) @ main.js:45
 <template>
   <div class="ai-field-wrapper" :class="{ 'ai-processing': isProcessing }">
     <!-- Campo original com wrapper -->
@@ -96,6 +131,12 @@
             <div class="content-preview">
               {{ modelValue || '(campo vazio)' }}
             </div>
+
+            <div v-if="suggestionAlreadyApplied" class="mt-2">
+              <v-alert type="success" density="compact" class="mt-1">
+                ✅ Este conteúdo já foi aplicado anteriormente por uma sugestão da IA.
+              </v-alert>
+            </div>
             
             <!-- Detectar texto selecionado -->
             <div v-if="selectedText" class="mt-2">
@@ -133,9 +174,20 @@
         
         <v-card-actions>
           <v-btn @click="closeDialog" variant="text">Cancelar</v-btn>
-          
+
+          <!-- Botão Sugerir (emite evento para o pai) -->
+          <v-btn
+            @click="emitSuggest"
+            :disabled="isProcessing"
+            color="info"
+            variant="outlined"
+          >
+            <v-icon class="me-1">mdi-lightbulb</v-icon>
+            Sugerir
+          </v-btn>
+
           <v-spacer />
-          
+
           <!-- Botão executar -->
           <v-btn
             @click="generateFreeCorrection"
@@ -218,12 +270,32 @@ import { ref, computed, watch, inject, onMounted } from 'vue'
 import geminiService from '@/services/geminiService.js'
 import memoryService from '@/services/memoryService.js'
 
+// Debug helpers: ativar com localStorage.setItem('AI_DEBUG','1') ou window.AI_FIELD_ASSISTANT_DEBUG = true
+const AI_DEBUG = (() => {
+  try {
+    if (typeof window !== 'undefined') {
+      if (window.AI_FIELD_ASSISTANT_DEBUG) return true
+      if (localStorage.getItem && localStorage.getItem('AI_DEBUG') === '1') return true
+    }
+  } catch (e) {}
+  return false
+})();
+const dLog = (...args) => { if (AI_DEBUG) console.log(...args) }
+const dWarn = (...args) => { if (AI_DEBUG) console.warn(...args) }
+
+// Proteção para evitar múltiplas cargas
+let _promptsLoaded = false
+
 // Props
 const props = defineProps({
   modelValue: [String, Array],
   fieldName: {
     type: String,
     required: true
+  },
+  stationId: {
+    type: String,
+    default: null
   },
   fieldLabel: String,
   itemIndex: Number,
@@ -234,7 +306,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['update:modelValue', 'field-updated'])
+const emit = defineEmits(['update:modelValue', 'field-updated', 'suggest-requested'])
 
 // Estado do componente
 const showDialog = ref(false)
@@ -245,6 +317,8 @@ const aiSuggestion = ref('')
 const showSavedPrompts = ref(false)
 const savedPrompts = ref([])
 const selectedText = ref('')
+const appliedHistory = ref([])
+const suggestionAlreadyApplied = ref(false)
 
 // Computed para valor atual
 const currentValue = computed(() => {
@@ -257,6 +331,11 @@ const currentValue = computed(() => {
 // Carregar prompts salvos usando MemoryService
 const loadSavedPrompts = async () => {
   try {
+    if (_promptsLoaded) {
+      dLog('loadSavedPrompts: já carregado, pulando')
+      return
+    }
+
     // Para AIFieldAssistant, usamos uma "stationId" genérica
     const stationId = 'ai-field-assistant-global'
     const memories = await memoryService.loadMemories(stationId)
@@ -270,9 +349,10 @@ const loadSavedPrompts = async () => {
       memoryId: memory.id
     }))
     
-    console.log('✅ Prompts carregados do Firestore:', savedPrompts.value.length)
+    dLog('✅ Prompts carregados do Firestore:', savedPrompts.value.length)
+    _promptsLoaded = true
   } catch (error) {
-    console.warn('Erro ao carregar prompts do Firestore, usando localStorage:', error)
+    dWarn('Erro ao carregar prompts do Firestore, usando localStorage:', error)
     // Fallback para localStorage
     try {
       const saved = localStorage.getItem('aiFieldAssistant_prompts')
@@ -280,8 +360,32 @@ const loadSavedPrompts = async () => {
         savedPrompts.value = JSON.parse(saved)
       }
     } catch (localError) {
-      console.warn('Erro ao carregar prompts do localStorage:', localError)
+      dWarn('Erro ao carregar prompts do localStorage:', localError)
     }
+  }
+}
+
+// Carregar histórico de aplicações para o campo atual
+const loadFieldHistory = async () => {
+  try {
+    if (!props.stationId) {
+      dLog('loadFieldHistory: stationId não fornecido, pulando')
+      appliedHistory.value = []
+      suggestionAlreadyApplied.value = false
+      return
+    }
+
+    const history = await memoryService.loadAppliedSuggestions(props.stationId, props.fieldName, props.itemIndex ?? null)
+    appliedHistory.value = history || []
+
+    // Verificar se o conteúdo atual já corresponde a alguma aplicação recente
+    const current = currentValue.value
+    suggestionAlreadyApplied.value = appliedHistory.value.some(h => h.newValue === current || h.suggestion === current)
+    dLog('Histórico carregado para campo', props.fieldName, appliedHistory.value.length)
+  } catch (e) {
+    dWarn('Erro carregando histórico do campo:', e)
+    appliedHistory.value = []
+    suggestionAlreadyApplied.value = false
   }
 }
 
@@ -289,6 +393,8 @@ const loadSavedPrompts = async () => {
 const showAIDialog = () => {
   detectSelectedText()
   showDialog.value = true
+  // Carregar histórico de sugestões aplicadas para este campo
+  loadFieldHistory()
 }
 
 // Auto-detectar texto selecionado
@@ -315,6 +421,41 @@ const closeDialog = () => {
   freePrompt.value = ''
   aiSuggestion.value = ''
   selectedText.value = ''
+}
+
+// Emitir solicitação de sugestão para o pai e aceitar um callback de resposta
+const emitSuggest = () => {
+  try {
+    // Função que o pai pode chamar para retornar a sugestão ao componente filho
+    const respond = (suggestion) => {
+      try {
+        if (typeof suggestion === 'string') {
+          aiSuggestion.value = suggestion
+        } else if (suggestion && suggestion.text) {
+          aiSuggestion.value = String(suggestion.text)
+        } else {
+          aiSuggestion.value = String(suggestion || '')
+        }
+        // Garantir que o diálogo fique aberto para o usuário ver
+        showDialog.value = true
+      } catch (err) {
+        console.warn('Erro aplicando sugestão recebida pelo pai:', err)
+      }
+    }
+
+    emit('suggest-requested', {
+  fieldName: props.fieldName,
+  fieldLabel: props.fieldLabel || null,
+  stationId: props.stationId || null,
+  currentValue: currentValue.value,
+  itemIndex: props.itemIndex,
+  context: props.context || null,
+  recentHistory: appliedHistory.value || [],
+  respond
+    })
+  } catch (err) {
+    console.warn('Erro emitindo suggest-requested:', err)
+  }
 }
 
 // Limpar prompt atual
@@ -589,6 +730,26 @@ const applySuggestion = () => {
     value: finalValue,
     index: props.itemIndex
   })
+
+  // Salvar histórico de aplicação
+  try {
+    if (props.stationId) {
+      memoryService.saveAppliedSuggestion(props.stationId, {
+        fieldName: props.fieldName,
+        itemIndex: props.itemIndex ?? null,
+        suggestion: aiSuggestion.value,
+        originalValue: currentValue.value,
+        newValue: safeValue,
+        source: 'ai-field-assistant'
+      })
+      // Atualizar histórico local
+      loadFieldHistory()
+    } else {
+      dWarn('applySuggestion: stationId ausente, não foi salvo histórico')
+    }
+  } catch (e) {
+    dWarn('Erro salvando applied suggestion:', e)
+  }
 
   showSuccess.value = true
   setTimeout(() => {
