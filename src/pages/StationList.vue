@@ -48,7 +48,8 @@ const showPreviousExamsSection = ref(false);
 const show2024_2Stations = ref(false);
 const showRevalidaFacilStations = ref(false); // RECOLHIDO POR PADRÃO
 const showRevalidaFacilClinicaMedica = ref(false); // RECOLHIDO POR PADRÃO
-const showRevalidaFacilGO = ref(false); // RECOLHIDO POR PADRÃO  
+const showRevalidaFacilGO = ref(false); // RECOLHIDO POR PADRÃO
+const showRevalidaFacilProcedimentos = ref(false); // RECOLHIDO POR PADRÃO
 const showRevalidaGO = ref(false); // Alias para GO
 
 // --- Cache para dados dos usuários ---
@@ -125,6 +126,11 @@ function getRevalidaFacilSpecialty(station) {
       'medicina comunitaria', 'etica medica', 'medicina social',
       'familia', 'coletiva', 'saude publica', 'epidemiologia',
       'prevencao', 'sus', 'atencao basica', 'mfc'
+    ],
+    'procedimentos': [
+      'procedimento', 'procedimentos', 'habilidade', 'habilidades',
+      'tecnica', 'tecnicas', 'sutura', 'drenagem', 'puncao',
+      'acesso venoso', 'intubacao'
     ]
   };
   
@@ -368,6 +374,12 @@ const filteredStationsRevalidaFacilPediatria = computed(() => {
 const filteredStationsRevalidaFacilGO = computed(() => {
   return stationsRevalidaFacil.value
     .filter(station => getRevalidaFacilSpecialty(station) === 'ginecologia')
+    .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
+});
+
+const filteredStationsRevalidaFacilProcedimentos = computed(() => {
+  return stationsRevalidaFacil.value
+    .filter(station => getRevalidaFacilSpecialty(station) === 'procedimentos')
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
@@ -645,6 +657,7 @@ function getStationArea(station) {
       'pediatria': { name: 'PED', fullName: 'Pediatria', icon: '👶' },
       'ginecologia': { name: 'G.O', fullName: 'Ginecologia e Obstetrícia', icon: '👩‍⚕️' },
       'preventiva': { name: 'PREV', fullName: 'Preventiva', icon: '🛡️' },
+      'procedimentos': { name: 'PROC', fullName: 'Procedimentos', icon: '🛠️' },
       'geral': { name: 'GERAL', fullName: 'Medicina Geral', icon: '🏥' }
     };
     
@@ -1616,7 +1629,7 @@ const exampleVariable = ref(null);
                     <v-icon class="me-2" color="primary">ri-star-smile-line</v-icon>
                   </v-col>
                   <v-col>
-                    REVALIDA FÁCIL
+                    REVALIDA FLOW
                   </v-col>
                   <v-col cols="auto">
                     <v-badge :content="stationsRevalidaFacil.length" color="primary" inline />
@@ -1933,6 +1946,108 @@ const exampleVariable = ref(null);
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
+                <v-expansion-panel v-if="filteredStationsRevalidaFacilGO.length > 0">
+                  <v-expansion-panel-title class="text-subtitle-1 font-weight-medium">
+                    <template #default="{ expanded }">
+                      <v-row no-gutters align="center">
+                        <v-col cols="auto">
+                          <v-icon class="me-2" color="error">ri-women-line</v-icon>
+                        </v-col>
+                        <v-col>
+                          Ginecologia e Obstetrícia
+                        </v-col>
+                        <v-col cols="auto">
+                          <v-badge :content="filteredStationsRevalidaFacilGO.length" color="error" inline />
+                        </v-col>
+                      </v-row>
+                    </template>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <v-list density="comfortable">
+                      <v-list-item
+                        v-for="station in filteredStationsRevalidaFacilGO"
+                        :key="station.id"
+                        class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
+                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
+                        @click="startSimulationAsActor(station.id)"
+                      >
+                        <template #prepend>
+                          <v-icon color="info">ri-file-list-3-line</v-icon>
+                        </template>
+                        <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                        
+                        <div class="d-flex flex-column gap-1 mt-2">
+                          <div class="d-flex align-center gap-2">
+                            <v-chip
+                              v-if="verificarEdicaoHibrida(station).hasBeenEdited === false"
+                              color="warning"
+                              variant="flat"
+                              size="x-small"
+                              class="edit-status-chip"
+                            >
+                              <v-icon start size="12">ri-alert-line</v-icon>
+                              NÃO EDITADA
+                            </v-chip>
+                            <v-chip
+                              v-else-if="verificarEdicaoHibrida(station).hasBeenEdited === true"
+                              color="success"
+                              variant="flat"
+                              size="x-small"
+                              class="edit-status-chip"
+                            >
+                              <v-icon start size="12">ri-check-line</v-icon>
+                              EDITADA ({{ verificarEdicaoHibrida(station).totalEdits || 0 }}x)
+                            </v-chip>
+                          </div>
+                          
+                          <div v-if="verificarEdicaoHibrida(station).createdDate" class="text-caption text-secondary">
+                            <v-icon size="12" class="me-1">ri-calendar-line</v-icon>
+                            Criada: {{ formatarDataBrasil(verificarEdicaoHibrida(station).createdDate) }}
+                          </div>
+                          
+                          <div v-if="verificarEdicaoHibrida(station).lastEditDate && verificarEdicaoHibrida(station).hasBeenEdited" class="text-caption text-secondary">
+                            <v-icon size="12" class="me-1">ri-edit-line</v-icon>
+                            Editada: {{ formatarDataBrasil(verificarEdicaoHibrida(station).lastEditDate) }}
+                          </div>
+                        </div>
+                        
+                        <div v-if="getUserStationScore(station.id)" class="mt-2">
+                          <v-chip
+                            :color="getUserStationScore(station.id).percentage >= 70 ? 'success' : getUserStationScore(station.id).percentage >= 50 ? 'warning' : 'error'"
+                            variant="flat"
+                            size="small"
+                            class="user-score-chip"
+                          >
+                            <v-icon start size="16">ri-star-fill</v-icon>
+                            {{ getUserStationScore(station.id).score }}/{{ getUserStationScore(station.id).maxScore }} ({{ getUserStationScore(station.id).percentage }}%)
+                          </v-chip>
+                        </div>
+                        <template #append>
+                          <div class="d-flex align-center">
+                            <v-progress-circular
+                              v-if="creatingSessionForStationId === station.id"
+                              indeterminate
+                              size="24"
+                              color="primary"
+                              class="me-2"
+                            />
+                            <v-btn
+                              v-if="isAdmin"
+                              color="secondary"
+                              variant="text"
+                              size="small"
+                              icon="ri-pencil-line"
+                              @click.stop="goToEditStation(station.id)"
+                              class="me-2"
+                              aria-label="Editar Estação"
+                            />
+                          </div>
+                        </template>
+                      </v-list-item>
+                    </v-list>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
                 <v-expansion-panel v-if="filteredStationsRevalidaFacilPreventiva.length > 0">
                   <v-expansion-panel-title class="text-subtitle-1 font-weight-medium">
                     <template #default="{ expanded }">
@@ -2034,6 +2149,109 @@ const exampleVariable = ref(null);
                     </v-list>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
+
+                <v-expansion-panel v-if="filteredStationsRevalidaFacilProcedimentos.length > 0">
+                  <v-expansion-panel-title class="text-subtitle-1 font-weight-medium">
+                    <template #default="{ expanded }">
+                      <v-row no-gutters align="center">
+                        <v-col cols="auto">
+                          <v-icon class="me-2" color="brown">ri-syringe-line</v-icon>
+                        </v-col>
+                        <v-col>
+                          Procedimentos
+                        </v-col>
+                        <v-col cols="auto">
+                          <v-badge :content="filteredStationsRevalidaFacilProcedimentos.length" color="brown" inline />
+                        </v-col>
+                      </v-row>
+                    </template>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <v-list density="comfortable">
+                      <v-list-item
+                        v-for="station in filteredStationsRevalidaFacilProcedimentos"
+                        :key="station.id"
+                        class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
+                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
+                        @click="startSimulationAsActor(station.id)"
+                      >
+                        <template #prepend>
+                          <v-icon color="info">ri-file-list-3-line</v-icon>
+                        </template>
+                        <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                        
+                        <div class="d-flex flex-column gap-1 mt-2">
+                          <div class="d-flex align-center gap-2">
+                            <v-chip 
+                              v-if="verificarEdicaoHibrida(station).hasBeenEdited === false" 
+                              color="warning" 
+                              variant="flat" 
+                              size="x-small"
+                              class="edit-status-chip"
+                            >
+                              <v-icon start size="12">ri-alert-line</v-icon>
+                              NÃO EDITADA
+                            </v-chip>
+                            <v-chip 
+                              v-else-if="verificarEdicaoHibrida(station).hasBeenEdited === true" 
+                              color="success" 
+                              variant="flat" 
+                              size="x-small"
+                              class="edit-status-chip"
+                            >
+                              <v-icon start size="12">ri-check-line</v-icon>
+                              EDITADA ({{ verificarEdicaoHibrida(station).totalEdits || 0 }}x)
+                            </v-chip>
+                          </div>
+                          
+                          <div v-if="verificarEdicaoHibrida(station).createdDate" class="text-caption text-secondary">
+                            <v-icon size="12" class="me-1">ri-calendar-line</v-icon>
+                            Criada: {{ formatarDataBrasil(verificarEdicaoHibrida(station).createdDate) }}
+                          </div>
+                          
+                          <div v-if="verificarEdicaoHibrida(station).lastEditDate && verificarEdicaoHibrida(station).hasBeenEdited" class="text-caption text-secondary">
+                            <v-icon size="12" class="me-1">ri-edit-line</v-icon>
+                            Editada: {{ formatarDataBrasil(verificarEdicaoHibrida(station).lastEditDate) }}
+                          </div>
+                        </div>
+                        
+                        <div v-if="getUserStationScore(station.id)" class="mt-2">
+                          <v-chip 
+                            :color="getUserStationScore(station.id).percentage >= 70 ? 'success' : getUserStationScore(station.id).percentage >= 50 ? 'warning' : 'error'"
+                            variant="flat"
+                            size="small"
+                            class="user-score-chip"
+                          >
+                            <v-icon start size="16">ri-star-fill</v-icon>
+                            {{ getUserStationScore(station.id).score }}/{{ getUserStationScore(station.id).maxScore }} ({{ getUserStationScore(station.id).percentage }}%)
+                          </v-chip>
+                        </div>
+                        <template #append>
+                          <div class="d-flex align-center">
+                            <v-progress-circular
+                              v-if="creatingSessionForStationId === station.id"
+                              indeterminate
+                              size="24"
+                              color="primary"
+                              class="me-2"
+                            />
+                            <v-btn
+                              v-if="isAdmin"
+                              color="secondary"
+                              variant="text"
+                              size="small"
+                              icon="ri-pencil-line"
+                              @click.stop="goToEditStation(station.id)"
+                              class="me-2"
+                              aria-label="Editar Estação"
+                            />
+                          </div>
+                        </template>
+                      </v-list-item>
+                    </v-list>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+
 
               </v-expansion-panels>
             </v-expansion-panel-text>
