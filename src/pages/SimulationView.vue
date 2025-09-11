@@ -275,11 +275,12 @@ function playSoundEffect() {
 
 // --- Função para Buscar Dados da Estação e Checklist ---
 async function fetchSimulationData(currentStationId) {
+  console.log('[DIAGNOSTIC] fetchSimulationData: Iniciando busca de dados da estação para ID:', currentStationId);
   
   if (!currentStationId) {
     errorMessage.value = 'ID da estação inválido.';
     isLoading.value = false;
-    console.error('[DIAGNOSTIC] Erro: ID da estação não fornecido');
+    console.error('[DIAGNOSTIC] fetchSimulationData: Erro: ID da estação não fornecido');
     return;
   }
   
@@ -348,16 +349,16 @@ async function fetchSimulationData(currentStationId) {
     }
     
     // Pré-carrega imagens dos impressos após carregar dados com sucesso
-    setTimeout(() => {
-      preloadImpressoImages();
-    }, 100);
+    // O pré-carregamento agora é chamado diretamente, sem delay,
+    // para iniciar o carregamento das imagens em segundo plano o mais rápido possível.
+    preloadImpressoImages();
     
     
   } catch (error) {
-    // console.error("[DIAGNOSTIC] Erro ao buscar dados:", error);
-    // console.error("[DIAGNOSTIC] Tipo de erro:", error.name);
-    // console.error("[DIAGNOSTIC] Mensagem de erro:", error.message);
-    // console.error("[DIAGNOSTIC] Stack trace:", error.stack);
+    console.error("[DIAGNOSTIC] fetchSimulationData: Erro ao buscar dados:", error);
+    console.error("[DIAGNOSTIC] fetchSimulationData: Tipo de erro:", error.name);
+    console.error("[DIAGNOSTIC] fetchSimulationData: Mensagem de erro:", error.message);
+    console.error("[DIAGNOSTIC] fetchSimulationData: Stack trace:", error.stack);
     
     // Classificação de erros para melhor feedback ao usuário
     if (error.message.includes('permission-denied') || error.message.includes('Permission denied')) {
@@ -374,10 +375,10 @@ async function fetchSimulationData(currentStationId) {
     checklistData.value = null;
   } finally {
     isLoading.value = false;
-    // console.log("[DIAGNOSTIC] Finalizado. isLoading:", isLoading.value,
-    //             "stationData:", !!stationData.value,
-    //             "checklistData:", !!checklistData.value,
-    //             "errorMessage:", errorMessage.value);
+    console.log("[DIAGNOSTIC] fetchSimulationData: Finalizado. isLoading:", isLoading.value,
+                "stationData:", !!stationData.value,
+                "checklistData:", !!checklistData.value,
+                "errorMessage:", errorMessage.value);
     
     // WebSocket connection will be initiated only when backend is activated (on second user ready)
   }
@@ -702,6 +703,7 @@ const isSettingUpSession = ref(false);
 
 // --- Função Setup Session ---
 function setupSession() {
+  console.log('[LIFECYCLE_DIAG] setupSession: INÍCIO');
   // CORREÇÃO: Previne execuções múltiplas simultâneas
   if (isSettingUpSession.value) {
     // console.log("SETUP_SESSION: ⚠️ Já está em execução, ignorando chamada duplicada");
@@ -790,6 +792,7 @@ function setupSession() {
       console.log("[SETUP SESSION] sessionId presente, conectando WebSocket...");
       connectWebSocket();
     }
+    console.log('[LIFECYCLE_DIAG] setupSession: FIM');
   });
 }
 
@@ -820,7 +823,7 @@ watch(bothParticipantsReady, (newValue) => {
 // --- Hooks Ciclo de Vida ---
 // CORREÇÃO: Consolidando todos os onMounted em um único para evitar execução múltipla
 onMounted(() => {
-
+  console.log('[LIFECYCLE_DIAG] onMounted: INÍCIO');
   setupSession();
   
   // Verifica link do Meet para candidato
@@ -850,19 +853,35 @@ onMounted(() => {
   onUnmounted(() => {
     document.removeEventListener('keydown', handleEscKey);
     document.removeEventListener('toggleMark', toggleMarkHandler);
+    console.log('[LIFECYCLE_DIAG] onMounted -> onUnmounted (inner): Limpeza de listeners CONCLUÍDA.');
   });
+  console.log('[LIFECYCLE_DIAG] onMounted: FIM');
 });
 
 
-watch(() => route.fullPath, (newPath, oldPath) => { if (newPath !== oldPath && route.name === 'SimulationView') { setupSession(); }});
+watch(() => route.fullPath, (newPath, oldPath) => {
+  console.log('[LIFECYCLE_DIAG] Watch route.fullPath: Nova rota:', newPath, 'Antiga rota:', oldPath, 'Nome da rota:', route.name);
+  if (newPath !== oldPath && route.name === 'SimulationView') {
+    console.log('[LIFECYCLE_DIAG] Watch route.fullPath (SimulationView): Rota alterada de', oldPath, 'para', newPath, '. Reconfigurando sessão...');
+    setupSession();
+  } else if (newPath === oldPath && route.name === 'SimulationView') {
+    console.log('[LIFECYCLE_DIAG] Watch route.fullPath (SimulationView): Rota inalterada, mas watch acionado (provável recarga).');
+    // Considerar não chamar setupSession aqui se a intenção é apenas recarregar o componente
+    // e o onMounted já cuidará disso. Isso pode ser uma fonte de race condition.
+  }
+});
 onUnmounted(() => {
-  disconnect();
+  console.log('[LIFECYCLE_DIAG] onUnmounted (main): INÍCIO');
+  disconnect(); // Desconecta o WebSocket explicitamente
+  
   // Limpar candidato selecionado ao sair da simulação
   try {
     sessionStorage.removeItem('selectedCandidate');
+    console.log('[DIAGNOSTIC] onUnmounted (SimulationView): Candidato selecionado limpo do sessionStorage.');
   } catch (error) {
-    console.warn('Erro ao limpar candidato selecionado:', error);
+    console.warn('[DIAGNOSTIC] onUnmounted (SimulationView): Erro ao limpar candidato selecionado:', error);
   }
+  console.log('[LIFECYCLE_DIAG] onUnmounted (main): FIM');
 });
 function toggleActorImpressoVisibility(impressoId) {
   actorVisibleImpressoContent.value[impressoId] = !actorVisibleImpressoContent.value[impressoId];
