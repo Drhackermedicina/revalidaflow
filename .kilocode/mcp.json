@@ -26,7 +26,9 @@
     },
     "figma-dev-mode": {
       "type": "sse",
-      "url": "http://127.0.0.1:3845/sse"
+      "url": "http://127.0.0.1:3845/sse",
+      "disabled": true,
+      "alwaysAllow": []
     },
     "playwright": {
       "command": "npx",
@@ -39,8 +41,28 @@
       ],
       "alwaysAllow": [
         "browser_close",
-        "browser_resize"
-      ]
+        "browser_resize",
+        "browser_console_messages",
+        "browser_handle_dialog",
+        "browser_evaluate",
+        "browser_file_upload",
+        "browser_install",
+        "browser_press_key",
+        "browser_fill_form",
+        "browser_navigate_back",
+        "browser_navigate",
+        "browser_type",
+        "browser_click",
+        "browser_drag",
+        "browser_hover",
+        "browser_network_requests",
+        "browser_take_screenshot",
+        "browser_wait_for",
+        "browser_tabs",
+        "browser_select_option",
+        "browser_snapshot"
+      ],
+      "timeout": 3600
     }
   }
 }

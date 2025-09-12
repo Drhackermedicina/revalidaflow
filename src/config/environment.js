@@ -1,5 +1,6 @@
 // src/config/environment.js
 // Configuração centralizada do ambiente
+// ATENÇÃO: Defina todas as chaves no arquivo .env e nunca exponha chaves sensíveis aqui!
 
 export const config = {
   // Backend Configuration
@@ -9,17 +10,17 @@ export const config = {
     timeout: 30000,
     retries: 3
   },
-  
+
   // Firebase Configuration
   firebase: {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDuakOooHv9a5slO0I3o3gttSBlSXD0aWw",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "revalida-companion.firebaseapp.com",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "revalida-companion",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "revalida-companion.firebasestorage.app",
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "772316263153",
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:772316263153:web:d0af4ecc404b6ca16a2f50"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || ""
   },
-  
+
   // Environment Info
   environment: {
     mode: import.meta.env.MODE,

@@ -22,11 +22,13 @@
     "firebase:deploy": "firebase deploy",
     "firebase:deploy:staging": "firebase deploy --project staging",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
-    "test": "vitest"
+    "test": "vitest",
+    "launch-opera": "node scripts/launch-opera.js"
   },
   "dependencies": {
     "@floating-ui/dom": "1.6.8",
     "@genkit-ai/googleai": "^1.19.2",
+    "@google/genai": "^1.19.0",
     "@iconify-json/bxl": "^1.1.10",
     "@playwright/test": "^1.55.0",
     "@tensorflow/tfjs": "^4.22.0",

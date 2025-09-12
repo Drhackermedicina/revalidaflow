@@ -122,6 +122,7 @@ export const routes = [
         path: 'station-list',
         name: 'station-list',
         component: () => import('@/pages/StationList.vue'),
+        meta: { requiresAuth: false }, // Temporariamente desabilitado para depuração
       },
       {
         path: 'edit-station/:id',

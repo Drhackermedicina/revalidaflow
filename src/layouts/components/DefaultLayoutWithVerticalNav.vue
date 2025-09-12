@@ -1,6 +1,7 @@
 <script setup>
 import NavItems from '@/layouts/components/NavItems.vue'
 import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
+import revalidaFlowBtn from '@/assets/images/botao rf.png'
 import GeminiChat from '@/components/GeminiChat.vue'
 
 // Components
@@ -71,8 +72,8 @@ function openGeminiIA() {
 
     <template #vertical-nav-header="{ toggleIsOverlayNavActive }">
       <div class="sidebar-header-modern d-flex align-center justify-center py-4">
-        <VIcon icon="ri-shield-star-fill" color="#7b1fa2" size="32" class="me-2" aria-hidden="true" />
-        <span class="sidebar-title">Revalida Fácil</span>
+        <v-img :src="revalidaFlowBtn" class="app-logo-img me-2" />
+        <span class="sidebar-title">REVALIDA FLOW</span>
         <VTooltip location="right">
           <template #activator="{ props }">
             <IconBtn
@@ -136,6 +137,11 @@ function openGeminiIA() {
     line-height: 1.75rem;
     text-transform: uppercase;
   }
+}
+
+.app-logo-img {
+  height: 40px; /* Tamanho da imagem */
+  width: auto; /* Manter proporção */
 }
 
 .gemini-btn {

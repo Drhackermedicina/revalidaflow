@@ -1,4 +1,7 @@
 <script setup>
+import inepIcon from '@/assets/images/inep.png';
+import revalidaFlowIcon from '@/assets/images/botao rf.png';
+import revalidaFlowBackgroundImage from '@/assets/images/Generated Image September 11, 2025 - 3_49PM.png'; // Import a imagem de fundo
 import { currentUser } from '@/plugins/auth.js'
 import { db, firebaseAuth } from '@/plugins/firebase.js'
 import { backendUrl } from '@/utils/backendUrl'
@@ -62,7 +65,7 @@ const showRevalidaFacilPediatria = ref(false); // RECOLHIDO POR PADRÃO
 // --- Funções helper para identificação de estações ---
 function isINEPStation(station) {
   const idEstacao = station.idEstacao || '';
-  return idEstacao.startsWith('INEP');
+  return idEstacao.startsWith('INEP') || idEstacao.startsWith('REVALIDA_');
 }
 
 function isRevalidaFacilStation(station) {
@@ -74,12 +77,12 @@ function getINEPPeriod(station) {
   const idEstacao = station.idEstacao || '';
   if (!isINEPStation(station)) return null;
   
-  // Extrair período do idEstacao (INEP_2025_1, INEP_2024_2, etc.)
-  const match = idEstacao.match(/INEP_(\d{4})(?:_(\d))?/);
+  // Extrair período do idEstacao (INEP_2025_1, REVALIDA_2017_CG_02, etc.)
+  const match = idEstacao.match(/(?:INEP|REVALIDA)_(\d{4})(?:_(\d))?/);
   if (match) {
     const year = match[1];
-    const period = match[2];
-    return period ? `${year}.${period}` : year;
+    const subPeriod = match[2];
+    return subPeriod ? `${year}.${subPeriod}` : year;
   }
   return null;
 }
@@ -311,7 +314,7 @@ const getStationEditStatus = (stationId) => {
 };
 
 // --- REFACTORED INEP STATIONS COMPUTED ---
-const inepPeriods = ['2025.1', '2024.2', '2024.1', '2023.2', '2023.1', '2022.2', '2022.1', '2021', '2020'];
+const inepPeriods = ['2025.1', '2024.2', '2024.1', '2023.2', '2023.1', '2022.2', '2022.1', '2021', '2020', '2017', '2016', '2015', '2014', '2013', '2012', '2011'];
 
 const stationsByInepPeriod = computed(() => {
   const grouped = {};
@@ -1277,6 +1280,7 @@ function copyLink() {
 }
 
 onMounted(() => {
+  document.documentElement.classList.add('station-list-page-active');
   fetchStations();
 });
 
@@ -1309,9 +1313,8 @@ function toggleCollapse() {
   const wrapper = document.querySelector('.layout-wrapper')
   wrapper?.classList.toggle('layout-vertical-nav-collapsed')
 }
-onMounted(() => {
-})
 onUnmounted(() => {
+  document.documentElement.classList.remove('station-list-page-active');
   const wrapper = document.querySelector('.layout-wrapper')
   wrapper?.classList.remove('layout-vertical-nav-collapsed')
 })
@@ -1355,17 +1358,12 @@ const exampleVariable = ref(null);
 </script>
 
 <template>
-  <v-container fluid class="pa-0">
-    <v-row v-if="stations.length > 0" class="mb-4">
-      <v-col cols="12">
-        <v-card elevation="2" rounded>
-          <v-card-title>Última Estação Clínica</v-card-title>
-          <v-card-text>
-            <strong>ID:</strong> {{ stations[0].id }}
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+  <div
+    class="background-container"
+    :style="{ backgroundImage: `url(${revalidaFlowBackgroundImage})` }"
+    :class="{ 'dark-theme-opacity': isDarkTheme, 'light-theme-opacity': !isDarkTheme }"
+  />
+  <v-container fluid class="pa-0 main-content-container">
     <v-tooltip location="right">
       <template #activator="{ props }">
         <v-btn icon fixed top left @click="toggleCollapse" class="ma-3 z-index-5" v-bind="props">
@@ -1471,6 +1469,7 @@ const exampleVariable = ref(null);
                   @focus="candidateSearchQuery && searchCandidates()"
                   clearable
                   hide-details
+                  class="rounded-input"
                 />
               </template>
               
@@ -1505,12 +1504,12 @@ const exampleVariable = ref(null);
         <v-expansion-panels variant="accordion" class="mb-6">
           
           <!-- INEP Revalida -->
-          <v-expansion-panel>
-            <v-expansion-panel-title class="text-h6 font-weight-bold">
+          <v-expansion-panel class="contained-panel">
+            <v-expansion-panel-title class="text-h6 font-weight-bold rounded-button-title">
               <template #default="{ expanded }">
                 <v-row no-gutters align="center">
                   <v-col cols="auto">
-                    <v-icon class="me-2" color="primary">ri-archive-drawer-line</v-icon>
+                    <v-img :src="inepIcon" style="height: 80px; width: 80px; margin-right: 24px;" />
                   </v-col>
                   <v-col>
                     INEP Revalida – Provas Anteriores
@@ -1621,12 +1620,12 @@ const exampleVariable = ref(null);
           </v-expansion-panel>
 
           <!-- REVALIDA FÁCIL -->
-          <v-expansion-panel>
-            <v-expansion-panel-title class="text-h6 font-weight-bold">
+          <v-expansion-panel class="contained-panel">
+            <v-expansion-panel-title class="text-h6 font-weight-bold rounded-button-title">
               <template #default="{ expanded }">
                 <v-row no-gutters align="center">
                   <v-col cols="auto">
-                    <v-icon class="me-2" color="primary">ri-star-smile-line</v-icon>
+                    <v-img :src="revalidaFlowIcon" style="height: 80px; width: 80px; margin-right: 24px;" />
                   </v-col>
                   <v-col>
                     REVALIDA FLOW
@@ -2155,13 +2154,13 @@ const exampleVariable = ref(null);
                     <template #default="{ expanded }">
                       <v-row no-gutters align="center">
                         <v-col cols="auto">
-                          <v-icon class="me-2" color="brown">ri-syringe-line</v-icon>
+                          <v-icon class="me-2" color="#A52A2A">ri-syringe-line</v-icon>
                         </v-col>
                         <v-col>
                           Procedimentos
                         </v-col>
                         <v-col cols="auto">
-                          <v-badge :content="filteredStationsRevalidaFacilProcedimentos.length" color="brown" inline />
+                          <v-badge :content="filteredStationsRevalidaFacilProcedimentos.length" color="#A52A2A" inline />
                         </v-col>
                       </v-row>
                     </template>
@@ -2269,6 +2268,27 @@ const exampleVariable = ref(null);
 </template>
 
 <style scoped>
+.background-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.light-theme-opacity {
+  opacity: 0.3; /* Aumentado para 1 para garantir visibilidade */
+}
+
+.dark-theme-opacity {
+  opacity: 0.1; /* Aumentado para 1 para garantir visibilidade */
+}
+
 .station-list-item {
   transition: background-color 0.2s ease-in-out;
 }
@@ -2452,5 +2472,45 @@ const exampleVariable = ref(null);
 
 .w-100 {
   width: 100%;
+}
+.main-content-container {
+  background-color: transparent !important;
+.rounded-input .v-input__control .v-input__slot {
+  border-radius: 8px; /* Cantos mais arredondados */
+}
+
+.v-expansion-panel-title.rounded-button-title {
+  border-radius: 12px; /* Cantos mais arredondados para os títulos */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Sombra sutil */
+  transition: all 0.3s ease-in-out;
+}
+
+.v-expansion-panel-title.rounded-button-title:hover {
+  transform: translateY(-2px); /* Efeito de leve levantamento no hover */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); /* Sombra mais pronunciada no hover */
+}
+
+/* Os painéis de expansão se ajustarão à largura disponível por padrão */
+/* Removida a propriedade max-width para garantir visualização completa em mobile */
+.v-expansion-panel.contained-panel {
+  margin-left: auto;
+  margin-right: auto;
+}
+}
+</style>
+<style>
+/* Força a transparência em elementos de alto nível */
+.station-list-page-active,
+.station-list-page-active body,
+.station-list-page-active #app,
+.station-list-page-active .v-application {
+  background-color: transparent !important;
+}
+
+.station-list-page-active .v-main,
+.station-list-page-active .v-main__wrap,
+.station-list-page-active .layout-wrapper,
+.station-list-page-active .layout-content-wrapper {
+  background-color: transparent !important;
 }
 </style>
