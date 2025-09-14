@@ -160,6 +160,11 @@ export const routes = [
         component: () => import('@/pages/RankingView.vue'),
       },
       {
+        path: 'diagnostico-ranking',
+        name: 'diagnostico-ranking',
+        component: () => import('@/pages/DiagnosticoRanking.vue'),
+      },
+      {
         path: 'chat-private/:uid',
         name: 'ChatPrivateView',
         component: () => import('@/pages/ChatPrivateView.vue'),

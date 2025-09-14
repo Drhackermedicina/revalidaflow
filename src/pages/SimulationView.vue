@@ -127,6 +127,7 @@ const releasedData = ref({});
 const evaluationScores = ref({});
 const isChecklistVisibleForCandidate = ref(false);
 const pepReleasedToCandidate = ref(false);
+const evaluationSubmittedByCandidate = ref(false);
 
 const actorVisibleImpressoContent = ref({});
 const candidateReceivedScores = ref({});
@@ -1198,8 +1199,8 @@ function handleStartSimulationClick() {
 }
 
 async function submitEvaluation() {
-  if (userRole.value !== 'actor' && userRole.value !== 'evaluator') {
-    alert("Apenas o Ator/Avaliador pode submeter avaliação.");
+  if (userRole.value !== 'candidate') {
+    alert("Apenas o candidato pode submeter avaliação.");
     return;
   }
   if (!socket.value?.connected || !sessionId.value) {
@@ -1211,12 +1212,12 @@ async function submitEvaluation() {
     return;
   }
 
-  socket.value.emit('EVALUATOR_SUBMIT_EVALUATION', { 
-    sessionId: sessionId.value, 
-    stationId: stationId.value, 
-    evaluatorId: currentUser.value?.uid, 
-    scores: evaluationScores.value, 
-    totalScore: totalScore.value 
+  socket.value.emit('CANDIDATE_SUBMIT_EVALUATION', {
+    sessionId: sessionId.value,
+    stationId: stationId.value,
+    candidateId: currentUser.value?.uid,
+    scores: evaluationScores.value,
+    totalScore: totalScore.value
   });
   
   if (pepReleasedToCandidate.value && socket.value?.connected) {
@@ -2613,14 +2614,6 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                  <VChip color="primary" size="large" label class="me-2">
                    <strong>Nota Total: {{ totalScore.toFixed(2) }}</strong>
                  </VChip>
-                 <VBtn
-                   v-if="simulationEnded"
-                   color="primary"
-                   @click="submitEvaluation"
-                   :disabled="simulationWasManuallyEndedEarly"
-                 >
-                   Submeter Avaliação Final
-                 </VBtn>
                </VCardActions>
                <VAlert v-if="simulationEnded && simulationWasManuallyEndedEarly" type="warning" density="compact" class="ma-2">
                  A estação foi encerrada manualmente. A submissão de nota ainda é permitida, mas o ato fica registrado.
@@ -2937,7 +2930,19 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                            </tr>
                        </tbody>
                    </VTable>
-                   
+
+                   <!-- Botão de submissão para candidato -->
+                   <VCardActions v-if="simulationEnded && !evaluationSubmittedByCandidate" class="pa-4">
+                     <VSpacer />
+                     <VBtn
+                       color="primary"
+                       @click="submitEvaluation"
+                       :disabled="simulationWasManuallyEndedEarly"
+                     >
+                       Submeter Avaliação Final
+                     </VBtn>
+                   </VCardActions>
+
                    <!-- Resumo da nota total - movido para o final -->
                    <VCardText v-if="candidateReceivedTotalScore > 0" class="pt-4">
                      <VAlert

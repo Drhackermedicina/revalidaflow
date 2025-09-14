@@ -100,7 +100,7 @@ onUnmounted((): void => {
 });
 
 function irParaRankingGeral(): void {
-  router.push('/app/ranking-geral');
+  router.push('/app/ranking');
 }
 </script>
 

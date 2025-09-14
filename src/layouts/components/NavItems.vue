@@ -3,15 +3,83 @@ import trophy from '@/assets/images/misc/trophy.png';
 import { useAdminAuth } from '@/composables/useAdminAuth';
 import VerticalNavGroup from '@layouts/components/VerticalNavGroup.vue';
 import VerticalNavLink from '@layouts/components/VerticalNavLink.vue';
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
+import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 // Verificação de admin
 const { isAuthorizedAdmin } = useAdminAuth();
+
+// Firebase
+const db = getFirestore();
+const auth = getAuth();
 
 // Exibe o menu admin apenas para administradores
 const showAdminMenu = computed(() => {
   return isAuthorizedAdmin.value;
 })
+
+// Estado do ranking do usuário no sidebar
+const rankingPosition = ref('Carregando...');
+const rankingMeta = ref(0);
+const currentUserId = ref(null);
+
+// Buscar dados do ranking do usuário para o sidebar
+async function buscarRankingSidebar() {
+  if (!currentUserId.value) return;
+
+  try {
+    // Buscar top 50 do ranking geral
+    const usuariosRef = collection(db, 'usuarios');
+    const q = query(usuariosRef, orderBy('ranking', 'desc'), limit(50));
+    const querySnapshot = await getDocs(q);
+    const rankingData = [];
+
+    querySnapshot.forEach((docSnap) => {
+      const userData = docSnap.data();
+      rankingData.push({
+        id: docSnap.id,
+        nome: userData.nome || 'Usuário',
+        ranking: userData.ranking || 0,
+        nivelHabilidade: userData.nivelHabilidade || 0,
+      });
+    });
+
+    // Encontrar posição do usuário logado
+    const minhaPos = rankingData.findIndex(u => u.id === currentUserId.value);
+    if (minhaPos !== -1) {
+      rankingPosition.value = `${minhaPos + 1}º Lugar`;
+      rankingMeta.value = Math.round((rankingData[minhaPos].nivelHabilidade || 0) * 10);
+    } else {
+      // Se não está no top 50, buscar dados individuais
+      const userDoc = await getDoc(doc(db, 'usuarios', currentUserId.value));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        rankingPosition.value = '50+';
+        rankingMeta.value = Math.round((userData.nivelHabilidade || 0) * 10);
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao buscar ranking sidebar:', error);
+    rankingPosition.value = 'Erro';
+    rankingMeta.value = 0;
+  }
+}
+
+// Monitorar usuário autenticado
+onMounted(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUserId.value = user.uid;
+      buscarRankingSidebar();
+    } else {
+      rankingPosition.value = 'Faça login';
+      rankingMeta.value = 0;
+    }
+  });
+
+  return () => unsubscribe();
+});
 
 const homeLink = {
   title: 'Home',
@@ -41,8 +109,16 @@ const grupoChatLink = {
   to: '/app/chat-group',
 };
 
-const rankingPosition = computed(() => '1º Lugar');
-const rankingMeta = 98;
+const buscarUsuariosGroup = {
+  title: 'Buscar Usuários',
+  icon: 'ri-user-search-fill',
+  iconColor: '#ff9800',
+  to: '/app/arena/buscar-usuarios',
+};
+
+const showCodeDialog = ref(false);
+function openCodeDialog() { showCodeDialog.value = true; }
+function closeCodeDialog() { showCodeDialog.value = false; }
 </script>
 
 <template>
@@ -162,6 +238,14 @@ const rankingMeta = 98;
         icon: 'ri-refresh-fill',
         iconColor: '#f57c00',
         to: '/app/admin-reset-users',
+      }"
+    />
+    <VerticalNavLink
+      :item="{
+        title: 'Diagnóstico Ranking',
+        icon: 'ri-search-fill',
+        iconColor: '#9c27b0',
+        to: '/app/diagnostico-ranking',
       }"
     />
       <!-- Admin IA links removidos -->
