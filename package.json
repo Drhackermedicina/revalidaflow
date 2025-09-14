@@ -28,6 +28,7 @@
   "dependencies": {
     "@floating-ui/dom": "1.6.8",
     "@genkit-ai/googleai": "^1.19.2",
+    "@genkit-ai/mcp": "^1.19.2",
     "@google/genai": "^1.19.0",
     "@iconify-json/bxl": "^1.1.10",
     "@playwright/test": "^1.55.0",

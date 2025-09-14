@@ -40,11 +40,21 @@ const selectedCandidateScores = ref({}); // Pontuações do candidato selecionad
 const isLoadingCandidateSearch = ref(false); // Loading para busca de candidatos
 
 // --- Refs para filtros e pesquisa ---
-const searchQuery = ref('');
-const selectedArea = ref('');
-const selectedCategory = ref(''); // INEP REVALIDA - PROVAS ANTERIORES ou REVALIDA FÁCIL
-const showSuggestions = ref(false);
-const searchSuggestions = ref([]);
+
+
+const globalSearchQuery = ref('');
+const selectedStation = ref(null);
+
+// --- Opções de área para filtro ---
+const areaOptions = [
+  { title: 'Clínica Médica', value: 'clinica-medica' },
+  { title: 'Cirurgia', value: 'cirurgia' },
+  { title: 'Ginecologia e Obstetrícia', value: 'ginecologia' },
+  { title: 'Pediatria', value: 'pediatria' },
+  { title: 'Medicina da Família e Comunidade (Preventiva)', value: 'preventiva' },
+  { title: 'Procedimentos', value: 'procedimentos' },
+  { title: 'Geral', value: 'geral' }
+];
 
 // --- Refs para controle dos accordions ---
 const showPreviousExamsSection = ref(false);
@@ -65,7 +75,7 @@ const showRevalidaFacilPediatria = ref(false); // RECOLHIDO POR PADRÃO
 // --- Funções helper para identificação de estações ---
 function isINEPStation(station) {
   const idEstacao = station.idEstacao || '';
-  return idEstacao.startsWith('INEP') || idEstacao.startsWith('REVALIDA_');
+  return idEstacao.startsWith('INEP') || (idEstacao.startsWith('REVALIDA_') && !idEstacao.startsWith('REVALIDA_FACIL'));
 }
 
 function isRevalidaFacilStation(station) {
@@ -351,37 +361,60 @@ const stationsRevalidaFacil = computed(() => {
 });
 
 const filteredStationsRevalidaFacilClinicaMedica = computed(() => {
-  return stationsRevalidaFacil.value
+  return filteredRevalidaFacilStations.value
     .filter(station => getRevalidaFacilSpecialty(station) === 'clinica-medica')
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
 const filteredStationsRevalidaFacilCirurgia = computed(() => {
-  return stationsRevalidaFacil.value
+  return filteredRevalidaFacilStations.value
     .filter(station => getRevalidaFacilSpecialty(station) === 'cirurgia')
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
 const filteredStationsRevalidaFacilPreventiva = computed(() => {
-  return stationsRevalidaFacil.value
+  return filteredRevalidaFacilStations.value
     .filter(station => getRevalidaFacilSpecialty(station) === 'preventiva')
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
+
 const filteredStationsRevalidaFacilPediatria = computed(() => {
-  return stationsRevalidaFacil.value
+  return filteredRevalidaFacilStations.value
     .filter(station => getRevalidaFacilSpecialty(station) === 'pediatria')
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
+const filteredStationsByInepPeriod = computed(() => {
+  const grouped = {};
+  const inepStations = filteredInepStations.value;
+
+  for (const station of inepStations) {
+    const period = getINEPPeriod(station);
+    if (period) {
+      if (!grouped[period]) {
+        grouped[period] = [];
+      }
+      grouped[period].push(station);
+    }
+  }
+
+  for (const period in grouped) {
+    grouped[period].sort((a, b) =>
+      getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true })
+    );
+  }
+  return grouped;
+});
+
 const filteredStationsRevalidaFacilGO = computed(() => {
-  return stationsRevalidaFacil.value
+  return filteredRevalidaFacilStations.value
     .filter(station => getRevalidaFacilSpecialty(station) === 'ginecologia')
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
 const filteredStationsRevalidaFacilProcedimentos = computed(() => {
-  return stationsRevalidaFacil.value
+  return filteredRevalidaFacilStations.value
     .filter(station => getRevalidaFacilSpecialty(station) === 'procedimentos')
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
@@ -644,6 +677,15 @@ function getCleanStationTitle(originalTitle) {
   ).join(' ');
 
   return cleanTitle;
+}
+
+function getStationYear(station) {
+  const period = getINEPPeriod(station);
+  if (!period) return 0;
+
+  // Extrair apenas o ano (ex: "2025.1" -> 2025, "2017" -> 2017)
+  const yearMatch = period.match(/^(\d{4})/);
+  return yearMatch ? parseInt(yearMatch[1], 10) : 0;
 }
 
 function getStationArea(station) {
@@ -912,93 +954,85 @@ function getUserScore(stationId) {
   return (finalScore / 10).toFixed(1);
 }
 
-const filteredStations = computed(() => {
+const globalFilteredStations = computed(() => {
   let filtered = stations.value;
-  
-  if (selectedCategory.value === 'inep') {
-    filtered = filtered.filter(station => {
-      const titulo = station.tituloEstacao?.toUpperCase() || '';
-      return titulo.includes("INEP") && titulo.includes("2024.2");
-    });
-  } else if (selectedCategory.value === 'revalida-facil') {
-    filtered = filtered.filter(station => {
-      const origem = station.origem?.toUpperCase() || '';
-      return origem === 'REVALIDA_FACIL';
-    });
-  }
-  
-  if (selectedArea.value && selectedCategory.value) {
-    filtered = filtered.filter(station => {
-      const area = getStationArea(station);
-      return area.key === selectedArea.value;
-    });
-  }
-  
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase();
+
+  if (globalSearchQuery.value.trim()) {
+    const query = globalSearchQuery.value.toLowerCase();
     filtered = filtered.filter(station => {
       const title = station.tituloEstacao?.toLowerCase() || '';
       const cleanTitle = getCleanStationTitle(station.tituloEstacao).toLowerCase();
-      const area = getStationArea(station).name.toLowerCase();
-      return title.includes(query) || cleanTitle.includes(query) || area.includes(query);
+      const specialty = getStationArea(station).fullName.toLowerCase();
+      const inepPeriod = getINEPPeriod(station)?.toLowerCase() || '';
+      const areaName = getStationArea(station).name.toLowerCase();
+      const revalidaSpecialty = isRevalidaFacilStation(station)
+        ? getRevalidaFacilSpecialty(station)?.toLowerCase() || ''
+        : '';
+      
+      return title.includes(query) ||
+             cleanTitle.includes(query) ||
+             specialty.includes(query) ||
+             inepPeriod.includes(query) ||
+             areaName.includes(query) ||
+             revalidaSpecialty.includes(query);
     });
   }
-  
   return filtered;
 });
 
-const allStationTitles = computed(() => {
-  const titles = [];
-  
-  if (selectedCategory.value === 'inep') {
-    // This part is now incorrect because stations2024_2 is gone.
-    // It should iterate over stationsByInepPeriod.
-    // However, this filtering logic is complex and not part of the main request.
-    // I will leave it for now, but it might need further refactoring.
-  } else if (selectedCategory.value === 'revalida-facil') {
-    stationsRevalidaFacil.value.forEach(station => {
-      const cleanTitle = getCleanStationTitle(station.tituloEstacao);
-      if (cleanTitle && !titles.includes(cleanTitle)) {
-        titles.push(cleanTitle);
-      }
-    });
-  } else {
-    stations.value.forEach(station => {
-      const cleanTitle = getCleanStationTitle(station.tituloEstacao);
-      if (cleanTitle && !titles.includes(cleanTitle)) {
-        titles.push(cleanTitle);
-      }
-    });
+const globalAutocompleteItems = computed(() => {
+  if (!globalSearchQuery.value || globalSearchQuery.value.length < 3) {
+    return [];
   }
-  
-  return titles.sort();
+
+  const items = globalFilteredStations.value.map(station => {
+    const area = getStationArea(station);
+    const inepPeriod = getINEPPeriod(station);
+    const isInep = isINEPStation(station);
+    const isRevalida = isRevalidaFacilStation(station);
+
+    const section = isInep ? `INEP ${inepPeriod}`
+                  : isRevalida ? "RF " + getStationArea(station).fullName
+                  : '';
+
+    const displayedSpecialty = isRevalida ? area.fullName : station.especialidade;
+
+    return {
+      id: station.id,
+      title: `${section ? section + ' - ' : ''}${getCleanStationTitle(station.tituloEstacao)}`,
+      subtitle: displayedSpecialty,
+      raw: {
+        ...station,
+        color: getSpecialtyColor(station),
+        icon: area.icon,
+        fullName: area.fullName,
+        section: section
+      }
+    };
+  });
+
+  return items.sort((a, b) => {
+    const aIsINEP = isINEPStation(a.raw);
+    const bIsINEP = isINEPStation(b.raw);
+
+    // Priorizar estações com período válido
+    if (aIsINEP && !bIsINEP) return -1;
+    if (!aIsINEP && bIsINEP) return 1;
+
+    // Ordenar por ano descendente
+    const aYear = getStationYear(a.raw);
+    const bYear = getStationYear(b.raw);
+    return bYear - aYear;
+  });
 });
 
-function updateSuggestions() {
-  if (!searchQuery.value.trim()) {
-    searchSuggestions.value = [];
-    showSuggestions.value = false;
-    return;
-  }
-  
-  const query = searchQuery.value.toLowerCase();
-  searchSuggestions.value = allStationTitles.value
-    .filter(title => title.toLowerCase().includes(query))
-    .slice(0, 5);
-    
-  showSuggestions.value = searchSuggestions.value.length > 0;
-}
+const filteredInepStations = computed(() => {
+  return globalFilteredStations.value.filter(isINEPStation);
+});
 
-function selectSuggestion(suggestion) {
-  searchQuery.value = suggestion;
-  showSuggestions.value = false;
-}
-
-function hideSuggestions() {
-  setTimeout(() => {
-    showSuggestions.value = false;
-  }, 150);
-}
+const filteredRevalidaFacilStations = computed(() => {
+  return globalFilteredStations.value.filter(isRevalidaFacilStation);
+});
 
 async function fetchStations() {
   isLoadingStations.value = true;
@@ -1039,6 +1073,8 @@ async function fetchStations() {
     errorMessage.value = `Falha ao buscar estações: ${error.message}`;
     if (error.code === 'permission-denied') {
       errorMessage.value += " (Erro de permissão! Verifique as Regras de Segurança do Firestore)";
+    } else if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+      errorMessage.value += " (Erro de rede! Verifique sua conexão ou as configurações de CORS/segurança do navegador)";
     }
   } finally {
     isLoadingStations.value = false;
@@ -1130,7 +1166,7 @@ async function searchCandidates() {
     showCandidateSuggestions.value = false;
     
     if (error.code === 'permission-denied') {
-      console.warn('Permissão negada para buscar usuários. Verifique as regras do Firestore.');
+      console.warn('Permissão negada para buscar dados do candidato. Verifique as regras do Firestore.');
     }
   } finally {
     isLoadingCandidateSearch.value = false;
@@ -1245,12 +1281,16 @@ async function startSimulationAsActor(stationId) {
     }
 
     // Navigate to simulation view without sessionId (view mode)
-    router.push({
+    // Resolve a rota para obter a URL completa
+    const routeData = router.resolve({
       path: `/app/simulation/${stationId}`,
       query: {
         role: 'actor'
       }
     });
+
+    // Abre a URL em uma nova janela/aba
+    window.open(routeData.href, '_blank');
 
   } catch (error) {
     console.error('Erro ao navegar para simulação:', error);
@@ -1284,23 +1324,8 @@ onMounted(() => {
   fetchStations();
 });
 
-watch(selectedCategory, () => {
-  selectedArea.value = '';
-  searchQuery.value = '';
-  showSuggestions.value = false;
-});
-
-watch(searchQuery, () => {
-  updateSuggestions();
-});
-
-watch(candidateSearchQuery, () => {
-  if (candidateSearchQuery.value.trim()) {
-    searchCandidates();
-  } else {
-    candidateSearchSuggestions.value = [];
-    showCandidateSuggestions.value = false;
-  }
+watch(globalSearchQuery, (newValue) => {
+  // A lógica de filtragem já está nas computed properties
 });
 
 watch(currentUser, (newUser) => {
@@ -1500,6 +1525,44 @@ const exampleVariable = ref(null);
             </v-menu>
           </v-card-text>
         </v-card>
+        <v-card class="mb-4" elevation="2" rounded>
+          <v-card-title class="d-flex align-center">
+            <v-icon class="me-2" color="primary">ri-search-line</v-icon>
+            <span class="text-h6">Buscar Estação Globalmente</span>
+          </v-card-title>
+          <v-card-text>
+            <!-- KiloCode Debug: Exibir globalAutocompleteItems no console -->
+            <!-- KiloCode Debug: Log movido para a computed property globalAutocompleteItems -->
+            <v-autocomplete
+              v-model="selectedStation"
+              v-model:search="globalSearchQuery"
+              :items="globalAutocompleteItems"
+              item-title="title"
+              item-value="id"
+              label="Digite para buscar estações..."
+              placeholder="Ex: Estação 1, Clínica Médica"
+              prepend-inner-icon="ri-search-line"
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              class="rounded-input"
+            >
+              <template #item="{ props, item }">
+                <v-list-item
+                  v-bind="props"
+                  :title="item.title"
+                  :subtitle="item.raw.fullName"
+                  @click="router.push({ path: `/app/simulation/${item.raw.id}`, query: { role: 'actor' } })"
+                >
+                  <template #prepend>
+                    <v-icon :color="item.raw.color">{{ item.raw.icon }}</v-icon>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-autocomplete>
+          </v-card-text>
+        </v-card>
 
         <v-expansion-panels variant="accordion" class="mb-6">
           
@@ -1507,15 +1570,15 @@ const exampleVariable = ref(null);
           <v-expansion-panel class="contained-panel">
             <v-expansion-panel-title class="text-h6 font-weight-bold rounded-button-title">
               <template #default="{ expanded }">
-                <v-row no-gutters align="center">
+                <v-row no-gutters align="center" class="w-100">
                   <v-col cols="auto">
                     <v-img :src="inepIcon" style="height: 80px; width: 80px; margin-right: 24px;" />
                   </v-col>
-                  <v-col>
-                    INEP Revalida – Provas Anteriores
+                  <v-col class="d-flex flex-column">
+                    <div class="text-h6 font-weight-bold">INEP Revalida – Provas Anteriores</div>
                   </v-col>
                   <v-col cols="auto">
-                    <v-badge :content="Object.values(stationsByInepPeriod).reduce((total, periodStations) => total + periodStations.length, 0)" color="primary" inline />
+                    <v-badge :content="filteredInepStations.length" color="primary" inline />
                   </v-col>
                 </v-row>
               </template>
@@ -1524,7 +1587,7 @@ const exampleVariable = ref(null);
               <v-expansion-panels variant="accordion" class="mt-4">
                 
                 <template v-for="period in inepPeriods" :key="period">
-                  <v-expansion-panel v-if="stationsByInepPeriod[period]?.length > 0">
+                  <v-expansion-panel v-if="filteredStationsByInepPeriod[period]?.length > 0">
                     <v-expansion-panel-title class="text-subtitle-1 font-weight-medium">
                       <template #default="{ expanded }">
                         <v-row no-gutters align="center">
@@ -1535,7 +1598,7 @@ const exampleVariable = ref(null);
                             INEP {{ period }}
                           </v-col>
                           <v-col cols="auto">
-                            <v-badge :content="stationsByInepPeriod[period].length" color="info" inline />
+                            <v-badge :content="filteredStationsByInepPeriod[period].length" color="info" inline />
                           </v-col>
                         </v-row>
                       </template>
@@ -1543,11 +1606,11 @@ const exampleVariable = ref(null);
                     <v-expansion-panel-text>
                       <v-list density="comfortable">
                         <v-list-item
-                          v-for="station in stationsByInepPeriod[period]"
+                          v-for="station in filteredStationsByInepPeriod[period]"
                           :key="station.id"
                           class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                           :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                          @click="startSimulationAsActor(station.id)"
+                          @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
                         >
                           <template #prepend>
                             <v-icon color="info">ri-file-list-3-line</v-icon>
@@ -1623,15 +1686,15 @@ const exampleVariable = ref(null);
           <v-expansion-panel class="contained-panel">
             <v-expansion-panel-title class="text-h6 font-weight-bold rounded-button-title">
               <template #default="{ expanded }">
-                <v-row no-gutters align="center">
+                <v-row no-gutters align="center" class="w-100">
                   <v-col cols="auto">
                     <v-img :src="revalidaFlowIcon" style="height: 80px; width: 80px; margin-right: 24px;" />
                   </v-col>
-                  <v-col>
-                    REVALIDA FLOW
+                  <v-col class="d-flex flex-column">
+                    <div class="text-h6 font-weight-bold">REVALIDA FLOW</div>
                   </v-col>
                   <v-col cols="auto">
-                    <v-badge :content="stationsRevalidaFacil.length" color="primary" inline />
+                    <v-badge :content="filteredRevalidaFacilStations.length" color="primary" inline />
                   </v-col>
                 </v-row>
               </template>
@@ -1662,7 +1725,7 @@ const exampleVariable = ref(null);
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="startSimulationAsActor(station.id)"
+                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
@@ -1671,20 +1734,20 @@ const exampleVariable = ref(null);
                         
                         <div class="d-flex flex-column gap-1 mt-2">
                           <div class="d-flex align-center gap-2">
-                            <v-chip 
-                              v-if="verificarEdicaoHibrida(station).hasBeenEdited === false" 
-                              color="warning" 
-                              variant="flat" 
+                            <v-chip
+                              v-if="verificarEdicaoHibrida(station).hasBeenEdited === false"
+                              color="warning"
+                              variant="flat"
                               size="x-small"
                               class="edit-status-chip"
                             >
                               <v-icon start size="12">ri-alert-line</v-icon>
                               NÃO EDITADA
                             </v-chip>
-                            <v-chip 
-                              v-else-if="verificarEdicaoHibrida(station).hasBeenEdited === true" 
-                              color="success" 
-                              variant="flat" 
+                            <v-chip
+                              v-else-if="verificarEdicaoHibrida(station).hasBeenEdited === true"
+                              color="success"
+                              variant="flat"
                               size="x-small"
                               class="edit-status-chip"
                             >
@@ -1693,9 +1756,9 @@ const exampleVariable = ref(null);
                             </v-chip>
                           </div>
                           
-                          <div v-if="getStationEditStatus(station.id).createdDate" class="text-caption text-secondary">
+                          <div v-if="verificarEdicaoHibrida(station).createdDate" class="text-caption text-secondary">
                             <v-icon size="12" class="me-1">ri-calendar-line</v-icon>
-                            Criada: {{ formatarDataBrasil(getStationEditStatus(station.id).createdDate) }}
+                            Criada: {{ formatarDataBrasil(verificarEdicaoHibrida(station).createdDate) }}
                           </div>
 
                           <div v-if="getStationEditStatus(station.id).lastEditDate && getStationEditStatus(station.id).hasBeenEdited" class="text-caption text-secondary">
@@ -1705,7 +1768,7 @@ const exampleVariable = ref(null);
                         </div>
                         
                         <div v-if="getUserStationScore(station.id)" class="mt-2">
-                          <v-chip 
+                          <v-chip
                             :color="getUserStationScore(station.id).percentage >= 70 ? 'success' : getUserStationScore(station.id).percentage >= 50 ? 'warning' : 'error'"
                             variant="flat"
                             size="small"
@@ -1764,7 +1827,7 @@ const exampleVariable = ref(null);
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="startSimulationAsActor(station.id)"
+                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
@@ -1866,7 +1929,7 @@ const exampleVariable = ref(null);
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="startSimulationAsActor(station.id)"
+                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
@@ -1968,7 +2031,7 @@ const exampleVariable = ref(null);
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="startSimulationAsActor(station.id)"
+                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
@@ -2172,7 +2235,7 @@ const exampleVariable = ref(null);
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="startSimulationAsActor(station.id)"
+                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
