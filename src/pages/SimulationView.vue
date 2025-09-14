@@ -8,6 +8,7 @@ defineProps({
 /* AgentAssistant legacy component import removed during agent cleanup */
 import { useSimulationSocket } from '@/composables/useSimulationSocket.ts';
 import { useSimulationInvites } from '@/composables/useSimulationInvites.js';
+import { usePrivateChatNotification } from '@/plugins/privateChatListener.js';
 import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
 import { registrarConclusaoEstacao } from '@/services/stationEvaluationService.js';
@@ -70,6 +71,9 @@ const debouncedToggleParagraphMark = debounce((contextIdx, paragraphIdx, event) 
 const theme = useTheme();
 const isDarkTheme = computed(() => theme.global.name.value === 'dark');
 
+// Configuração do chat privado
+const { reloadListeners } = usePrivateChatNotification();
+
 // Configuração do editor removida - TinyMCE não essencial
 
 // Função para processar linhas do roteiro
@@ -128,6 +132,9 @@ const actorVisibleImpressoContent = ref({});
 const candidateReceivedScores = ref({});
 const candidateReceivedTotalScore = ref(0);
 const actorReleasedImpressoIds = ref({});
+
+// Modal de impressos
+const impressosModalOpen = ref(false);
 
 // Refs para controlar carregamento de imagens
 const imageLoadAttempts = ref({});
@@ -275,12 +282,11 @@ function playSoundEffect() {
 
 // --- Função para Buscar Dados da Estação e Checklist ---
 async function fetchSimulationData(currentStationId) {
-  console.log('[DIAGNOSTIC] fetchSimulationData: Iniciando busca de dados da estação para ID:', currentStationId);
   
   if (!currentStationId) {
     errorMessage.value = 'ID da estação inválido.';
     isLoading.value = false;
-    console.error('[DIAGNOSTIC] fetchSimulationData: Erro: ID da estação não fornecido');
+    console.error('[DIAGNOSTIC] Erro: ID da estação não fornecido');
     return;
   }
   
@@ -349,16 +355,16 @@ async function fetchSimulationData(currentStationId) {
     }
     
     // Pré-carrega imagens dos impressos após carregar dados com sucesso
-    // O pré-carregamento agora é chamado diretamente, sem delay,
-    // para iniciar o carregamento das imagens em segundo plano o mais rápido possível.
-    preloadImpressoImages();
+    setTimeout(() => {
+      preloadImpressoImages();
+    }, 100);
     
     
   } catch (error) {
-    console.error("[DIAGNOSTIC] fetchSimulationData: Erro ao buscar dados:", error);
-    console.error("[DIAGNOSTIC] fetchSimulationData: Tipo de erro:", error.name);
-    console.error("[DIAGNOSTIC] fetchSimulationData: Mensagem de erro:", error.message);
-    console.error("[DIAGNOSTIC] fetchSimulationData: Stack trace:", error.stack);
+    // console.error("[DIAGNOSTIC] Erro ao buscar dados:", error);
+    // console.error("[DIAGNOSTIC] Tipo de erro:", error.name);
+    // console.error("[DIAGNOSTIC] Mensagem de erro:", error.message);
+    // console.error("[DIAGNOSTIC] Stack trace:", error.stack);
     
     // Classificação de erros para melhor feedback ao usuário
     if (error.message.includes('permission-denied') || error.message.includes('Permission denied')) {
@@ -375,10 +381,10 @@ async function fetchSimulationData(currentStationId) {
     checklistData.value = null;
   } finally {
     isLoading.value = false;
-    console.log("[DIAGNOSTIC] fetchSimulationData: Finalizado. isLoading:", isLoading.value,
-                "stationData:", !!stationData.value,
-                "checklistData:", !!checklistData.value,
-                "errorMessage:", errorMessage.value);
+    // console.log("[DIAGNOSTIC] Finalizado. isLoading:", isLoading.value,
+    //             "stationData:", !!stationData.value,
+    //             "checklistData:", !!checklistData.value,
+    //             "errorMessage:", errorMessage.value);
     
     // WebSocket connection will be initiated only when backend is activated (on second user ready)
   }
@@ -413,8 +419,8 @@ async function sendLinkViaPrivateChat() {
   chatSentSuccess.value = false;
 
   try {
-    const { sendSimulationInvite } = useSimulationInvites();
-    
+    const { sendSimulationInvite } = useSimulationInvites(reloadListeners);
+
     const result = await sendSimulationInvite({
       candidateUid: selectedCandidateForSimulation.value.uid,
       candidateName: selectedCandidateForSimulation.value.name,
@@ -683,18 +689,21 @@ function connectWebSocket() {
 
 // --- Função para carregar candidato selecionado ---
 function loadSelectedCandidate() {
-  try {
-    const storedData = sessionStorage.getItem('selectedCandidate');
-    const candidateData = JSON.parse(storedData || '{}');
-    
-    if (candidateData.uid) {
-      selectedCandidateForSimulation.value = candidateData;
-    } else {
-      selectedCandidateForSimulation.value = null;
+  console.log('[DEBUG] loadSelectedCandidate: Iniciando carregamento do candidato');
+  const candidateData = sessionStorage.getItem('selectedCandidate');
+  console.log('[DEBUG] loadSelectedCandidate: Dados do candidato no sessionStorage:', candidateData);
+
+  if (candidateData) {
+    try {
+      const candidate = JSON.parse(candidateData);
+      console.log('[DEBUG] loadSelectedCandidate: Candidato parseado:', candidate);
+      selectedCandidateForSimulation.value = candidate;
+      console.log('[DEBUG] loadSelectedCandidate: Candidato definido em selectedCandidateForSimulation');
+    } catch (error) {
+      console.error('[DEBUG] loadSelectedCandidate: Erro ao parsear candidato:', error);
     }
-  } catch (error) {
-    console.error('Erro ao carregar candidato selecionado:', error);
-    selectedCandidateForSimulation.value = null;
+  } else {
+    console.log('[DEBUG] loadSelectedCandidate: Nenhum candidato encontrado no sessionStorage');
   }
 }
 
@@ -703,7 +712,6 @@ const isSettingUpSession = ref(false);
 
 // --- Função Setup Session ---
 function setupSession() {
-  console.log('[LIFECYCLE_DIAG] setupSession: INÍCIO');
   // CORREÇÃO: Previne execuções múltiplas simultâneas
   if (isSettingUpSession.value) {
     // console.log("SETUP_SESSION: ⚠️ Já está em execução, ignorando chamada duplicada");
@@ -720,7 +728,8 @@ function setupSession() {
   checklistData.value = null;
   stationId.value = route.params.id;
   sessionId.value = route.query.sessionId; // CORREÇÃO: de route.query.session para route.query.sessionId
-  userRole.value = route.query.role;
+  userRole.value = route.query.role || 'evaluator'; // DEBUG: Define como 'evaluator' se não especificado
+
 
   inviteLinkToShow.value = '';
 
@@ -744,7 +753,9 @@ function setupSession() {
 
   // Carregar candidato selecionado se for ator/avaliador
   if (userRole.value === 'actor' || userRole.value === 'evaluator') {
+    console.log('[DEBUG] setupSession: Carregando candidato selecionado para ator/avaliador');
     loadSelectedCandidate();
+    console.log('[DEBUG] setupSession: Candidato carregado, selectedCandidateForSimulation:', selectedCandidateForSimulation.value);
   }
 
   const durationFromQuery = route.query.duration ? parseInt(route.query.duration) : null;
@@ -792,7 +803,6 @@ function setupSession() {
       console.log("[SETUP SESSION] sessionId presente, conectando WebSocket...");
       connectWebSocket();
     }
-    console.log('[LIFECYCLE_DIAG] setupSession: FIM');
   });
 }
 
@@ -823,12 +833,19 @@ watch(bothParticipantsReady, (newValue) => {
 // --- Hooks Ciclo de Vida ---
 // CORREÇÃO: Consolidando todos os onMounted em um único para evitar execução múltipla
 onMounted(() => {
-  console.log('[LIFECYCLE_DIAG] onMounted: INÍCIO');
+  console.log('[DEBUG] onMounted: Iniciando setup da simulação');
+  console.log('[DEBUG] onMounted: userRole antes do setup:', userRole.value);
+  console.log('[DEBUG] onMounted: selectedCandidateForSimulation antes do setup:', selectedCandidateForSimulation.value);
+
   setupSession();
-  
+
+  console.log('[DEBUG] onMounted: Setup concluído');
+  console.log('[DEBUG] onMounted: userRole após o setup:', userRole.value);
+  console.log('[DEBUG] onMounted: selectedCandidateForSimulation após o setup:', selectedCandidateForSimulation.value);
+
   // Verifica link do Meet para candidato
   checkCandidateMeetLink();
-  
+
   // Inicializa o sidebar como fechado por padrão
   setTimeout(() => {
     const wrapper = document.querySelector('.layout-wrapper');
@@ -844,44 +861,28 @@ onMounted(() => {
     }
   };
   document.addEventListener('keydown', handleEscKey);
-  
+
   // Setup do listener de eventos para marcação
   const toggleMarkHandler = (e) => toggleMark(e.detail);
   document.addEventListener('toggleMark', toggleMarkHandler);
-  
+
   // Cleanup no onUnmounted
   onUnmounted(() => {
     document.removeEventListener('keydown', handleEscKey);
     document.removeEventListener('toggleMark', toggleMarkHandler);
-    console.log('[LIFECYCLE_DIAG] onMounted -> onUnmounted (inner): Limpeza de listeners CONCLUÍDA.');
   });
-  console.log('[LIFECYCLE_DIAG] onMounted: FIM');
 });
 
 
-watch(() => route.fullPath, (newPath, oldPath) => {
-  console.log('[LIFECYCLE_DIAG] Watch route.fullPath: Nova rota:', newPath, 'Antiga rota:', oldPath, 'Nome da rota:', route.name);
-  if (newPath !== oldPath && route.name === 'SimulationView') {
-    console.log('[LIFECYCLE_DIAG] Watch route.fullPath (SimulationView): Rota alterada de', oldPath, 'para', newPath, '. Reconfigurando sessão...');
-    setupSession();
-  } else if (newPath === oldPath && route.name === 'SimulationView') {
-    console.log('[LIFECYCLE_DIAG] Watch route.fullPath (SimulationView): Rota inalterada, mas watch acionado (provável recarga).');
-    // Considerar não chamar setupSession aqui se a intenção é apenas recarregar o componente
-    // e o onMounted já cuidará disso. Isso pode ser uma fonte de race condition.
-  }
-});
+watch(() => route.fullPath, (newPath, oldPath) => { if (newPath !== oldPath && route.name === 'SimulationView') { setupSession(); }});
 onUnmounted(() => {
-  console.log('[LIFECYCLE_DIAG] onUnmounted (main): INÍCIO');
-  disconnect(); // Desconecta o WebSocket explicitamente
-  
+  disconnect();
   // Limpar candidato selecionado ao sair da simulação
   try {
     sessionStorage.removeItem('selectedCandidate');
-    console.log('[DIAGNOSTIC] onUnmounted (SimulationView): Candidato selecionado limpo do sessionStorage.');
   } catch (error) {
-    console.warn('[DIAGNOSTIC] onUnmounted (SimulationView): Erro ao limpar candidato selecionado:', error);
+    console.warn('Erro ao limpar candidato selecionado:', error);
   }
-  console.log('[LIFECYCLE_DIAG] onUnmounted (main): FIM');
 });
 function toggleActorImpressoVisibility(impressoId) {
   actorVisibleImpressoContent.value[impressoId] = !actorVisibleImpressoContent.value[impressoId];
@@ -1231,7 +1232,7 @@ async function submitEvaluation() {
   let candidateUid = null;
   // 1. partner (websocket)
   if (partner.value?.userId) candidateUid = partner.value.userId;
-  // 2. sessionStorage
+  // 2. localStorage
   if (!candidateUid) {
     try {
       const selectedCandidate = JSON.parse(sessionStorage.getItem('selectedCandidate') || '{}');
@@ -1978,6 +1979,19 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
         </VBtn>
       </template>
     </VSnackbar>
+
+    <!-- Botão flutuante compacto para impressos -->
+    <VBtn
+      v-if="isActorOrEvaluator && stationData?.materiaisDisponiveis?.impressos?.length > 0"
+      icon="ri-file-text-line"
+      size="small"
+      class="impressos-floating-button-compact"
+      elevation="4"
+      color="info"
+      :variant="impressosModalOpen ? 'flat' : 'elevated'"
+      @click.stop="impressosModalOpen = !impressosModalOpen"
+      :title="impressosModalOpen ? 'Fechar Impressos' : 'Gerenciar Impressos'"
+    ></VBtn>
     
     <!-- Conteúdo principal -->
     <div v-if="isLoading" class="d-flex justify-center align-center" style="height: 80vh;">
@@ -2097,6 +2111,17 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
               >
                 Encerrar
               </VBtn>
+              <!-- Botão para abrir modal de impressos -->
+              <VBtn
+                v-if="isActorOrEvaluator && stationData?.materiaisDisponiveis?.impressos?.length > 0"
+                color="info"
+                variant="tonal"
+                prepend-icon="ri-file-text-line"
+                @click="impressosModalOpen = true"
+                title="Gerenciar Impressos"
+              >
+                Impressos
+              </VBtn>
             </div>
           </div>
 
@@ -2142,18 +2167,23 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                       {{ copySuccess ? 'Copiado!' : 'Copiar Link' }}
                   </VBtn>
                   <VBtn
-                      v-if="selectedCandidateForSimulation"
                       prepend-icon="ri-chat-3-line"
                       @click="sendLinkViaPrivateChat"
                       color="secondary"
                       :loading="sendingChat"
+                      :disabled="!selectedCandidateForSimulation"
                   >
                       {{ chatSentSuccess ? 'Enviado!' : 'Enviar via Chat' }}
                   </VBtn>
                 </div>
+                <div v-if="!selectedCandidateForSimulation" class="mt-2">
+                  <VChip color="warning" size="small" variant="outlined">
+                    Selecione um candidato para enviar via chat
+                  </VChip>
+                </div>
             </div>
 
-          <div v-if="inviteLinkToShow || isCandidate" class="text-center mt-4 pt-4 border-t">
+          <div v-if="inviteLinkToShow || isCandidate || isActorOrEvaluator" class="text-center mt-4 pt-4 border-t">
             <VBtn
               v-if="!myReadyState"
               size="large"
@@ -3103,11 +3133,68 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
        </VCard>
      </VDialog>
    </div>
- 
+
+   <!-- Modal de Impressos (Drawer lateral compacta) -->
+   <VNavigationDrawer
+     v-model="impressosModalOpen"
+     location="right"
+     width="320"
+     temporary
+     overlay
+     class="impressos-drawer"
+     @click:outside="impressosModalOpen = false"
+   >
+     <div class="impressos-drawer-container">
+       <VCard flat class="impressos-card">
+         <VCardTitle class="d-flex align-center pa-4" style="flex-shrink: 0;">
+           <VIcon icon="ri-file-text-line" class="me-2" />
+           Gerenciar Impressos
+         </VCardTitle>
+         <VDivider style="flex-shrink: 0;" />
+         <VCardText class="impressos-content" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+         <div v-if="!stationData?.materiaisDisponiveis?.impressos?.length" class="text-center py-8">
+           <VIcon icon="ri-file-text-line" size="48" color="grey" class="mb-4" />
+           <p class="text-h6 text-grey">Nenhum impresso disponível</p>
+         </div>
+         <div v-else style="flex: 0 0 auto; width: 100%;">
+           <div v-for="impresso in stationData.materiaisDisponiveis.impressos" :key="impresso.idImpresso" class="impresso-control-item">
+             <div class="d-flex align-center justify-space-between">
+               <div class="d-flex align-center flex-grow-1">
+                 <VIcon icon="ri-file-text-line" size="20" class="me-3 text-info" />
+                 <span class="text-body-1 font-weight-medium">{{ impresso.tituloImpresso }}</span>
+               </div>
+               <div class="d-flex align-center gap-2">
+                 <VBtn
+                   icon
+                   :color="!!actorReleasedImpressoIds[impresso.idImpresso] ? 'success' : 'warning'"
+                   variant="tonal"
+                   size="small"
+                   @click="releaseData(impresso.idImpresso)"
+                   :disabled="!!actorReleasedImpressoIds[impresso.idImpresso]"
+                   :title="!!actorReleasedImpressoIds[impresso.idImpresso] ? 'Impresso já liberado' : 'Liberar impresso para o candidato'"
+                 >
+                   <VIcon :icon="!!actorReleasedImpressoIds[impresso.idImpresso] ? 'ri-lock-unlock-line' : 'ri-lock-line'" />
+                 </VBtn>
+                 <VChip
+                   v-if="!!actorReleasedImpressoIds[impresso.idImpresso]"
+                   color="success"
+                   size="small"
+                   variant="tonal"
+                   class="text-caption"
+                 >
+                   Liberado
+                 </VChip>
+               </div>
+             </div>
+           </div>
+         </div>
+       </VCardText>
+     </VCard>
+     </div>
+   </VNavigationDrawer>
+
    <!-- AgentAssistant component removed (legacy agent) -->
- </template>
- 
- <style scoped>
+ </template> <style scoped>
  .simulation-page-container {
      font-size: 1.1rem; /* Aumenta a fonte base */
  }
@@ -4097,4 +4184,126 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
      width: calc(100% - 20px); /* Ocupa a largura total menos margens */
    }
  }
- </style>
+
+/* Botão flutuante compacto para impressos */
+.impressos-floating-button-compact {
+  position: fixed;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+  border-radius: 50%;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  padding: 0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.impressos-floating-button-compact:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.impressos-floating-button-compact:active {
+  transform: scale(0.95);
+}
+
+/* Quando a drawer está aberta, destacar o botão */
+.impressos-floating-button-compact.v-btn--variant-flat {
+  border-color: rgb(var(--v-theme-info));
+  background-color: rgba(var(--v-theme-info), 0.1) !important;
+  box-shadow: 0 2px 12px rgba(var(--v-theme-info), 0.3);
+}
+
+/* Responsividade para mobile */
+@media (max-width: 768px) {
+  .impressos-floating-button-compact {
+    right: 12px;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+
+  .impressos-content {
+    max-height: calc(90vh - 100px) !important;
+  }
+}
+
+/* Estilos para a drawer de impressos */
+.impressos-drawer {
+  height: fit-content !important;
+  min-height: 250px !important;
+  max-height: 70vh !important;
+  top: 15vh !important;
+  bottom: 15vh !important;
+  border-radius: 8px 0 0 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+  width: 320px !important;
+}
+
+.impressos-drawer-container {
+  height: fit-content !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+}
+
+.impressos-card {
+  height: fit-content !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 8px 0 0 8px !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+}
+
+.impressos-content {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  min-height: 0 !important;
+  height: fit-content !important;
+  max-height: none !important;
+}
+
+.impressos-content > div:first-child {
+  flex: 0 0 auto !important;
+}
+
+.impressos-content > div:last-child {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  height: fit-content !important;
+}
+
+.impressos-content .text-center {
+  margin: 0 !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  height: 100% !important;
+}
+
+.impresso-control-item {
+  padding: 8px 0 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.impresso-control-item:last-child {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+}
+</style>

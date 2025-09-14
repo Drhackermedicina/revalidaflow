@@ -15,10 +15,11 @@ import AIFieldAssistant from '@/components/AIFieldAssistant.vue';
 import { geminiService } from '@/services/geminiService.js';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
-// Debug do storage
-console.log('🔧 Configuração de Storage:');
-console.log('Storage importado:', storage);
-console.log('Funções do storage importadas:', { storageRef, uploadBytes, getDownloadURL });
+// Configuração de Storage carregada
+
+// 🔧 DEBUG: Adicionando logs para diagnosticar erro de carregamento do módulo
+console.log('EditStationView: Iniciando carregamento do módulo')
+console.log('EditStationView: Imports básicos carregados com sucesso')
 
 const route = useRoute();
 const router = useRouter();
@@ -30,22 +31,7 @@ const isDarkTheme = computed(() => theme.global.name.value === 'dark');
 // 🔧 CORREÇÃO: Usar props.id se disponível
 const stationId = ref(props.id || route.params.id || null);
 
-// Debug da inicialização
-console.log('🔍 Inicialização do stationId:', {
-  propsId: props.id,
-  routeParamsId: route.params.id,
-  finalStationId: stationId.value,
-  routePath: route.path,
-  routeName: route.name
-});
-
-console.log('🔍 Valores detalhados:', {
-  'props.id': props.id,
-  'route.params.id': route.params.id,
-  'stationId.value': stationId.value,
-  'route.params': JSON.stringify(route.params),
-  'route.path': route.path
-});
+// Inicialização do stationId
 const isLoading = ref(true);
 const errorMessage = ref('');
 const successMessage = ref('');
@@ -108,7 +94,7 @@ async function suggestForImpresso(index) {
         const suggestion = await fetchSuggestionForField(f.fieldName, f.currentValue, index);
         aiBulkSuggestions.value.push({ fieldName: f.fieldName, label: prettyFieldLabel(f.fieldName), suggestion: suggestion || '', index });
       } catch (errField) {
-        console.warn('Erro ao obter sugestão para campo bulk:', f.fieldName, errField);
+        
         aiBulkSuggestions.value.push({ fieldName: f.fieldName, label: prettyFieldLabel(f.fieldName), suggestion: '', index });
       }
     }
@@ -252,7 +238,7 @@ Regras de formatação:
     aiBulkSuggestions.value = urls.map(u => ({ fieldName, label: prettyFieldLabel(fieldName), suggestion: u, index }));
     aiBulkDialog.value = true;
   } catch (err) {
-    console.error('Erro em suggestForImageUrl (nova lógica):', err);
+    
     showAIError('Erro ao buscar URLs relacionadas ao impresso');
   } finally {
     aiBulkLoading.value = false;
@@ -278,7 +264,7 @@ async function suggestForPepItem(index) {
         const suggestion = await fetchSuggestionForField(f.fieldName, f.currentValue, index);
         aiBulkSuggestions.value.push({ fieldName: f.fieldName, label: prettyFieldLabel(f.fieldName), suggestion: suggestion || '', index });
       } catch (errField) {
-        console.warn('Erro ao obter sugestão para campo PEP bulk:', f.fieldName, errField);
+        
         aiBulkSuggestions.value.push({ fieldName: f.fieldName, label: prettyFieldLabel(f.fieldName), suggestion: '', index });
       }
     }
@@ -317,7 +303,7 @@ function applyBulkSuggestion(sugg) {
 // Aplicar todas as sugestões do diálogo
 function applyAllBulkSuggestions() {
   for (const s of aiBulkSuggestions.value) {
-    try { applyBulkSuggestion(s); } catch (e) { console.warn('Erro aplicando sugestão bulk:', e); }
+    try { applyBulkSuggestion(s); } catch (e) { }
   }
   // Fechar diálogo após aplicar
   aiBulkDialog.value = false;
@@ -334,7 +320,6 @@ async function suggestForField(fieldName, currentValue, index = null) {
   const now = Date.now();
   const last = aiLastRequested.value[fieldName] || 0;
   if (now - last < 1500) { // 1.5s min entre solicitações para o mesmo campo
-    console.log('⏱️ Requisição IA ignorada (throttle):', fieldName);
     return;
   }
   aiLastRequested.value[fieldName] = now;
@@ -391,13 +376,13 @@ async function suggestForField(fieldName, currentValue, index = null) {
 
         showAISuccess('Sugestão aplicada ao campo');
       } catch (errApply) {
-        console.warn('⚠️ Falha ao aplicar sugestão localmente:', errApply.message || errApply);
+        
       }
     } else {
       showAIError('Nenhuma sugestão gerada pela IA.');
     }
   } catch (error) {
-    console.error('❌ Erro ao obter sugestão IA:', error);
+    
     showAIError('Erro ao consultar IA: ' + (error.message || error));
   } finally {
     aiLoading.value = { ...aiLoading.value, [fieldName]: false };
@@ -423,7 +408,7 @@ async function fetchSuggestionForField(fieldName, currentValue, index = null) {
 
     return await geminiService.correctField(fieldName, currentValue, `Sugira uma versão melhorada deste campo com base no contexto e nas referências da estação.`, stationContext.value);
   } catch (error) {
-    console.error('Erro em fetchSuggestionForField:', error);
+    
     return null;
   }
 }
@@ -484,6 +469,7 @@ const originalStationData = ref(null);
 const undoStack = ref([]);
 const maxUndoStates = 10;
 const lastSnapshotHash = ref('');
+const hasUnsavedChanges = ref(false); // Flag para indicar se há mudanças não salvas
 
 // Função para gerar hash simples do estado (para evitar snapshots duplicados)
 function generateStateHash(state) {
@@ -496,13 +482,14 @@ function saveSnapshot(force = false) {
 
   // Evitar snapshots duplicados (a menos que seja forçado)
   if (!force && currentHash === lastSnapshotHash.value) {
-    console.log('⏭️ Snapshot ignorado (estado não mudou)');
+
     return;
   }
 
   const snapshot = JSON.parse(JSON.stringify(formData.value));
   undoStack.value.push(snapshot);
   lastSnapshotHash.value = currentHash;
+  hasUnsavedChanges.value = true; // Marcar que há mudanças não salvas
 
   // Manter apenas os últimos 10 estados
   if (undoStack.value.length > maxUndoStates) {
@@ -514,25 +501,34 @@ function saveSnapshot(force = false) {
 
 // Função para fazer undo com reatividade profunda
 function undo() {
-  if (undoStack.value.length === 0) {
-    console.warn('⚠️ Não há estados para reverter');
-    return false;
-  }
+   console.log('🔄 UNDO: Iniciando undo. Stack size antes:', undoStack.value.length);
+   if (undoStack.value.length === 0) {
+     console.warn('⚠️ Não há estados para reverter');
+     return false;
+   }
 
-  const previousState = undoStack.value.pop();
+   const previousState = undoStack.value.pop();
+   console.log('🔄 UNDO: Estado anterior recuperado do stack. Stack size agora:', undoStack.value.length);
 
-  // Restauração profunda para garantir reatividade em arrays e objetos aninhados
-  restoreFormData(previousState);
+   // Restauração profunda para garantir reatividade em arrays e objetos aninhados
+   restoreFormData(previousState);
 
-  // Atualizar hash do último snapshot
-  lastSnapshotHash.value = generateStateHash(formData.value);
+   // Atualizar hash do último snapshot
+   lastSnapshotHash.value = generateStateHash(formData.value);
 
-  console.log('↶ Undo realizado. Stack size:', undoStack.value.length);
-  return true;
+   console.log('✅ UNDO: Undo realizado com sucesso. Stack size final:', undoStack.value.length);
+   return true;
 }
 
 // Função auxiliar para restauração profunda do formData
 function restoreFormData(state) {
+  console.log('🔄 restoreFormData: Iniciando restauração do estado', 'timestamp:', new Date().toISOString());
+  console.log('🔄 restoreFormData: Estado a restaurar:', {
+    tituloEstacao: state.tituloEstacao,
+    numeroDaEstacao: state.numeroDaEstacao,
+    especialidade: state.especialidade
+  });
+
   // Restauração campo a campo para garantir reatividade
   Object.keys(state).forEach(key => {
     if (Array.isArray(state[key])) {
@@ -546,24 +542,27 @@ function restoreFormData(state) {
       formData.value[key] = state[key];
     }
   });
+
+  console.log('✅ restoreFormData: Restauração concluída', 'timestamp:', new Date().toISOString());
+  console.log('✅ restoreFormData: Estado atual do formData:', {
+    tituloEstacao: formData.value.tituloEstacao,
+    numeroDaEstacao: formData.value.numeroDaEstacao,
+    especialidade: formData.value.especialidade
+  });
 }
 
-// Computed para verificar se há estados para reverter
-const canUndo = computed(() => undoStack.value.length > 0);
+// Computed para verificar se há estados para reverter (só após modificações não salvas)
+const canUndo = computed(() => undoStack.value.length > 0 && hasUnsavedChanges.value);
 
 // Watcher único para salvar snapshots automaticamente (mais eficiente)
 watch(
   () => formData.value,
   (newValue, oldValue) => {
-    console.log('🔧 UNDO/REDO: Watcher detectou mudança no formData');
     if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
-      console.log('🔧 UNDO/REDO: Mudança confirmada, salvando snapshot');
       saveSnapshot();
-    } else {
-      console.log('🔧 UNDO/REDO: Mudança ignorada (mesmo estado)');
     }
   },
-  { deep: true, immediate: true } // 🔧 CORREÇÃO: Mudado para true para capturar estado inicial
+  { deep: true } // 🔧 CORREÇÃO: Removido immediate: true para evitar snapshot vazio
 );
 
 // Status de edição da estação
@@ -739,11 +738,11 @@ function normalizeValue(value) {
 
 // 🔄 FUNÇÃO DE NORMALIZAÇÃO DO HISTÓRICO DE EDIÇÕES
 async function normalizarHistoricoEdicao(stationData) {
-  console.log('🔄 Iniciando normalização do histórico para:', stationData.id);
+  
   
   // Se já tem editHistory moderno, não precisa normalizar
   if (stationData.editHistory && Array.isArray(stationData.editHistory)) {
-    console.log('✅ Estação já tem editHistory moderno');
+    
     return stationData;
   }
   
@@ -754,11 +753,11 @@ async function normalizarHistoricoEdicao(stationData) {
   );
   
   if (!isLegacy) {
-    console.log('ℹ️ Estação não é legacy, mantendo estrutura atual');
+    
     return stationData;
   }
   
-  console.log('🔧 Detectada estação legacy, criando estrutura moderna...');
+  
   
   // Criar estrutura de histórico moderna baseada em dados legacy
   const editHistory = [];
@@ -815,7 +814,6 @@ async function loadOrGenerateStationContext() {
 
   try {
     // Gerar contexto sem salvar na memória
-    console.log('🤖 Gerando contexto da estação...');
     isGeneratingContext.value = true;
 
     // 1) Buscar contexto salvo no documento da estação (se houver)
@@ -827,7 +825,6 @@ async function loadOrGenerateStationContext() {
         // Prioriza contexto salvo (campo opcional 'iaContext' ou similar)
         if (data.iaContext && typeof data.iaContext === 'string' && data.iaContext.trim().length > 20) {
           stationContext.value = data.iaContext;
-          console.log('ℹ️ Contexto carregado a partir do documento Firestore (iaContext)');
           isGeneratingContext.value = false;
           return;
         }
@@ -870,7 +867,6 @@ async function loadOrGenerateStationContext() {
       console.log('✅ Contexto da estação gerado pelo geminiService');
     }
   } catch (error) {
-    console.error('❌ Erro ao gerar contexto:', error);
     // Contexto padrão se falhar
     stationContext.value = `Estação clínica: ${formData.value.tituloEstacao || 'Sem título'} - ${formData.value.especialidade || 'Especialidade não definida'}`;
   } finally {
@@ -923,7 +919,7 @@ async function onAISuggestRequested(payload) {
     const now = Date.now();
     const last = aiLastRequested.value[fieldName] || 0;
     if (now - last < 1500) {
-      console.log('⏱️ Requisição IA ignorada (throttle):', fieldName);
+      
       return;
     }
     aiLastRequested.value[fieldName] = now;
@@ -962,33 +958,23 @@ function showAIError(message) {
 
 // Função para carregar estação do Firestore
 async function fetchStationData() {
-  console.log('🚀 fetchStationData chamada com stationId:', stationId.value);
-  
   if (!stationId.value) {
     console.error('❌ Nenhum ID de estação fornecido');
     errorMessage.value = "Nenhum ID de estação fornecido para edição.";
     isLoading.value = false;
     return;
   }
-  
+
   isLoading.value = true;
   errorMessage.value = '';
   successMessage.value = '';
-  
+
   try {
     const docRef = doc(db, "estacoes_clinicas", stationId.value);
     const docSnap = await getDoc(docRef);
-    
+
     if (docSnap.exists()) {
       const stationData = { id: docSnap.id, ...docSnap.data() };
-      
-      console.log('📊 Dados carregados da estação:', {
-        id: stationData.id,
-        titulo: stationData.tituloEstacao,
-        temEditHistory: !!stationData.editHistory,
-        temDataCadastro: !!stationData.dataCadastro,
-        temDataUltimaAtualizacao: !!stationData.dataUltimaAtualizacao
-      });
       
       // 🔄 NORMALIZAÇÃO AUTOMÁTICA DO HISTÓRICO
       const stationDataNormalized = await normalizarHistoricoEdicao(stationData);
@@ -1037,7 +1023,7 @@ const convertTimestampToDate = (timestamp) => {
                    (stationDataNormalized.atualizadoPor || stationDataNormalized.criadoPor || 'Sistema')
       };
       
-      console.log('✅ Status de edição normalizado:', editStatus.value);
+      
       
       // 👥 Buscar nomes dos usuários mencionados no histórico
       const usuariosParaBuscar = new Set();
@@ -1053,10 +1039,6 @@ const convertTimestampToDate = (timestamp) => {
       }
       
       loadStationIntoForm(stationDataNormalized);
-
-      // 🔧 CORREÇÃO: Salvar snapshot inicial após carregar dados
-      console.log('🔧 UNDO/REDO: Salvando snapshot inicial após carregar dados do Firestore');
-      saveSnapshot(true); // Forçado para garantir snapshot inicial
 
       successMessage.value = `Estação "${stationDataNormalized.tituloEstacao}" carregada com sucesso!`;
       setTimeout(() => { successMessage.value = ''; }, 3000);
@@ -1242,6 +1224,9 @@ function loadStationIntoForm(stationData) {
       : [''] // Sempre inicializa com pelo menos um campo vazio para fontes
   };
   
+  // Salva o primeiro snapshot após carregar todos os dados
+  saveSnapshot(true); // Força o salvamento do primeiro snapshot
+
   // Atualiza números oficiais dos itens após carregar
   setTimeout(() => {
     atualizarNumerosOficiaisItens();
@@ -1378,38 +1363,22 @@ function validarEstruturaEstacao(estacao) {
 
 // Função de diagnóstico completo do Firebase Storage
 async function diagnosticarStorageCompleto() {
-  console.log('🔍 === DIAGNÓSTICO COMPLETO DO STORAGE ===');
   
   try {
     // 1. Verificar configuração
-    console.log('📋 Configuração atual:');
-    console.log('- Storage object:', storage);
-    console.log('- Storage bucket:', storage.app.options.storageBucket);
-    console.log('- Project ID:', storage.app.options.projectId);
     
     // 2. Verificar autenticação
-    console.log('🔐 Autenticação:');
-    console.log('- User UID:', currentUser.value?.uid);
-    console.log('- Is Admin:', isAdmin.value);
-    console.log('- Token exists:', !!currentUser.value?.accessToken);
     
     // 3. Testar criação de referência
-    console.log('📁 Teste de referência:');
     const testRef = storageRef(storage, 'test/diagnóstico.txt');
-    console.log('- Referência criada:', testRef.toString());
     
     // 4. Testar upload simples
-    console.log('📤 Teste de upload simples:');
     const testBlob = new Blob(['Teste de diagnóstico'], { type: 'text/plain' });
     const uploadResult = await uploadBytes(testRef, testBlob);
-    console.log('- Upload OK:', uploadResult);
     
     // 5. Testar download URL
-    console.log('🔗 Teste de URL:');
     const testURL = await getDownloadURL(uploadResult.ref);
-    console.log('- URL obtida:', testURL);
     
-    console.log('✅ DIAGNÓSTICO COMPLETO: TUDO OK!');
     return { success: true, testURL };
     
   } catch (error) {
@@ -1436,15 +1405,13 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
     if (!storage) {
       throw new Error('Firebase Storage não inicializado');
     }
-    
-    console.log(`🚀 Upload iniciado (tentativa ${retryCount + 1}/${maxRetries + 1}):`, {
-      fileName: file.name,
+
+    console.log('Upload iniciado:', {
       fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-      userUID: currentUser.value.uid
+      userUID: currentUser.value.uid,
     });
     
     // --- DEBUG: COMPRESSÃO DE IMAGEM TEMPORARIAMENTE DESABILITADA ---
-    console.log('Compressão de imagem desabilitada para teste.');
     let compressedFile = file;
     // const options = {
     //   maxSizeMB: 1,
@@ -1481,22 +1448,13 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
     uploadProgress.value[`impresso-${impressoIndex}`] = 0;
     
     // Executa o upload diretamente, removendo o Promise.race para timeout
-    console.log('--- Debug Upload Image ---');
-    console.log('Image Ref:', imageRef.fullPath);
-    console.log('Compressed File Size:', compressedFile.size, 'bytes');
-    console.log('Compressed File Type:', compressedFile.type);
-    console.log('Metadata:', metadata);
-    console.log('--------------------------');
-    console.log('📤 Executando upload para:', fileName);
     const snapshot = await uploadBytes(imageRef, compressedFile, metadata);
-    console.log('✅ Upload concluído! Snapshot:', {
-      fullPath: snapshot.ref.fullPath,
+    console.log('Upload concluído:', {
       bucket: snapshot.ref.bucket,
       size: snapshot.totalBytes
     });
     
     // Obtém a URL de download com timeout
-    console.log('🔗 Obtendo URL de download...');
     const downloadURLPromise = Promise.race([
       getDownloadURL(snapshot.ref),
       new Promise((_, reject) => 
@@ -1505,12 +1463,10 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
     ]);
     
     const downloadURL = await downloadURLPromise;
-    console.log('🎉 URL de download obtida com sucesso:', downloadURL);
     
     // Atualiza o campo automaticamente
     if (formData.value.impressos[impressoIndex]?.conteudo) {
       formData.value.impressos[impressoIndex].conteudo.caminhoImagem = downloadURL;
-      console.log('📝 Campo atualizado com sucesso');
     } else {
       console.warn('⚠️ Estrutura do impresso não encontrada:', formData.value.impressos[impressoIndex]);
       throw new Error('Estrutura de dados do impresso inválida');
@@ -1549,7 +1505,6 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
       error.message.includes('timeout') ||
       error.message.includes('network')
     )) {
-      console.log(`🔄 Tentando novamente em ${(retryCount + 1) * 2} segundos...`);
       await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 2000));
       return uploadImageToStorage(file, impressoIndex, retryCount + 1);
     }
@@ -1589,41 +1544,6 @@ function handleImageUpload(event, impressoIndex) {
   const file = event.target.files[0];
   if (!file) return;
   
-  console.log('handleImageUpload chamado com:', {
-    file: file.name,
-    impressoIndex,
-    currentUser: currentUser.value?.uid
-  });
-  
-  // Verificações básicas
-  if (!currentUser.value) {
-    errorMessage.value = 'Você precisa estar logado para fazer upload de imagens.';
-    setTimeout(() => { errorMessage.value = ''; }, 5000);
-    return;
-  }
-  
-  if (!storage) {
-    errorMessage.value = 'Storage do Firebase não configurado.';
-    setTimeout(() => { errorMessage.value = ''; }, 5000);
-    return;
-  }
-  
-  // Validações do arquivo
-  const maxSize = 10 * 1024 * 1024; // 10MB
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-  
-  if (file.size > maxSize) {
-    errorMessage.value = 'Arquivo muito grande. Máximo 10MB.';
-    setTimeout(() => { errorMessage.value = ''; }, 5000);
-    return;
-  }
-  
-  if (!allowedTypes.includes(file.type)) {
-    errorMessage.value = 'Tipo de arquivo não suportado. Use JPG, PNG, GIF ou WebP.';
-    setTimeout(() => { errorMessage.value = ''; }, 5000);
-    return;
-  }
-  
   // Faz o upload
   uploadImageToStorage(file, impressoIndex);
 }
@@ -1647,8 +1567,7 @@ async function saveStationChanges() {
   try {
     const estacaoAtualizada = construirObjetoEstacao();
     
-    console.log('🔄 Tentando salvar estação:', {
-      id: stationId.value,
+    console.log('💾 Salvando estação:', {
       titulo: estacaoAtualizada.tituloEstacao,
       usuario: currentUser.value?.uid,
       timestamp: new Date().toISOString()
@@ -1714,14 +1633,20 @@ async function saveStationChanges() {
     };
 
     await updateDoc(stationDocRef, dataToSave);
-    
-    console.log('✅ Estação salva com sucesso no Firestore:', {
-      id: stationId.value,
+
+    console.log('✅ Estação salva com sucesso:', {
       coleção: 'estacoes_clinicas',
       campos_alterados: changedFields.length,
       timestamp: new Date().toISOString()
     });
-    
+
+    // Resetar sistema de undo após salvamento
+    undoStack.value = [];
+    hasUnsavedChanges.value = false;
+    lastSnapshotHash.value = generateStateHash(formData.value);
+
+    console.log('🔄 UNDO/REDO: Sistema de undo resetado após salvamento');
+
     // Atualizar status de edição local
     if (editHistoryEntry) {
       editStatus.value = {
@@ -1730,7 +1655,7 @@ async function saveStationChanges() {
         lastEditDate: new Date(),
         lastEditBy: currentUser.value?.displayName || currentUser.value?.email || 'Usuário Desconhecido'
       };
-      
+
       successMessage.value = `Estação "${estacaoAtualizada.tituloEstacao}" atualizada com sucesso! ${changedFields.length} campo(s) alterado(s): ${changedFields.join(', ')}.`;
     } else {
       successMessage.value = `Estação "${estacaoAtualizada.tituloEstacao}" salva (nenhuma alteração detectada).`;
@@ -1808,7 +1733,7 @@ async function downloadCurrentStationJSON() {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
     const downloadUrl = `${backendUrl}/api/stations/${stationId.value}/download-json`;
 
-    console.log('🔽 Iniciando download da estação:', stationId.value);
+    
     
     const response = await fetch(downloadUrl, {
       method: 'GET',
@@ -1847,7 +1772,7 @@ async function downloadCurrentStationJSON() {
     downloadMessage.value = 'Download concluído com sucesso!';
     successMessage.value = `Arquivo ${fileName} baixado com sucesso!`;
     
-    console.log('✅ Download concluído:', fileName);
+    
     
     // Limpar mensagem após alguns segundos
     setTimeout(() => {
@@ -1875,7 +1800,7 @@ async function downloadAllStationsJSON() {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
     const downloadUrl = `${backendUrl}/api/stations/download-json`;
 
-    console.log('🔽 Iniciando download de todas as estações');
+    
     
     const response = await fetch(downloadUrl, {
       method: 'GET',
@@ -1918,8 +1843,8 @@ async function downloadAllStationsJSON() {
     downloadMessage.value = `Download concluído! ${totalStations} estações baixadas.`;
     successMessage.value = `Arquivo ${fileName} baixado com sucesso!`;
     
-    console.log('✅ Download de todas as estações concluído:', fileName);
-    console.log(`📊 Total de estações: ${totalStations}`);
+    
+    
     
     // Limpar mensagem após alguns segundos
     setTimeout(() => {
@@ -2296,41 +2221,22 @@ function handleKeydown(event) {
 
 // Lifecycle
 onMounted(async () => {
-  // Debug adicional
-  console.log('🔧 onMounted - Debug completo:', {
-    routePath: route.path,
-    routeName: route.name,
-    routeParams: route.params,
-    propsId: props.id,
-    currentStationId: stationId.value,
-    isLoading: isLoading.value
-  });
-  
   // 🔧 BACKUP: Se stationId existe mas ainda está loading, forçar carregamento
   if (stationId.value && isLoading.value) {
-    console.log('🔄 BACKUP: Forçando fetchStationData no onMounted');
     setTimeout(() => {
       if (isLoading.value) {
-        console.log('🚨 TIMEOUT: Ainda carregando, executando fetchStationData agora!');
         fetchStationData();
       }
     }, 1000);
   }
-  
+
   // O watch com immediate: true já chama fetchStationData na montagem se route.params.id estiver presente
-  
-  // Debug e teste do Storage no mount
-  console.log('🔧 Verificações no mount:');
-  console.log('Storage disponível:', !!storage);
-  console.log('Usuário atual:', currentUser.value?.uid);
-  console.log('Admin status:', isAdmin.value);
-  
+
   // Testa conectividade do Storage
   if (testStorageConnection) {
     try {
       const storageOK = await testStorageConnection();
-      console.log('🧪 Teste de conectividade do Storage:', storageOK ? '✅ OK' : '❌ FALHOU');
-      
+
       if (!storageOK) {
         console.warn('⚠️ Storage pode estar com problemas de conectividade');
       }
@@ -2338,7 +2244,7 @@ onMounted(async () => {
       console.error('❌ Erro no teste de conectividade:', error);
     }
   }
-  
+
   // Adiciona o listener de teclado
   document.addEventListener('keydown', handleKeydown);
 });
@@ -2348,40 +2254,24 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown);
 });
 
-// 🔧 CORREÇÃO: Watch mais robusto com debug
+// 🔧 CORREÇÃO: Watch mais robusto
 watch(() => route.params.id, (newId) => {
-  console.log('🔍 Watch route.params.id:', { 
-    newId, 
-    currentStationId: stationId.value,
-    newIdType: typeof newId,
-    currentStationIdType: typeof stationId.value,
-    areEqual: newId === stationId.value,
-    truthyNewId: !!newId
-  });
-  
   if (newId) {
     if (newId !== stationId.value) {
-      console.log('📥 Atualizando stationId e carregando dados:', newId);
       stationId.value = newId;
       fetchStationData();
     } else {
-      console.log('🔄 ID igual, não recarregando - MAS VAMOS FORÇAR O CARREGAMENTO!');
       // 🔧 CORREÇÃO: Forçar carregamento se ainda estiver loading
       if (isLoading.value) {
-        console.log('🔄 Ainda está carregando, forçando fetchStationData');
         fetchStationData();
       }
     }
-  } else {
-    console.log('⚠️ Nenhum ID na rota');
   }
 }, { immediate: true });
 
 // Também watch props.id se vier direto
 watch(() => props.id, (newId) => {
-  console.log('🔍 Watch props.id:', { newId, currentStationId: stationId.value });
   if (newId && newId !== stationId.value) {
-    console.log('📥 Atualizando stationId via props:', newId);
     stationId.value = newId;
     fetchStationData();
   }
@@ -3088,7 +2978,7 @@ watch(() => props.id, (newId) => {
             </div>
           </div>
 
-          <!-- Pontuação Total da Estação (movido para antes do botão salvar) -->
+          <!-- Pontuação Total da Estação (PEP / Checklist) -->
           <div class="form-group pep-total-score-display" style="margin-top: 20px; padding: 15px; border: 2px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
             <label for="pepPontuacaoTotal" style="font-weight: bold; font-size: 1.1em;">Pontuação Total Máxima da Estação (PEP):</label>
             <input type="number" step="0.001" id="pepPontuacaoTotal" v-model.number="formData.padraoEsperadoProcedimento.pontuacaoTotalEstacao" readonly title="Calculado automaticamente com base nos pontos 'Adequado' de cada item." style="font-size: 1.2em; font-weight: bold;">
@@ -3355,7 +3245,7 @@ watch(() => props.id, (newId) => {
 .action-buttons {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap:  8px;
 }
 
 .back-button {
@@ -4262,21 +4152,15 @@ watch(() => props.id, (newId) => {
 }
 
 .floating-save-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-}
-
-.floating-save-btn:active:not(:disabled) {
-  transform: translateY(0);
+  background-color: #138496;
+  transform: translateY(-1px);
 }
 
 .floating-save-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
 }
 
-/* Tema claro */
 .floating-save-btn:not(.floating-save-btn--dark) {
   background-color: #17a2b8;
   color: white;
@@ -4286,7 +4170,6 @@ watch(() => props.id, (newId) => {
   background-color: #138496;
 }
 
-/* Tema escuro */
 .floating-save-btn--dark {
   background-color: #2196f3;
   color: white;

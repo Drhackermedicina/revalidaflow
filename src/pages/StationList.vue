@@ -97,9 +97,7 @@ function getINEPPeriod(station) {
   return null;
 }
 
-function getRevalidaFacilSpecialty(station) {
-  if (!isRevalidaFacilStation(station)) return null;
-  
+function getSpecialty(station) {
   // Função para normalizar texto (remove acentos, minúsculas, espaços extras)
   const normalizeText = (text) => {
     return text
@@ -179,6 +177,11 @@ function getRevalidaFacilSpecialty(station) {
   }
   
   return 'geral';
+}
+
+function getRevalidaFacilSpecialty(station) {
+  if (!isRevalidaFacilStation(station)) return null;
+  return getSpecialty(station);
 }
 
 // 👥 FUNÇÃO PARA BUSCAR DADOS DOS USUÁRIOS
@@ -689,12 +692,10 @@ function getStationYear(station) {
 }
 
 function getStationArea(station) {
-  if (isINEPStation(station)) {
-    return { key: 'inep', name: 'INEP', fullName: 'INEP', icon: '📋' };
-  }
+  let specialty = null;
   
-  if (isRevalidaFacilStation(station)) {
-    const specialty = getRevalidaFacilSpecialty(station);
+  if (isRevalidaFacilStation(station) || isINEPStation(station)) {
+    specialty = getSpecialty(station);
     
     const areas = {
       'clinica-medica': { name: 'CM', fullName: 'Clínica Médica', icon: '🩺' },
@@ -856,28 +857,35 @@ function getSpecialtyColor(station) {
   const area = getStationArea(station);
   
   const lightColors = {
-    'clinica-medica': '#87CEEB',
-    'cirurgia': '#1E3A8A',
-    'pediatria': '#22C55E',
-    'ginecologia': '#EC4899',
-    'preventiva': '#F97316',
-    'geral': '#6B7280'
+    'clinica-medica': '#00BFFF', // Azul mais vivo
+    'cirurgia': '#000080', // Azul marinho mais escuro e vivo
+    'pediatria': '#008000', // Verde mais vivo
+    'ginecologia': '#FF1493', // Rosa mais vivo
+    'preventiva': '#FF4500', // Laranja vermelho mais vivo
+    'procedimentos': '#6A0DAD', // Roxo mais vivo
+    'geral': '#2F4F4F' // Cinza mais escuro
   };
   
   const darkColors = {
-    'clinica-medica': '#5DADE2',
-    'cirurgia': '#3498DB',
-    'pediatria': '#58D68D',
-    'ginecologia': '#F48FB1',
-    'preventiva': '#FFB74D',
-    'geral': '#90A4AE'
+    'clinica-medica': '#00CED1', // Turquesa mais vivo
+    'cirurgia': '#4169E1', // Azul royal mais vivo
+    'pediatria': '#32CD32', // Verde lime mais vivo
+    'ginecologia': '#FF69B4', // Rosa quente mais vivo
+    'preventiva': '#FFA500', // Laranja mais vivo
+    'procedimentos': '#9370DB', // Roxo médio mais vivo
+    'geral': '#708090' // Cinza mais claro para dark
   };
   
   const colors = isDarkTheme.value ? darkColors : lightColors;
   return colors[area.key] || colors.geral;
 }
 
-function getBackgroundOpacity() {
+function getBackgroundOpacity(station) {
+  // Cores mais vivas para INEP
+  if (isINEPStation(station)) {
+    return isDarkTheme.value ? '80' : '60';
+  }
+  // Opacidade original para Revalida Fácil
   return isDarkTheme.value ? '60' : '40';
 }
 
@@ -1033,6 +1041,8 @@ const filteredInepStations = computed(() => {
 const filteredRevalidaFacilStations = computed(() => {
   return globalFilteredStations.value.filter(isRevalidaFacilStation);
 });
+
+const totalStations = computed(() => filteredInepStations.value.length + filteredRevalidaFacilStations.value.length);
 
 async function fetchStations() {
   isLoadingStations.value = true;
@@ -1528,7 +1538,7 @@ const exampleVariable = ref(null);
         <v-card class="mb-4" elevation="2" rounded>
           <v-card-title class="d-flex align-center">
             <v-icon class="me-2" color="primary">ri-search-line</v-icon>
-            <span class="text-h6">Buscar Estação Globalmente</span>
+            <span class="text-h6">Buscar Estação Globalmente ({{ totalStations }})</span>
           </v-card-title>
           <v-card-text>
             <!-- KiloCode Debug: Exibir globalAutocompleteItems no console -->
@@ -1553,7 +1563,7 @@ const exampleVariable = ref(null);
                   v-bind="props"
                   :title="item.title"
                   :subtitle="item.raw.fullName"
-                  @click="router.push({ path: `/app/simulation/${item.raw.id}`, query: { role: 'actor' } })"
+                  @click="startSimulationAsActor(item.raw.id)"
                 >
                   <template #prepend>
                     <v-icon :color="item.raw.color">{{ item.raw.icon }}</v-icon>
@@ -1609,14 +1619,14 @@ const exampleVariable = ref(null);
                           v-for="station in filteredStationsByInepPeriod[period]"
                           :key="station.id"
                           class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                          :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                          @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
+                          :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                          @click="startSimulationAsActor(station.id)"
                         >
                           <template #prepend>
                             <v-icon color="info">ri-file-list-3-line</v-icon>
                           </template>
                           <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
-                          <v-list-item-subtitle class="text-caption text-secondary">{{ station.especialidade }}</v-list-item-subtitle>
+                          <v-list-item-subtitle class="text-caption">{{ station.especialidade }}</v-list-item-subtitle>
                           
                           <div class="d-flex align-center gap-2 mt-1">
                             <v-chip
@@ -1724,13 +1734,13 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilClinicaMedica"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
+                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
                         </template>
-                        <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                        <v-list-item-title class="font-weight-bold text-body-1 text-on-surface">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
                         
                         <div class="d-flex flex-column gap-1 mt-2">
                           <div class="d-flex align-center gap-2">
@@ -1826,13 +1836,13 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilCirurgia"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
+                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
                         </template>
-                        <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                        <v-list-item-title class="font-weight-bold text-body-1 text-on-surface">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
                         
                         <div class="d-flex flex-column gap-1 mt-2">
                           <div class="d-flex align-center gap-2">
@@ -1928,13 +1938,13 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilPediatria"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
+                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
                         </template>
-                        <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                        <v-list-item-title class="font-weight-bold text-body-1 text-on-surface">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
                         
                         <div class="d-flex flex-column gap-1 mt-2">
                           <div class="d-flex align-center gap-2">
@@ -2030,13 +2040,13 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilGO"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
+                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
                         </template>
-                        <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                        <v-list-item-title class="font-weight-bold text-body-1 text-on-surface">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
                         
                         <div class="d-flex flex-column gap-1 mt-2">
                           <div class="d-flex align-center gap-2">
@@ -2132,13 +2142,13 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilPreventiva"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
+                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
                         @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
                         </template>
-                        <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                        <v-list-item-title class="font-weight-bold text-body-1 text-on-surface">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
                         
                         <div class="d-flex flex-column gap-1 mt-2">
                           <div class="d-flex align-center gap-2">
@@ -2234,13 +2244,13 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilProcedimentos"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity() }"
-                        @click="router.push({ path: `/app/simulation/${station.id}`, query: { role: 'actor' } })"
+                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
                         </template>
-                        <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                        <v-list-item-title class="font-weight-bold text-body-1 text-on-surface">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
                         
                         <div class="d-flex flex-column gap-1 mt-2">
                           <div class="d-flex align-center gap-2">
@@ -2352,8 +2362,12 @@ const exampleVariable = ref(null);
   opacity: 0.1; /* Aumentado para 1 para garantir visibilidade */
 }
 
-.station-list-item {
-  transition: background-color 0.2s ease-in-out;
+.station-list-item .v-list-item-title {
+  color: var(--v-theme-on-surface) !important;
+}
+
+.station-list-item .v-list-item-subtitle {
+  color: var(--v-theme-on-surface-variant) !important;
 }
 
 .station-list-item:hover {

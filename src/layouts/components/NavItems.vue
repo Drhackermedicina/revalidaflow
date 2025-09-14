@@ -1,7 +1,6 @@
 <script setup>
 import trophy from '@/assets/images/misc/trophy.png';
 import { useAdminAuth } from '@/composables/useAdminAuth';
-import JoinSimulationByCode from '@/views/dashboard/JoinSimulationByCode.vue';
 import VerticalNavGroup from '@layouts/components/VerticalNavGroup.vue';
 import VerticalNavLink from '@layouts/components/VerticalNavLink.vue';
 import { computed, ref } from 'vue';
@@ -42,17 +41,6 @@ const grupoChatLink = {
   to: '/app/chat-group',
 };
 
-const buscarUsuariosGroup = {
-  title: 'Buscar Usuários',
-  icon: 'ri-user-search-fill',
-  iconColor: '#ff9800',
-  to: '/app/arena/buscar-usuarios',
-};
-
-const showCodeDialog = ref(false);
-function openCodeDialog() { showCodeDialog.value = true; }
-function closeCodeDialog() { showCodeDialog.value = false; }
-
 const rankingPosition = computed(() => '1º Lugar');
 const rankingMeta = 98;
 </script>
@@ -62,7 +50,6 @@ const rankingMeta = 98;
   <VerticalNavLink :item="estacoesLink" />
   <VerticalNavLink :item="questoesLink" />
   <VerticalNavLink :item="grupoChatLink" />
-  <VerticalNavLink :item="buscarUsuariosGroup" />
 
   <VerticalNavGroup
     :item="{
@@ -144,25 +131,6 @@ const rankingMeta = 98;
     />
   </VerticalNavGroup>
 
-  <VerticalNavGroup
-    :item="{
-      title: 'Entrar por Código',
-      icon: 'ri-key-line',
-      iconColor: '#00bcd4',
-    }"
-  >
-    <VerticalNavLink
-      :item="{
-        title: 'Colar Código',
-        icon: 'ri-clipboard-line',
-        iconColor: '#43a047',
-        to: undefined,
-        href: undefined,
-        onClick: openCodeDialog,
-      }"
-    />
-  </VerticalNavGroup>
-
   <!-- Seção Administração - Visível apenas para admins -->
   <VerticalNavGroup
     v-if="showAdminMenu"
@@ -198,17 +166,4 @@ const rankingMeta = 98;
     />
       <!-- Admin IA links removidos -->
   </VerticalNavGroup>
-
-  <VDialog v-model="showCodeDialog" max-width="400">
-    <VCard>
-      <VCardTitle class="text-h6">Entrar por Código</VCardTitle>
-      <VCardText>
-        <JoinSimulationByCode />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn color="primary" text @click="closeCodeDialog">Fechar</VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
 </template>

@@ -1,0 +1,35 @@
+# Arquivos e pastas a ignorar pelo Kilo Code
+node_modules/
+dist/
+build/
+.cache/
+.vscode/
+.git/
+*.log
+*.tmp
+*.swp
+*.bak
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+.DS_Store
+Thumbs.db
+.env
+.env.local
+.env.production
+firebase-debug.log
+firestore-debug.log
+storage-debug.log
+# Arquivos de documentação temporários ou irrelevantes
+docs/**/*.md.bak
+# Scripts de desenvolvimento específicos
+scripts/*.bat
+scripts/*.ps1
+# Arquivos de configuração de CI/CD se não relevantes
+.github/
+# Imagens grandes ou irrelevantes (ajuste conforme necessário)
+src/assets/images/large-images/
+# Arquivos de teste que não precisam de contexto
+tests/**/*.spec.js.snap
+tests/**/*.test.js.snap

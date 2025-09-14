@@ -23,7 +23,6 @@ O frontend segue uma estrutura de pastas modular, com componentes reutilizáveis
     *   `AdminUpload.vue`: Página para upload de estações em JSON. **Desafio:** Lógica para upload de questões foi removida, mas a coleção no Firebase Storage existe.
     *   `AdminView.vue`: Página de administração para verificação de estações e edições. **Desafio:** Problemas de filtragem e inconsistência de dados na coleção `estacoes_clinicas`.
     *   `pagamento.vue`: Página de pagamentos (inativa).
-    *   `BuscarUsuarios.vue`: Página de busca de usuários (em desenvolvimento).
     *   `EditStationView.vue`: Página de edição de estações, onde o `AIFieldAssistant.vue` é utilizado.
 *   `src/plugins/`: Plugins Vue.js e inicialização de serviços (Firebase, Pinia, etc.).
     *   `firebase.js`: Inicialização e configuração do Firebase.

@@ -7,7 +7,7 @@
 
     <!-- Aqui incluímos o componente personalizador. -->
     <!-- Ele será exibido em todas as páginas da sua aplicação. -->
-    <ThemeCustomizer />
+    <!-- <ThemeCustomizer /> REMOVIDO: componente não existe -->
     
     <!-- Componente de notificação flutuante de chat privado -->
     <ChatNotificationFloat />
@@ -44,7 +44,7 @@ import { useUserStore } from '@/stores/userStore'
 // ----------------------
 import ChatNotificationFloat from './components/ChatNotificationFloat.vue'
 import GlobalLoader from './components/GlobalLoader.vue'
-import ThemeCustomizer from './components/ThemeCustomizer.vue'
+// import ThemeCustomizer from './components/ThemeCustomizer.vue' // REMOVIDO: arquivo não existe
 
 // ----------------------
 // Instâncias de stores

@@ -50,12 +50,23 @@ export function usePrivateChatNotification() {
     unsubscribeList.forEach(unsub => unsub())
     unsubscribeList = []
     listenersInitialized = false // Resetar o flag ao parar os listeners
-    
+
     // 🗑️ Parar timer de limpeza automática
     if (cleanupInterval) {
       clearInterval(cleanupInterval)
       cleanupInterval = null
     }
+  }
+
+  // Função para recarregar listeners (usada quando cache de chats recentes muda)
+  function reloadListeners() {
+    if (!currentUser.value?.uid) return
+
+    // Parar listeners atuais
+    stopListener()
+
+    // Reinicializar
+    initializeListeners()
   }
 
   // Função para iniciar os listeners, agora chamada apenas uma vez por sessão
@@ -221,6 +232,7 @@ export function usePrivateChatNotification() {
 
   return {
     // startListener, // Não é mais necessário expor publicamente
-    stopListener // Manter para casos de uso específicos, como logout manual
+    stopListener, // Manter para casos de uso específicos, como logout manual
+    reloadListeners // Para recarregar listeners quando cache muda
   }
 }

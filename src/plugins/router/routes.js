@@ -154,11 +154,6 @@ export const routes = [
         component: () => import('@/pages/StationList.vue'),
       },
       {
-        path: 'arena/buscar-usuarios',
-        name: 'buscar-usuarios',
-        component: () => import('@/pages/BuscarUsuarios.vue'),
-      },
-      {
         // rota 'aguarde-simulacao' removida
         path: 'ranking',
         name: 'ranking-geral',

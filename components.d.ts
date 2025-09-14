@@ -27,7 +27,6 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TaskManager: typeof import('./src/components/TaskManager.vue')['default']
-    ThemeCustomizer: typeof import('./src/components/ThemeCustomizer.vue')['default']
     ThemeSwitcher: typeof import('./src/@core/components/ThemeSwitcher.vue')['default']
     TiptapEditor: typeof import('./src/components/TiptapEditor.vue')['default']
     WelcomeCard: typeof import('./src/components/WelcomeCard.vue')['default']

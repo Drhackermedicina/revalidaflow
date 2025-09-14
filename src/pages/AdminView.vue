@@ -78,7 +78,9 @@
               </template>
               <template v-slot:item.editadoPor="{ item }">
                 <v-chip size="small" color="blue" v-if="item.hasBeenEdited && item.lastEditBy">
-                  {{ item.lastEditBy }}
+                  {{ getUserDisplayName(item.lastEditBy) }}
+                  <!-- Força reatividade quando nomes são carregados -->
+                  <span style="display: none">{{ userNamesVersion }}</span>
                 </v-chip>
                 <span v-else class="text-grey">N/A</span>
               </template>
@@ -171,7 +173,9 @@
               </template>
               <template v-slot:item.atualizadoPor="{ item }">
                 <v-chip size="small" color="green">
-                  {{ item.lastEditBy || 'N/A' }}
+                  {{ getUserDisplayName(item.lastEditBy) || 'N/A' }}
+                  <!-- Força reatividade quando nomes são carregados -->
+                  <span style="display: none">{{ userNamesVersion }}</span>
                 </v-chip>
               </template>
               <template v-slot:item.actions="{ item }">
@@ -194,7 +198,6 @@
       </v-tabs-window>
     </v-card>
 
-    <!-- Loading overlay -->
     <v-overlay v-model="isLoading" class="align-center justify-center">
       <v-progress-circular
         color="primary"
@@ -207,7 +210,7 @@
 
 <script setup>
 import { db } from '@/plugins/firebase'
-import { collection, onSnapshot } from 'firebase/firestore'
+import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore'
 import { computed, onMounted, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -219,6 +222,8 @@ const activeTab = ref('recent')
 const processedStationsCache = shallowRef(new Map())
 // Marcações de tempo para detectar mudanças nas estações
 const stationLastProcessed = shallowRef(new Map())
+// Cache para nomes de usuários
+const userNamesCache = shallowRef(new Map())
 
 // Headers
 const headersNotEdited = [
@@ -413,6 +418,75 @@ const formatDate = (timestamp, options = {}) => {
   }
 }
 
+// Função para buscar nome do usuário pelo UID
+const getUserName = async (uid) => {
+  if (!uid) return 'N/A'
+
+  // Verifica se já está no cache
+  if (userNamesCache.value.has(uid)) {
+    return userNamesCache.value.get(uid)
+  }
+
+  try {
+    const userDoc = await getDoc(doc(db, 'usuarios', uid))
+    if (userDoc.exists()) {
+      const userData = userDoc.data()
+      // Prioriza o campo 'nome' como informado pelo usuário
+      const displayName = userData.nome || userData.displayName || userData.name || userData.email || 'Usuário'
+      userNamesCache.value.set(uid, displayName)
+      return displayName
+    } else {
+      // Se não encontrar, armazena como UID para evitar buscas repetidas
+      userNamesCache.value.set(uid, uid)
+      return uid
+    }
+  } catch (error) {
+    console.error('Erro ao buscar nome do usuário:', error)
+    // Em caso de erro, retorna o UID
+    userNamesCache.value.set(uid, uid)
+    return uid
+  }
+}// Função para obter nome do usuário formatado (síncrona, usa cache)
+const getUserDisplayName = (uid) => {
+  if (!uid) return 'N/A'
+  return userNamesCache.value.get(uid) || uid
+}// Função para carregar nomes dos usuários que editaram as estações
+const loadUserNamesForStations = async (stationsData) => {
+  const userIds = new Set()
+
+  // Coleta todos os UIDs únicos das estações
+  stationsData.forEach(station => {
+    if (station.lastEditBy) userIds.add(station.lastEditBy)
+    if (station.editadoPor) userIds.add(station.editadoPor)
+    if (station.atualizadoPor) userIds.add(station.atualizadoPor)
+    if (station.updatedBy) userIds.add(station.updatedBy)
+
+    // Também verifica no histórico de edições
+    if (station.editHistory && Array.isArray(station.editHistory)) {
+      station.editHistory.forEach(edit => {
+        if (edit.editadoPor) userIds.add(edit.editadoPor)
+        if (edit.userId) userIds.add(edit.userId)
+        if (edit.user) userIds.add(edit.user)
+      })
+    }
+  })
+
+  // Remove UIDs que já estão no cache
+  const uidsToFetch = Array.from(userIds).filter(uid => !userNamesCache.value.has(uid))
+
+  if (uidsToFetch.length === 0) return
+
+  // Busca os nomes em lotes para evitar muitas requisições
+  const batchSize = 10
+  for (let i = 0; i < uidsToFetch.length; i += batchSize) {
+    const batch = uidsToFetch.slice(i, i + batchSize)
+    await Promise.all(batch.map(uid => getUserName(uid)))
+  }
+
+  // Força atualização do cache para garantir que os nomes sejam exibidos
+  userNamesCache.value = new Map(userNamesCache.value)
+}
+
 // Função para gerar uma marcação de tempo baseada no estado atual da estação
 const getStationTimestamp = (station) => {
   // Prioriza campos que indicam atualização
@@ -559,16 +633,24 @@ const stationsRecent = computed(() => {
     .sort((a, b) => b.createdTime - a.createdTime);
 });
 
+// Propriedade computada para forçar reatividade quando os nomes dos usuários são carregados
+const userNamesVersion = computed(() => {
+  return userNamesCache.value.size
+});
+
 const editStation = (stationId) => {
   router.push(`/app/edit-station/${stationId}`)
 }
 
 onMounted(() => {
   const stationsRef = collection(db, 'estacoes_clinicas')
-  onSnapshot(stationsRef, (snapshot) => {
+  onSnapshot(stationsRef, async (snapshot) => {
     const stationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     stations.value = stationsData
     isLoading.value = false
+
+    // Buscar nomes dos usuários que editaram as estações
+    await loadUserNamesForStations(stationsData)
   }, (error) => {
     console.error('AdminView: Erro ao carregar dados:', error)
     isLoading.value = false
