@@ -480,6 +480,92 @@ const formData = ref(getInitialFormData());
 // Variável para armazenar dados originais que devem ser preservados
 const originalStationData = ref(null);
 
+// Sistema de Undo/Redo
+const undoStack = ref([]);
+const maxUndoStates = 10;
+const lastSnapshotHash = ref('');
+
+// Função para gerar hash simples do estado (para evitar snapshots duplicados)
+function generateStateHash(state) {
+  return JSON.stringify(state).length.toString();
+}
+
+// Função para salvar snapshot do estado atual
+function saveSnapshot(force = false) {
+  const currentHash = generateStateHash(formData.value);
+
+  // Evitar snapshots duplicados (a menos que seja forçado)
+  if (!force && currentHash === lastSnapshotHash.value) {
+    console.log('⏭️ Snapshot ignorado (estado não mudou)');
+    return;
+  }
+
+  const snapshot = JSON.parse(JSON.stringify(formData.value));
+  undoStack.value.push(snapshot);
+  lastSnapshotHash.value = currentHash;
+
+  // Manter apenas os últimos 10 estados
+  if (undoStack.value.length > maxUndoStates) {
+    undoStack.value.shift();
+  }
+
+  console.log('📸 Snapshot salvo. Stack size:', undoStack.value.length);
+}
+
+// Função para fazer undo com reatividade profunda
+function undo() {
+  if (undoStack.value.length === 0) {
+    console.warn('⚠️ Não há estados para reverter');
+    return false;
+  }
+
+  const previousState = undoStack.value.pop();
+
+  // Restauração profunda para garantir reatividade em arrays e objetos aninhados
+  restoreFormData(previousState);
+
+  // Atualizar hash do último snapshot
+  lastSnapshotHash.value = generateStateHash(formData.value);
+
+  console.log('↶ Undo realizado. Stack size:', undoStack.value.length);
+  return true;
+}
+
+// Função auxiliar para restauração profunda do formData
+function restoreFormData(state) {
+  // Restauração campo a campo para garantir reatividade
+  Object.keys(state).forEach(key => {
+    if (Array.isArray(state[key])) {
+      // Para arrays, recriar completamente
+      formData.value[key] = [...state[key]];
+    } else if (typeof state[key] === 'object' && state[key] !== null) {
+      // Para objetos, recriar completamente
+      formData.value[key] = { ...state[key] };
+    } else {
+      // Para valores primitivos
+      formData.value[key] = state[key];
+    }
+  });
+}
+
+// Computed para verificar se há estados para reverter
+const canUndo = computed(() => undoStack.value.length > 0);
+
+// Watcher único para salvar snapshots automaticamente (mais eficiente)
+watch(
+  () => formData.value,
+  (newValue, oldValue) => {
+    console.log('🔧 UNDO/REDO: Watcher detectou mudança no formData');
+    if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
+      console.log('🔧 UNDO/REDO: Mudança confirmada, salvando snapshot');
+      saveSnapshot();
+    } else {
+      console.log('🔧 UNDO/REDO: Mudança ignorada (mesmo estado)');
+    }
+  },
+  { deep: true, immediate: true } // 🔧 CORREÇÃO: Mudado para true para capturar estado inicial
+);
+
 // Status de edição da estação
 const editStatus = ref({
   hasBeenEdited: false,
@@ -967,9 +1053,14 @@ const convertTimestampToDate = (timestamp) => {
       }
       
       loadStationIntoForm(stationDataNormalized);
+
+      // 🔧 CORREÇÃO: Salvar snapshot inicial após carregar dados
+      console.log('🔧 UNDO/REDO: Salvando snapshot inicial após carregar dados do Firestore');
+      saveSnapshot(true); // Forçado para garantir snapshot inicial
+
       successMessage.value = `Estação "${stationDataNormalized.tituloEstacao}" carregada com sucesso!`;
       setTimeout(() => { successMessage.value = ''; }, 3000);
-      
+
       // 🤖 Carregar contexto da IA após carregar a estação
       loadOrGenerateStationContext();
     } else {
@@ -2185,11 +2276,20 @@ function handleKeydown(event) {
     if (!isSaving.value) {
       keyboardShortcutUsed.value = true;
       saveStationChanges();
-      
+
       // Remove o feedback após 2 segundos
       setTimeout(() => {
         keyboardShortcutUsed.value = false;
       }, 2000);
+    }
+  }
+
+  // Ctrl+Z ou Cmd+Z para undo
+  if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+    event.preventDefault(); // Previne o comportamento padrão do navegador
+    if (canUndo.value) {
+      undo();
+      // Feedback visual poderia ser adicionado aqui se necessário
     }
   }
 }
@@ -3081,7 +3181,32 @@ watch(() => props.id, (newId) => {
     </div> <!-- Fim edit-content-area -->
     
     <!-- PAINEL DE IA COMPLETAMENTE REMOVIDO -->
-    
+
+    <!-- Botões flutuantes -->
+    <button
+      @click="saveStationChanges"
+      :disabled="isSaving"
+      :class="[
+        'floating-save-btn',
+        isDarkTheme ? 'floating-save-btn--dark' : ''
+      ]"
+      title="Salvar alterações (Ctrl+S)"
+    >
+      💾 Salvar
+    </button>
+
+    <button
+      @click="undo"
+      :disabled="!canUndo"
+      :class="[
+        'floating-undo-btn',
+        isDarkTheme ? 'floating-undo-btn--dark' : ''
+      ]"
+      title="Desfazer última alteração (Ctrl+Z)"
+    >
+      ↶
+    </button>
+
   </div> <!-- Fim edit-station-main-container -->
     <!-- Diálogo simples para revisão de sugestões IA bulk -->
     <div v-if="aiBulkDialog" class="dialog-overlay" @click="aiBulkDialog = false">
@@ -4113,5 +4238,151 @@ watch(() => props.id, (newId) => {
 .suggest-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Estilos para botão flutuante de salvar */
+.floating-save-btn {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.floating-save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.floating-save-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.floating-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Tema claro */
+.floating-save-btn:not(.floating-save-btn--dark) {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.floating-save-btn:not(.floating-save-btn--dark):hover:not(:disabled) {
+  background-color: #138496;
+}
+
+/* Tema escuro */
+.floating-save-btn--dark {
+  background-color: #2196f3;
+  color: white;
+}
+
+.floating-save-btn--dark:hover:not(:disabled) {
+  background-color: #1976d2;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .floating-save-btn {
+    right: 15px;
+    bottom: 15px;
+    padding: 10px 16px;
+    font-size: 14px;
+    min-width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .floating-save-btn {
+    right: 10px;
+    bottom: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    min-width: 80px;
+  }
+}
+
+/* Estilos para botão flutuante de undo */
+.floating-undo-btn {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  z-index: 1000;
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  background-color: #ff6b35;
+  color: white;
+}
+
+.floating-undo-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  background-color: #e55a2b;
+}
+
+.floating-undo-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.floating-undo-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  background-color: #adb5bd;
+}
+
+/* Tema escuro para botão undo */
+.floating-undo-btn--dark {
+  background-color: #ff5722;
+}
+
+.floating-undo-btn--dark:hover:not(:disabled) {
+  background-color: #e64a19;
+}
+
+/* Responsividade para botão undo */
+@media (max-width: 768px) {
+  .floating-undo-btn {
+    right: 15px;
+    bottom: 75px;
+    width: 45px;
+    height: 45px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .floating-undo-btn {
+    right: 10px;
+    bottom: 70px;
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
 }
 </style>
