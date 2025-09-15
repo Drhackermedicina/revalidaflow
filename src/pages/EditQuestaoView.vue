@@ -1,6 +1,7 @@
 <script setup>
 import { currentUser } from '@/plugins/auth.js';
-import { db, storage, storageRef, uploadBytes, getDownloadURL } from '@/plugins/firebase.js';
+import { db, storage } from '@/plugins/firebase.js';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 // Removendo importações diretas do firebase/storage, agora vêm do plugin
 import imageCompression from 'browser-image-compression';
@@ -143,6 +144,7 @@ const subespecialidadesDisponiveis = computed(() => {
 const isAdmin = computed(() => {
   return currentUser.value && (
     currentUser.value.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
+    currentUser.value.uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
     currentUser.value.uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
     currentUser.value.uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3  ' ||
     currentUser.value.uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'

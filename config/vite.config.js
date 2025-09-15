@@ -7,7 +7,6 @@ import { defineConfig } from 'vite'
 import vuetify from 'vite-plugin-vuetify'
 import svgLoader from 'vite-svg-loader'
 import path from 'path'
-const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -15,7 +14,6 @@ export default defineConfig({
         {
             name: 'debug-resolver',
             configResolved(config) {
-                console.log('projectRoot:', projectRoot);
                 console.log('--- Diagnóstico de Aliases ---');
                 const aliases = config.resolve.alias;
                 if (Array.isArray(aliases)) {
@@ -26,10 +24,6 @@ export default defineConfig({
                     console.log('Caminho para @core:', coreAlias ? coreAlias.replacement : 'Não encontrado');
                     console.log('Caminho para @layouts:', layoutsAlias ? layoutsAlias.replacement : 'Não encontrado');
                     console.log('Caminho para @styles:', stylesAlias ? stylesAlias.replacement : 'Não encontrado');
-                } else if (aliases && typeof aliases === 'object') {
-                    console.log('Caminho para @core:', aliases['@core'] || 'Não encontrado');
-                    console.log('Caminho para @layouts:', aliases['@layouts'] || 'Não encontrado');
-                    console.log('Caminho para @styles:', aliases['@styles'] || 'Não encontrado');
                 }
                 console.log('------------------------------');
             },
@@ -65,12 +59,12 @@ export default defineConfig({
     define: { 'process.env': {} },
     resolve: {
         alias: {
-            '@': path.resolve(projectRoot, 'src'),
-            '@core': path.resolve(projectRoot, 'src', '@core'),
-            '@layouts': path.resolve(projectRoot, 'src', '@layouts'),
-            '@images': path.resolve(projectRoot, 'src', 'assets', 'images'),
-            '@styles': path.resolve(projectRoot, 'src', 'assets', 'styles'),
-            '@configured-variables': path.resolve(projectRoot, 'src', 'assets', 'styles', 'variables', '_template.scss'),
+            '@': path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src'),
+            '@core': path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', '@core'),
+            '@layouts': path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', '@layouts'),
+            '@images': path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'assets', 'images'),
+            '@styles': path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'assets', 'styles'),
+            '@configured-variables': path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'assets', 'styles', 'variables', '_template.scss'),
         },
     },
 
@@ -93,4 +87,10 @@ export default defineConfig({
             './src/**/*.vue',
         ],
     },
+    server: {
+        headers: {
+            'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+            'Cross-Origin-Embedder-Policy': 'credentialless'
+        }
+    }
 })

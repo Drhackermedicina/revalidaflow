@@ -31,6 +31,14 @@ const onlineUsers = ref([]);
 const userStats = reactive({ simulationsCompleted: 0, averageScore: 0, currentStreak: 0 });
 const userScores = ref({}); // Armazena pontuações do usuário por estação
 
+// --- Refs para Simulação Sequencial ---
+const sequentialMode = ref(false);
+const selectedStationsSequence = ref([]);
+const currentSequenceIndex = ref(0);
+const isSequentialModeConfiguring = ref(false);
+const sequentialSessionId = ref(null);
+const showSequentialConfig = ref(false);
+
 // --- Refs para busca de candidatos ---
 const selectedCandidate = ref(null); // Candidato selecionado para visualizar estatísticas
 const candidateSearchQuery = ref(''); // Query de busca por candidato
@@ -1277,6 +1285,12 @@ async function startSimulationAsActor(stationId) {
     isLoadingSession.value = true;
     errorApi.value = '';
 
+    // Encontrar a estação selecionada para expandir a seção correta
+    const station = stations.value.find(s => s.id === stationId);
+    if (station) {
+      expandCorrectSection(station);
+    }
+
     if (selectedCandidate.value) {
       const candidateData = {
         uid: selectedCandidate.value.uid,
@@ -1299,6 +1313,10 @@ async function startSimulationAsActor(stationId) {
       }
     });
 
+    // Limpar os campos de busca quando abre a simulação
+    selectedStation.value = null;
+    globalSearchQuery.value = '';
+
     // Abre a URL em uma nova janela/aba
     window.open(routeData.href, '_blank');
 
@@ -1314,6 +1332,175 @@ async function startSimulationAsActor(stationId) {
 
 function goToEditStation(stationId) {
   router.push(`/app/edit-station/${stationId}`);
+}
+
+// Função para expandir a seção correta baseada na estação selecionada
+function expandCorrectSection(station) {
+  // Sempre mostrar a seção de provas anteriores se for INEP
+  if (isINEPStation(station)) {
+    showPreviousExamsSection.value = true;
+    return;
+  }
+
+  // Se for estação REVALIDA_FACIL, expandir a seção correspondente
+  if (isRevalidaFacilStation(station)) {
+    showRevalidaFacilStations.value = true;
+
+    // Expandir a subseção baseada na especialidade
+    const especialidade = station.especialidade?.toLowerCase() || '';
+    const idEstacao = station.idEstacao?.toLowerCase() || '';
+
+    if (especialidade.includes('clínica médica') || especialidade.includes('clinica medica') ||
+        idEstacao.includes('clinica_medica')) {
+      showRevalidaFacilClinicaMedica.value = true;
+    }
+    else if (especialidade.includes('cirurgia')) {
+      showRevalidaFacilCirurgia.value = true;
+    }
+    else if (especialidade.includes('pediatria')) {
+      showRevalidaFacilPediatria.value = true;
+    }
+    else if (especialidade.includes('ginecologia') || especialidade.includes('obstetrícia') ||
+             especialidade.includes('obstetricia') || idEstacao.includes('go')) {
+      showRevalidaFacilGO.value = true;
+    }
+    else if (especialidade.includes('preventiva') || especialidade.includes('família') ||
+             especialidade.includes('comunidade')) {
+      showRevalidaFacilPreventiva.value = true;
+    }
+    else if (especialidade.includes('procedimento')) {
+      showRevalidaFacilProcedimentos.value = true;
+    }
+  }
+}
+
+// --- Funções para Simulação Sequencial ---
+function toggleSequentialConfig() {
+  showSequentialConfig.value = !showSequentialConfig.value;
+  if (!showSequentialConfig.value) {
+    resetSequentialConfig();
+  }
+}
+
+function resetSequentialConfig() {
+  selectedStationsSequence.value = [];
+  sequentialMode.value = false;
+  isSequentialModeConfiguring.value = false;
+  currentSequenceIndex.value = 0;
+  sequentialSessionId.value = null;
+}
+
+function addToSequence(station) {
+  if (!selectedStationsSequence.value.find(s => s.id === station.id)) {
+    selectedStationsSequence.value.push({
+      id: station.id,
+      titulo: getCleanStationTitle(station.tituloEstacao),
+      especialidade: station.especialidade,
+      area: getStationArea(station),
+      order: selectedStationsSequence.value.length + 1
+    });
+  }
+}
+
+function removeFromSequence(stationId) {
+  const index = selectedStationsSequence.value.findIndex(s => s.id === stationId);
+  if (index > -1) {
+    selectedStationsSequence.value.splice(index, 1);
+    // Reordenar
+    selectedStationsSequence.value.forEach((station, idx) => {
+      station.order = idx + 1;
+    });
+  }
+}
+
+function moveStationInSequence(fromIndex, toIndex) {
+  const stations = [...selectedStationsSequence.value];
+  const [movedStation] = stations.splice(fromIndex, 1);
+  stations.splice(toIndex, 0, movedStation);
+
+  // Reordenar
+  stations.forEach((station, idx) => {
+    station.order = idx + 1;
+  });
+
+  selectedStationsSequence.value = stations;
+}
+
+async function startSequentialSimulation() {
+  if (selectedStationsSequence.value.length === 0) {
+    alert('Selecione pelo menos uma estação para a simulação sequencial');
+    return;
+  }
+
+  try {
+    isSequentialModeConfiguring.value = true;
+    sequentialMode.value = true;
+    currentSequenceIndex.value = 0;
+
+    // Gerar ID único para a sessão sequencial
+    sequentialSessionId.value = `seq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Armazenar configuração da sequência no sessionStorage
+    sessionStorage.setItem('sequentialSession', JSON.stringify({
+      sessionId: sequentialSessionId.value,
+      sequence: selectedStationsSequence.value,
+      currentIndex: 0,
+      startedAt: new Date().toISOString()
+    }));
+
+    // Iniciar primeira estação
+    await startCurrentSequentialStation();
+
+  } catch (error) {
+    console.error('Erro ao iniciar simulação sequencial:', error);
+    alert(`Erro ao iniciar simulação sequencial: ${error.message}`);
+    resetSequentialConfig();
+  }
+}
+
+async function startCurrentSequentialStation() {
+  if (currentSequenceIndex.value >= selectedStationsSequence.value.length) {
+    alert('Simulação sequencial concluída!');
+    resetSequentialConfig();
+    return;
+  }
+
+  const currentStation = selectedStationsSequence.value[currentSequenceIndex.value];
+
+  try {
+    // Atualizar sessionStorage com índice atual
+    const sequentialData = JSON.parse(sessionStorage.getItem('sequentialSession') || '{}');
+    sequentialData.currentIndex = currentSequenceIndex.value;
+    sessionStorage.setItem('sequentialSession', JSON.stringify(sequentialData));
+
+    // Navegar para a estação atual
+    const routeData = router.resolve({
+      path: `/app/simulation/${currentStation.id}`,
+      query: {
+        role: 'actor',
+        sequential: 'true',
+        sequenceId: sequentialSessionId.value,
+        sequenceIndex: currentSequenceIndex.value,
+        totalStations: selectedStationsSequence.value.length
+      }
+    });
+
+    window.open(routeData.href, '_blank');
+
+  } catch (error) {
+    console.error('Erro ao iniciar estação sequencial:', error);
+    alert(`Erro ao iniciar estação: ${error.message}`);
+  }
+}
+
+function nextSequentialStation() {
+  if (currentSequenceIndex.value < selectedStationsSequence.value.length - 1) {
+    currentSequenceIndex.value++;
+    startCurrentSequentialStation();
+  } else {
+    alert('Simulação sequencial concluída!');
+    resetSequentialConfig();
+  }
 }
 
 function goToAdminUpload() {
@@ -1332,6 +1519,26 @@ function copyLink() {
 onMounted(() => {
   document.documentElement.classList.add('station-list-page-active');
   fetchStations();
+
+  // Limpar campos de busca quando a página é carregada (quando volta da simulação)
+  selectedStation.value = null;
+  globalSearchQuery.value = '';
+
+  // Listener para detectar quando o usuário volta para a janela principal
+  const handleFocus = () => {
+    // Limpar campos se eles contêm IDs (indicando que o usuário voltou da simulação)
+    if (selectedStation.value && !globalSearchQuery.value) {
+      selectedStation.value = null;
+      globalSearchQuery.value = '';
+    }
+  };
+
+  window.addEventListener('focus', handleFocus);
+
+  // Cleanup no onUnmounted
+  onUnmounted(() => {
+    window.removeEventListener('focus', handleFocus);
+  });
 });
 
 watch(globalSearchQuery, (newValue) => {
@@ -1436,6 +1643,158 @@ const exampleVariable = ref(null);
             </v-row>
           </v-card-text>
         </v-card>
+
+        <!-- Configuração de Simulação Sequencial -->
+        <v-card class="mb-4" elevation="2" rounded color="primary" variant="tonal">
+          <v-card-text class="py-3">
+            <v-row align="center">
+              <v-col>
+                <div class="d-flex align-center">
+                  <v-icon class="me-2" color="primary">ri-play-list-line</v-icon>
+                  <div>
+                    <div class="text-subtitle-1 font-weight-bold">Simulação Sequencial de Estações</div>
+                    <div class="text-caption text-medium-emphasis">Configure uma sequência de estações para simulação contínua</div>
+                  </div>
+                </div>
+              </v-col>
+              <v-col cols="auto">
+                <v-btn
+                  :color="showSequentialConfig ? 'warning' : 'primary'"
+                  variant="elevated"
+                  size="default"
+                  @click="toggleSequentialConfig"
+                  class="text-none"
+                  :prepend-icon="showSequentialConfig ? 'ri-close-line' : 'ri-settings-3-line'"
+                >
+                  {{ showSequentialConfig ? 'Cancelar' : 'Configurar Sequência' }}
+                </v-btn>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+
+        <!-- Configuração da Sequência (expandida) -->
+        <v-expand-transition>
+          <v-card v-if="showSequentialConfig" class="mb-4" elevation="3" rounded>
+            <v-card-title class="bg-primary text-white d-flex align-center">
+              <v-icon class="me-2">ri-list-ordered</v-icon>
+              Configuração da Simulação Sequencial
+            </v-card-title>
+
+            <v-card-text class="pa-4">
+              <!-- Lista de Estações Selecionadas -->
+              <div v-if="selectedStationsSequence.length > 0" class="mb-4">
+                <div class="text-subtitle-1 font-weight-medium pa-0 mb-2 d-flex align-center">
+                  <v-icon class="me-2">ri-check-line</v-icon>
+                  Estações Selecionadas ({{ selectedStationsSequence.length }})
+                </div>
+
+                <v-list density="compact" class="bg-grey-lighten-4 rounded">
+                  <v-list-item
+                    v-for="(station, index) in selectedStationsSequence"
+                    :key="station.id"
+                    class="mb-1"
+                  >
+                    <template #prepend>
+                      <v-chip
+                        color="primary"
+                        size="small"
+                        variant="elevated"
+                        class="me-3"
+                      >
+                        {{ station.order }}
+                      </v-chip>
+                      <v-icon :color="station.area.key === 'clinica-medica' ? 'blue' : station.area.key === 'cirurgia' ? 'indigo' : station.area.key === 'pediatria' ? 'green' : station.area.key === 'ginecologia' ? 'pink' : station.area.key === 'preventiva' ? 'orange' : 'grey'">
+                        ri-file-list-3-line
+                      </v-icon>
+                    </template>
+
+                    <v-list-item-title class="text-body-2 font-weight-medium">
+                      {{ station.titulo }}
+                    </v-list-item-title>
+                    <v-list-item-subtitle class="text-caption">
+                      {{ station.area.fullName }}
+                    </v-list-item-subtitle>
+
+                    <template #append>
+                      <div class="d-flex gap-1">
+                        <v-btn
+                          v-if="index > 0"
+                          icon
+                          size="x-small"
+                          variant="text"
+                          @click="moveStationInSequence(index, index - 1)"
+                        >
+                          <v-icon>ri-arrow-up-line</v-icon>
+                        </v-btn>
+                        <v-btn
+                          v-if="index < selectedStationsSequence.length - 1"
+                          icon
+                          size="x-small"
+                          variant="text"
+                          @click="moveStationInSequence(index, index + 1)"
+                        >
+                          <v-icon>ri-arrow-down-line</v-icon>
+                        </v-btn>
+                        <v-btn
+                          icon
+                          size="x-small"
+                          color="error"
+                          variant="text"
+                          @click="removeFromSequence(station.id)"
+                        >
+                          <v-icon>ri-delete-bin-line</v-icon>
+                        </v-btn>
+                      </div>
+                    </template>
+                  </v-list-item>
+                </v-list>
+
+                <v-row class="mt-3">
+                  <v-col>
+                    <v-btn
+                      color="success"
+                      variant="elevated"
+                      block
+                      size="large"
+                      @click="startSequentialSimulation"
+                      :disabled="selectedStationsSequence.length === 0"
+                      prepend-icon="ri-play-line"
+                    >
+                      Iniciar Simulação Sequencial ({{ selectedStationsSequence.length }} estações)
+                    </v-btn>
+                  </v-col>
+                  <v-col cols="auto">
+                    <v-btn
+                      color="warning"
+                      variant="outlined"
+                      @click="resetSequentialConfig"
+                      prepend-icon="ri-refresh-line"
+                    >
+                      Limpar
+                    </v-btn>
+                  </v-col>
+                </v-row>
+              </div>
+
+              <!-- Instruções -->
+              <v-alert
+                v-else
+                type="info"
+                variant="tonal"
+                class="mb-0"
+              >
+                <template #title>Como usar a Simulação Sequencial</template>
+                <div class="text-body-2 mt-2">
+                  <p>1. Clique no botão <v-icon size="small">ri-plus-line</v-icon> ao lado de cada estação que deseja incluir na sequência</p>
+                  <p>2. Organize a ordem das estações usando as setas ↑↓</p>
+                  <p>3. Clique em "Iniciar Simulação Sequencial" para começar</p>
+                  <p class="mt-2 font-weight-medium text-primary">A simulação abrirá cada estação sequencialmente em novas abas</p>
+                </div>
+              </v-alert>
+            </v-card-text>
+          </v-card>
+        </v-expand-transition>
 
         <v-card v-if="selectedCandidate" class="mb-4" elevation="2" rounded>
           <v-card-title class="d-flex align-center justify-space-between">
@@ -1557,6 +1916,8 @@ const exampleVariable = ref(null);
               hide-details
               clearable
               class="rounded-input"
+              no-data-text=""
+              hide-no-data
             >
               <template #item="{ props, item }">
                 <v-list-item
@@ -1669,8 +2030,19 @@ const exampleVariable = ref(null);
                                 indeterminate
                                 size="24"
                                 color="primary"
-                                class="me-2"
+                                class="me-2 sequential-selection-btn"
                               />
+                              <v-btn
+                                v-if="showSequentialConfig"
+                                :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
+                                :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                                size="small"
+                                @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                                class="me-2 sequential-selection-btn"
+                                :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              >
+                                <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600', visibility: 'visible' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                              </v-btn>
                               <v-btn
                                 v-if="isAdmin"
                                 color="secondary"
@@ -1678,7 +2050,7 @@ const exampleVariable = ref(null);
                                 size="small"
                                 icon="ri-pencil-line"
                                 @click.stop="goToEditStation(station.id)"
-                                class="me-2"
+                                class="me-2 sequential-selection-btn"
                                 aria-label="Editar Estação"
                               />
                             </div>
@@ -1795,8 +2167,19 @@ const exampleVariable = ref(null);
                               indeterminate
                               size="24"
                               color="primary"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                             />
+                            <v-btn
+                              v-if="showSequentialConfig"
+                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
+                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              size="small"
+                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              class="me-2 sequential-selection-btn"
+                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                            >
+                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                            </v-btn>
                             <v-btn
                               v-if="isAdmin"
                               color="secondary"
@@ -1804,7 +2187,7 @@ const exampleVariable = ref(null);
                               size="small"
                               icon="ri-pencil-line"
                               @click.stop="goToEditStation(station.id)"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
                           </div>
@@ -1897,8 +2280,19 @@ const exampleVariable = ref(null);
                               indeterminate
                               size="24"
                               color="primary"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                             />
+                            <v-btn
+                              v-if="showSequentialConfig"
+                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
+                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              size="small"
+                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              class="me-2 sequential-selection-btn"
+                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                            >
+                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                            </v-btn>
                             <v-btn
                               v-if="isAdmin"
                               color="secondary"
@@ -1906,7 +2300,7 @@ const exampleVariable = ref(null);
                               size="small"
                               icon="ri-pencil-line"
                               @click.stop="goToEditStation(station.id)"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
                           </div>
@@ -1999,8 +2393,19 @@ const exampleVariable = ref(null);
                               indeterminate
                               size="24"
                               color="primary"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                             />
+                            <v-btn
+                              v-if="showSequentialConfig"
+                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
+                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              size="small"
+                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              class="me-2 sequential-selection-btn"
+                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                            >
+                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                            </v-btn>
                             <v-btn
                               v-if="isAdmin"
                               color="secondary"
@@ -2008,7 +2413,7 @@ const exampleVariable = ref(null);
                               size="small"
                               icon="ri-pencil-line"
                               @click.stop="goToEditStation(station.id)"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
                           </div>
@@ -2101,8 +2506,19 @@ const exampleVariable = ref(null);
                               indeterminate
                               size="24"
                               color="primary"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                             />
+                            <v-btn
+                              v-if="showSequentialConfig"
+                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
+                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              size="small"
+                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              class="me-2 sequential-selection-btn"
+                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                            >
+                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                            </v-btn>
                             <v-btn
                               v-if="isAdmin"
                               color="secondary"
@@ -2110,7 +2526,7 @@ const exampleVariable = ref(null);
                               size="small"
                               icon="ri-pencil-line"
                               @click.stop="goToEditStation(station.id)"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
                           </div>
@@ -2203,8 +2619,19 @@ const exampleVariable = ref(null);
                               indeterminate
                               size="24"
                               color="primary"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                             />
+                            <v-btn
+                              v-if="showSequentialConfig"
+                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
+                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              size="small"
+                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              class="me-2 sequential-selection-btn"
+                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                            >
+                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                            </v-btn>
                             <v-btn
                               v-if="isAdmin"
                               color="secondary"
@@ -2212,7 +2639,7 @@ const exampleVariable = ref(null);
                               size="small"
                               icon="ri-pencil-line"
                               @click.stop="goToEditStation(station.id)"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
                           </div>
@@ -2305,8 +2732,19 @@ const exampleVariable = ref(null);
                               indeterminate
                               size="24"
                               color="primary"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                             />
+                            <v-btn
+                              v-if="showSequentialConfig"
+                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
+                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              size="small"
+                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              class="me-2 sequential-selection-btn"
+                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                            >
+                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                            </v-btn>
                             <v-btn
                               v-if="isAdmin"
                               color="secondary"
@@ -2314,7 +2752,7 @@ const exampleVariable = ref(null);
                               size="small"
                               icon="ri-pencil-line"
                               @click.stop="goToEditStation(station.id)"
-                              class="me-2"
+                              class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
                           </div>
@@ -2572,6 +3010,84 @@ const exampleVariable = ref(null);
 .v-expansion-panel.contained-panel {
   margin-left: auto;
   margin-right: auto;
+}
+/* Estilos específicos para botões de seleção sequencial */
+.v-btn.sequential-selection-btn .v-icon {
+  color: var(--v-theme-primary) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+/* Força visibilidade dos ícones em botões outlined */
+.v-btn[variant="outlined"].sequential-selection-btn .v-icon {
+  color: var(--v-theme-primary) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+/* Força visibilidade dos ícones em botões tonal */
+.v-btn[variant="tonal"].sequential-selection-btn .v-icon {
+  color: var(--v-theme-success) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+/* Estilos específicos para tema escuro */
+.v-theme--dark .v-btn.sequential-selection-btn .v-icon {
+  color: var(--v-theme-primary) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+.v-theme--dark .v-btn[variant="outlined"].sequential-selection-btn .v-icon {
+  color: var(--v-theme-primary) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+.v-theme--dark .v-btn[variant="tonal"].sequential-selection-btn .v-icon {
+  color: var(--v-theme-success) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+/* Estilos específicos para tema claro */
+.v-theme--light .v-btn.sequential-selection-btn .v-icon {
+  color: var(--v-theme-primary) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+.v-theme--light .v-btn[variant="outlined"].sequential-selection-btn .v-icon {
+  color: var(--v-theme-primary) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+.v-theme--light .v-btn[variant="tonal"].sequential-selection-btn .v-icon {
+  color: var(--v-theme-success) !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+}
+
+/* Estilos de emergência para garantir visibilidade */
+.sequential-selection-btn .v-icon {
+  color: var(--v-theme-primary) !important; /* Cor azul padrão */
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 }
 </style>

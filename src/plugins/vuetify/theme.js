@@ -46,6 +46,14 @@ export const themes = {
       'expansion-panel-text-custom-bg': '#fafafa',
       'track-bg': '#F0F2F8',
       'chat-bg': '#F7F6FA',
+      // Adicionar cores gx que podem estar faltando
+      'gx-no-16': '#8C57FF',
+      'gx-primary': staticPrimaryColor,
+      'gx-secondary': '#8A8D93',
+      'gx-success': '#56CA00',
+      'gx-warning': '#FFB400',
+      'gx-error': '#FF4C51',
+      'gx-info': '#16B1FF',
     },
     variables: {
       'code-color': '#d400ff',
@@ -119,6 +127,14 @@ export const themes = {
       'expansion-panel-text-custom-bg': '#373350',
       'track-bg': '#474360',
       'chat-bg': '#373452',
+      // Adicionar cores gx que podem estar faltando
+      'gx-no-16': '#8C57FF',
+      'gx-primary': staticPrimaryColor,
+      'gx-secondary': '#8A8D93',
+      'gx-success': '#56CA00',
+      'gx-warning': '#FFB400',
+      'gx-error': '#FF4C51',
+      'gx-info': '#16B1FF',
     },
     variables: {
       'code-color': '#d400ff',

@@ -90,6 +90,7 @@ export function isAdmin() {
   // Lista de UIDs de administradores
   const adminUids = [
     'KiSITAxXMAY5uU3bOPW5JMQPent2',
+    'anmxavJdQdgZ16bDsKKEKuaM4FW2',
     'RtfNENOqMUdw7pvgeeaBVSuin662',
     '24aZT7dURHd9r9PcCZe5U1WHt0A3',
     'lNwhdYgMwLhS1ZyufRzw9xLD10y1'

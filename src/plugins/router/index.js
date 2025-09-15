@@ -30,7 +30,18 @@ const router = createRouter({
 
 // Guarda de Navegação Global (Async)
 router.beforeEach(async (to, from, next) => {
-  await waitForAuth()
+  const urlParams = new URLSearchParams(window.location.search);
+  const useSimulatedUser = urlParams.get('sim_user') === 'true';
+
+  // Se estivermos em modo DEV e usando o usuário simulado, pulamos todas as verificações.
+  if (import.meta.env.DEV && useSimulatedUser) {
+    console.log('[beforeEach] Acesso permitido para usuário simulado.');
+    next();
+    return;
+  }
+
+  // Lógica original para produção ou para você (usuário real) em DEV
+  await waitForAuth();
   if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!currentUser.value) {
       next('/login')
@@ -75,13 +86,32 @@ router.beforeEach(async (to, from, next) => {
 
 // Atualiza status do usuário conforme a rota
 router.afterEach(async (to, from) => {
-  await waitForAuth()
-  if (!currentUser.value?.uid) return
-  const ref = doc(db, 'usuarios', currentUser.value.uid)
-  if (to.name === 'simulation-view' || to.name === 'station-simulation' || to.path.includes('/simulate')) {
-    await updateDoc(ref, { status: 'treinando' })
-  } else {
-    await updateDoc(ref, { status: 'disponivel' })
+  const urlParams = new URLSearchParams(window.location.search);
+  const useSimulatedUser = urlParams.get('sim_user') === 'true';
+
+  // Se estivermos em modo DEV e usando o usuário simulado, não fazemos a atualização no DB.
+  if (import.meta.env.DEV && useSimulatedUser) {
+    console.log('[afterEach] Atualização de status pulada para usuário simulado.');
+    return;
+  }
+
+  // Lógica original para produção ou para você (usuário real) em DEV
+  await waitForAuth();
+
+  // Verificações adicionais para garantir que não tentemos operar em um DB nulo ou sem usuário.
+  if (!db || !currentUser.value?.uid) {
+    return;
+  }
+
+  try {
+    const ref = doc(db, 'usuarios', currentUser.value.uid);
+    if (to.name === 'simulation-view' || to.name === 'station-simulation' || to.path.includes('/simulate')) {
+      await updateDoc(ref, { status: 'treinando' });
+    } else {
+      await updateDoc(ref, { status: 'disponivel' });
+    }
+  } catch (error) {
+    console.error(`Falha ao atualizar o status do usuário ${currentUser.value?.uid}:`, error);
   }
 })
 

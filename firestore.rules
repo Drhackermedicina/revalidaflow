@@ -12,33 +12,33 @@ service cloud.firestore {
     match /estacoes_clinicas/{stationId} {
       // Leitura para todos os usuários autenticados
       allow read: if request.auth != null;
-      // Escrita APENAS para administradores
-      allow write: if request.auth != null && isAdmin();
+      // Escrita para administradores ou usuário especial (agente)
+      allow write: if request.auth != null && hasFullAccess();
     }
 
     // === ACESSO APENAS PARA USUÁRIOS AUTENTICADOS ===
     // Acesso público removido para reduzir custos desnecessários
     
-    // === COLEÇÕES ADMINISTRATIVAS - APENAS ADMINS ===
+    // === COLEÇÕES ADMINISTRATIVAS - ADMINS E USUÁRIO ESPECIAL ===
     match /admin_logs/{logId} {
-      allow read, write: if request.auth != null && isAdmin();
-    }
-    
-    match /system_config/{configId} {
-      allow read, write: if request.auth != null && isAdmin();
+      allow read, write: if request.auth != null && hasFullAccess();
     }
 
-    // === QUESTÕES - Leitura para todos, escrita para Admins/Serviço, comentários para usuários ===
+    match /system_config/{configId} {
+      allow read, write: if request.auth != null && hasFullAccess();
+    }
+
+    // === QUESTÕES - Leitura para todos, escrita para Admins/Serviço/Agente, comentários para usuários ===
     match /questoes/{questaoId} {
       allow read: if request.auth != null;
 
-      // Criação e deleção apenas por Admins ou Conta de Serviço
-      allow create, delete: if request.auth != null && (isAdmin() || request.auth.token.email != null);
+      // Criação e deleção por Admins, Conta de Serviço ou usuário especial (agente)
+      allow create, delete: if request.auth != null && (hasFullAccess() || request.auth.token.email != null);
 
-      // Atualização: Admins/Serviço podem mudar tudo. Usuários só podem adicionar comentários.
-      allow update: if request.auth != null && 
+      // Atualização: Admins/Serviço/Agente podem mudar tudo. Usuários só podem adicionar comentários.
+      allow update: if request.auth != null &&
                       (
-                        (isAdmin() || request.auth.token.email != null) ||
+                        (hasFullAccess() || request.auth.token.email != null) ||
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments'])
                       );
     }
@@ -93,20 +93,34 @@ service cloud.firestore {
     
     // === REGRA GERAL PARA OUTRAS COLEÇÕES ===
     match /{collection}/{docId} {
-      allow read, write: if request.auth != null && 
-        !(collection == 'admin_logs' || collection == 'system_config');
+      allow read, write: if request.auth != null &&
+        !(collection == 'admin_logs' || collection == 'system_config') ||
+        (request.auth != null && hasFullAccess());
     }
     
     // === FUNÇÕES DE CONTROLE ===
-    
+
     // Função para verificar se é administrador
     function isAdmin() {
       return request.auth != null && request.auth.uid in [
         'KiSITAxXMAY5uU3bOPW5JMQPent2',  // Taís Zocche
         'RtfNENOqMUdw7pvgeeaBVSuin662',  // Usuário atual
+        'anmxavJdQdgZ16bDsKKEKuaM4FW2',  // Admin 2
         '24aZT7dURHd9r9PcCZe5U1WHt0A3',  // Admin 3
-        'lNwhdYgMwLhS1ZyufRzw9xLD10y1'   // stefferson ferraz
+        'lNwhdYgMwLhS1ZyufRzw9xLD10y1',  // stefferson ferraz
+        'CUdflZgyx5SOROyjbvZ1WpIVT2w2'           // Usuário especial para agentes VS Code
       ];
+    }
+
+    // Função para verificar se é usuário especial (agente)
+    function isAgentUser() {
+      return request.auth != null &&
+             request.auth.token.email == 'agent@revalidafacil.com';
+    }
+
+    // Função para verificar se tem acesso irrestrito (admin ou agente)
+    function hasFullAccess() {
+      return isAdmin() || isAgentUser();
     }
   }
 }

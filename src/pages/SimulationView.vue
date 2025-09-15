@@ -116,6 +116,13 @@ const checklistData = ref(null);
 // Refs para controle de UI e estado
 const isLoading = ref(true);
 const errorMessage = ref('');
+
+// --- Refs para Simulação Sequencial ---
+const isSequentialMode = ref(false);
+const sequenceId = ref(null);
+const sequenceIndex = ref(0);
+const totalSequentialStations = ref(0);
+const sequentialData = ref(null);
 // Socket removido - dependência não essencial
 let socket = ref(null);
 let connectionStatus = ref('');
@@ -219,6 +226,7 @@ const chatSentSuccess = ref(false);
 const isAdmin = computed(() => {
   return currentUser.value && (
     currentUser.value.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
+    currentUser.value.uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
     currentUser.value.uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
     currentUser.value.uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3' ||
     currentUser.value.uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
@@ -252,9 +260,9 @@ const selectedDurationMinutes = ref(10);
 const backendActivated = ref(false);
 const localSessionId = ref(null); // Temporary session ID for view mode
 
-// --- Função Helper para Formatar Tempo ---
 
-// --- Função para Tocar Som (Início/Fim) ---
+
+
 function playSoundEffect() {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -275,13 +283,12 @@ function playSoundEffect() {
 
 
 
-// --- NOVO: Função para Formatar a Descrição do Item do PEP para Exibição ---
-
-// REMOVIDO: A computed property `parsedDescriptions` e a função `parseItemDescription` original
-// foram removidas pois não são mais necessárias para o formato de exibição desejado.
 
 
-// --- Função para Buscar Dados da Estação e Checklist ---
+
+
+
+
 async function fetchSimulationData(currentStationId) {
   
   if (!currentStationId) {
@@ -391,7 +398,7 @@ async function fetchSimulationData(currentStationId) {
   }
 }
 
-// --- Função para limpar candidato selecionado ---
+
 function clearSelectedCandidate() {
   try {
     sessionStorage.removeItem('selectedCandidate');
@@ -400,7 +407,7 @@ function clearSelectedCandidate() {
   }
 }
 
-// --- Função para enviar link via chat privado ---
+
 async function sendLinkViaPrivateChat() {
   if (!selectedCandidateForSimulation.value || !inviteLinkToShow.value) {
     loadSelectedCandidate();
@@ -449,7 +456,7 @@ async function sendLinkViaPrivateChat() {
   }
 }
 
-// --- Lógica do WebSocket ---
+
 function connectWebSocket() {
   if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) { console.error("SOCKET: Dados essenciais faltando para conexão.");
     return; }
@@ -643,7 +650,8 @@ function connectWebSocket() {
       
       if (typeof data.totalScore === 'number') {
         candidateReceivedTotalScore.value = data.totalScore;
-        totalScore.value = data.totalScore;
+        // totalScore é computed, não pode ser modificado diretamente
+        // totalScore.value = data.totalScore; // REMOVIDO
       }
     }
   });
@@ -686,9 +694,29 @@ function connectWebSocket() {
 
   // Listener para convites internos de simulação
   socket.value.on('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
+  
+  // Listener para confirmação de submissão de avaliação
+  socket.value.on('SUBMISSION_CONFIRMED', (data) => {
+    if (data.success) {
+      console.log('[SUBMIT] Confirmação recebida do servidor:', data);
+      // Marcar como submetido se ainda não estiver
+      if (!evaluationSubmittedByCandidate.value) {
+        evaluationSubmittedByCandidate.value = true;
+        showNotification('Avaliação confirmada pelo servidor!', 'success');
+      }
+    }
+  });
+  
+  // Listener para notificar o avaliador sobre submissão do candidato
+  socket.value.on('CANDIDATE_SUBMITTED_EVALUATION', (data) => {
+    if (userRole.value === 'actor' || userRole.value === 'evaluator') {
+      console.log('[SUBMIT] Candidato submeteu avaliação:', data);
+      showNotification(`Candidato submeteu avaliação final. Nota: ${data.totalScore?.toFixed(2) || 'N/A'}`, 'info');
+    }
+  });
 }
 
-// --- Função para carregar candidato selecionado ---
+
 function loadSelectedCandidate() {
   console.log('[DEBUG] loadSelectedCandidate: Iniciando carregamento do candidato');
   const candidateData = sessionStorage.getItem('selectedCandidate');
@@ -708,12 +736,12 @@ function loadSelectedCandidate() {
   }
 }
 
-// Refs para controlar execução múltipla
+
 const isSettingUpSession = ref(false);
 
-// --- Função Setup Session ---
+
 function setupSession() {
-  // CORREÇÃO: Previne execuções múltiplas simultâneas
+  
   if (isSettingUpSession.value) {
     // console.log("SETUP_SESSION: ⚠️ Já está em execução, ignorando chamada duplicada");
     return;
@@ -730,6 +758,34 @@ function setupSession() {
   stationId.value = route.params.id;
   sessionId.value = route.query.sessionId; // CORREÇÃO: de route.query.session para route.query.sessionId
   userRole.value = route.query.role || 'evaluator'; // DEBUG: Define como 'evaluator' se não especificado
+
+  // --- Configuração da Simulação Sequencial ---
+  isSequentialMode.value = route.query.sequential === 'true';
+  sequenceId.value = route.query.sequenceId || null;
+  sequenceIndex.value = parseInt(route.query.sequenceIndex) || 0;
+  totalSequentialStations.value = parseInt(route.query.totalStations) || 0;
+
+  // Auto-ready para navegação sequencial
+  const shouldAutoReady = route.query.autoReady === 'true';
+
+  if (isSequentialMode.value) {
+    console.log('[SEQUENTIAL] Modo sequencial detectado:', {
+      sequenceId: sequenceId.value,
+      currentIndex: sequenceIndex.value,
+      totalStations: totalSequentialStations.value
+    });
+
+    // Carregar dados da sessão sequencial do sessionStorage
+    const savedSequentialData = sessionStorage.getItem('sequentialSession');
+    if (savedSequentialData) {
+      try {
+        sequentialData.value = JSON.parse(savedSequentialData);
+        console.log('[SEQUENTIAL] Dados da sessão sequencial carregados:', sequentialData.value);
+      } catch (error) {
+        console.error('[SEQUENTIAL] Erro ao carregar dados da sessão sequencial:', error);
+      }
+    }
+  }
 
 
   inviteLinkToShow.value = '';
@@ -803,18 +859,29 @@ function setupSession() {
     if (sessionId.value) {
       console.log("[SETUP SESSION] sessionId presente, conectando WebSocket...");
       connectWebSocket();
+
+      // Auto-ready para navegação sequencial
+      if (shouldAutoReady && isActorOrEvaluator.value) {
+        console.log('[SEQUENTIAL] Auto-ready ativado para navegação sequencial');
+        // Aguardar um pouco para a conexão WebSocket ser estabelecida
+        setTimeout(() => {
+          if (!myReadyState.value && socket.value?.connected) {
+            sendReady();
+          }
+        }, 1000);
+      }
     }
   });
 }
 
-// --- Computed Property para Soma Automática das Notas ---
+
 const totalScore = computed(() => {
   return Object.values(evaluationScores.value).reduce((sum, score) => {
     const numScore = parseFloat(score);
     return sum + (isNaN(numScore) ? 0 : numScore);
   }, 0);
 });
-// --- Computed Property e Watch para 'bothParticipantsReady' ---
+
 const bothParticipantsReady = computed(() => myReadyState.value && partnerReadyState.value && !!partner.value);
 watch(bothParticipantsReady, (newValue) => {
   if (newValue && !backendActivated.value) {
@@ -831,8 +898,8 @@ watch(bothParticipantsReady, (newValue) => {
     }
   }
 });
-// --- Hooks Ciclo de Vida ---
-// CORREÇÃO: Consolidando todos os onMounted em um único para evitar execução múltipla
+
+
 onMounted(() => {
   console.log('[DEBUG] onMounted: Iniciando setup da simulação');
   console.log('[DEBUG] onMounted: userRole antes do setup:', userRole.value);
@@ -1024,7 +1091,7 @@ async function generateInviteLinkWithDuration() {
   }
 }
 
-// --- CONTROLE DE LINK DO MEET PARA O CANDIDATO ---
+
 const candidateMeetLink = ref('');
 const candidateOpenedMeet = ref(false);
 
@@ -1044,8 +1111,8 @@ function openCandidateMeet() {
   }
 }
 
-// CORREÇÃO: Removendo onMounted duplicado - já consolidado acima
-// Atualiza ao montar e ao mudar rota - MOVIDO PARA O onMounted PRINCIPAL
+
+
 // onMounted(() => {
 //   // console.log("SimulationView Montado. Configurando sessão inicial...");
 //   setupSession();
@@ -1199,82 +1266,95 @@ function handleStartSimulationClick() {
 }
 
 async function submitEvaluation() {
+  console.log('[DEBUG] submitEvaluation: Iniciando submissão');
+  console.log('[DEBUG] submitEvaluation: userRole =', userRole.value);
+  console.log('[DEBUG] submitEvaluation: socket.connected =', socket.value?.connected);
+  console.log('[DEBUG] submitEvaluation: sessionId =', sessionId.value);
+  console.log('[DEBUG] submitEvaluation: evaluationScores =', evaluationScores.value);
+  
   if (userRole.value !== 'candidate') {
+    console.error('[DEBUG] submitEvaluation: ERRO - Não é candidato');
     alert("Apenas o candidato pode submeter avaliação.");
     return;
   }
   if (!socket.value?.connected || !sessionId.value) {
+    console.error('[DEBUG] submitEvaluation: ERRO - Não conectado ou sem sessionId');
     alert("Não conectado a uma sessão válida.");
     return;
   }
-  if (Object.keys(evaluationScores.value).length === 0) {
-    alert("Nenhuma pontuação foi registrada.");
+  
+  // Verificar se é o candidato que tem os scores (recebidos do avaliador)
+  const scoresToSubmit = candidateReceivedScores.value && Object.keys(candidateReceivedScores.value).length > 0
+    ? candidateReceivedScores.value
+    : evaluationScores.value;
+    
+  if (Object.keys(scoresToSubmit).length === 0) {
+    console.error('[DEBUG] submitEvaluation: ERRO - Nenhuma pontuação registrada');
+    alert("Nenhuma pontuação foi registrada pelo avaliador.");
     return;
   }
 
-  socket.value.emit('CANDIDATE_SUBMIT_EVALUATION', {
-    sessionId: sessionId.value,
-    stationId: stationId.value,
-    candidateId: currentUser.value?.uid,
-    scores: evaluationScores.value,
-    totalScore: totalScore.value
-  });
+  console.log('[DEBUG] submitEvaluation: Scores a submeter =', scoresToSubmit);
+  console.log('[DEBUG] submitEvaluation: Total score =', candidateReceivedTotalScore.value || totalScore.value);
+  console.log('[DEBUG] submitEvaluation: Emitindo CANDIDATE_SUBMIT_EVALUATION');
   
-  if (pepReleasedToCandidate.value && socket.value?.connected) {
-    socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
+  try {
+    socket.value.emit('CANDIDATE_SUBMIT_EVALUATION', {
       sessionId: sessionId.value,
-      scores: evaluationScores.value,
-      totalScore: totalScore.value
+      stationId: stationId.value,
+      candidateId: currentUser.value?.uid,
+      scores: scoresToSubmit,
+      totalScore: candidateReceivedTotalScore.value || totalScore.value
     });
+    console.log('[DEBUG] submitEvaluation: Evento emitido com sucesso');
+    
+    // Marcar como submetido
+    evaluationSubmittedByCandidate.value = true;
+    console.log('[DEBUG] submitEvaluation: evaluationSubmittedByCandidate marcado como true');
+  } catch (error) {
+    console.error('[DEBUG] submitEvaluation: ERRO ao emitir evento:', error);
+    alert('Erro ao submeter avaliação. Veja o console para detalhes.');
+    return;
   }
 
   // --- Integração Firestore: registrar avaliação NO CANDIDATO ---
-  // Estratégia: tentar todas as fontes possíveis para garantir o UID do candidato
-  let candidateUid = null;
-  // 1. partner (websocket)
-  if (partner.value?.userId) candidateUid = partner.value.userId;
-  // 2. localStorage
-  if (!candidateUid) {
-    try {
-      const selectedCandidate = JSON.parse(sessionStorage.getItem('selectedCandidate') || '{}');
-      if (selectedCandidate && selectedCandidate.uid) {
-        candidateUid = selectedCandidate.uid;
-      }
-    } catch (err) {
-    }
-  }
-  // 3. selectedCandidateForSimulation ref
-  if (!candidateUid && selectedCandidateForSimulation.value?.uid) {
-    candidateUid = selectedCandidateForSimulation.value.uid;
-  }
-  // 4. route.query (caso venha por URL)
-  if (!candidateUid && route.query.candidateUid) {
-    candidateUid = route.query.candidateUid;
-  }
-
+  // O candidato usa seu próprio UID
+  const candidateUid = currentUser.value?.uid;
+  
   // Validação final
   if (!candidateUid) {
-    alert('Não foi possível identificar o candidato para registrar a avaliação. Por favor, selecione o candidato corretamente antes de iniciar a simulação.');
+    console.error('[DEBUG] submitEvaluation: ERRO - UID do candidato não disponível');
+    alert('Não foi possível identificar o candidato para registrar a avaliação.');
     return;
   }
 
   // Registro da avaliação
-  if (stationId.value && typeof totalScore.value === 'number') {
+  const finalScore = candidateReceivedTotalScore.value || totalScore.value;
+  if (stationId.value && typeof finalScore === 'number') {
     try {
       const avaliacaoData = {
         uid: candidateUid,
         idEstacao: stationId.value,
-        nota: totalScore.value,
+        nota: finalScore,
         data: new Date(),
         nomeEstacao: stationData.value?.tituloEstacao || 'Estação Clínica',
         especialidade: stationData.value?.especialidade || 'Geral',
         origem: stationData.value?.origem || 'SIMULACAO'
       };
+      console.log('[DEBUG] submitEvaluation: Registrando no Firestore:', avaliacaoData);
       await registrarConclusaoEstacao(avaliacaoData);
+      console.log('[DEBUG] submitEvaluation: Avaliação registrada com sucesso no Firestore');
+      
+      // Mostrar notificação de sucesso
+      showNotification('Avaliação submetida com sucesso!', 'success');
     } catch (err) {
-      alert('Erro ao registrar avaliação do candidato. Veja o console para detalhes.');
+      console.error('[DEBUG] submitEvaluation: ERRO ao registrar no Firestore:', err);
+      alert('Erro ao registrar avaliação. Veja o console para detalhes.');
     }
   } else {
+    console.error('[DEBUG] submitEvaluation: Dados insuficientes para registrar');
+    console.error('[DEBUG] submitEvaluation: stationId =', stationId.value);
+    console.error('[DEBUG] submitEvaluation: finalScore =', finalScore);
     alert('Dados insuficientes para registrar avaliação.');
   }
 }
@@ -1659,6 +1739,20 @@ watch(evaluationScores, (newScores) => {
   }
 }, { deep: true });
 
+// Watcher para liberar PEP automaticamente ao final da simulação
+watch(simulationEnded, (newValue) => {
+  if (
+    newValue && // Simulação terminou
+    (userRole.value === 'actor' || userRole.value === 'evaluator') && // É ator/avaliador
+    !pepReleasedToCandidate.value && // PEP ainda não foi liberado
+    socket.value?.connected && // Socket conectado
+    sessionId.value // Tem sessionId
+  ) {
+    console.log('[AUTO_RELEASE] Liberando PEP automaticamente ao final da simulação');
+    releasePepToCandidate();
+  }
+});
+
 // Funções para marcar/desmarcar partes do roteiro
 function toggleScriptContext(idx, event) {
   // Impedir a propagação do evento para evitar múltiplos cliques
@@ -1773,6 +1867,115 @@ function handleClick(event) {
 
 onUnmounted(() => {
   document.removeEventListener('toggleMark', (e) => toggleMark(e.detail));
+});
+
+// --- FUNÇÕES PARA SIMULAÇÃO SEQUENCIAL ---
+function setupSequentialNavigation() {
+  console.log('[SEQUENTIAL] Configurando navegação sequencial');
+
+  // Adicionar botões de navegação ou listeners específicos se necessário
+  // Por ora, apenas logs para debugging
+  if (sequentialData.value && sequentialData.value.sequence) {
+    const currentStation = sequentialData.value.sequence[sequenceIndex.value];
+    console.log('[SEQUENTIAL] Estação atual:', currentStation);
+    console.log('[SEQUENTIAL] Progresso:', `${sequenceIndex.value + 1}/${totalSequentialStations.value}`);
+  }
+}
+
+function goToNextSequentialStation() {
+  if (!isSequentialMode.value || !sequentialData.value) return;
+
+  const nextIndex = sequenceIndex.value + 1;
+  if (nextIndex < totalSequentialStations.value) {
+    // Atualizar sessionStorage
+    const updatedData = { ...sequentialData.value };
+    updatedData.currentIndex = nextIndex;
+    sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData));
+
+    // Navegar para próxima estação
+    const nextStation = sequentialData.value.sequence[nextIndex];
+    if (nextStation) {
+      const routeData = router.resolve({
+        path: `/app/simulation/${nextStation.id}`,
+        query: {
+          role: 'actor',
+          sequential: 'true',
+          sequenceId: sequenceId.value,
+          sequenceIndex: nextIndex,
+          totalStations: totalSequentialStations.value,
+          autoReady: 'true'  // Indica que deve ir direto para o estado "pronto"
+        }
+      });
+
+      // Abrir em nova aba ou substituir aba atual
+      window.location.href = routeData.href;
+    }
+  } else {
+    alert('Simulação sequencial concluída!');
+    // Limpar dados da sessão sequencial
+    sessionStorage.removeItem('sequentialSession');
+    router.push('/app/stations');
+  }
+}
+
+function goToPreviousSequentialStation() {
+  if (!isSequentialMode.value || !sequentialData.value) return;
+
+  const prevIndex = sequenceIndex.value - 1;
+  if (prevIndex >= 0) {
+    // Atualizar sessionStorage
+    const updatedData = { ...sequentialData.value };
+    updatedData.currentIndex = prevIndex;
+    sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData));
+
+    // Navegar para estação anterior
+    const prevStation = sequentialData.value.sequence[prevIndex];
+    if (prevStation) {
+      const routeData = router.resolve({
+        path: `/app/simulation/${prevStation.id}`,
+        query: {
+          role: 'actor',
+          sequential: 'true',
+          sequenceId: sequenceId.value,
+          sequenceIndex: prevIndex,
+          totalStations: totalSequentialStations.value
+        }
+      });
+
+      window.location.href = routeData.href;
+    }
+  }
+}
+
+function exitSequentialMode() {
+  // Limpar dados da sessão sequencial
+  sessionStorage.removeItem('sequentialSession');
+  router.push('/app/stations');
+}
+
+// Propriedades computadas para navegação sequencial
+const canGoToPrevious = computed(() => {
+  return isSequentialMode.value && sequenceIndex.value > 0;
+});
+
+const canGoToNext = computed(() => {
+  return isSequentialMode.value && sequenceIndex.value < totalSequentialStations.value - 1;
+});
+
+const sequentialProgress = computed(() => {
+  if (!isSequentialMode.value || totalSequentialStations.value === 0) return { current: 0, total: 0, percentage: 0 };
+
+  const current = sequenceIndex.value + 1;
+  const total = totalSequentialStations.value;
+  const percentage = Math.round((current / total) * 100);
+
+  return { current, total, percentage };
+});
+
+const currentSequentialStation = computed(() => {
+  if (!isSequentialMode.value || !sequentialData.value || !sequentialData.value.sequence) return null;
+
+  return sequentialData.value.sequence[sequenceIndex.value] || null;
 });
 
 // --- NOVO: Comunicação Google Meet ---
@@ -1957,7 +2160,80 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
 </script>
 
 <template>
-  <div 
+  <!-- Barra de Navegação Sequencial -->
+  <v-app-bar
+    v-if="isSequentialMode"
+    color="primary"
+    density="compact"
+    elevation="2"
+    style="position: relative; margin-bottom: 16px;"
+  >
+    <v-container fluid class="d-flex align-center justify-space-between pa-2">
+      <div class="d-flex align-center">
+        <v-icon class="me-2">ri-play-list-line</v-icon>
+        <span class="text-subtitle-2 font-weight-bold">Simulação Sequencial</span>
+        <v-divider vertical class="mx-3" />
+        <span class="text-body-2">
+          Estação {{ sequentialProgress.current }} de {{ sequentialProgress.total }}
+        </span>
+        <v-progress-linear
+          :model-value="sequentialProgress.percentage"
+          color="white"
+          height="4"
+          class="ml-3"
+          style="width: 120px;"
+        />
+      </div>
+
+      <div class="d-flex align-center gap-2">
+        <v-btn
+          v-if="canGoToPrevious"
+          icon
+          size="small"
+          variant="text"
+          @click="goToPreviousSequentialStation"
+          :disabled="!canGoToPrevious"
+        >
+          <v-icon>ri-arrow-left-line</v-icon>
+          <v-tooltip activator="parent" location="bottom">Estação Anterior</v-tooltip>
+        </v-btn>
+
+        <v-chip
+          color="white"
+          variant="elevated"
+          size="small"
+          class="text-primary font-weight-bold"
+        >
+          {{ sequentialProgress.percentage }}%
+        </v-chip>
+
+        <v-btn
+          v-if="canGoToNext"
+          icon
+          size="small"
+          variant="text"
+          @click="goToNextSequentialStation"
+          :disabled="!canGoToNext"
+        >
+          <v-icon>ri-arrow-right-line</v-icon>
+          <v-tooltip activator="parent" location="bottom">Próxima Estação</v-tooltip>
+        </v-btn>
+
+        <v-btn
+          icon
+          size="small"
+          variant="text"
+          @click="exitSequentialMode"
+          color="warning"
+        >
+          <v-icon>ri-close-line</v-icon>
+          <v-tooltip activator="parent" location="bottom">Sair do Modo Sequencial</v-tooltip>
+        </v-btn>
+      </div>
+    </v-container>
+  </v-app-bar>
+
+  <div
     :class="[
       'simulation-page-container',
       isDarkTheme ? 'simulation-page-container--dark' : 'simulation-page-container--light'
@@ -1981,18 +2257,6 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
       </template>
     </VSnackbar>
 
-    <!-- Botão flutuante compacto para impressos -->
-    <VBtn
-      v-if="isActorOrEvaluator && stationData?.materiaisDisponiveis?.impressos?.length > 0"
-      icon="ri-file-text-line"
-      size="small"
-      class="impressos-floating-button-compact"
-      elevation="4"
-      color="info"
-      :variant="impressosModalOpen ? 'flat' : 'elevated'"
-      @click.stop="impressosModalOpen = !impressosModalOpen"
-      :title="impressosModalOpen ? 'Fechar Impressos' : 'Gerenciar Impressos'"
-    ></VBtn>
     
     <!-- Conteúdo principal -->
     <div v-if="isLoading" class="d-flex justify-center align-center" style="height: 80vh;">
@@ -2111,17 +2375,6 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                 @click="manuallyEndSimulation"
               >
                 Encerrar
-              </VBtn>
-              <!-- Botão para abrir modal de impressos -->
-              <VBtn
-                v-if="isActorOrEvaluator && stationData?.materiaisDisponiveis?.impressos?.length > 0"
-                color="info"
-                variant="tonal"
-                prepend-icon="ri-file-text-line"
-                @click="impressosModalOpen = true"
-                title="Gerenciar Impressos"
-              >
-                Impressos
               </VBtn>
             </div>
           </div>
@@ -2447,7 +2700,6 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                   </div>
                   <VExpandTransition>
                     <div v-if="actorVisibleImpressoContent[impresso.idImpresso]" class="mt-2 pa-3 border rounded bg-grey-lighten-4">
-                      <h5 class="text-h6 mb-2">{{ impresso.tituloImpresso }}</h5>
                       <div v-if="impresso.tipoConteudo === 'texto_simples'" v-html="impresso.conteudo.texto" />
                       <div v-else-if="impresso.tipoConteudo === 'imagem_com_texto'">
                         <p v-if="impresso.conteudo.textoDescritivo" v-html="impresso.conteudo.textoDescritivo"></p>
@@ -2467,7 +2719,13 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                           <div v-for="(secao, idxS) in impresso.conteudo.secoes" :key="`actor-prev-sec-${impresso.idImpresso}-${idxS}`">
                             <h6 class="text-subtitle-1 font-weight-bold mt-2" v-if="secao.tituloSecao">{{ secao.tituloSecao }}</h6>
                             <div class="chave-valor-list">
-                                <div v-for="(itemSec, idxI) in secao.itens" :key="`actor-prev-item-${impresso.idImpresso}-${idxS}-${idxI}`" class="chave-valor-item">
+                                <!-- Filtra itens que não sejam duplicações do título da seção -->
+                                <div v-for="(itemSec, idxI) in (secao.itens || []).filter(item => {
+                                  if (!item.chave || !secao.tituloSecao) return true;
+                                  const tituloNormalizado = secao.tituloSecao.trim().toLowerCase();
+                                  const chaveNormalizada = item.chave.trim().toLowerCase();
+                                  return chaveNormalizada !== tituloNormalizado;
+                                })" :key="`actor-prev-item-${impresso.idImpresso}-${idxS}-${idxI}`" class="chave-valor-item">
                                     <strong>{{ itemSec.chave }}:</strong> <span v-html="itemSec.valor"></span>
                                 </div>
                             </div>
@@ -2792,7 +3050,13 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                                  <div v-for="(secao, idxS) in impresso.conteudo.secoes" :key="`cand-sec-${impresso.idImpresso}-${idxS}`">
                                      <h6 class="text-subtitle-1 font-weight-bold mt-2" v-if="secao.tituloSecao">{{ secao.tituloSecao }}</h6>
                                      <div class="chave-valor-list">
-                                         <div v-for="(itemSec, idxI) in secao.itens" :key="`cand-item-${impresso.idImpresso}-${idxS}-${idxI}`" class="chave-valor-item">
+                                         <!-- Filtra itens que não sejam duplicações do título da seção -->
+                                         <div v-for="(itemSec, idxI) in (secao.itens || []).filter(item => {
+                                           if (!item.chave || !secao.tituloSecao) return true;
+                                           const tituloNormalizado = secao.tituloSecao.trim().toLowerCase();
+                                           const chaveNormalizada = item.chave.trim().toLowerCase();
+                                           return chaveNormalizada !== tituloNormalizado;
+                                         })" :key="`cand-item-${impresso.idImpresso}-${idxS}-${idxI}`" class="chave-valor-item">
                                              <strong>{{ itemSec.chave }}:</strong> <span v-html="itemSec.valor"></span>
                                          </div>
                                      </div>
@@ -3035,6 +3299,57 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
            </div>
          </VCol>
  
+         <!-- Card de Navegação Sequencial (para ator/avaliador após submissão) -->
+         <VCol v-if="isSequentialMode && isActorOrEvaluator && simulationEnded && evaluationSubmittedByCandidate" cols="12">
+           <VCard
+             :class="[
+               'mb-6 sequential-navigation-card',
+               isDarkTheme ? 'sequential-navigation-card--dark' : 'sequential-navigation-card--light'
+             ]"
+           >
+             <VCardItem>
+               <VCardTitle class="d-flex align-center">
+                 <VIcon color="primary" icon="ri-route-line" size="large" class="me-2" />
+                 Navegação Sequencial
+               </VCardTitle>
+             </VCardItem>
+             <VCardText>
+               <VAlert variant="tonal" color="success" class="mb-4">
+                 <div class="d-flex align-center">
+                   <VIcon icon="ri-checkbox-circle-line" class="me-2" />
+                   <div>
+                     <div class="font-weight-bold">Estação Concluída</div>
+                     <div class="text-body-2">O candidato submeteu a avaliação. Você pode prosseguir para a próxima estação.</div>
+                   </div>
+                 </div>
+               </VAlert>
+
+               <div class="text-center">
+                 <VBtn
+                   v-if="canGoToNext"
+                   color="primary"
+                   size="large"
+                   prepend-icon="ri-arrow-right-line"
+                   @click="goToNextSequentialStation"
+                   class="mb-3"
+                 >
+                   Próxima Estação ({{ sequenceIndex + 2 }}/{{ totalSequentialStations }})
+                 </VBtn>
+
+                 <VBtn
+                   v-else
+                   color="success"
+                   size="large"
+                   prepend-icon="ri-check-line"
+                   @click="$router.push('/app/stations')"
+                 >
+                   Finalizar Sequência
+                 </VBtn>
+               </div>
+             </VCardText>
+           </VCard>
+         </VCol>
+
          <!-- Coluna Direita Fixa (Sidebar do Candidato) -->
          <VCol v-if="isCandidate" cols="12" md="4">
              <div class="candidate-sidebar">
@@ -3102,6 +3417,19 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
          </VCardActions>
        </VCard>
      </VDialog>
+
+     <!-- Botão flutuante lateral para gerenciar impressos -->
+     <VBtn
+       v-if="isActorOrEvaluator && stationData?.materiaisDisponiveis?.impressos?.length > 0"
+       class="impressos-floating-button-compact"
+       icon
+       color="info"
+       variant="tonal"
+       @click="impressosModalOpen = true"
+       title="Gerenciar Impressos"
+     >
+       <VIcon icon="ri-file-text-line" />
+     </VBtn>
  
      <!-- Snackbar de Notificação -->
      <VSnackbar v-model="showNotificationSnackbar" :color="notificationColor" timeout="5000">
@@ -4310,5 +4638,24 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
 .impresso-control-item:last-child {
   border-bottom: none !important;
   margin-bottom: 0 !important;
+}
+
+/* Estilos para o card de navegação sequencial */
+.sequential-navigation-card--light {
+  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%) !important;
+  border: 2px solid rgba(25, 118, 210, 0.1) !important;
+}
+
+.sequential-navigation-card--dark {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+  border: 2px solid rgba(144, 202, 249, 0.2) !important;
+}
+
+.sequential-navigation-card .v-card-item {
+  padding-bottom: 8px !important;
+}
+
+.sequential-navigation-card .v-alert {
+  border-radius: 12px !important;
 }
 </style>

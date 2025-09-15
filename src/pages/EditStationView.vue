@@ -5,7 +5,8 @@ const props = defineProps({
 })
 
 import { currentUser } from '@/plugins/auth.js';
-import { db, storage, testStorageConnection, getDownloadURL, storageRef, uploadBytes } from '@/plugins/firebase.js';
+import { db, storage, testStorageConnection } from '@/plugins/firebase.js';
+import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import imageCompression from 'browser-image-compression';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -579,6 +580,7 @@ const isAdmin = computed(() => {
   const uid = (currentUser.value.uid || '').trim();
   return (
     uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
+    uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
     uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
     uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3' ||
     uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
@@ -1283,13 +1285,18 @@ function construirObjetoEstacao() {
                   laudo: currentConteudo.laudo?.trim() || ''
               };
           } else if (imp.tipoConteudo === 'lista_chave_valor_secoes') {
-              const secoesTratadas = (Array.isArray(currentConteudo.secoes) ? currentConteudo.secoes : []).map(sec => ({
-                  tituloSecao: sec.tituloSecao?.trim() || '',
-                  itens: (Array.isArray(sec.itens) ? sec.itens : []).map(it => ({
-                      chave: it.chave?.trim() || '',
-                      valor: it.valor?.trim() || ''
-                  })).filter(it => it.chave || it.valor)
-              })).filter(sec => sec.tituloSecao || sec.itens.length > 0);
+              const secoesTratadas = (Array.isArray(currentConteudo.secoes) ? currentConteudo.secoes : []).map(sec => {
+                  // Remove duplicações do título da seção antes de salvar
+                  removerDuplicacaoTituloSecao(sec);
+                  
+                  return {
+                      tituloSecao: sec.tituloSecao?.trim() || '',
+                      itens: (Array.isArray(sec.itens) ? sec.itens : []).map(it => ({
+                          chave: it.chave?.trim() || '',
+                          valor: it.valor?.trim() || ''
+                      })).filter(it => it.chave || it.valor)
+                  };
+              }).filter(sec => sec.tituloSecao || sec.itens.length > 0);
               finalConteudo = { secoes: secoesTratadas.length > 0 ? secoesTratadas : [{ tituloSecao: '', itens: [{ chave: '', valor: ''}] }] };
           } else {
               finalConteudo = typeof currentConteudo === 'object' && currentConteudo !== null ? JSON.parse(JSON.stringify(currentConteudo)) : {};
@@ -2062,6 +2069,57 @@ function removerFocoPrincipalPEP(index) {
   }
 }
 
+// 🛠️ UTILITÁRIOS PARA DETECÇÃO E REMOÇÃO DE DUPLICATAS EM IMPRESSOS
+// Função para detectar se há duplicação entre título da seção e chaves dos itens
+function detectarDuplicacaoTituloSecao(secao) {
+  if (!secao.itens || !secao.tituloSecao) return false;
+  
+  const tituloNormalizado = secao.tituloSecao.trim().toLowerCase();
+  
+  return secao.itens.some(item => {
+    if (!item.chave) return false;
+    const chaveNormalizada = item.chave.trim().toLowerCase();
+    return chaveNormalizada === tituloNormalizado;
+  });
+}
+
+// Função para remover duplicações entre título da seção e chaves dos itens
+function removerDuplicacaoTituloSecao(secao) {
+  if (!secao.itens || !secao.tituloSecao) return;
+  
+  const tituloNormalizado = secao.tituloSecao.trim().toLowerCase();
+  
+  // Filtra itens que não sejam duplicações do título da seção
+  secao.itens = secao.itens.filter(item => {
+    if (!item.chave) return true; // Mantém itens sem chave
+    const chaveNormalizada = item.chave.trim().toLowerCase();
+    return chaveNormalizada !== tituloNormalizado;
+  });
+}
+
+// Função para corrigir duplicações automaticamente em um impresso específico
+function corrigirDuplicacoesImpresso(impressoIndex) {
+  const impresso = formData.value.impressos[impressoIndex];
+  if (!impresso || !impresso.conteudo?.secoes) return;
+  
+  impresso.conteudo.secoes.forEach(secao => {
+    removerDuplicacaoTituloSecao(secao);
+  });
+}
+
+// Função para filtrar itens na exibição (remove duplicatas visuais)
+function filtrarItensSemDuplicatas(secao) {
+  if (!secao.itens || !secao.tituloSecao) return secao.itens || [];
+  
+  const tituloNormalizado = secao.tituloSecao.trim().toLowerCase();
+  
+  return secao.itens.filter(item => {
+    if (!item.chave) return true; // Mantém itens sem chave
+    const chaveNormalizada = item.chave.trim().toLowerCase();
+    return chaveNormalizada !== tituloNormalizado;
+  });
+}
+
 // Refs para controle de posição ao adicionar item
 const showPositionDialog = ref(false);
 const newItemPosition = ref(null);
@@ -2747,6 +2805,18 @@ watch(() => props.id, (newId) => {
                         <!-- Sugestão movida para dentro do AIFieldAssistant -->
                       </div>
                     </AIFieldAssistant>
+                    
+                    <!-- Aviso de duplicação -->
+                    <div v-if="detectarDuplicacaoTituloSecao(secao)" class="duplicacao-aviso" style="margin-top: 5px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; font-size: 0.9em;">
+                      ⚠️ <strong>Atenção:</strong> Um ou mais itens desta seção têm a mesma chave que o título da seção. 
+                      <button 
+                        type="button" 
+                        @click="corrigirDuplicacoesImpresso(index)"
+                        style="margin-left: 8px; padding: 2px 6px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8em;"
+                      >
+                        Corrigir Agora
+                      </button>
+                    </div>
                 </div>
                 <div v-for="(itemSecao, itemSecaoIndex) in (secao?.itens || [])" :key="itemSecaoIndex" class="dynamic-item-group-very-nested">
                   <AIFieldAssistant

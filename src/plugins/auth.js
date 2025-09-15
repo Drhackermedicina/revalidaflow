@@ -2,8 +2,6 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { ref } from 'vue'
 import { firebaseAuth } from './firebase'
 
-let isAuthInitialized = false // Flag para garantir que a espera ocorra apenas uma vez
-
 // Cria uma variável reativa para armazenar o estado do usuário
 export const currentUser = ref(null)
 
@@ -13,7 +11,6 @@ export const initAuthListener = () => {
   return new Promise(resolve => {
     onAuthStateChanged(firebaseAuth, user => {
       currentUser.value = user
-      isAuthInitialized = true
       resolve()
     })
   })
@@ -21,8 +18,13 @@ export const initAuthListener = () => {
 
 // Função para aguardar a autenticação do Firebase
 export const waitForAuth = () => {
-  if (isAuthInitialized) return Promise.resolve()
-  return initAuthListener()
+  return new Promise(resolve => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, user => {
+      currentUser.value = user
+      resolve(user)
+      unsubscribe()
+    })
+  })
 }
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';

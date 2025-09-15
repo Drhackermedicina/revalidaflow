@@ -3,7 +3,7 @@
 import { getApp, initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
-import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'firebase/storage'
+import { getStorage, ref } from 'firebase/storage'
 
 // Configuração do seu projeto Firebase usando variáveis de ambiente quando disponíveis
 const firebaseConfig = {
@@ -45,20 +45,28 @@ export const firebaseAuth = getAuth(firebaseApp)
 
 // Configurar Firestore com a nova API de cache (evitando dupla inicialização)
 let db;
-try {
-  // Primeiro tenta obter uma instância existente
-  db = getFirestore(firebaseApp);
-} catch (error) {
-  // Se não existe, inicializa com configurações personalizadas
-  db = initializeFirestore(firebaseApp, {
-    cache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager(),
-      cacheSizeBytes: 10 * 1024 * 1024 // 10MB - Reduzido para otimizar custos
-    })
-  });
+const urlParams = new URLSearchParams(window.location.search);
+const useSimulatedUser = import.meta.env.DEV && urlParams.get('sim_user') === 'true';
+
+if (useSimulatedUser) {
+  // Em modo de simulação, a instância do DB é nula para prevenir chamadas reais.
+  db = null;
+  console.warn('[Firebase Plugin] Firestore está DESATIVADO para usuário simulado.');
+} else {
+  // Lógica original para inicializar o Firestore
+  try {
+    db = getFirestore(firebaseApp);
+  } catch (error) {
+    db = initializeFirestore(firebaseApp, {
+      cache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+        cacheSizeBytes: 10 * 1024 * 1024
+      })
+    });
+  }
 }
 
-export { db }
+export { db };
 
 // Configurações adicionais de performance para Firestore
 if (import.meta.env.DEV) {
@@ -73,13 +81,13 @@ try {
   throw error;
 }
 
-export { storage, storageRef, uploadBytes, getDownloadURL }
+export { storage }
 
 // Função para verificar conectividade do Storage
 export async function testStorageConnection() {
   try {
     // Tenta criar uma referência simples para testar conectividade
-    const testRef = storageRef(storage, 'test-connection');
+    const testRef = ref(storage, 'test-connection');
     return true;
   } catch (error) {
     console.error('❌ Falha na conectividade do Storage:', error);
