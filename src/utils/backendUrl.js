@@ -10,7 +10,7 @@ const productionUrl = 'https://revalida-backend-772316263153.southamerica-east1.
 // Usa a variável de ambiente se estiver definida; em dev usa defaultUrl, senão produção
 export const backendUrl = (
   typeof import.meta.env.VITE_BACKEND_URL === 'string' &&
-  import.meta.env.VITE_BACKEND_URL.startsWith('http')
+    import.meta.env.VITE_BACKEND_URL.startsWith('http')
     ? import.meta.env.VITE_BACKEND_URL // Prioriza VITE_BACKEND_URL se definida
     : defaultUrl // Caso contrário, usa a URL padrão de desenvolvimento
 )

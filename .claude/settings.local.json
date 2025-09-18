@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/helli/OneDrive/Pictures/Screenshots/**)"
+      "Read(//c/Users/helli/OneDrive/Pictures/Screenshots/**)",
+      "Bash(npx playwright test:*)"
     ],
     "deny": [],
     "ask": []

@@ -1145,8 +1145,23 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+/* Garantir visibilidade do header principal em ambos os temas */
+.questoes-container h1 {
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.questoes-container .text-subtitle-1 {
+  color: rgb(var(--v-theme-on-surface), 0.8) !important;
+}
+
 .filter-card {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+/* Versão específica para tema escuro */
+.v-theme--dark .filter-card {
+  background: linear-gradient(135deg, #312d4b 0%, #3d3759 100%);
+  border: 1px solid #4a5072;
 }
 
 .question-card {
@@ -1189,10 +1204,18 @@ onMounted(() => {
 
 .question-text {
   line-height: 1.6;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  font-weight: 600;
+}
+
+.question-text strong {
+  color: rgb(var(--v-theme-primary)) !important;
+  font-weight: 700;
 }
 
 .option-text {
   line-height: 1.5;
+  color: rgb(var(--v-theme-on-surface)) !important;
 }
 
 .pagination-card {

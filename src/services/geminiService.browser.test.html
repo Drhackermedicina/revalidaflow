@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testes de Performance - GeminiService</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        .metrics {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .metric-item {
+            display: inline-block;
+            margin: 5px 15px 5px 0;
+            font-weight: bold;
+        }
+        .metric-value {
+            color: #007bff;
+        }
+        .status-success { color: #28a745; }
+        .status-error { color: #dc3545; }
+        .status-warning { color: #ffc107; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .results {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Testes de Performance - GeminiService</h1>
+        <p>Execute testes automatizados de performance, fallback e estresse para o serviço Gemini.</p>
+
+        <!-- Testes de Performance -->
+        <div class="test-section">
+            <h3>⚡ Testes de Performance</h3>
+            <button onclick="runPerformanceTests()">Executar Testes de Performance</button>
+            <button onclick="clearResults('performance')">Limpar Resultados</button>
+
+            <div class="metrics" id="performance-metrics">
+                <div class="metric-item">Tempo Médio: <span class="metric-value" id="avg-response-time">-</span></div>
+                <div class="metric-item">Taxa de Sucesso: <span class="metric-value" id="success-rate">-</span></div>
+                <div class="metric-item">Uso de Memória: <span class="metric-value" id="memory-usage">-</span></div>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="performance-progress"></div>
+            </div>
+
+            <div class="results" id="performance-results"></div>
+        </div>
+
+        <!-- Testes de Fallback -->
+        <div class="test-section">
+            <h3>🔄 Testes de Fallback</h3>
+            <button onclick="runFallbackTests()">Executar Testes de Fallback</button>
+            <button onclick="clearResults('fallback')">Limpar Resultados</button>
+
+            <div class="metrics" id="fallback-metrics">
+                <div class="metric-item">Fallbacks Usados: <span class="metric-value" id="fallbacks-used">-</span></div>
+                <div class="metric-item">Cache Hits: <span class="metric-value" id="cache-hits">-</span></div>
+                <div class="metric-item">Rotação de Chaves: <span class="metric-value" id="key-rotations">-</span></div>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="fallback-progress"></div>
+            </div>
+
+            <div class="results" id="fallback-results"></div>
+        </div>
+
+        <!-- Cenários de Estresse -->
+        <div class="test-section">
+            <h3>💥 Cenários de Estresse</h3>
+            <button onclick="runStressTests()">Executar Testes de Estresse</button>
+            <button onclick="clearResults('stress')">Limpar Resultados</button>
+
+            <div class="metrics" id="stress-metrics">
+                <div class="metric-item">Throughput: <span class="metric-value" id="throughput">-</span></div>
+                <div class="metric-item">Latência Máxima: <span class="metric-value" id="max-latency">-</span></div>
+                <div class="metric-item">Taxa de Erro: <span class="metric-value" id="error-rate">-</span></div>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="stress-progress"></div>
+            </div>
+
+            <div class="results" id="stress-results"></div>
+        </div>
+
+        <!-- Gráfico de Performance -->
+        <div class="test-section">
+            <h3>📊 Gráfico de Performance em Tempo Real</h3>
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+            <button onclick="startRealTimeMonitoring()">Iniciar Monitoramento</button>
+            <button onclick="stopRealTimeMonitoring()">Parar Monitoramento</button>
+        </div>
+
+        <!-- Logs do Console -->
+        <div class="test-section">
+            <h3>📝 Logs do Console</h3>
+            <button onclick="clearConsoleLogs()">Limpar Logs</button>
+            <div class="results" id="console-logs" style="max-height: 200px;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Importar o serviço (ajuste o caminho conforme necessário)
+        // import geminiService from './geminiService.js';
+
+        // Para testes no navegador, simularemos o serviço
+        class MockGeminiService {
+            constructor() {
+                this.apiKeys = ['key1', 'key2', 'key3'];
+                this.currentKeyIndex = 0;
+                this.cache = new Map();
+                this.requestCount = 0;
+                this.fallbackCount = 0;
+                this.cacheHitCount = 0;
+            }
+
+            async makeRequest(prompt, context = '', maxRetries = 3, type = 'chat') {
+                this.requestCount++;
+                const cacheKey = `${prompt}:${context}`;
+
+                // Simular cache hit
+                if (this.cache.has(cacheKey) && Math.random() > 0.7) {
+                    this.cacheHitCount++;
+                    logToConsole(`📱 Cache hit para: ${prompt.substring(0, 30)}...`);
+                    return this.cache.get(cacheKey);
+                }
+
+                // Simular latência de rede
+                const latency = 100 + Math.random() * 500;
+                await new Promise(resolve => setTimeout(resolve, latency));
+
+                // Simular falhas aleatórias
+                if (Math.random() > 0.8) {
+                    if (Math.random() > 0.5) {
+                        // Simular erro de cota
+                        throw new Error('HTTP 429: Too Many Requests');
+                    } else {
+                        // Simular erro de chave
+                        this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
+                        throw new Error('HTTP 400: Invalid API Key');
+                    }
+                }
+
+                // Simular fallback de modelo
+                if (type === 'chat' && Math.random() > 0.9) {
+                    this.fallbackCount++;
+                    logToConsole(`🔄 Fallback para modelo alternativo`);
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+
+                const response = `Resposta simulada para: ${prompt.substring(0, 50)}... (Tipo: ${type})`;
+                this.cache.set(cacheKey, response);
+
+                return response;
+            }
+
+            getStats() {
+                return {
+                    requests: this.requestCount,
+                    fallbacks: this.fallbackCount,
+                    cacheHits: this.cacheHitCount,
+                    currentKey: this.currentKeyIndex
+                };
+            }
+        }
+
+        const service = new MockGeminiService();
+        let isRunning = false;
+        let monitoringInterval;
+        let performanceData = [];
+        let chart;
+
+        // Funções de logging
+        function logToConsole(message, type = 'info') {
+            const logsDiv = document.getElementById('console-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `result-item status-${type}`;
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function clearConsoleLogs() {
+            document.getElementById('console-logs').innerHTML = '';
+        }
+
+        // Funções de progresso
+        function updateProgress(section, percentage) {
+            const progressBar = document.getElementById(`${section}-progress`);
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        function clearResults(section) {
+            document.getElementById(`${section}-results`).innerHTML = '';
+            updateProgress(section, 0);
+        }
+
+        // Testes de Performance
+        async function runPerformanceTests() {
+            if (isRunning) return;
+            isRunning = true;
+
+            const resultsDiv = document.getElementById('performance-results');
+            resultsDiv.innerHTML = '';
+
+            logToConsole('🚀 Iniciando testes de performance...');
+
+            const testCases = [
+                { name: 'Chat Pequeno', prompt: 'Olá', type: 'chat' },
+                { name: 'Chat Médio', prompt: 'A'.repeat(200), type: 'chat' },
+                { name: 'Chat Grande', prompt: 'A'.repeat(1000), type: 'chat' },
+                { name: 'Edit Pequeno', prompt: 'Corrigir: Ola', type: 'edit' },
+                { name: 'Context Médio', prompt: 'A'.repeat(300), type: 'context' }
+            ];
+
+            const results = [];
+            let totalTime = 0;
+            let successCount = 0;
+
+            for (let i = 0; i < testCases.length; i++) {
+                const testCase = testCases[i];
+                updateProgress('performance', (i / testCases.length) * 100);
+
+                try {
+                    const startTime = performance.now();
+                    const result = await service.makeRequest(testCase.prompt, '', 3, testCase.type);
+                    const endTime = performance.now();
+
+                    const responseTime = endTime - startTime;
+                    totalTime += responseTime;
+                    successCount++;
+
+                    results.push({
+                        name: testCase.name,
+                        time: responseTime,
+                        success: true,
+                        result: result.substring(0, 50) + '...'
+                    });
+
+                    logToConsole(`✅ ${testCase.name}: ${responseTime.toFixed(2)}ms`);
+
+                } catch (error) {
+                    results.push({
+                        name: testCase.name,
+                        time: 0,
+                        success: false,
+                        error: error.message
+                    });
+
+                    logToConsole(`❌ ${testCase.name}: ${error.message}`, 'error');
+                }
+
+                // Atualizar métricas em tempo real
+                const avgTime = totalTime / (i + 1);
+                const successRate = (successCount / (i + 1)) * 100;
+
+                document.getElementById('avg-response-time').textContent = `${avgTime.toFixed(2)}ms`;
+                document.getElementById('success-rate').textContent = `${successRate.toFixed(1)}%`;
+                document.getElementById('memory-usage').textContent = `${(performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`;
+            }
+
+            // Exibir resultados
+            results.forEach(result => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result-item';
+                resultDiv.innerHTML = `
+                    <strong>${result.name}:</strong>
+                    ${result.success ?
+                        `<span class="status-success">${result.time.toFixed(2)}ms</span> - ${result.result}` :
+                        `<span class="status-error">FALHA: ${result.error}</span>`
+                    }
+                `;
+                resultsDiv.appendChild(resultDiv);
+            });
+
+            updateProgress('performance', 100);
+            logToConsole('✅ Testes de performance concluídos!');
+            isRunning = false;
+        }
+
+        // Testes de Fallback
+        async function runFallbackTests() {
+            if (isRunning) return;
+            isRunning = true;
+
+            const resultsDiv = document.getElementById('fallback-results');
+            resultsDiv.innerHTML = '';
+
+            logToConsole('🔄 Iniciando testes de fallback...');
+
+            const testCases = [
+                { name: 'Erro de Cota (429)', prompt: 'TESTE_FALLBACK', simulateError: 'quota' },
+                { name: 'Chave Inválida', prompt: 'Teste chave', simulateError: 'key' },
+                { name: 'Cache Offline', prompt: 'Teste cache', useCache: true },
+                { name: 'Sucesso Normal', prompt: 'Teste normal', simulateError: null }
+            ];
+
+            let fallbacksUsed = 0;
+            let cacheHits = 0;
+            let keyRotations = 0;
+
+            for (let i = 0; i < testCases.length; i++) {
+                const testCase = testCases[i];
+                updateProgress('fallback', (i / testCases.length) * 100);
+
+                try {
+                    let result;
+                    if (testCase.useCache) {
+                        // Popular cache primeiro
+                        service.cache.set(`${testCase.prompt}:`, 'Resposta em cache');
+                        result = await service.makeRequest(testCase.prompt, '', 3, 'chat');
+                        if (result.includes('cache')) cacheHits++;
+                    } else {
+                        result = await service.makeRequest(testCase.prompt, '', 3, 'chat');
+                    }
+
+                    logToConsole(`✅ ${testCase.name}: ${result.substring(0, 50)}...`);
+
+                } catch (error) {
+                    if (error.message.includes('429')) fallbacksUsed++;
+                    if (error.message.includes('400')) keyRotations++;
+
+                    logToConsole(`❌ ${testCase.name}: ${error.message}`, 'error');
+                }
+
+                // Atualizar métricas
+                document.getElementById('fallbacks-used').textContent = fallbacksUsed;
+                document.getElementById('cache-hits').textContent = cacheHits;
+                document.getElementById('key-rotations').textContent = keyRotations;
+            }
+
+            updateProgress('fallback', 100);
+            logToConsole('✅ Testes de fallback concluídos!');
+            isRunning = false;
+        }
+
+        // Testes de Estresse
+        async function runStressTests() {
+            if (isRunning) return;
+            isRunning = true;
+
+            const resultsDiv = document.getElementById('stress-results');
+            resultsDiv.innerHTML = '';
+
+            logToConsole('💥 Iniciando testes de estresse...');
+
+            // Teste 1: Requisições simultâneas
+            logToConsole('⚡ Testando requisições simultâneas...');
+            const concurrentRequests = 20;
+            const concurrentPromises = Array(concurrentRequests).fill().map((_, i) =>
+                service.makeRequest(`Simultâneo ${i}`, '', 3, 'chat')
+            );
+
+            const startConcurrent = performance.now();
+            const concurrentResults = await Promise.allSettled(concurrentPromises);
+            const endConcurrent = performance.now();
+
+            const concurrentTime = endConcurrent - startConcurrent;
+            const concurrentSuccess = concurrentResults.filter(r => r.status === 'fulfilled').length;
+            const concurrentThroughput = concurrentRequests / (concurrentTime / 1000);
+
+            // Teste 2: Requisições sequenciais
+            logToConsole('🔄 Testando requisições sequenciais...');
+            const sequentialRequests = 10;
+            const sequentialTimes = [];
+
+            for (let i = 0; i < sequentialRequests; i++) {
+                const startTime = performance.now();
+                try {
+                    await service.makeRequest(`Sequencial ${i}`, '', 3, 'chat');
+                    const endTime = performance.now();
+                    sequentialTimes.push(endTime - startTime);
+                } catch (error) {
+                    sequentialTimes.push(0);
+                }
+            }
+
+            const avgSequential = sequentialTimes.reduce((a, b) => a + b, 0) / sequentialTimes.length;
+            const maxSequential = Math.max(...sequentialTimes);
+
+            // Teste 3: Falhas intermitentes
+            logToConsole('🌐 Testando falhas intermitentes...');
+            const intermittentRequests = 15;
+            const intermittentPromises = Array(intermittentRequests).fill().map((_, i) =>
+                service.makeRequest(`Intermitente ${i}`, '', 5, 'chat').catch(() => null)
+            );
+
+            const intermittentResults = await Promise.allSettled(intermittentPromises);
+            const intermittentSuccess = intermittentResults.filter(r => r.status === 'fulfilled').length;
+            const intermittentErrorRate = ((intermittentRequests - intermittentSuccess) / intermittentRequests) * 100;
+
+            // Exibir resultados
+            const results = [
+                {
+                    name: 'Requisições Simultâneas',
+                    metrics: `${concurrentRequests} req, ${concurrentTime.toFixed(2)}ms, ${concurrentThroughput.toFixed(2)} req/s`
+                },
+                {
+                    name: 'Requisições Sequenciais',
+                    metrics: `Média: ${avgSequential.toFixed(2)}ms, Máx: ${maxSequential.toFixed(2)}ms`
+                },
+                {
+                    name: 'Falhas Intermitentes',
+                    metrics: `${intermittentSuccess}/${intermittentRequests} sucesso, ${intermittentErrorRate.toFixed(1)}% erro`
+                }
+            ];
+
+            results.forEach(result => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result-item';
+                resultDiv.innerHTML = `<strong>${result.name}:</strong> ${result.metrics}`;
+                resultsDiv.appendChild(resultDiv);
+            });
+
+            // Atualizar métricas
+            document.getElementById('throughput').textContent = `${concurrentThroughput.toFixed(2)} req/s`;
+            document.getElementById('max-latency').textContent = `${maxSequential.toFixed(2)}ms`;
+            document.getElementById('error-rate').textContent = `${intermittentErrorRate.toFixed(1)}%`;
+
+            updateProgress('stress', 100);
+            logToConsole('✅ Testes de estresse concluídos!');
+            isRunning = false;
+        }
+
+        // Monitoramento em tempo real
+        function startRealTimeMonitoring() {
+            if (monitoringInterval) return;
+
+            logToConsole('📊 Iniciando monitoramento em tempo real...');
+
+            // Inicializar gráfico
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Tempo de Resposta (ms)',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }, {
+                        label: 'Uso de Memória (MB)',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+
+            monitoringInterval = setInterval(async () => {
+                try {
+                    const startTime = performance.now();
+                    await service.makeRequest('Monitoramento', '', 3, 'chat');
+                    const endTime = performance.now();
+
+                    const responseTime = endTime - startTime;
+                    const memoryUsage = performance.memory.usedJSHeapSize / 1024 / 1024;
+
+                    performanceData.push({
+                        time: new Date().toLocaleTimeString(),
+                        responseTime,
+                        memoryUsage
+                    });
+
+                    // Manter apenas os últimos 20 pontos
+                    if (performanceData.length > 20) {
+                        performanceData.shift();
+                    }
+
+                    // Atualizar gráfico
+                    chart.data.labels = performanceData.map(d => d.time);
+                    chart.data.datasets[0].data = performanceData.map(d => d.responseTime);
+                    chart.data.datasets[1].data = performanceData.map(d => d.memoryUsage);
+                    chart.update();
+
+                } catch (error) {
+                    logToConsole(`❌ Erro no monitoramento: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+
+        function stopRealTimeMonitoring() {
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+                logToConsole('⏹️ Monitoramento parado');
+            }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            logToConsole('🎯 Testes de Performance GeminiService inicializados');
+            logToConsole('💡 Use os botões acima para executar diferentes tipos de teste');
+        });
+
+        // Cleanup ao fechar página
+        window.addEventListener('beforeunload', () => {
+            stopRealTimeMonitoring();
+        });
+    </script>
+</body>
+</html>

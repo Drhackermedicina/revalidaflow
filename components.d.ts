@@ -10,6 +10,7 @@ declare module 'vue' {
     AdminAgentAssistant: typeof import('./src/components/AdminAgentAssistant.vue')['default']
     AIFieldAssistant: typeof import('./src/components/AIFieldAssistant.vue')['default']
     AppBreadcrumbs: typeof import('./src/components/AppBreadcrumbs.vue')['default']
+    AuthDebugDashboard: typeof import('./src/components/AuthDebugDashboard.vue')['default']
     CardStatisticsHorizontal: typeof import('./src/@core/components/cards/CardStatisticsHorizontal.vue')['default']
     CardStatisticsVertical: typeof import('./src/@core/components/cards/CardStatisticsVertical.vue')['default']
     CardStatisticsWithImages: typeof import('./src/@core/components/cards/CardStatisticsWithImages.vue')['default']

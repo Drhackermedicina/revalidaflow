@@ -1334,6 +1334,42 @@ function goToEditStation(stationId) {
   router.push(`/app/edit-station/${stationId}`);
 }
 
+// Função para iniciar treinamento com IA
+async function startAITraining(stationId) {
+  if (!stationId) {
+    console.error('stationId ausente:', stationId);
+    alert("Erro: ID da estação não encontrado.");
+    return;
+  }
+
+  try {
+    // Encontrar a estação selecionada para expandir a seção correta
+    const station = stations.value.find(s => s.id === stationId);
+    if (station) {
+      expandCorrectSection(station);
+    }
+
+    // Resolve a rota para obter a URL completa
+    const routeData = router.resolve({
+      path: `/app/simulation-ai/${stationId}`,
+      query: {
+        mode: 'ai-training'
+      }
+    });
+
+    // Limpar os campos de busca quando abre a simulação
+    selectedStation.value = null;
+    globalSearchQuery.value = '';
+
+    // Abre a URL em uma nova janela/aba
+    window.open(routeData.href, '_blank');
+
+  } catch (error) {
+    console.error('Erro ao navegar para treinamento com IA:', error);
+    alert(`Erro ao iniciar treinamento: ${error.message}`);
+  }
+}
+
 // Função para expandir a seção correta baseada na estação selecionada
 function expandCorrectSection(station) {
   // Sempre mostrar a seção de provas anteriores se for INEP
@@ -1535,9 +1571,70 @@ onMounted(() => {
 
   window.addEventListener('focus', handleFocus);
 
+  // SISTEMA SIMPLIFICADO DE GARANTIA DE VISIBILIDADE DOS ÍCONES
+  const ensureIconVisibility = () => {
+    try {
+      const iconElements = document.querySelectorAll('.sequential-selection-btn .v-icon');
+      if (iconElements.length === 0) return;
+
+      iconElements.forEach(icon => {
+        // Aplicar apenas estilos básicos de visibilidade
+        icon.style.opacity = '1';
+        icon.style.visibility = 'visible';
+        icon.style.display = 'inline-flex';
+      });
+    } catch (error) {
+      console.warn('Error in ensureIconVisibility:', error);
+    }
+  };
+
+  // Executar imediatamente
+  ensureIconVisibility();
+
+  // Executar apenas uma vez após carregamento
+  setTimeout(ensureIconVisibility, 500);
+
+  // FUNÇÃO SIMPLIFICADA: Aplicar apenas quando necessário
+  const fixIconsOnce = () => {
+    const buttons = document.querySelectorAll('.sequential-selection-btn');
+    if (buttons.length === 0) return;
+
+    buttons.forEach(btn => {
+      const icon = btn.querySelector('.v-icon');
+      if (icon && (!icon.innerHTML.trim() || icon.innerHTML.length < 3)) {
+        const isSelected = btn.getAttribute('variant') === 'tonal';
+
+        // Substituir apenas se vazio
+        if (isSelected) {
+          icon.innerHTML = '✓';
+          icon.style.color = '#2E7D32';
+        } else {
+          icon.innerHTML = '+';
+          icon.style.color = '#1565C0';
+        }
+
+        // Estilos básicos
+        icon.style.fontSize = '18px';
+        icon.style.fontWeight = 'bold';
+        icon.style.display = 'inline-flex';
+        icon.style.alignItems = 'center';
+        icon.style.justifyContent = 'center';
+      }
+    });
+  };
+
+  // Executar apenas uma vez
+  setTimeout(fixIconsOnce, 1000);
+
+  // Observer DESABILITADO temporariamente para evitar travamentos
+  // const observer = new MutationObserver(() => {
+  //   // Observer removido por causar travamentos
+  // });
+
   // Cleanup no onUnmounted
   onUnmounted(() => {
     window.removeEventListener('focus', handleFocus);
+    // observer.disconnect(); // REMOVIDO: observer não está sendo usado
   });
 });
 
@@ -2041,7 +2138,10 @@ const exampleVariable = ref(null);
                                 class="me-2 sequential-selection-btn"
                                 :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
                               >
-                                <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600', visibility: 'visible' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                                <v-icon
+                                :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600', visibility: 'visible' }"
+                                :data-fallback="selectedStationsSequence.find(s => s.id === station.id) ? '✓' : '+'"
+                              >{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
                               </v-btn>
                               <v-btn
                                 v-if="isAdmin"
@@ -2052,6 +2152,15 @@ const exampleVariable = ref(null);
                                 @click.stop="goToEditStation(station.id)"
                                 class="me-2 sequential-selection-btn"
                                 aria-label="Editar Estação"
+                              />
+                              <v-btn
+                                color="primary"
+                                variant="text"
+                                size="small"
+                                icon="ri-robot-line"
+                                @click.stop="startAITraining(station.id)"
+                                class="me-2 sequential-selection-btn"
+                                aria-label="Treinar com IA"
                               />
                             </div>
                           </template>
@@ -2190,6 +2299,15 @@ const exampleVariable = ref(null);
                               class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
+                            <v-btn
+                              color="primary"
+                              variant="text"
+                              size="small"
+                              icon="ri-robot-line"
+                              @click.stop="startAITraining(station.id)"
+                              class="me-2 sequential-selection-btn"
+                              aria-label="Treinar com IA"
+                            />
                           </div>
                         </template>
                       </v-list-item>
@@ -2302,6 +2420,15 @@ const exampleVariable = ref(null);
                               @click.stop="goToEditStation(station.id)"
                               class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
+                            />
+                            <v-btn
+                              color="primary"
+                              variant="text"
+                              size="small"
+                              icon="ri-robot-line"
+                              @click.stop="startAITraining(station.id)"
+                              class="me-2 sequential-selection-btn"
+                              aria-label="Treinar com IA"
                             />
                           </div>
                         </template>
@@ -2416,6 +2543,15 @@ const exampleVariable = ref(null);
                               class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
+                            <v-btn
+                              color="primary"
+                              variant="text"
+                              size="small"
+                              icon="ri-robot-line"
+                              @click.stop="startAITraining(station.id)"
+                              class="me-2 sequential-selection-btn"
+                              aria-label="Treinar com IA"
+                            />
                           </div>
                         </template>
                       </v-list-item>
@@ -2528,6 +2664,15 @@ const exampleVariable = ref(null);
                               @click.stop="goToEditStation(station.id)"
                               class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
+                            />
+                            <v-btn
+                              color="primary"
+                              variant="text"
+                              size="small"
+                              icon="ri-robot-line"
+                              @click.stop="startAITraining(station.id)"
+                              class="me-2 sequential-selection-btn"
+                              aria-label="Treinar com IA"
                             />
                           </div>
                         </template>
@@ -2642,6 +2787,15 @@ const exampleVariable = ref(null);
                               class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
                             />
+                            <v-btn
+                              color="primary"
+                              variant="text"
+                              size="small"
+                              icon="ri-robot-line"
+                              @click.stop="startAITraining(station.id)"
+                              class="me-2 sequential-selection-btn"
+                              aria-label="Treinar com IA"
+                            />
                           </div>
                         </template>
                       </v-list-item>
@@ -2754,6 +2908,15 @@ const exampleVariable = ref(null);
                               @click.stop="goToEditStation(station.id)"
                               class="me-2 sequential-selection-btn"
                               aria-label="Editar Estação"
+                            />
+                            <v-btn
+                              color="primary"
+                              variant="text"
+                              size="small"
+                              icon="ri-robot-line"
+                              @click.stop="startAITraining(station.id)"
+                              class="me-2 sequential-selection-btn"
+                              aria-label="Treinar com IA"
                             />
                           </div>
                         </template>
@@ -3011,83 +3174,112 @@ const exampleVariable = ref(null);
   margin-left: auto;
   margin-right: auto;
 }
-/* Estilos específicos para botões de seleção sequencial */
+/* Estilos específicos para botões de seleção sequencial - CORES FIXAS DE ALTO CONTRASTE */
 .v-btn.sequential-selection-btn .v-icon {
-  color: var(--v-theme-primary) !important;
+  color: #1565C0 !important; /* Azul escuro fixo para alto contraste */
   opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-/* Força visibilidade dos ícones em botões outlined */
-.v-btn[variant="outlined"].sequential-selection-btn .v-icon {
-  color: var(--v-theme-primary) !important;
-  opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-/* Força visibilidade dos ícones em botões tonal */
-.v-btn[variant="tonal"].sequential-selection-btn .v-icon {
-  color: var(--v-theme-success) !important;
-  opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-/* Estilos específicos para tema escuro */
-.v-theme--dark .v-btn.sequential-selection-btn .v-icon {
-  color: var(--v-theme-primary) !important;
-  opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-.v-theme--dark .v-btn[variant="outlined"].sequential-selection-btn .v-icon {
-  color: var(--v-theme-primary) !important;
-  opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-.v-theme--dark .v-btn[variant="tonal"].sequential-selection-btn .v-icon {
-  color: var(--v-theme-success) !important;
-  opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-/* Estilos específicos para tema claro */
-.v-theme--light .v-btn.sequential-selection-btn .v-icon {
-  color: var(--v-theme-primary) !important;
-  opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-.v-theme--light .v-btn[variant="outlined"].sequential-selection-btn .v-icon {
-  color: var(--v-theme-primary) !important;
-  opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-.v-theme--light .v-btn[variant="tonal"].sequential-selection-btn .v-icon {
-  color: var(--v-theme-success) !important;
-  opacity: 1 !important;
-  font-weight: 600 !important;
-  visibility: visible !important;
-}
-
-/* Estilos de emergência para garantir visibilidade */
-.sequential-selection-btn .v-icon {
-  color: var(--v-theme-primary) !important; /* Cor azul padrão */
-  opacity: 1 !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
   visibility: visible !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+}
+
+/* Força visibilidade dos ícones em botões outlined */
+.v-btn[variant="outlined"].sequential-selection-btn .v-icon {
+  color: #1565C0 !important; /* Azul escuro fixo */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Força visibilidade dos ícones em botões tonal (selecionados) */
+.v-btn[variant="tonal"].sequential-selection-btn .v-icon {
+  color: #2E7D32 !important; /* Verde escuro fixo para alto contraste */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Estilos específicos para tema escuro - CORES FIXAS */
+.v-theme--dark .v-btn.sequential-selection-btn .v-icon {
+  color: #1565C0 !important; /* Mesmo azul escuro para consistência */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.v-theme--dark .v-btn[variant="outlined"].sequential-selection-btn .v-icon {
+  color: #1565C0 !important; /* Azul escuro fixo */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.v-theme--dark .v-btn[variant="tonal"].sequential-selection-btn .v-icon {
+  color: #2E7D32 !important; /* Verde escuro fixo */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Estilos específicos para tema claro - CORES FIXAS */
+.v-theme--light .v-btn.sequential-selection-btn .v-icon {
+  color: #1565C0 !important; /* Azul escuro fixo */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.v-theme--light .v-btn[variant="outlined"].sequential-selection-btn .v-icon {
+  color: #1565C0 !important; /* Azul escuro fixo */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.v-theme--light .v-btn[variant="tonal"].sequential-selection-btn .v-icon {
+  color: #2E7D32 !important; /* Verde escuro fixo */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Estilos de emergência para garantir visibilidade - SISTEMA DE FALLBACK */
+.sequential-selection-btn .v-icon {
+  color: #1565C0 !important; /* Cor azul escuro padrão como fallback */
+  opacity: 1 !important;
+  font-weight: 700 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: transparent !important;
+  border: none !important;
 }
 }
 </style>
@@ -3105,5 +3297,55 @@ const exampleVariable = ref(null);
 .station-list-page-active .layout-wrapper,
 .station-list-page-active .layout-content-wrapper {
   background-color: transparent !important;
+}
+
+/* CORREÇÃO ESPECÍFICA PARA ÍCONES DOS BOTÕES SEQUENCIAIS */
+.v-btn.sequential-selection-btn .v-icon {
+  width: 20px !important;
+  height: 20px !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+}
+
+/* Fallback para ícones que não carregam - adiciona conteúdo de emergência */
+.v-btn[variant="outlined"].sequential-selection-btn .v-icon:empty::before,
+.v-btn[variant="outlined"].sequential-selection-btn .v-icon:not(:has(svg))::before {
+  content: '+' !important;
+  color: #1565C0 !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  text-align: center !important;
+}
+
+.v-btn[variant="tonal"].sequential-selection-btn .v-icon:empty::before,
+.v-btn[variant="tonal"].sequential-selection-btn .v-icon:not(:has(svg))::before {
+  content: '✓' !important;
+  color: #2E7D32 !important;
+}
+
+/* Força exibição do ícone usando unicode como backup */
+.v-btn.sequential-selection-btn .v-icon::after {
+  content: attr(data-fallback) !important;
+  color: inherit !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  display: none !important;
+}
+
+.v-btn.sequential-selection-btn .v-icon:empty::after {
+  display: inline-flex !important;
+}
+
+/* CSS simplificado para botões */
+.v-btn.sequential-selection-btn {
+  position: relative !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
 }
 </style>

@@ -2589,17 +2589,20 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                             <VChip size="small" color="warning" variant="outlined" class="ms-2">
                                 Se perguntado pelo candidato
                             </VChip>
+                            <VBtn
+                              icon
+                              variant="text"
+                              size="large"
+                              class="ms-3 pep-eye-button"
+                              @click="pepViewState.isVisible = !pepViewState.isVisible"
+                              :title="pepViewState.isVisible ? 'Ocultar PEP' : 'Mostrar PEP'"
+                            >
+                              <VIcon 
+                                :icon="pepViewState.isVisible ? 'ri-eye-off-line' : 'ri-eye-line'" 
+                                size="24"
+                              />
+                            </VBtn>
                         </div>
-                        <VSpacer />
-                        <VBtn
-                          icon
-                          variant="text"
-                          size="small"
-                          @click="pepViewState.isVisible = !pepViewState.isVisible"
-                          :title="pepViewState.isVisible ? 'Ocultar PEP' : 'Mostrar PEP'"
-                        >
-                          <VIcon :icon="pepViewState.isVisible ? 'ri-eye-off-line' : 'ri-eye-line'" />
-                        </VBtn>
                     </VCardTitle>
                 </VCardItem>
                 <div class="d-flex flex-grow-1" :class="{ 'flex-column flex-md-row': pepViewState.isVisible }" style="flex: 1;">
@@ -4657,5 +4660,27 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
 
 .sequential-navigation-card .v-alert {
   border-radius: 12px !important;
+}
+
+/* Estilos para o botão do olho do PEP */
+.pep-eye-button {
+  transition: all 0.2s ease-in-out;
+  border-radius: 8px;
+  min-width: 48px !important;
+  height: 48px !important;
+}
+
+.pep-eye-button:hover {
+  background-color: rgba(var(--v-theme-primary), 0.1) !important;
+  transform: scale(1.05);
+}
+
+.pep-eye-button .v-icon {
+  font-size: 24px !important;
+  transition: color 0.2s ease-in-out;
+}
+
+.pep-eye-button:hover .v-icon {
+  color: rgb(var(--v-theme-primary)) !important;
 }
 </style>
