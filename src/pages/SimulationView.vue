@@ -29,6 +29,7 @@ import {
 import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { io } from 'socket.io-client';
+import { captureSimulationError, captureWebSocketError, captureFirebaseError } from '@/plugins/sentry';
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
@@ -515,8 +516,31 @@ function connectWebSocket() {
       }
     }
   });
-  socket.value.on('connect_error', (err) => { connectionStatus.value = 'Erro de Conexão'; if(!errorMessage.value) errorMessage.value = `Falha ao conectar: ${err.message}`; console.error('SOCKET: Erro de conexão', err);});
-  socket.value.on('SERVER_ERROR', (data) => { console.error('SOCKET: Erro do Servidor:', data.message); errorMessage.value = `Erro do servidor: ${data.message}`; });
+  socket.value.on('connect_error', (err) => {
+    connectionStatus.value = 'Erro de Conexão';
+    if(!errorMessage.value) errorMessage.value = `Falha ao conectar: ${err.message}`;
+    console.error('SOCKET: Erro de conexão', err);
+
+    // Captura erro no Sentry
+    captureWebSocketError(err, {
+      socketId: socket.value?.id,
+      sessionId: sessionId.value,
+      connectionState: 'failed',
+      lastEvent: 'connect_error'
+    });
+  });
+  socket.value.on('SERVER_ERROR', (data) => {
+    console.error('SOCKET: Erro do Servidor:', data.message);
+    errorMessage.value = `Erro do servidor: ${data.message}`;
+
+    // Captura erro no Sentry
+    captureSimulationError(new Error(data.message), {
+      sessionId: sessionId.value,
+      userRole: userRole.value,
+      stationId: stationId.value,
+      simulationState: simulationStarted.value ? 'started' : 'preparing'
+    });
+  });
   socket.value.on('SERVER_JOIN_CONFIRMED', (data) => { });
   socket.value.on('SERVER_PARTNER_JOINED', (participantInfo) => {
     if (participantInfo && participantInfo.userId !== currentUser.value?.uid) {
@@ -1244,6 +1268,14 @@ async function activateBackend() {
 
   } catch (error) {
     errorMessage.value = `Erro ao ativar backend: ${error.message}`;
+
+    // Captura erro no Sentry
+    captureSimulationError(error, {
+      sessionId: sessionId.value,
+      userRole: userRole.value,
+      stationId: stationId.value,
+      simulationState: 'backend_activation_failed'
+    });
 
     // Reset states on error
     myReadyState.value = false;

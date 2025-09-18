@@ -1,6 +1,7 @@
 import App from './App.vue'
 import { registerPlugins } from '@core/utils/plugins'
 import { createApp } from 'vue'
+import { initSentry } from './plugins/sentry.js'
 
 // O plugin de autenticação não precisa mais ser importado aqui
 
@@ -41,6 +42,11 @@ app.config.errorHandler = (error, instance, info) => {
   console.error('Vue error:', error, info)
 }
 
-// Registra os plugins e monta o app imediatamente, de forma padrão.
+// Registra os plugins
 registerPlugins(app)
+
+// Inicializa Sentry - precisa ser feito antes de montar o app
+import { router } from './plugins/router/index.js'
+initSentry(app, router)
+
 app.mount('#app')
