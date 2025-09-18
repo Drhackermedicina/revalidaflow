@@ -518,12 +518,33 @@ function connectWebSocket() {
   socket.value.on('connect_error', (err) => { connectionStatus.value = 'Erro de Conexão'; if(!errorMessage.value) errorMessage.value = `Falha ao conectar: ${err.message}`; console.error('SOCKET: Erro de conexão', err);});
   socket.value.on('SERVER_ERROR', (data) => { console.error('SOCKET: Erro do Servidor:', data.message); errorMessage.value = `Erro do servidor: ${data.message}`; });
   socket.value.on('SERVER_JOIN_CONFIRMED', (data) => { });
-  socket.value.on('SERVER_PARTNER_JOINED', (participantInfo) => { if (participantInfo && participantInfo.userId !== currentUser.value?.uid) { partner.value = participantInfo; partnerReadyState.value = participantInfo.isReady || false; errorMessage.value = ''; } });
-  socket.value.on('SERVER_EXISTING_PARTNERS', (participantsList) => { updatePartnerInfo(participantsList); });
-  function updatePartnerInfo(participants) { const currentUserId = currentUser.value?.uid;
-  if (participants && Array.isArray(participants) && currentUserId) { const otherParticipant = participants.find(p => p.userId !== currentUserId); if(otherParticipant) { partner.value = otherParticipant;
-  partnerReadyState.value = partner.value.isReady || false; errorMessage.value = ''; } else { partner.value = null;
-  partnerReadyState.value = false;} } else { partner.value = null; partnerReadyState.value = false;} }
+  socket.value.on('SERVER_PARTNER_JOINED', (participantInfo) => {
+    if (participantInfo && participantInfo.userId !== currentUser.value?.uid) {
+      partner.value = participantInfo;
+      partnerReadyState.value = participantInfo.isReady || false;
+      errorMessage.value = '';
+    }
+  });
+  socket.value.on('SERVER_PARTNER_UPDATE', (data) => {
+    updatePartnerInfo(data.participants);
+  });
+  function updatePartnerInfo(participants) {
+    const currentUserId = currentUser.value?.uid;
+    if (participants && Array.isArray(participants) && currentUserId) {
+      const otherParticipant = participants.find(p => p.userId !== currentUserId);
+      if(otherParticipant) {
+        partner.value = otherParticipant;
+        partnerReadyState.value = partner.value.isReady || false;
+        errorMessage.value = '';
+      } else {
+        partner.value = null;
+        partnerReadyState.value = false;
+      }
+    } else {
+      partner.value = null;
+      partnerReadyState.value = false;
+    }
+  }
 
   socket.value.on('SERVER_PARTNER_LEFT', (data) => {
     if (partner.value && partner.value.userId === data.userId) {
@@ -548,7 +569,14 @@ function connectWebSocket() {
     }
   });
   socket.value.on('CANDIDATE_RECEIVE_DATA', (payload) => { const { dataItemId } = payload; if (userRole.value === 'candidate' && stationData.value?.materiaisDisponiveis?.impressos) { const impressoParaLiberar = stationData.value.materiaisDisponiveis.impressos.find(item => item.idImpresso === dataItemId); if (impressoParaLiberar) { releasedData.value[dataItemId] = { ...impressoParaLiberar }; releasedData.value = {...releasedData.value}; } } });
-  socket.value.on('SERVER_PARTNER_READY', (data) => { if (data && data.userId !== currentUser.value?.uid) { if (partner.value && partner.value.userId === data.userId) { partner.value.isReady = data.isReady; } partnerReadyState.value = data.isReady; } });
+  socket.value.on('SERVER_PARTNER_READY', (data) => {
+    if (data && data.userId !== currentUser.value?.uid) {
+      if (partner.value && partner.value.userId === data.userId) {
+        partner.value.isReady = data.isReady;
+      }
+      partnerReadyState.value = data.isReady;
+    }
+  });
   socket.value.on('SERVER_START_SIMULATION', (data) => {
     if (data && typeof data.durationSeconds === 'number') {
         simulationTimeSeconds.value = data.durationSeconds;
@@ -718,21 +746,16 @@ function connectWebSocket() {
 
 
 function loadSelectedCandidate() {
-  console.log('[DEBUG] loadSelectedCandidate: Iniciando carregamento do candidato');
   const candidateData = sessionStorage.getItem('selectedCandidate');
-  console.log('[DEBUG] loadSelectedCandidate: Dados do candidato no sessionStorage:', candidateData);
 
   if (candidateData) {
     try {
       const candidate = JSON.parse(candidateData);
-      console.log('[DEBUG] loadSelectedCandidate: Candidato parseado:', candidate);
       selectedCandidateForSimulation.value = candidate;
-      console.log('[DEBUG] loadSelectedCandidate: Candidato definido em selectedCandidateForSimulation');
     } catch (error) {
       console.error('[DEBUG] loadSelectedCandidate: Erro ao parsear candidato:', error);
     }
   } else {
-    console.log('[DEBUG] loadSelectedCandidate: Nenhum candidato encontrado no sessionStorage');
   }
 }
 
@@ -810,9 +833,7 @@ function setupSession() {
 
   // Carregar candidato selecionado se for ator/avaliador
   if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-    console.log('[DEBUG] setupSession: Carregando candidato selecionado para ator/avaliador');
     loadSelectedCandidate();
-    console.log('[DEBUG] setupSession: Candidato carregado, selectedCandidateForSimulation:', selectedCandidateForSimulation.value);
   }
 
   const durationFromQuery = route.query.duration ? parseInt(route.query.duration) : null;
@@ -857,7 +878,6 @@ function setupSession() {
     isSettingUpSession.value = false;
     // Se já temos um sessionId (vindo da URL, por exemplo), conectamos o WebSocket
     if (sessionId.value) {
-      console.log("[SETUP SESSION] sessionId presente, conectando WebSocket...");
       connectWebSocket();
 
       // Auto-ready para navegação sequencial
@@ -883,6 +903,7 @@ const totalScore = computed(() => {
 });
 
 const bothParticipantsReady = computed(() => myReadyState.value && partnerReadyState.value && !!partner.value);
+
 watch(bothParticipantsReady, (newValue) => {
   if (newValue && !backendActivated.value) {
     activateBackend();
@@ -901,15 +922,7 @@ watch(bothParticipantsReady, (newValue) => {
 
 
 onMounted(() => {
-  console.log('[DEBUG] onMounted: Iniciando setup da simulação');
-  console.log('[DEBUG] onMounted: userRole antes do setup:', userRole.value);
-  console.log('[DEBUG] onMounted: selectedCandidateForSimulation antes do setup:', selectedCandidateForSimulation.value);
-
   setupSession();
-
-  console.log('[DEBUG] onMounted: Setup concluído');
-  console.log('[DEBUG] onMounted: userRole após o setup:', userRole.value);
-  console.log('[DEBUG] onMounted: selectedCandidateForSimulation após o setup:', selectedCandidateForSimulation.value);
 
   // Verifica link do Meet para candidato
   checkCandidateMeetLink();
@@ -1165,23 +1178,12 @@ function sendReady() {
 
     // Se o socket estiver conectado, emite o estado de prontidão.
     if (socket.value?.connected) {
-      socket.value.emit('CLIENT_READY', {
-        sessionId: sessionId.value,
-        userId: currentUser.value?.uid,
-        role: userRole.value,
-        isReady: myReadyState.value
-      });
-    } else {
+      socket.value.emit('CLIENT_IM_READY');
     }
   } else {
     // Já está pronto - apenas emite o estado de prontidão novamente se conectado
     if (socket.value?.connected) {
-      socket.value.emit('CLIENT_READY', {
-        sessionId: sessionId.value,
-        userId: currentUser.value?.uid,
-        role: userRole.value,
-        isReady: myReadyState.value
-      });
+      socket.value.emit('CLIENT_IM_READY');
     }
     alert("Você já está pronto. Aguardando o outro participante.");
   }
@@ -1266,11 +1268,6 @@ function handleStartSimulationClick() {
 }
 
 async function submitEvaluation() {
-  console.log('[DEBUG] submitEvaluation: Iniciando submissão');
-  console.log('[DEBUG] submitEvaluation: userRole =', userRole.value);
-  console.log('[DEBUG] submitEvaluation: socket.connected =', socket.value?.connected);
-  console.log('[DEBUG] submitEvaluation: sessionId =', sessionId.value);
-  console.log('[DEBUG] submitEvaluation: evaluationScores =', evaluationScores.value);
   
   if (userRole.value !== 'candidate') {
     console.error('[DEBUG] submitEvaluation: ERRO - Não é candidato');
@@ -1294,9 +1291,6 @@ async function submitEvaluation() {
     return;
   }
 
-  console.log('[DEBUG] submitEvaluation: Scores a submeter =', scoresToSubmit);
-  console.log('[DEBUG] submitEvaluation: Total score =', candidateReceivedTotalScore.value || totalScore.value);
-  console.log('[DEBUG] submitEvaluation: Emitindo CANDIDATE_SUBMIT_EVALUATION');
   
   try {
     socket.value.emit('CANDIDATE_SUBMIT_EVALUATION', {
@@ -1306,11 +1300,9 @@ async function submitEvaluation() {
       scores: scoresToSubmit,
       totalScore: candidateReceivedTotalScore.value || totalScore.value
     });
-    console.log('[DEBUG] submitEvaluation: Evento emitido com sucesso');
     
     // Marcar como submetido
     evaluationSubmittedByCandidate.value = true;
-    console.log('[DEBUG] submitEvaluation: evaluationSubmittedByCandidate marcado como true');
   } catch (error) {
     console.error('[DEBUG] submitEvaluation: ERRO ao emitir evento:', error);
     alert('Erro ao submeter avaliação. Veja o console para detalhes.');
@@ -1341,9 +1333,7 @@ async function submitEvaluation() {
         especialidade: stationData.value?.especialidade || 'Geral',
         origem: stationData.value?.origem || 'SIMULACAO'
       };
-      console.log('[DEBUG] submitEvaluation: Registrando no Firestore:', avaliacaoData);
       await registrarConclusaoEstacao(avaliacaoData);
-      console.log('[DEBUG] submitEvaluation: Avaliação registrada com sucesso no Firestore');
       
       // Mostrar notificação de sucesso
       showNotification('Avaliação submetida com sucesso!', 'success');
