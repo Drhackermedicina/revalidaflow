@@ -91,6 +91,9 @@ export default defineComponent({
 
   .layout-navbar {
     z-index: variables.$layout-vertical-nav-layout-navbar-z-index;
+    background-image: url('/header-bg.png');
+    background-size: cover;
+    background-position: center;
 
     .navbar-content-container {
       block-size: variables.$layout-vertical-nav-navbar-height;

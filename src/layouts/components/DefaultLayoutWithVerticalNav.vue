@@ -10,6 +10,8 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
 /* GlobalAgentAssistant (legado) removido durante limpeza do agente */
 
 import { ref } from 'vue'
+import LottieAnimation from '@/components/LottieAnimation.vue'
+import botaoRfAnimated from '@/assets/lottie/botao_rf_animated.json'
 
 // Função exemplo para abrir Google Meet
 function openGoogleMeet() {
@@ -27,7 +29,7 @@ function openGeminiIA() {
 <template>
   <VerticalNavLayout>
     <template #navbar="{ toggleVerticalOverlayNavActive }">
-      <div class="d-flex h-100 align-center w-100 justify-space-between">
+  <div class="d-flex h-100 align-center w-100 justify-space-between header-bg">
         <!-- Menu hamburguer mobile -->
         <VTooltip location="right">
           <template #activator="{ props }">
@@ -42,15 +44,15 @@ function openGeminiIA() {
           Abrir menu
         </VTooltip>
 
-        <!-- Centralizado: Apenas Gemini IA com imagem -->
+        <!-- Centralizado: Apenas Gemini IA com imagem (ícone circular) -->
         <div class="d-flex align-center justify-center flex-grow-1">
           <v-btn
-            class="mx-2 gemini-btn"
-            style="border: none; background: linear-gradient(90deg, #7b1fa2 0%, #00bcd4 100%); color: #fff; font-weight: bold; letter-spacing: 0.5px; text-shadow: 0 1px 4px #000, 0 0 2px #00bcd4;"
+            class="mx-2 gemini-btn circular-gemini-btn"
             @click="openGeminiIA"
+            title="Gemini IA"
           >
-            <img src="/src/assets/images/svg/google-gemini-icon.webp" alt="Gemini IA" style="height: 28px; width: 28px; margin-right: 10px; border-radius: 50%; box-shadow: 0 0 8px #00bcd4; background: #fff;" />
-            <span class="gemini-label">Gemini IA</span>
+            <!-- Usar emoji de robô simples para compatibilidade e aparência consistente -->
+            <span class="gemini-emoji" aria-hidden="true">🤖</span>
           </v-btn>
         </div>
 
@@ -71,6 +73,9 @@ function openGeminiIA() {
 
     <template #vertical-nav-header="{ toggleIsOverlayNavActive }">
       <div class="sidebar-header-modern d-flex align-center justify-center py-4">
+        <div class="lottie-container">
+          <LottieAnimation :animation-data="botaoRfAnimated" :width="60" :height="60" />
+        </div>
         <VTooltip location="right">
           <template #activator="{ props }">
             <IconBtn
@@ -152,6 +157,48 @@ function openGeminiIA() {
   }
 }
 
+/* Mantemos a hit-area circular, mas removemos o fundo/degradê e sombras
+   para deixar apenas o SVG/emoji visível. */
+.circular-gemini-btn {
+  padding: 0;
+  height: 44px;
+  width: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.circular-gemini-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* Estilo para o SVG do robô: usamos `currentColor` no SVG e definimos a cor aqui */
+.gemini-robot {
+  width: 28px;
+  height: 28px;
+  display: block;
+  color: #e53935; /* vermelho solicitado */
+}
+
+/* Se houver emoji fallback, mantemos simples e sem fundo */
+.gemini-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  height: 28px;
+  width: 28px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+
+
 .gemini-label {
   color: #fff !important;
   font-weight: 700;
@@ -160,7 +207,9 @@ function openGeminiIA() {
 }
 
 .sidebar-header-modern {
-  background: linear-gradient(90deg, #7b1fa2 0%, #00bcd4 100%);
+  background-image: url('/header-bg.png');
+  background-size: cover;
+  background-position: center;
   border-radius: 0 0 16px 16px;
   box-shadow: 0 2px 8px 0 rgba(123, 31, 162, 0.10);
 }
@@ -170,5 +219,12 @@ function openGeminiIA() {
   font-weight: 700;
   letter-spacing: 1px;
   text-shadow: 0 1px 4px #000, 0 0 2px #00bcd4;
+}
+
+.lottie-container {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
 }
 </style>

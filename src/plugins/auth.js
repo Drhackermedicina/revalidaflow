@@ -19,13 +19,17 @@ export const initAuthListener = () => {
 // Função para aguardar a autenticação do Firebase
 export const waitForAuth = () => {
   return new Promise(resolve => {
+    if (currentUser.value !== null) { // Se o estado já foi inicializado
+      resolve(currentUser.value);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(firebaseAuth, user => {
-      currentUser.value = user
-      resolve(user)
-      unsubscribe()
-    })
-  })
-}
+      currentUser.value = user;
+      resolve(user);
+      unsubscribe();
+    });
+  });
+};
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 

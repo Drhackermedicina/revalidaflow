@@ -20,6 +20,7 @@ declare module 'vue' {
     ErrorHeader: typeof import('./src/components/ErrorHeader.vue')['default']
     GeminiChat: typeof import('./src/components/GeminiChat.vue')['default']
     GlobalLoader: typeof import('./src/components/GlobalLoader.vue')['default']
+    LottieAnimation: typeof import('./src/components/LottieAnimation.vue')['default']
     MoreBtn: typeof import('./src/@core/components/MoreBtn.vue')['default']
     PepFloatingWindow: typeof import('./src/components/PepFloatingWindow.vue')['default']
     PepSideView: typeof import('./src/components/PepSideView.vue')['default']

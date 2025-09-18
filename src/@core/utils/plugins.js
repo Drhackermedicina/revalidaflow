@@ -45,6 +45,10 @@ export const registerPlugins = app => {
   importPaths.forEach(path => {
     const pluginImportModule = imports[path]
 
-    pluginImportModule.default?.(app)
+    if (typeof pluginImportModule.default === 'object' && typeof pluginImportModule.default.install === 'function') {
+      app.use(pluginImportModule.default);
+    } else {
+      pluginImportModule.default?.(app);
+    }
   })
 }

@@ -1,0 +1,1 @@
+http://localhost:5173/app/dashboard?sim_user=true

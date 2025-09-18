@@ -31,6 +31,7 @@ if (import.meta.env.DEV) {
 
 const app = createApp(App)
 
+
 // ===== CONFIGURAÇÕES DE PERFORMANCE =====
 // Habilitar métricas de performance em desenvolvimento
 if (import.meta.env.DEV) {
