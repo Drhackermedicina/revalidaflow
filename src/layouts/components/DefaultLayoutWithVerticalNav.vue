@@ -207,9 +207,7 @@ function openGeminiIA() {
 }
 
 .sidebar-header-modern {
-  background-image: url('/header-bg.png');
-  background-size: cover;
-  background-position: center;
+  // Fundo removido; agora aplicado ao sidebar inteiro para continuidade
   border-radius: 0 0 16px 16px;
   box-shadow: 0 2px 8px 0 rgba(123, 31, 162, 0.10);
 }

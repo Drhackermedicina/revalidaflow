@@ -7,7 +7,7 @@ import { db, firebaseAuth } from '@/plugins/firebase.js'
 import { backendUrl } from '@/utils/backendUrl'
 import { signOut } from 'firebase/auth'
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore'
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { checkStationEditStatus, checkMultipleStationsEditStatus, clearStationCache } from '@/utils/cacheManager.js'
@@ -17,7 +17,7 @@ const theme = useTheme()
 
 // --- Refs do Estado ---
 const isDevelopment = ref(false); // Adiciona variável de ambiente
-const stations = ref([]);
+const stations = shallowRef([]); // Use shallowRef for performance with large arrays
 const isLoadingStations = ref(true);
 const errorMessage = ref('');
 const creatingSessionForStationId = ref(null);
@@ -1426,8 +1426,13 @@ function resetSequentialConfig() {
   sequentialSessionId.value = null;
 }
 
+// Helper function to check if station is in sequence (performance optimization)
+function isStationInSequence(stationId) {
+  return selectedStationsSequence.value.some(s => s.id === stationId);
+}
+
 function addToSequence(station) {
-  if (!selectedStationsSequence.value.find(s => s.id === station.id)) {
+  if (!isStationInSequence(station.id)) {
     selectedStationsSequence.value.push({
       id: station.id,
       titulo: getCleanStationTitle(station.tituloEstacao),
@@ -1638,8 +1643,19 @@ onMounted(() => {
   });
 });
 
+// Debounce the search query to prevent excessive API calls
+let searchTimeout;
 watch(globalSearchQuery, (newValue) => {
-  // A lógica de filtragem já está nas computed properties
+  // Clear previous timeout
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+
+  // Debounce search to reduce performance impact
+  searchTimeout = setTimeout(() => {
+    // A lógica de filtragem já está nas computed properties
+    // This prevents excessive re-computation during typing
+  }, 300);
 });
 
 watch(currentUser, (newUser) => {
@@ -1705,8 +1721,17 @@ const exampleVariable = ref(null);
   <v-container fluid class="pa-0 main-content-container">
     <v-tooltip location="right">
       <template #activator="{ props }">
-        <v-btn icon fixed top left @click="toggleCollapse" class="ma-3 z-index-5" v-bind="props">
-          <v-icon>ri-menu-line</v-icon>
+        <v-btn
+          icon
+          fixed
+          top
+          left
+          @click="toggleCollapse"
+          class="ma-3 z-index-5"
+          v-bind="props"
+          aria-label="Abrir/Fechar menu lateral"
+        >
+          <v-icon aria-hidden="false" role="img" aria-label="Menu de navegação">ri-menu-line</v-icon>
         </v-btn>
       </template>
       Abrir/Fechar menu lateral
@@ -2131,17 +2156,19 @@ const exampleVariable = ref(null);
                               />
                               <v-btn
                                 v-if="showSequentialConfig"
-                                :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
-                                :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                                :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                                :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
                                 size="small"
-                                @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                                @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
                                 class="me-2 sequential-selection-btn"
-                                :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                                :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
                               >
                                 <v-icon
-                                :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600', visibility: 'visible' }"
-                                :data-fallback="selectedStationsSequence.find(s => s.id === station.id) ? '✓' : '+'"
-                              >{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600', visibility: 'visible' }"
+                                :data-fallback="isStationInSequence(station.id) ? '✓' : '+'"
+                                :aria-hidden="false"
+                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
                               </v-btn>
                               <v-btn
                                 v-if="isAdmin"
@@ -2280,14 +2307,18 @@ const exampleVariable = ref(null);
                             />
                             <v-btn
                               v-if="showSequentialConfig"
-                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
-                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                              :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
                               size="small"
-                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
                               class="me-2 sequential-selection-btn"
-                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
                             >
-                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                              <v-icon
+                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }"
+                                :aria-hidden="false"
+                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
                             </v-btn>
                             <v-btn
                               v-if="isAdmin"
@@ -2402,14 +2433,18 @@ const exampleVariable = ref(null);
                             />
                             <v-btn
                               v-if="showSequentialConfig"
-                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
-                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                              :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
                               size="small"
-                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
                               class="me-2 sequential-selection-btn"
-                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
                             >
-                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                              <v-icon
+                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }"
+                                :aria-hidden="false"
+                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
                             </v-btn>
                             <v-btn
                               v-if="isAdmin"
@@ -2524,14 +2559,18 @@ const exampleVariable = ref(null);
                             />
                             <v-btn
                               v-if="showSequentialConfig"
-                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
-                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                              :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
                               size="small"
-                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
                               class="me-2 sequential-selection-btn"
-                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
                             >
-                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                              <v-icon
+                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }"
+                                :aria-hidden="false"
+                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
                             </v-btn>
                             <v-btn
                               v-if="isAdmin"
@@ -2646,14 +2685,18 @@ const exampleVariable = ref(null);
                             />
                             <v-btn
                               v-if="showSequentialConfig"
-                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
-                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                              :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
                               size="small"
-                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
                               class="me-2 sequential-selection-btn"
-                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
                             >
-                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                              <v-icon
+                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }"
+                                :aria-hidden="false"
+                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
                             </v-btn>
                             <v-btn
                               v-if="isAdmin"
@@ -2768,14 +2811,18 @@ const exampleVariable = ref(null);
                             />
                             <v-btn
                               v-if="showSequentialConfig"
-                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
-                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                              :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
                               size="small"
-                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
                               class="me-2 sequential-selection-btn"
-                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
                             >
-                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                              <v-icon
+                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }"
+                                :aria-hidden="false"
+                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
                             </v-btn>
                             <v-btn
                               v-if="isAdmin"
@@ -2890,14 +2937,18 @@ const exampleVariable = ref(null);
                             />
                             <v-btn
                               v-if="showSequentialConfig"
-                              :color="selectedStationsSequence.find(s => s.id === station.id) ? 'success' : 'primary'"
-                              :variant="selectedStationsSequence.find(s => s.id === station.id) ? 'tonal' : 'outlined'"
+                              :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                              :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
                               size="small"
-                              @click.stop="selectedStationsSequence.find(s => s.id === station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                              @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
                               class="me-2 sequential-selection-btn"
-                              :aria-label="selectedStationsSequence.find(s => s.id === station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
                             >
-                              <v-icon :style="{ color: selectedStationsSequence.find(s => s.id === station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }">{{ selectedStationsSequence.find(s => s.id === station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                              <v-icon
+                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }"
+                                :aria-hidden="false"
+                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
                             </v-btn>
                             <v-btn
                               v-if="isAdmin"

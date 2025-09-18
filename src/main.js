@@ -24,10 +24,14 @@ import './assets/performance-optimizations.css'
 
 // Expor adminAgentService globalmente no modo de desenvolvimento
 import { adminAgentService } from './services/adminAgentService'
+import { preloadIcons } from './utils/iconCache'
 
 if (import.meta.env.DEV) {
   window.adminAgentService = adminAgentService
 }
+
+// Preload frequently used icons to reduce API calls
+preloadIcons().catch(console.warn)
 
 const app = createApp(App)
 

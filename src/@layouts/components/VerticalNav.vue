@@ -135,6 +135,9 @@ const handleNavScroll = evt => {
   inset-inline-start: 0;
   transition: inline-size 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
   will-change: transform, inline-size;
+  background-image: url('/header-bg.png');
+  background-size: cover;
+  background-position: center top;
 
   .nav-header {
     display: flex;

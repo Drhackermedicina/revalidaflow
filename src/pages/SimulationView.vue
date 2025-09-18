@@ -13,6 +13,7 @@ import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
 import { registrarConclusaoEstacao } from '@/services/stationEvaluationService.js';
 import { backendUrl } from '@/utils/backendUrl.js';
+import { loadAudioFile, playAudioSegment } from '@/utils/audioService.js'; // Importar as novas funções de áudio
 import {
   formatActorText,
   formatIdentificacaoPaciente,
@@ -264,21 +265,12 @@ const localSessionId = ref(null); // Temporary session ID for view mode
 
 
 
-function playSoundEffect() {
+async function playSoundEffect() {
   try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    if (!audioContext) { console.warn("Web Audio API não suportada."); return; }
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    oscillator.type = 'square';
-    oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.5);
-    setTimeout(() => { if (audioContext.state !== 'closed') { audioContext.close(); } }, 700);
-  } catch (e) { console.warn("Não foi possível tocar o som:", e);
+    const audioBuffer = await loadAudioFile('/src/assets/myinstants.mp3');
+    playAudioSegment(audioBuffer, 1, 1); // Reproduz do segundo 1 ao segundo 2 (duração de 1 segundo)
+  } catch (e) {
+    console.warn("Não foi possível tocar o som:", e);
   }
 }
 

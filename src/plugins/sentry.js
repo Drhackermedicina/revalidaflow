@@ -13,12 +13,16 @@ export function initSentry(app, router) {
         Sentry.replayIntegration()
       ],
 
-      // Performance Monitoring
-      tracesSampleRate: 0.1, // 10% das transações em produção
+      // Performance Monitoring - Reduced for better performance
+      tracesSampleRate: import.meta.env.DEV ? 0.01 : 0.05, // Lower sampling in dev
 
-      // Session Replay
-      replaysSessionSampleRate: 0.1, // 10% das sessões
-      replaysOnErrorSampleRate: 1.0, // 100% das sessões com erro
+      // Session Replay - Reduced to minimize performance impact
+      replaysSessionSampleRate: 0.05, // 5% das sessões
+      replaysOnErrorSampleRate: 0.5, // 50% das sessões com erro
+
+      // Reduce performance overhead
+      enableTracing: !import.meta.env.DEV, // Disable tracing in development
+      debug: false, // Disable debug mode
 
       // Environment
       environment: import.meta.env.MODE,

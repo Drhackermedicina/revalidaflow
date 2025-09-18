@@ -1,6 +1,7 @@
 /* eslint-disable regex/invalid */
 import { Icon } from '@iconify/vue'
 import { h } from 'vue'
+import { isIconCached, cacheIcon } from '@/utils/iconCache'
 import checkboxChecked from '@images/svg/checkbox-checked.svg'
 import checkboxIndeterminate from '@images/svg/checkbox-indeterminate.svg'
 import checkboxUnchecked from '@images/svg/checkbox-unchecked.svg'
@@ -72,12 +73,24 @@ export const iconify = {
       }
     }
 
-    // Use Iconify for other icons
+    // Use Iconify for other icons with accessibility improvements
+    // Cache icon for performance
+    if (!isIconCached(iconName)) {
+      cacheIcon(iconName);
+    }
+
     return h(Icon, {
       icon: iconName,
       ...props,
       // Remove used props from DOM rendering
       tag: undefined,
+      // Fix accessibility issues
+      'aria-hidden': props['aria-label'] || props['aria-describedby'] ? false : true,
+      // Ensure focus management for interactive icons
+      tabindex: props.tabindex || (props['aria-label'] ? 0 : -1),
+      // Add performance optimizations
+      mode: 'svg', // Force SVG mode for better performance
+      onLoad: () => cacheIcon(iconName), // Cache when loaded
     })
   },
 }
