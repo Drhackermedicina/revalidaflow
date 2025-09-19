@@ -1679,7 +1679,6 @@ function logout() { signOut(firebaseAuth); }
 function toggleSidebar() { sidebarOpen.value = !sidebarOpen.value; }
 function goToHome() { router.push('/'); }
 function openGoogleMeet() { window.open('https://meet.google.com', '_blank'); }
-function openGemini() { window.open('https://gemini.google.com', '_blank'); }
 function openWhatsApp() { window.open('https://wa.me/', '_blank'); }
 function getStatusText(status) { return status; }
 

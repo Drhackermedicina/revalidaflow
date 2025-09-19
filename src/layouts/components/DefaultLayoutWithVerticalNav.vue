@@ -10,8 +10,6 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
 /* GlobalAgentAssistant (legado) removido durante limpeza do agente */
 
 import { ref } from 'vue'
-import LottieAnimation from '@/components/LottieAnimation.vue'
-import botaoRfAnimated from '@/assets/lottie/botao_rf_animated.json'
 
 // Função exemplo para abrir Google Meet
 function openGoogleMeet() {
@@ -72,10 +70,8 @@ function openGeminiIA() {
     </template>
 
     <template #vertical-nav-header="{ toggleIsOverlayNavActive }">
-      <div class="sidebar-header-modern d-flex align-center justify-center py-4">
-        <div class="lottie-container">
-          <LottieAnimation :animation-data="botaoRfAnimated" :width="60" :height="60" />
-        </div>
+      <div class="sidebar-header-modern d-flex align-items-start justify-center">
+        <img src="/botao_rf-removebg-preview.png" width="135" height="135" alt="Botão RF" />
         <VTooltip location="right">
           <template #activator="{ props }">
             <IconBtn
@@ -161,9 +157,9 @@ function openGeminiIA() {
    para deixar apenas o SVG/emoji visível. */
 .circular-gemini-btn {
   padding: 0;
-  height: 44px;
-  width: 44px;
-  min-width: 44px;
+  height: 66px;
+  width: 66px;
+  min-width: 66px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -189,10 +185,10 @@ function openGeminiIA() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 30px;
   line-height: 1;
-  height: 28px;
-  width: 28px;
+  height: 42px;
+  width: 42px;
   border-radius: 50%;
   background: transparent;
 }
@@ -210,6 +206,22 @@ function openGeminiIA() {
   // Fundo removido; agora aplicado ao sidebar inteiro para continuidade
   border-radius: 0 0 16px 16px;
   box-shadow: 0 2px 8px 0 rgba(123, 31, 162, 0.10);
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+  height: 80px; // Reduzido de 100px para 80px para subir a linha inferior
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Alinhar o container nav-header com o header horizontal
+.nav-header {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-block-size: 80px !important; // Reduzido de 100px para 80px para subir a linha inferior
+  display: flex !important;
+  align-items: center !important;
 }
 .sidebar-title {
   color: #fff;

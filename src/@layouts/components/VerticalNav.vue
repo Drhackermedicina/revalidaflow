@@ -1,14 +1,6 @@
 <script setup>
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useDisplay } from 'vuetify'
-import { onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import animationData from '@/assets/lottie/botao_rf_animated.json'
-import LottieAnimation from '@/components/LottieAnimation.vue'
-
-onMounted(() => {
-  console.log('VerticalNav mounted')
-})
 
 const props = defineProps({
   tag: {
@@ -68,7 +60,6 @@ const handleNavScroll = evt => {
           to="/app/dashboard"
           class="app-logo app-title-wrapper"
         >
-          <LottieAnimation :animation-data="animationData" style="width: 60px; height: 60px;" />
           <h1 class="font-weight-medium leading-normal text-xl text-uppercase">
             Home
           </h1>
@@ -116,7 +107,6 @@ const handleNavScroll = evt => {
     text-transform: uppercase;
   }
 }
-
 </style>
 
 <style lang="scss">
@@ -135,9 +125,6 @@ const handleNavScroll = evt => {
   inset-inline-start: 0;
   transition: inline-size 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
   will-change: transform, inline-size;
-  background-image: url('/header-bg.png');
-  background-size: cover;
-  background-position: center top;
 
   .nav-header {
     display: flex;

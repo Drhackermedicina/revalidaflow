@@ -1,0 +1,436 @@
+{
+    "instrucoesGeraisParaIA": "As informações contidas nos campos 'orientacaoParaGeracao' são exclusivamente para guiar a inteligência artificial na criação da estação e NÃO devem ser exibidas na estação final gerada, nem esse campo !!!!.",
+    "idEstacao": "[Ex: REVALIDA_FACIL_2025_CM_01]",
+    "tituloEstacao": "[o titulo da estação deve ser a palavra1 do campo 'palavrasChave']",
+    "numeroDaEstacao": 1,
+    "especialidade": "[ESPECIALIDADE DA ESTAÇÃO]",
+    "tempoDuracaoMinutos": 10,
+    "palavrasChave": "[palavra1, palavra2, palavra3, especialidade, nível atenção]",
+    "nivelDificuldade": "[Fácil]",
+    "instrucoesParticipante": {
+        "cenarioAtendimento": {
+            "nivelAtencao": "[Ex: Atenção primária à saúde|Atenção secundária à saúde|Atenção terciária à saúde]",
+            "tipoAtendimento": "[Ex: Ambulatorial|Urgência e emergência|Hospitalar]",
+            "infraestruturaUnidade": [
+                "[Ex: Consultórios]",
+                "[Ex: Laboratório de análises clínicas]",
+                "[Ex: Centro cirúrgico]",
+                "[Ex: Exames de imagem]",
+                "[Ex: Medicações, vacinas disponíveis]",
+                "[Ex: Unidade de terapia intensiva]"
+            ]
+        },
+        "descricaoCasoCompleta": "[Descrição objetiva do caso para o candidato, sem dados filiatorios, apenas Paciente e idade, no máximo 2 sintomas ou sinais ou clinicas, sem caracterização dos sintomas, no maximo o tempo de inicio, para forçar o candidato na sua investigação.][não deve conter dados que revele o diagnostico final, mas deve conter dados que levem o candidato a suspeitar do diagnostico correto, e que sejam coerentes com o diagnostico final, e que sejam relevantes para o caso clinico anexado.][deve conter apenas dados relevantes para o caso clinico anexado, sem dados irrelevantes ou que possam confundir o candidato.][deve ser um caso clinico realista, coerente, e que possa ser encontrado na pratica clinica.]",
+        "orientacaoParaGeracao": "[Orientação específica para geração das tarefas principais, como focar em aspectos clínicos essenciais ou priorizar itens obrigatórios.]",
+        "tarefasPrincipais": [
+            "[Ex: Realizar a anamnese direcionada à queixa principal do paciente.]",
+            "[Ex: Solicitar exames físicos necessários à avaliação do caso.]",
+            "[Ex: Solicitar exame físico específico e descrever técnica adequada.]",
+            "[Ex: Solicitar e Interpretar exames complementares se pertinentes ao caso.]",
+            "[Ex: Relacionar os resultados dos exames a(s) suspeita(s) diagnóstica(s).]",
+            "[Ex: Elaborar o diagnóstico definitivo.]",
+            "[Ex: Listar os principais diagnósticos diferenciais relacionados ao caso.]",
+            "[Ex: Elaborar a conduta terapêutica.]",
+            "[Ex: Cite os fatores de risco associados ao caso.]",
+            "[Ex: Cite possíveis complicações.]",
+            "[Ex: Cite as complicações possíveis do caso.]",
+            "[Ex: Classificar a gravidade do caso.]",
+            "[Ex: Realizar as orientações finais ao paciente.]",
+            "[Ex: Planejar o seguimento do paciente.]"
+        ],
+        "avisosImportantes": [
+            "ATENÇÃO! CASO JULGUE NECESSÁRIO REALIZAR EXAME FÍSICO, VERBALIZE! O PACIENTE SIMULADO NÃO DEVERÁ SER TOCADO DURANTE O ATENDIMENTO.",
+            "[Outros avisos específicos da estação]"
+        ]
+    },
+    "materiaisDisponiveis": {
+        "informacoesVerbaisSimulado": [
+            {
+                "contextoOuPerguntaChave": "IDENTIFICAÇÃO DO PACIENTE",
+                "orientacaoParaGeracao": "Utilize nomes aleatórios baseados nos 50 nomes mais comuns no Brasil, de acordo com o sexo e a idade do paciente, garantindo variação e aleatoriedade para evitar repetições.",
+                "informacao": "[Ex: Aguinaldo Sales, 68 anos, Aposentado, Casado]"
+            },
+            {
+                "contextoOuPerguntaChave": "MOTIVO DE CONSULTA",
+                "informacao": "[Motivo de consulta em primeira pessoa, com duração exata. Ex: 'Estou com dor de cabeça há 3 dias, doutor(a).']"
+            },
+            {
+                "contextoOuPerguntaChave": "[SINTOMA(S) / SINAL(IS) PRINCIPAIS/GUIA DO MOTIVO DE CONSULTA]",
+                "orientacaoParaGeracao": "[Orientação para geração do(s) sintoma(s) ou sinal(is)]",
+                "informacao": "[Detalhes do sintoma(s) com \\n para organizar informações, e desintrinchar completamente seguindo o modelo dos sintomas abaixo]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Dor (qualquer localização)]",
+                "informacao": "[Detalhes do sintoma(s) com \\n para organizar informações]\nInício: [Quando começou? Como começou - súbito/gradual? Há quanto tempo?]\nLocalização: [Onde exatamente? Bem ou mal localizada?]\nIntensidade: [Escala 0-10, limitação funcional que causa]\nCaracterística ou Tipo da dor: [Como é o sintoma - pontada, queimação, pressão, etc.?]\nIrradiação: [Migração da dor ? Espalha para onde? Propaga-se?]\nDuração(apenas adicione e exiba essa informação se presente no caso): [Contínuo, intermitente, duração dos episódios?]\n Progressão(apenas adicione e exiba essa informação se presente no caso, é uma informaçao não obrigatória): [Progressiva, em melhora, está piorando com o tempo? Como tem evoluído?]\nFrequencia(apenas adicione e exiba essa informação se presente no caso, é uma informaçao não obrigatória): [Quantas vezes ocorre? Quantas vezes vomitou? Quantas vezes teve diarréia? Quantos acessos de tosse durante a crise?]\nFator de piora ou agravante: [O que piora o sintoma? ao movimento?, após se alimentar?, Quando está ansioso? quando esta estressado?, piora ao acordar?, piora ao movimentar?, parado?, ao deitar?, após beber café?]\nFator de melhora ou atenuante: [O que alivia? melhora em repouso?, Melhora ao se movimentar? Melhora ao comer? melhora ao deitar? melhora após usar medicamento(s)?, Melhora após evacuar? posição?]\nEpisódios prévios(apenas adicione e exiba essa informação se presentes ou relevante para o caso, é uma informaçao não obrigatória): [Já teve algo similar antes?, Já teve esse sintoma antes?, Quantas vezes já sentiu isso antes?, Já teve essa cris]\nMedicação de alivio: [Usou algum analgésico para a dor?,Com que resultado?]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Febre]",
+                "informacao": "Início: [Quando começou? Foi súbito com calafrios ou gradual?]\\nDuração: [Há quantos dias está com febre?]\\nPadrão: [Contínua ou tem picos? Em que período do dia é mais alta?]\\nIntensidade: [Qual a temperatura mais alta medida?]\\nSintomas associados: [Calafrios? Sudorese noturna?]\\nResposta a antitérmicos: [Tomou algum remédio? Qual? A febre cedeu completamente?]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Alterações de Peso]",
+                "informacao": "Tipo: [Perda ou ganho de peso]\\nQuantificação: [Exemplo: 'Perdi 6 quilos nos últimos 3 meses']\\nIntencionalidade: [Exemplo: 'Não foi intencional, não estou fazendo dieta']\\nRelação com apetite: [Exemplo: 'Meu apetite diminuiu muito']\\nTempo de evolução: [Exemplo: 'Notei a mudança de peso há cerca de 2 meses']\\nSintomas associados: [Exemplo: 'Além da perda de peso, tenho sentido muito cansaço']"
+            },
+            {
+                "contextoOuPerguntaChave": "[Astenia/Fadiga]",
+                "informacao": "Diferenciação: [Exemplo: 'Sinto mais cansaço do que fraqueza']\\nInício: [Exemplo: 'Começou há cerca de 1 mês']\\nEvolução: [Exemplo: 'Tem piorado com o tempo']\\nImpacto funcional: [Exemplo: 'Estou com dificuldade para fazer as tarefas de casa']\\nRelação com atividade/repouso: [Exemplo: 'Piora quando faço esforço, melhora um pouco quando descanso']\\nSintomas associados: [Exemplo: 'Tenho dormido mal e perdido peso']"
+            },
+            {
+                "contextoOuPerguntaChave": "[Lesões Cutâneas]",
+                "informacao": "Início: [Exemplo: 'Apareceu há 5 dias']\\nEvolução: [Exemplo: 'A lesão aumentou de tamanho e mudou de cor']\\nLocalização: [Exemplo: 'Começou no braço e depois apareceu na perna']\\nSintomas associados: [Exemplo: 'Coça e às vezes arde']\\nFatores desencadeantes: [Exemplo: 'Apareceu depois que usei um creme novo']\\nExposição: [Exemplo: 'Não tive contato com plantas ou animais diferentes']"
+            },
+            {
+                "contextoOuPerguntaChave": "[Prurido (Coceira)]",
+                "informacao": "Início: [Exemplo: 'Começou há 2 semanas']\\nLocalização: [Exemplo: 'Coça mais nas pernas, mas às vezes no corpo todo']\\nIntensidade: [Exemplo: 'É forte, nota 7 de 10']\\nPiora/melhora: [Exemplo: 'Piora à noite, melhora um pouco com banho frio']\\nLesões associadas: [Exemplo: 'Fica vermelho e com marcas de unha']\\nSintomas sistêmicos: [Exemplo: 'Não notei febre nem amarelão nos olhos']\\nContexto: [Exemplo: 'Ninguém mais em casa está com coceira']"
+            },
+            {
+                "contextoOuPerguntaChave": "[Cefaleia (Dor de Cabeça)]",
+                "informacao": "Início: [Exemplo: 'Começou de repente, como uma explosão']\\nLocalização: [Exemplo: 'Dói mais na nuca, mas pega a cabeça toda']\\nIntensidade: [Exemplo: 'É a pior dor que já senti, nota 10 de 10']\\nTipo/Característica: [Exemplo: 'É uma dor pulsátil, como se estivesse batendo']\\nDuração/frequência: [Exemplo: 'Dura cerca de 2 horas, já tive 3 crises esta semana']\\nFatores de piora: [Exemplo: 'Piora com luz forte e barulho']\\nFatores de melhora: [Exemplo: 'Melhora quando fico deitado no escuro']\\nSintomas associados: [Exemplo: 'Sinto enjoo e às vezes vejo luzes antes da dor começar']\\nSinais de alarme: [Exemplo: 'Nunca tive dor assim antes']"
+            },
+            {
+                "contextoOuPerguntaChave": "[Tontura/Vertigem]",
+                "informacao": "Tipo: [Exemplo: 'Sinto que tudo gira ao meu redor']\\nInício: [Exemplo: 'Começou de repente, enquanto estava em pé']\\nDuração: [Exemplo: 'Dura alguns minutos e depois passa']\\nFatores desencadeantes: [Exemplo: 'Piora quando viro a cabeça rápido']\\nSintomas associados: [Exemplo: 'Às vezes fico com náusea e suor frio']\\nImpacto funcional: [Exemplo: 'Já caí uma vez por causa da tontura']"
+            },
+            {
+                "contextoOuPerguntaChave": "[Tosse]",
+                "informacao": "Duração: [Aguda (<3 semanas), subaguda (3-8 semanas) ou crônica (>8 semanas)]\\nCaracterística: [Seca ou produtiva com catarro]\\nPadrão/Gatilhos: [Pior pela manhã, à noite, com exercício, exposição à poeira]\\nExpectoração: [Cor, consistência, quantidade do catarro, se houver]\\nPresença de sangue: [Se houve hemoptise, quantidade, frequência]\\nSintomas associados: [Febre, dispneia, dor torácica]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Dispneia (Falta de ar)]",
+                "informacao": "Início: [Súbito ou gradual]\\nIntensidade: [Leve, moderada, grave]\\nGatilhos: [Em repouso ou aos esforços? Quais atividades causam?]\\nClassificação NYHA: [I-IV - detalhar quais atividades causam dispneia]\\nOrtopneia: [Necessita de quantos travesseiros para dormir?]\\nDispneia paroxística noturna: [Acorda à noite sufocado? Com que frequência?]\\nSintomas associados: [Tosse, chiado, dor torácica, edema de MMII]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Dor Torácica]",
+                "informacao": "Localização: [Onde exatamente no peito? Precordial, retroesternal?]\\nIrradiação: [Para mandíbula, braço esquerdo, costas?]\\nCaráter: [Aperto, peso, queimação, pontada]\\nIntensidade: [Escala 0-10]\\nDuração: [Quanto tempo dura cada episódio?]\\nFatores desencadeantes: [Durante esforço, em repouso, com emoções?]\\nFatores de alívio: [Repouso, posição, nitratos?]\\nSintomas associados: [Dispneia, sudorese, náuseas, síncope]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Palpitações]",
+                "informacao": "Descrição: [Como sente o coração bater? Rápido e regular, irregular?]\\nInício/Término: [Começa e termina subitamente ou gradualmente?]\\nDuração/Frequência: [Quanto tempo dura? Com que frequência ocorre?]\\nFatores desencadeantes: [Esforço, estresse, café, álcool?]\\nSintomas associados: [Tontura, pré-síncope, síncope, dor no peito]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Edema de Membros]",
+                "informacao": "Localização: [Quais membros? Unilateral ou bilateral?]\\nInício: [Quando começou?]\\nPadrão: [Pior no final do dia? Melhora ao elevar as pernas?]\\nCaráter: [Forma cacifo/depressão quando aperta com o dedo?]\\nSintomas associados: [Dispneia, ortopneia, DPN]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Dor Abdominal]",
+                "informacao": "Localização: [Em qual quadrante ou região?]\\nIrradiação: [A dor se espalha para algum outro local?]\\nCaráter: [Cólica, queimação, pontada, peso]\\nIntensidade: [Escala 0-10]\\nInício/Duração: [Súbito ou gradual? Contínua ou intermitente?]\\nRelação com funções: [Piora ou melhora com alimentação, evacuação, micção?]\\nFatores de melhora/piora: [O que alivia ou piora a dor?]\\nSintomas associados: [Náuseas, vômitos, febre, alteração do hábito intestinal]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Náuseas e Vômitos]",
+                "informacao": "Início: [Quando começou?]\\nFrequência: [Quantos episódios por dia?]\\nRelação temporal: [Ocorre em jejum, após alimentação?]\\nConteúdo: [Alimentar recente, bilioso, com sangue, fecaloide?]\\nFatores de alívio: [O que melhora? Algum medicamento usado?]\\nSintomas associados: [Dor abdominal, diarreia, febre]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Alterações Intestinais]",
+                "informacao": "Tipo: [Diarreia ou constipação]\\nDuração: [Aguda ou crônica]\\nFrequência: [Quantas evacuações por dia/semana?]\\nConsistência: [Líquida, pastosa, endurecida, em cíbalos]\\nCor: [Normal, clara, escura, com sangue, com muco]\\nVolume: [Grande ou pequeno volume em cada evacuação]\\nSintomas associados: [Dor, distensão abdominal, tenesmo, urgência]\\nPadrão: [Contínua ou intermitente? Também ocorre à noite?]\\nFatores de melhora/piora: [Alimentos específicos, estresse, medicamentos]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Icterícia/Colúria/Acolia]",
+                "informacao": "Início: [Quando notou o amarelão? Foi súbito ou gradual?]\\nIntensidade: [Leve, moderada, intensa]\\nPrurido: [Presença de coceira associada? Intensidade?]\\nColúria: [Urina escura como Coca-Cola?]\\nAcolia fecal: [Fezes claras, esbranquiçadas?]\\nSintomas associados: [Dor abdominal, febre, perda de peso]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Sintomas Urinários]",
+                "informacao": "Disúria: [Dor ou ardência ao urinar]\\nPolaciúria: [Aumento da frequência urinária]\\nUrgência: [Vontade súbita e incontrolável de urinar]\\nNictúria: [Necessidade de levantar à noite para urinar]\\nHesitação: [Demora para iniciar o jato]\\nJato fraco: [Diminuição da força do jato]\\nGotejamento terminal: [Continua pingando após terminar]\\nSensação de esvaziamento incompleto: [Sente que não esvaziou tudo]\\nAlterações na urina: [Presença de sangue, cheiro forte, espuma]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Dor Lombar]",
+                "informacao": "Localização: [Lombar bilateral ou unilateral (flanco)?]\\nIrradiação: [Para região inguinal, genitais?]\\nCaráter: [Em cólica? Peso? Contínua?]\\nIntensidade: [Escala 0-10]\\nFatores de melhora/piora: [Repouso, posição, movimentos?]\\nSintomas urinários associados: [Disúria, hematúria, febre]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Corrimento Vaginal/Uretral]",
+                "informacao": "Início: [Quando começou?]\\nCor: [Branco, amarelado, esverdeado, acinzentado]\\nOdor: [Presença de odor forte ou desagradável]\\nQuantidade: [Pequena, moderada, grande]\\nConsistência: [Espesso tipo 'nata', bolhoso, fluido]\\nSintomas associados: [Coceira, ardor, dispareunia, disúria]\\nRelação com ciclo menstrual: [Piora antes/depois da menstruação]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Dor Articular/Rigidez]",
+                "informacao": "Localização: [Quais articulações? Padrão simétrico?]\\nInício: [Quando começou? Súbito ou gradual?]\\nCaráter: [Tipo de dor: latejante, em peso, em pontada]\\nIntensidade: [Escala 0-10]\\nPadrão da dor: [Pior pela manhã (inflamatório) ou no fim do dia (mecânico)?]\\nRigidez matinal: [Presente? Duração? >1h sugere inflamação]\\nSinais inflamatórios: [Articulações ficam inchadas, quentes, vermelhas?]\\nLimitação funcional: [Impacto nas atividades diárias]\\nSintomas sistêmicos: [Febre, perda de peso, lesões cutâneas]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Alterações Neurológicas]",
+                "informacao": "Tipo: [Fraqueza (paresia), alteração de sensibilidade (parestesia)]\\nLocalização: [Onde exatamente? Padrão de distribuição? Lado do corpo?]\\nInício: [Súbito ou gradual? Quando iniciou?]\\nEvolução: [Está piorando, melhorando ou estável?]\\nFatores desencadeantes: [Trauma, posição, movimento?]\\nSintomas associados: [Alteração visual, fala, marcha, consciência]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Crises Convulsivas]",
+                "informacao": "Frequência: [Primeira crise ou recorrente? Quantas crises?]\\nFatores desencadeantes: [Privação de sono, estresse, febre, álcool?]\\nAura: [Sensação prévia? Qual tipo?]\\nDescrição da crise (relato de testemunha): [Início súbito? Perda de consciência? Movimentos? Mordedura de língua? Liberação esfincteriana?]\\nDuração: [Tempo dos movimentos convulsivos]\\nFase pós-ictal: [Confusão após a crise? Por quanto tempo?]\\nRecuperação: [Rápida ou lenta? Dor de cabeça ou fraqueza após?]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Alterações de Memória]",
+                "informacao": "Tipo: [Memória recente ou remota mais afetada?]\\nInício e progressão: [Quando começou? Tem piorado?]\\nImpacto funcional: [Afeta atividades diárias? Quais?]\\nSintomas associados: [Alterações de comportamento, linguagem, marcha]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Distúrbios do Sono]",
+                "informacao": "Tipo: [Insônia inicial, de manutenção, despertar precoce]\\nDuração: [Há quanto tempo?]\\nQualidade do sono: [Sensação de sono não reparador?]\\nSintomas diurnos: [Sonolência excessiva durante o dia?]\\nEventos noturnos: [Ronco, pausas respiratórias, pernas inquietas]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Alterações de Humor]",
+                "informacao": "Humor predominante: [Triste, ansioso, irritável, eufórico]\\nAnedonia: [Perda de interesse ou prazer em atividades antes prazerosas]\\nEnergia: [Cansaço, fadiga constante]\\nAlterações de sono: [Insônia ou hipersonia]\\nAlterações de apetite: [Aumento ou diminuição]\\nConcentração: [Dificuldade para se concentrar ou tomar decisões]\\nSentimentos negativos: [Culpa, inutilidade, desesperança]\\nIdeação suicida: [Pensamentos de morte ou suicídio]"
+            },
+            {
+                "contextoOuPerguntaChave": "[Alterações Endócrinas]",
+                "informacao": "Sintomas gerais: [Fadiga, fraqueza, perda ou ganho de peso]\\nSintomas específicos: [Intolerância ao frio/calor, sudorese, tremores]\\nAlterações menstruais (mulheres): [Irregularidades, dor, fluxo]"
+            },
+            {
+                "contextoOuPerguntaChave": "SINTOMAS ACOMPANHANTES (descreva os sintomas acompanhantes/associados relatados pelo paciente, tanto dos sintomas e/ou sinais principais/guia do motivo de consulta, quantos os nao relatos nesses campos mais presentes e tambem os sinais e sintomas acompanhantes que sao NECESSÁRIOS investigar em relação ao tema central da estação, mesmo que sejam negados pelo pacientenas 'informacao' desse contexto juntamente com outros sintomas associados/acompanhantes do paciente que nao foram citados no motivo de consulta nem contidos nos sintomas e sinais principais  tambem )",
+                "informacao": "[Sintoma1]: [Descrição]\n[Sintoma2]: [Descrição]\nOutros sintomas: Não consta no script"
+            },
+            {
+                "contextoOuPerguntaChave": "ANTECEDENTES PESSOAIS Patológicos (item obrigatório)",
+                "informacao": "Doenças crônicas: [informação]\nCirurgias prévias: [informação]\nInternações: [informação]\nAlergias: [informação]\nMedicamentos em uso contínuo: [informação]\nVacinação: [informação]\nTrauma(APENAS SE RELEVANTE AO TEMA): [informação]\nTransfusões(APENAS SE RELEVANTE AO TEMA): [informação] "
+            },
+            {
+                "contextoOuPerguntaChave": "ANTECEDENTES FISIOLÓGICOS",
+                "informacao": "Tipo do parto: [vaginal, cesárea]\nTempo de Gestação: [Prematuridade, a termo, quantas semanas?]\nIntercorrências neonatais: [Precisou de reanimação após o nascimento?]\nHábitos sexuais (apenas se relevante ao caso/quadro): [Atividade sexual, parceiros, proteção]\nHábitos urinários (apenas se relevante ao caso/quadro): [Frequência, características, alterações]\nHábitos intestinais (apenas se relevante ao caso/quadro): [Frequência, consistência, alterações]\nIngestão hídrica (apenas se relevante ao caso/quadro): [Quantidade diária, tipo de líquidos]\nExposição ocupacional: [Riscos no trabalho, substâncias, tempo de exposição]\nEstresse: [Fatores estressantes, como lida com estresse]\n"
+            },
+            {
+                "contextoOuPerguntaChave": "HÁBITOS DE VIDA'",
+                "orientacaoParaGeracao": "Este contexto é obrigatório e deve ser incluído em todas as gerações da estação, e as informações Tabagismo, etilismo, drogas ilicitas, atividade fisica e dieta sao informaçoes OBRIGATÓRIAS, Quando esses itens obrigatórios não estiverem presentes no caso clínico usado para a criação, crie respostas adequadas e coerente com o caso. outras informações  somente devem ser incluidas se presente ou relevantes para caso anexado.",
+                "informacao": "Tabagismo: [Fumante/ex-fumante/nunca fumou, quantidade, tempo]\nEtilismo: [Frequência, tipo de bebida, quantidade]\nDrogas ilícitas: [Tipo, frequência, via de uso]\nAlimentação: [Padrão alimentar, restrições, apetite]\nAtividade física: [Tipo, frequência, intensidade]\nSono: [Horas de sono, qualidade, horários]\nHábitos urinários (apenas se relevante ao caso/quadro): [Frequência, características, alterações]\nHábitos intestinais (apenas se relevante ao caso/quadro): [Frequência, consistência, alterações]\nIngestão hídrica (apenas se relevante ao caso/quadro): [Quantidade diária, tipo de líquidos]\nExposição ocupacional(APENAS SE RELEVANTE AO TEMA): [Riscos no trabalho, substâncias, tempo de exposição]\nEstresse(APENAS SE RELEVANTE AO TEMA): [Fatores estressantes, como lida com estresse]"
+            },
+            {
+                "contextoOuPerguntaChave": "ANTECEDENTES FAMILIARES",
+                "orientacaoParaGeracao": "Este contexto é obrigatório e deve ser incluído em todas as gerações da estação, Quando esses itens obrigatórios não estiverem presentes no caso clínico usado para a criação, crie respostas adequadas coerente com o caso. outras informações devem ser incluidas somente se presente ou relevantes para caso anexado.",
+                "informacao": "Pai: [informação]\nMãe: [informação]\nDoenças (especificas com relação e relevante ao caso) na família: [informação]"
+            },
+            {
+                "contextoOuPerguntaChave": "ANTECEDENTES NEONATAIS",
+                "orientacaoParaGeracao": "Este contexto e suas informações são apenas para recém-nascidos, neonatos, lactentes e crianças, e devem exibir somente as informações presentes no caso anexado.",
+                "informacao": "Tipo do parto: [vaginal, cesárea]\nTempo de Gestação: [Prematuridade, a termo, quantas semanas?]\nIntercorrências neonatais: [Precisou de reanimação após o nascimento?]"
+            },
+            {
+                "contextoOuPerguntaChave": "ANTECEDENTES GINECOLÓGICOS E OBSTÉTRICOS",
+                "orientacaoParaGeracao": "Apenas em pacientes do sexo feminino, gestantes, e sempre na especialidade de g.o",
+                "informacao": "Gestações: [Número total]\nPartos: [Tipo e número]\nAbortos: [Espontâneos/provocados]\nCesáreas: [Número]\nData da Última Menstruação (DUM): [Data]\nMenarca: [Idade]\nCiclos menstruais: [Regularidade, duração, fluxo]\nSexarca: [Idade]\nTelarca: [Precoce/tardia]\nPubarca: [Precoce/tardia]\nAtividade sexual: [Sexualmente ativa ou não]\nParceiros: [Parceiro fixo ou múltiplos]\nUso de contraceptivos: [Tipo, tempo de uso]\nUso de preservativos: [Sim/Não]\nExames preventivos: [Papanicolau, mamografia - quando foi o último]\nHistórico de IST: [Historico de Infecções sexualmente transmissíveis]"
+            },
+            {
+                "contextoOuPerguntaChave": "ANTECEDENTES EPIDEMIOLÓGICOS",
+                "orientacaoParaGeracao": "Quando houver no roteiro do caso informaçoes epidemiologicas exiba apenas a presente no caso e outras informaçoes APENAS se relevantes ao caso, não exiba as informações irrelevantes",
+                "informacao": "Viagens recentes: [Local, data, duração - Nega/Relato]\nExposição a doenças infecciosas: [Tipo, data - Nega/Relato]\nContato com doentes: [Relação, doença, período - Nega/Relato]\nExposição a animais: [Tipo, frequência - Nega/Relato]\nExposição a vetores: [Mosquitos, carrapatos, caramujo, lagarta,escorpiao, percevejos, abelhas,etc - Nega/Relato]\nÁgua consumida: [Tratada, não tratada, filtrada]\nExposição a agentes ambientais (água parada, de enchente): [Tipo, duração - Nega/Relato]"
+            },
+            {
+                "contextoOuPerguntaChave": "DÚVIDAS DO PACIENTE: (copie as perguntas do anexo do caso)",
+                "informacao": "[pergunta (1): (Ex: O que eu tenho?)].\n[pergunta (2): (Ex: É grave?)].\n[pergunta (3): (Ex: Quais são as opções de tratamento?)]. \n [pergunta (4): (Ex: Poderia ser outra coisa?)].\n[pergunta (5): (Ex: O que eu faço para que isso não aconteça novamente?)] "
+            }
+        ],
+        "impressos": [
+            {
+                "idImpresso": "est[NºEstação]_impresso_SINAISVITAIS_1",
+                "tituloImpresso": "Sinais Vitais e Exame Físico",
+                "orientacoesParaGeracao": "[os sinais vitais que não constam no caso anexado devem ser preenchidos com os valores ausentes, devendo ser coerentes com o caso clínico anexado], [ajuste o exame físico se necessario completando os dados ausentes que sejam indispensáveis ao caso clinico anexado]",
+                "tipoConteudo": "lista_chave_valor_secoes",
+                "conteudo": {
+                    "secoes": [
+                        {
+                            "tituloSecao": "SINAIS VITAIS",
+                            "itens": [
+                                {
+                                    "chave": "Pressão Arterial",
+                                    "valor": "[Valor] mmHg"
+                                },
+                                {
+                                    "chave": "Frequência Cardíaca",
+                                    "valor": "[Valor] bpm"
+                                },
+                                {
+                                    "chave": "Frequência Respiratória",
+                                    "valor": "[Valor] irpm"
+                                },
+                                {
+                                    "chave": "Temperatura Axilar",
+                                    "valor": "[Valor] °C"
+                                },
+                                {
+                                    "chave": "Saturação de O₂",
+                                    "valor": "[Valor] %"
+                                }
+                            ]
+                        },
+                        {
+                            "tituloSecao": "EXAME FÍSICO",
+                            "itens": [
+                                {
+                                    "chave": "Geral",
+                                    "valor": "[Descrição do estado geral]"
+                                },
+                                {
+                                    "chave": "Cabeça e Pescoço",
+                                    "valor": "[Descrição do exame]"
+                                },
+                                {
+                                    "chave": "Aparelho Cardiovascular",
+                                    "valor": "[Descrição do exame]"
+                                },
+                                {
+                                    "chave": "Aparelho Respiratório",
+                                    "valor": "[Descrição do exame]"
+                                },
+                                {
+                                    "chave": "Abdome",
+                                    "valor": "[Descrição do exame]"
+                                },
+                                {
+                                    "chave": "Membros",
+                                    "valor": "[Descrição do exame]"
+                                },
+                                {
+                                    "chave": "Sinais de Inflamação",
+                                    "valor": "[Descrição, se presente]"
+                                },
+                                {
+                                    "chave": "Edema",
+                                    "valor": "[Descrição, se presente]"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "idImpresso": "est[NºEstação]_impresso_LABORATORIO_2",
+                "tituloImpresso": "Exames Laboratoriais",
+                "orientacoesParaGeracao": "[Os valores dos exames laboratoriais que não constam no caso anexado devem ser preenchidos com valores coerentes e compativeis com caso clinico anexado, crie novos exames se necessario e indispensáveis ao caso clínico anexado ]",
+                "tipoConteudo": "lista_chave_valor_secoes",
+                "conteudo": {
+                    "secoes": [
+                        {
+                            "tituloSecao": "HEMOGRAMA",
+                            "itens": [
+                                {
+                                    "chave": "Leucócitos",
+                                    "valor": "[Valor] /mm³ (Ref: [4.000-11.000])"
+                                },
+                                {
+                                    "chave": "Hemoglobina",
+                                    "valor": "[Valor] g/dL (Ref: [13.5-17.5 M / 12.0-15.5 F])"
+                                },
+                                {
+                                    "chave": "Plaquetas",
+                                    "valor": "[Valor] /mm³ (Ref: [150.000-450.000])"
+                                }
+                            ]
+                        },
+                        {
+                            "tituloSecao": "BIOQUÍMICA",
+                            "itens": [
+                                {
+                                    "chave": "Ureia",
+                                    "valor": "[Valor] mg/dL (Ref: [15-45])"
+                                },
+                                {
+                                    "chave": "Creatinina",
+                                    "valor": "[Valor] mg/dL (Ref: [0.7-1.3])"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "idImpresso": "est[NºEstação]_impresso_IMAGEM_TC_3",
+                "tituloImpresso": "Tomografia Computadorizada de Crânio",
+                "orientacoesParaGeracao": "[Orientações para geração deste impresso]",
+                "tipoConteudo": "imagem_com_texto",
+                "conteudo": {
+                    "textoDescritivo": "OLHE PARA A CAMÊRA E DESCREVA OS ACHADOS NA IMAGEM.",
+                    "caminhoImagem": "[Caminho para o arquivo de imagem ou URL]",
+                    "sugestaoBuscaImagem": "[Descrição da imagem para busca. Ex: 'TC de crânio mostrando hemorragia subaracnoide']",
+                    "laudo": "[Laudo associado à imagem, se houver, ou texto principal do impresso]."
+                }
+            },
+            {
+                "idImpresso": "est[NºEstação]_impresso_IMAGEM_RX_4",
+                "tituloImpresso": "Raio-X de Tórax",
+                "orientacoesParaGeracao": "[Orientações para geração deste impresso]",
+                "tipoConteudo": "imagem_com_texto",
+                "conteudo": {
+                    "textoDescritivo": "OLHE PARA A CAMÊRA E DESCREVA OS ACHADOS NA IMAGEM.",
+                    "caminhoImagem": "[Caminho para o arquivo de imagem ou URL]",
+                    "sugestaoBuscaImagem": "[Descrição da imagem para busca. Ex: 'Raio-X de tórax em PA mostrando consolidação no lobo inferior direito']",
+                    "laudo": "[Laudo associado à imagem, se houver, ou texto principal do impresso]."
+                }
+            },
+            {
+                "idImpresso": "est[NºEstação]_impresso_IMAGEM_ECG_5",
+                "tituloImpresso": "Eletrocardiograma (ECG)",
+                "orientacoesParaGeracao": "[Orientações para geração deste impresso]",
+                "tipoConteudo": "imagem_com_texto",
+                "conteudo": {
+                    "textoDescritivo": "OLHE PARA A CAMÊRA E DESCREVA OS ACHADOS NA IMAGEM.",
+                    "caminhoImagem": "[Caminho para o arquivo de imagem ou URL]",
+                    "sugestaoBuscaImagem": "[Descrição da imagem para busca. Ex: 'ECG de 12 derivações com supradesnivelamento de ST em DII, DIII e aVF']",
+                    "laudo": "[Laudo associado à imagem, se houver, ou texto principal do impresso]."
+                }
+            },
+            {
+                "idImpresso": "est[NºEstação]_impresso_ECTOSCOPIA_6",
+                "tituloImpresso": "Achado de Exame Físico (Ectoscopia)",
+                "orientacoesParaGeracao": "[Orientações para geração deste impresso]",
+                "tipoConteudo": "imagem_com_texto",
+                "conteudo": {
+                    "textoDescritivo": "OLHE PARA A CAMÊRA E DESCREVA OS ACHADOS NA IMAGEM.",
+                    "caminhoImagem": "[Caminho para o arquivo de imagem ou URL]",
+                    "sugestaoBuscaImagem": "[Descrição da imagem para busca. Ex: 'Lesão cutânea sugestiva de melanoma, com bordas irregulares e múltiplas cores']",
+                    "laudo": "[Informações adicionais, se houver, como resultado de dermatoscopia, etc.]"
+                }
+            }
+        ]
+    },
+    "padraoEsperadoProcedimento": {
+        "idChecklistAssociado": "PEP_EST[NUMERO][ESPECIALIDADE_ABREV][IDENTIFICADOR]_[ANO]V1_NUM",
+        "sinteseEstacao": {
+            "resumoCasoPEP": "[Resumo objetivo e técnico do caso clínico]",
+            "focoPrincipalDetalhado": [
+                "[Foco 1: Anamnese direcionada]",
+                "[Foco 2: Exame físico específico]",
+                "[Foco 3: Exames complementares]",
+                "[Foco 4: Diagnóstico e conduta]"
+            ]
+        },
+        "itensAvaliacao": [
+            {
+                "orientacao": "esse item deve ser obrigatorio em todas as estações, podendo ser ajustado parde acordo com o caso clinico anexado.",
+                "idItem": "pep_est1_item01",
+                "itemNumeroOficial": "1",
+                "descricaoItem": "Apresentação e abordagem inicial:\n(1) Apresenta-se;\n(2) cumprimenta o paciente simulado;\n(3) perguntar o motivo de consuta;\n(4).",
+                "pontuacoes": {
+                    "adequado": {
+                        "criterio": "Realiza as 4 ações.",
+                        "pontos": 0.25
+                    },
+                    "parcialmenteAdequado": {
+                        "criterio": "Realiza 2 ou 3 das ações.",
+                        "pontos": 0.0
+                    },
+                    "inadequado": {
+                        "criterio": "realiza uma ou nenhuma das ações.",
+                        "pontos": 0.0
+                    }
+                }
+            },
+            {
+                "orientacoesParaGeracao": "[Siga estritamente as orientações abaixo para cada item de avaliação]",
+                "idItem": "pep_est[numero]_item[numero_formatado]",
+                "itemNumeroOficial": "[numero]",
+                "descricaoItem": "[Descrição detalhada do critério quantitativamente e qualitativamente, descrevendo cada item individualmente]\n(1) [Ex: item 1];\n(2) [Ex: item 2];\n(3) [Ex: item 3];\n(4) [Ex: item 4];\n(5) [Ex: item 5], [deve haver um numero máximo de 15 critérios e um minimo de 10], [a descrição do item não deve ser exibida em nenhum dos campos das pontuações.",
+                "pontuacoes": {
+                    "adequado": {
+                        "criterio": "[Ex: Critério para pontuação máxima] [Ex: Realiza 6 ou mais itens]  [Ex: Verbaliza o diagnóstico e a conduta corretamente]  [Ex: Solicita e interpreta ao menos 5 achados nos exames complementares]  [Ex: Interpreta corretamente os 4 achados no exame de imagem]  [Ex: Elaborar o plano terapêutico e as orientações de prevenção.]",
+                        "pontos": "[valor_numerico]"
+                    },
+                    "parcialmenteAdequado": {
+                        "criterio": "[Critério para pontuação parcial [Ex: Realiza 4 ou 5 itens] [Ex: Realiza 4 a 5 itens porem o item 1 é obrigatorio]",
+                        "pontos": "[valor_numerico]"
+                    },
+                    "inadequado": {
+                        "criterio": "[Critério para pontuação zero [Ex: Realiza 2 ou menos itens] [Ex: Não verbaliza o diagnóstico ou a conduta] [Ex: Não realiza] [Ex: Não solicita] [Ex: Citou 2 ou 3 dos itens] [realiza 3 ou menos itens] [cumpriu 3 ou menos itens] [verbalizou 6 ou mais itens]",
+                        "pontos": 0
+                    }
+                }
+            }
+        ],
+        "pontuacaoTotalEstacao": 10,
+        "feedbackEstacao": {
+            "resumoTecnico": "[Resumo conciso (máximo 30 linhas) sobre a patologia, focando achados semiologicos e na historia da doença atual, exame fisico e complementares, em diagnóstico e diagnosticos diferenciais, tratamento, fatores de risco, complicações e manejo conforme diretrizes atuais. DEVE citar as fontes.]",
+            "fontes": [
+                "[1. Fonte 1 (Ex: Brasil. Ministério da Saúde, 2023). \n2. Fonte 2 (Ex: UpToDate, 2025)\n3. Fonte 3 (Ex: Sociedade Brasileira de Cardiologia, 2022).]"
+            ]
+        }
+    }
+}

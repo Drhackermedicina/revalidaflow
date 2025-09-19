@@ -822,6 +822,21 @@ function setupSession() {
         console.log('[SEQUENTIAL] Dados da sessão sequencial carregados:', sequentialData.value);
       } catch (error) {
         console.error('[SEQUENTIAL] Erro ao carregar dados da sessão sequencial:', error);
+        sequentialData.value = null;
+      }
+    } else {
+      console.warn('[SEQUENTIAL] Nenhum dado de sessão sequencial encontrado no sessionStorage');
+      sequentialData.value = null;
+    }
+
+    // NOVO: Validar se sequentialData está correto e avisar se há problemas
+    if (sequentialData.value) {
+      if (!sequentialData.value.sequence || !Array.isArray(sequentialData.value.sequence)) {
+        console.error('[SEQUENTIAL] sequentialData.sequence é inválido:', sequentialData.value.sequence);
+        sequentialData.value = null;
+      } else if (sequentialData.value.sequence.length !== totalSequentialStations.value) {
+        console.warn('[SEQUENTIAL] Mismatch entre sequentialData.sequence.length e totalSequentialStations:',
+          sequentialData.value.sequence.length, 'vs', totalSequentialStations.value);
       }
     }
   }
@@ -919,6 +934,16 @@ const totalScore = computed(() => {
 });
 
 const bothParticipantsReady = computed(() => myReadyState.value && partnerReadyState.value && !!partner.value);
+
+// Computed para verificar se todas as avaliações do PEP estão completas
+const allEvaluationsCompleted = computed(() => {
+  if (!checklistData.value?.itensAvaliacao?.length) return false;
+
+  return checklistData.value.itensAvaliacao.every(item => {
+    const score = evaluationScores.value[item.idItem];
+    return score !== undefined && score !== null && score !== '';
+  });
+});
 
 watch(bothParticipantsReady, (newValue) => {
   if (newValue && !backendActivated.value) {
@@ -1767,6 +1792,7 @@ watch(simulationEnded, (newValue) => {
   }
 });
 
+
 // Funções para marcar/desmarcar partes do roteiro
 function toggleScriptContext(idx, event) {
   // Impedir a propagação do evento para evitar múltiplos cliques
@@ -1897,17 +1923,73 @@ function setupSequentialNavigation() {
 }
 
 function goToNextSequentialStation() {
-  if (!isSequentialMode.value || !sequentialData.value) return;
+  console.log('[SEQUENTIAL] goToNextSequentialStation called');
+  console.log('[SEQUENTIAL] isSequentialMode:', isSequentialMode.value);
+  console.log('[SEQUENTIAL] sequentialData:', sequentialData.value);
+
+  if (!isSequentialMode.value) {
+    console.error('[SEQUENTIAL] Not in sequential mode, aborting navigation');
+    return;
+  }
+
+  // NOVO: Fallback para reconstruir sequentialData se estiver perdido
+  if (!sequentialData.value) {
+    console.warn('[SEQUENTIAL] sequentialData is null, attempting to reconstruct from sessionStorage');
+
+    const savedData = sessionStorage.getItem('sequentialSession');
+    if (savedData) {
+      try {
+        sequentialData.value = JSON.parse(savedData);
+        console.log('[SEQUENTIAL] Reconstructed sequentialData from sessionStorage:', sequentialData.value);
+      } catch (error) {
+        console.error('[SEQUENTIAL] Failed to parse sessionStorage:', error);
+      }
+    }
+
+    // Se ainda não temos sequentialData, tentar navegar com informações limitadas
+    if (!sequentialData.value) {
+      console.warn('[SEQUENTIAL] sequentialData still null, attempting navigation with route params only');
+
+      const nextIndex = sequenceIndex.value + 1;
+      if (nextIndex < totalSequentialStations.value) {
+        // Navegar apenas com parâmetros de rota, sem depender de sequentialData
+        const routeData = router.resolve({
+          path: `/app/stations`, // Voltar para lista de estações para reconfigurar
+          query: {
+            sequential: 'true',
+            sequenceId: sequenceId.value,
+            sequenceIndex: nextIndex,
+            totalStations: totalSequentialStations.value,
+            message: 'sequential_data_lost'
+          }
+        });
+
+        alert('Dados da sessão sequencial foram perdidos. Redirecionando para reconfiguração...');
+        window.location.href = routeData.href;
+        return;
+      } else {
+        alert('Simulação sequencial concluída!');
+        sessionStorage.removeItem('sequentialSession');
+        router.push('/app/stations');
+        return;
+      }
+    }
+  }
 
   const nextIndex = sequenceIndex.value + 1;
+  console.log('[SEQUENTIAL] Next index:', nextIndex, 'Total stations:', totalSequentialStations.value);
+
   if (nextIndex < totalSequentialStations.value) {
     // Atualizar sessionStorage
     const updatedData = { ...sequentialData.value };
     updatedData.currentIndex = nextIndex;
     sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData));
+    console.log('[SEQUENTIAL] Updated sessionStorage with new index:', nextIndex);
 
     // Navegar para próxima estação
     const nextStation = sequentialData.value.sequence[nextIndex];
+    console.log('[SEQUENTIAL] Next station:', nextStation);
+
     if (nextStation) {
       const routeData = router.resolve({
         path: `/app/simulation/${nextStation.id}`,
@@ -1921,16 +2003,38 @@ function goToNextSequentialStation() {
         }
       });
 
+      console.log('[SEQUENTIAL] Navigating to:', routeData.href);
       // Abrir em nova aba ou substituir aba atual
       window.location.href = routeData.href;
+    } else {
+      console.error('[SEQUENTIAL] Next station not found in sequence');
+      alert('Erro: Próxima estação não encontrada na sequência');
     }
   } else {
+    console.log('[SEQUENTIAL] Reached end of sequence');
     alert('Simulação sequencial concluída!');
     // Limpar dados da sessão sequencial
     sessionStorage.removeItem('sequentialSession');
     router.push('/app/stations');
   }
 }
+
+// Função de debug global para diagnosticar problemas sequenciais
+window.debugSequentialNavigation = function() {
+  console.log('=== SEQUENTIAL NAVIGATION DEBUG ===');
+  console.log('isSequentialMode:', isSequentialMode.value);
+  console.log('isActorOrEvaluator:', isActorOrEvaluator.value);
+  console.log('simulationEnded:', simulationEnded.value);
+  console.log('allEvaluationsCompleted:', allEvaluationsCompleted.value);
+  console.log('canGoToNext:', canGoToNext.value);
+  console.log('sequenceIndex:', sequenceIndex.value);
+  console.log('totalSequentialStations:', totalSequentialStations.value);
+  console.log('sequentialData:', sequentialData.value);
+  console.log('sessionStorage sequentialSession:', sessionStorage.getItem('sequentialSession'));
+  console.log('evaluationScores:', evaluationScores.value);
+  console.log('checklistData:', checklistData.value);
+  console.log('===================================');
+};
 
 function goToPreviousSequentialStation() {
   if (!isSequentialMode.value || !sequentialData.value) return;
@@ -1996,6 +2100,26 @@ const currentSequentialStation = computed(() => {
 const communicationMethod = ref(''); // 'voice' ou 'meet'
 const meetLink = ref('');
 const meetLinkCopied = ref(false);
+
+// Watcher para debugging de variáveis sequenciais (movido para após definições)
+watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
+  ([sequential, ended, completed, canNext]) => {
+    if (sequential) {
+      console.log('[SEQUENTIAL] State change:');
+      console.log('  simulationEnded:', ended);
+      console.log('  allEvaluationsCompleted:', completed);
+      console.log('  canGoToNext:', canNext);
+      console.log('  isActorOrEvaluator:', isActorOrEvaluator.value);
+
+      if (ended && completed && canNext && isActorOrEvaluator.value) {
+        console.log('[SEQUENTIAL] ✅ All conditions met for navigation button!');
+      } else {
+        console.log('[SEQUENTIAL] ❌ Navigation button conditions not met');
+      }
+    }
+  },
+  { immediate: true }
+);
 
 function openGoogleMeet() {
   // Abre uma nova sala do Meet
@@ -2924,7 +3048,76 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                </VCardText>
              </VCard>
            </div>
- 
+
+           <!-- NAVEGAÇÃO SEQUENCIAL - Botão Próxima Estação -->
+           <VCard
+             v-if="isSequentialMode && isActorOrEvaluator && simulationEnded"
+             class="mt-6 sequential-next-card"
+             :class="isDarkTheme ? 'sequential-next-card--dark' : 'sequential-next-card--light'"
+           >
+             <VCardText class="text-center pa-6">
+               <!-- DEBUG: Mostrar estado das variáveis -->
+               <VAlert type="warning" variant="outlined" class="mb-4">
+                 <div class="text-left">
+                   <div><strong>DEBUG SEQUENCIAL:</strong></div>
+                   <div>isSequentialMode: {{ isSequentialMode }}</div>
+                   <div>isActorOrEvaluator: {{ isActorOrEvaluator }}</div>
+                   <div>simulationEnded: {{ simulationEnded }}</div>
+                   <div>allEvaluationsCompleted: {{ allEvaluationsCompleted }}</div>
+                   <div>canGoToNext: {{ canGoToNext }}</div>
+                   <div>sequenceIndex: {{ sequenceIndex }}</div>
+                   <div>totalSequentialStations: {{ totalSequentialStations }}</div>
+                   <div>sequentialData existe: {{ !!sequentialData }}</div>
+                 </div>
+               </VAlert>
+
+               <VAlert
+                 v-if="!allEvaluationsCompleted"
+                 type="info"
+                 variant="tonal"
+                 class="mb-4"
+               >
+                 <VIcon icon="ri-information-line" class="me-2" />
+                 Complete todas as avaliações do PEP para prosseguir
+               </VAlert>
+
+               <VBtn
+                 v-if="canGoToNext && allEvaluationsCompleted"
+                 color="primary"
+                 size="x-large"
+                 prepend-icon="ri-arrow-right-line"
+                 @click="goToNextSequentialStation"
+                 class="mb-3 px-8"
+                 variant="elevated"
+               >
+                 Próxima Estação ({{ sequenceIndex + 2 }}/{{ totalSequentialStations }})
+               </VBtn>
+
+               <VBtn
+                 v-else-if="!canGoToNext && allEvaluationsCompleted"
+                 color="success"
+                 size="x-large"
+                 prepend-icon="ri-check-line"
+                 @click="$router.push('/app/stations')"
+                 class="px-8"
+                 variant="elevated"
+               >
+                 Finalizar Sequência Completa
+               </VBtn>
+
+               <!-- Botão de debug sempre visível durante desenvolvimento -->
+               <VBtn
+                 color="warning"
+                 size="small"
+                 variant="outlined"
+                 @click="debugSequentialNavigation"
+                 class="mt-4"
+               >
+                 Debug Console
+               </VBtn>
+             </VCardText>
+           </VCard>
+
            <!-- VISÃO DO CANDIDATO -->
            <div v-if="isCandidate">
               <div v-if="!simulationStarted && !simulationEnded">
@@ -4696,5 +4889,30 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
 
 .pep-eye-button:hover .v-icon {
   color: rgb(var(--v-theme-primary)) !important;
+}
+
+/* === CARD DE NAVEGAÇÃO SEQUENCIAL === */
+
+/* Card de navegação sequencial */
+.sequential-next-card--light {
+  background-color: rgba(var(--v-theme-surface)) !important;
+  border: 2px solid rgba(var(--v-theme-primary), 0.3) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.sequential-next-card--dark {
+  background-color: rgba(var(--v-theme-surface)) !important;
+  border: 2px solid rgba(var(--v-theme-primary), 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.sequential-next-card--light .v-card-title,
+.sequential-next-card--light .v-card-text {
+  color: rgba(var(--v-theme-on-surface)) !important;
+}
+
+.sequential-next-card--dark .v-card-title,
+.sequential-next-card--dark .v-card-text {
+  color: rgba(var(--v-theme-on-surface)) !important;
 }
 </style>

@@ -75,6 +75,10 @@ export default defineComponent({
 .layout-wrapper.layout-nav-type-vertical {
   // TODO(v2): Check why we need height in vertical nav & min-height in horizontal nav
   block-size: 100%;
+  background-image: url('');
+  background-size: auto 100%;
+  background-position: 0 0;
+  background-repeat: repeat-x;
 
   .layout-content-wrapper {
     display: flex;
@@ -91,7 +95,7 @@ export default defineComponent({
 
   .layout-navbar {
     z-index: variables.$layout-vertical-nav-layout-navbar-z-index;
-    background-image: url('/header-bg.png');
+    background-image: url('/');
     background-size: cover;
     background-position: center;
 
