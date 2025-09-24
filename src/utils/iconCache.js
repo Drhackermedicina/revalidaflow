@@ -3,6 +3,8 @@
  * Caches frequently used icons locally to improve performance
  */
 
+import { loadIcons } from '@iconify/vue';
+
 // Cache for storing loaded icons
 const iconCache = new Map();
 
@@ -31,8 +33,6 @@ export async function preloadIcons() {
   if (typeof window === 'undefined') return;
 
   try {
-    // Dynamic import to avoid SSR issues
-    const { loadIcons } = await import('@iconify/vue');
 
     // Load icons in batches to avoid overwhelming the API
     const batchSize = 5;
