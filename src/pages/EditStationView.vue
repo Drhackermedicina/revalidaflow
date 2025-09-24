@@ -1066,7 +1066,7 @@ const convertTimestampToDate = (timestamp) => {
 // Função para carregar dados da estação no formulário
 function loadStationIntoForm(stationData) {
   const form = formData.value;
-  
+
   // Dados gerais
   form.idEstacao = stationData.idEstacao || '';
   form.tituloEstacao = stationData.tituloEstacao || '';
@@ -1597,10 +1597,26 @@ async function saveStationChanges() {
       return;
     }
 
-    if (!estacaoAtualizada.padraoEsperadoProcedimento?.itensAvaliacao?.length || estacaoAtualizada.padraoEsperadoProcedimento.itensAvaliacao.some(item => !item.idItem || !item.descricaoItem)) {
-        errorMessage.value = "Erro de validação: O PEP (Checklist) deve conter pelo menos um item de avaliação com ID e Descrição preenchidos.";
-        isSaving.value = false;
-        return;
+    // Limpar itens vazios do PEP automaticamente
+    if (estacaoAtualizada.padraoEsperadoProcedimento?.itensAvaliacao) {
+      estacaoAtualizada.padraoEsperadoProcedimento.itensAvaliacao = estacaoAtualizada.padraoEsperadoProcedimento.itensAvaliacao.filter(item =>
+        item.idItem && item.idItem.trim() && item.descricaoItem && item.descricaoItem.trim()
+      );
+    }
+
+    // Se o PEP estiver vazio, criar um item padrão
+    if (!estacaoAtualizada.padraoEsperadoProcedimento?.itensAvaliacao?.length) {
+      if (!estacaoAtualizada.padraoEsperadoProcedimento) {
+        estacaoAtualizada.padraoEsperadoProcedimento = {};
+      }
+      estacaoAtualizada.padraoEsperadoProcedimento.itensAvaliacao = [{
+        idItem: 'avaliacao_geral',
+        descricaoItem: 'Avaliação geral da estação',
+        itemNumeroOficial: 1,
+        pontuacaoAdequado: 10,
+        pontuacaoInadequado: 0,
+        pontuacaoNaoAplicavel: 0
+      }];
     }
 
     // Validação da pontuação total (deve ser exatamente 10)
@@ -2936,7 +2952,7 @@ watch(() => props.id, (newId) => {
             </div>
             <div class="form-group" style="display: none;">
               <label :for="'pepItemId' + index">ID do Item (único no checklist, ex: anamnese_dor):</label>
-              <input type="text" :id="'pepItemId' + index" v-model="item.idItem" required>
+              <input type="text" :id="'pepItemId' + index" :name="'pepItemId' + index" v-model="item.idItem" required>
             </div>
             <div class="form-group" style="display: none;">
               <label :for="'pepItemNumero' + index">Número Oficial do Item (Automático - baseado na posição):</label>
