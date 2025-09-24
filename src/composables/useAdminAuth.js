@@ -27,7 +27,7 @@ export function useAdminAuth() {
       'RtfNENOqMUdw7pvgeeaBVSuin662', // Seu UID - identificado pelos logs de sucesso
       'KiSITAxXMAY5uU3bOPW5JMQPent2', // Admin adicional
       'anmxavJdQdgZ16bDsKKEKuaM4FW2',  // Admin 2
-      '24aZT7dURHd9r9PcCZe5U1WHt0A3', // Admin adicional  
+      'gb8MEg8UMmOOUhiBu1A2EY6GkX52', // Admin adicional  
       'lNwhdYgMwLhS1ZyufRzw9xLD10y1', // Admin adicional
     ]
 

@@ -82,7 +82,7 @@ const { reloadListeners } = usePrivateChatNotification();
 const processRoteiro = computed(() => {
   return (text) => {
     if (!text) return '';
-    return memoizedFormatActorText(text);
+    return formatActorText(text, isActorOrEvaluator.value);
   }
 });
 
@@ -90,10 +90,7 @@ const processRoteiro = computed(() => {
 const processRoteiroActor = computed(() => {
   return (text) => {
     if (!text) return '';
-    if (isActorOrEvaluator.value) {
-      return memoizedFormatActorText(text);
-    }
-    return memoizedFormatActorText(text);
+    return formatActorText(text, isActorOrEvaluator.value);
   }
 });
 
@@ -107,7 +104,7 @@ function editStationData(field, value) {
     stationData.value[field] = value;  // Atualiza o campo
     // Reaplica formatação se necessário
     if (field === 'descricaoCasoCompleta' || field.includes('informacoesVerbaisSimulado')) {
-      stationData.value[field] = memoizedFormatActorText(value);  // Mantém formatação
+      stationData.value[field] = formatActorText(value, isActorOrEvaluator.value);  // Mantém formatação
     }
   }
 }
@@ -230,7 +227,7 @@ const isAdmin = computed(() => {
     currentUser.value.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
     currentUser.value.uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
     currentUser.value.uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
-    currentUser.value.uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3' ||
+    currentUser.value.uid === 'gb8MEg8UMmOOUhiBu1A2EY6GkX52' ||
     currentUser.value.uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
   );
 });

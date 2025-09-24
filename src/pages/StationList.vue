@@ -1,7 +1,6 @@
 <script setup>
 import inepIcon from '@/assets/images/inep.png';
 import revalidaFlowIcon from '@/assets/images/botao rf.png';
-import revalidaFlowBackgroundImage from '@/assets/images/Generated Image September 11, 2025 - 3_49PM.png'; // Import a imagem de fundo
 import { currentUser } from '@/plugins/auth.js'
 import { db, firebaseAuth } from '@/plugins/firebase.js'
 import { backendUrl } from '@/utils/backendUrl'
@@ -400,6 +399,12 @@ const filteredStationsByInepPeriod = computed(() => {
   const grouped = {};
   const inepStations = filteredInepStations.value;
 
+  // Função para extrair o número da estação do ID (EST01, EST02, etc.)
+  const getStationNumber = (stationId) => {
+    const match = stationId.match(/EST(\d+)/);1
+    return match ? parseInt(match[1], 10) : 999;
+  };
+
   for (const station of inepStations) {
     const period = getINEPPeriod(station);
     if (period) {
@@ -411,9 +416,18 @@ const filteredStationsByInepPeriod = computed(() => {
   }
 
   for (const period in grouped) {
-    grouped[period].sort((a, b) =>
-      getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true })
-    );
+    grouped[period].sort((a, b) => {
+      const numA = getStationNumber(a.idEstacao || a.id || '');
+      const numB = getStationNumber(b.idEstacao || b.id || '');
+
+      // Primeiro ordena por número da estação
+      if (numA !== numB) {
+        return numA - numB;
+      }
+
+      // Se mesmo número (fallback improvável), ordena alfabeticamente por título
+      return getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true });
+    });
   }
   return grouped;
 });
@@ -1712,11 +1726,6 @@ const exampleVariable = ref(null);
 </script>
 
 <template>
-  <div
-    class="background-container"
-    :style="{ backgroundImage: `url(${revalidaFlowBackgroundImage})` }"
-    :class="{ 'dark-theme-opacity': isDarkTheme, 'light-theme-opacity': !isDarkTheme }"
-  />
   <v-container fluid class="pa-0 main-content-container">
     <v-tooltip location="right">
       <template #activator="{ props }">
@@ -2992,27 +3001,6 @@ const exampleVariable = ref(null);
 </template>
 
 <style scoped>
-.background-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  transition: opacity 0.3s ease-in-out;
-}
-
-.light-theme-opacity {
-  opacity: 0.3; /* Aumentado para 1 para garantir visibilidade */
-}
-
-.dark-theme-opacity {
-  opacity: 0.1; /* Aumentado para 1 para garantir visibilidade */
-}
-
 .station-list-item .v-list-item-title {
   color: var(--v-theme-on-surface) !important;
 }

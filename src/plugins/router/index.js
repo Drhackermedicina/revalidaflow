@@ -3,6 +3,7 @@ import { db } from '@/plugins/firebase'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { createRouter, createWebHistory } from 'vue-router'
 import { routes } from './routes'
+import { updateDocumentWithRetry, getDocumentWithRetry, checkFirestoreConnectivity } from '@/services/firestoreService'
 
 let isAuthInitialized = false // Flag para garantir que a espera ocorra apenas uma vez
 
@@ -47,7 +48,7 @@ router.beforeEach(async (to, from, next) => {
       next('/login')
       return
     }
-    const userDoc = await getDoc(doc(db, 'usuarios', currentUser.value.uid))
+    const userDoc = await getDocumentWithRetry(doc(db, 'usuarios', currentUser.value.uid), 'verificação de usuário')
     const user = userDoc.data()
     // Checagem de cadastro completo: documento existe e campos obrigatórios preenchidos
     if (
@@ -64,6 +65,8 @@ router.beforeEach(async (to, from, next) => {
       return
     }
     // Bloqueio de acesso se trial expirou ou plano vencido
+    // TEMPORARIAMENTE DESABILITADO - rota /pagamento não existe ainda
+    /*
     const agora = new Date()
     if (
       user.plano === 'trial' &&
@@ -80,6 +83,7 @@ router.beforeEach(async (to, from, next) => {
       next('/pagamento')
       return
     }
+    */
   }
   next()
 })
@@ -103,23 +107,36 @@ router.afterEach(async (to, from) => {
     return;
   }
 
+  // Verificar conectividade antes de tentar atualizar
+  const connectivity = checkFirestoreConnectivity();
+  if (!connectivity.available) {
+    console.warn(`⚠️ Pulando atualização de status: ${connectivity.reason}`);
+    return;
+  }
+
   try {
     const ref = doc(db, 'usuarios', currentUser.value.uid);
-    if (to.name === 'simulation-view' || to.name === 'station-simulation' || to.path.includes('/simulate')) {
-      await updateDoc(ref, { status: 'treinando' });
-    } else {
-      await updateDoc(ref, { status: 'disponivel' });
-    }
+    const statusData = to.name === 'simulation-view' || to.name === 'station-simulation' || to.path.includes('/simulate')
+      ? { status: 'treinando' }
+      : { status: 'disponivel' };
+
+    await updateDocumentWithRetry(ref, statusData, 'atualização de status do usuário');
   } catch (error) {
-    console.error(`Falha ao atualizar o status do usuário ${currentUser.value?.uid}:`, error);
+    console.error(`❌ Falha definitiva ao atualizar status do usuário ${currentUser.value?.uid}:`, error);
   }
 })
 
 window.addEventListener('beforeunload', () => {
-  if (currentUser.value?.uid) {
-    const ref = doc(db, 'usuarios', currentUser.value.uid);
-    // Não pode usar await aqui, pois beforeunload não espera Promises
-    updateDoc(ref, { status: 'offline' });
+  if (currentUser.value?.uid && db) {
+    const connectivity = checkFirestoreConnectivity();
+    if (connectivity.available) {
+      const ref = doc(db, 'usuarios', currentUser.value.uid);
+      // Não pode usar await aqui, pois beforeunload não espera Promises
+      // Usar método direto para operação síncrona de finalização
+      updateDoc(ref, { status: 'offline' }).catch(error => {
+        console.warn('⚠️ Erro ao definir status offline no beforeunload:', error);
+      });
+    }
   }
 })
 

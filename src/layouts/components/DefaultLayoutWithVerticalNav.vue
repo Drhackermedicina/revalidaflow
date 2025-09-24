@@ -69,24 +69,6 @@ function openGeminiIA() {
       </div>
     </template>
 
-    <template #vertical-nav-header="{ toggleIsOverlayNavActive }">
-      <div class="sidebar-header-modern d-flex align-items-start justify-center">
-        <img src="/botao_rf-removebg-preview.png" width="135" height="135" alt="Botão RF" />
-        <VTooltip location="right">
-          <template #activator="{ props }">
-            <IconBtn
-              class="d-block d-lg-none ms-2"
-              @click="toggleIsOverlayNavActive(false)"
-              v-bind="props"
-            >
-              <VIcon icon="ri-close-line" aria-hidden="true" />
-            </IconBtn>
-          </template>
-          Fechar menu
-        </VTooltip>
-      </div>
-    </template>
-
     <template #vertical-nav-content>
       <NavItems />
     </template>

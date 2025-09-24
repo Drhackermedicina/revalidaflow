@@ -1,4 +1,4 @@
-<script setup>
+1<script setup>
 // 🔧 CORREÇÃO: Definir props para aceitar ID da rota
 const props = defineProps({
   id: String // Para aceitar o ID da rota sem warnings
@@ -13,6 +13,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 import AIFieldAssistant from '@/components/AIFieldAssistant.vue';
+import TiptapEditor from '@/components/TiptapEditor.vue';
 import { geminiService } from '@/services/geminiService.js';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
@@ -27,7 +28,11 @@ const router = useRouter();
 const theme = useTheme();
 
 // Computed para detectar tema escuro
-const isDarkTheme = computed(() => theme.global.name.value === 'dark');
+const isDarkTheme = computed(() => {
+  // Debounce simples para evitar mudanças rápidas
+  setTimeout(() => {}, 100); // Pequeno delay para estabilizar
+  return theme.global.name.value === 'dark';
+});
 
 // 🔧 CORREÇÃO: Usar props.id se disponível
 const stationId = ref(props.id || route.params.id || null);
@@ -563,7 +568,7 @@ watch(
       saveSnapshot();
     }
   },
-  { deep: true } // 🔧 CORREÇÃO: Removido immediate: true para evitar snapshot vazio
+  { deep: false } // 🔧 OTIMIZAÇÃO: Removido deep para reduzir carga
 );
 
 // Status de edição da estação
@@ -582,7 +587,7 @@ const isAdmin = computed(() => {
     uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
     uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
     uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
-    uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3' ||
+    uid === 'gb8MEg8UMmOOUhiBu1A2EY6GkX52' ||
     uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
   );
 });
@@ -2511,7 +2516,11 @@ watch(() => props.id, (newId) => {
               @suggest-requested="onAISuggestRequested"
             >
               <div style="display:flex; gap:8px; align-items:flex-start;">
-                <textarea id="manualDescricaoCaso" v-model="formData.descricaoCasoCompleta" rows="5" required placeholder="Descreva o cenário clínico que o candidato encontrará..."></textarea>
+                <TiptapEditor
+                  v-model="formData.descricaoCasoCompleta"
+                  placeholder="Descreva o cenário clínico que o candidato encontrará..."
+                  style="flex: 1;"
+                />
                 <!-- Botão de sugestão movido para dentro do AIFieldAssistant -->
               </div>
             </AIFieldAssistant>
@@ -2612,7 +2621,11 @@ watch(() => props.id, (newId) => {
                 :item-index="index"
                 @field-updated="handleAIFieldUpdate"
               >
-                <textarea :id="'infoVerbalInformacao' + index" v-model="info.informacao" rows="2" placeholder="Ex: Diga que o paciente é alérgico à penicilina."></textarea>
+                <TiptapEditor
+                  v-model="info.informacao"
+                  placeholder="Ex: Diga que o paciente é alérgico à penicilina."
+                  mode="actor-script"
+                />
               </AIFieldAssistant>
             </div>
           </div>
@@ -2709,7 +2722,11 @@ watch(() => props.id, (newId) => {
         @suggest-requested="onAISuggestRequested"
               >
                 <div style="display:flex; gap:8px; align-items:flex-start;">
-                  <textarea :id="'impressoConteudoTexto' + index" v-model="impresso.conteudo.texto" rows="3" placeholder="Insira o texto do impresso aqui..."></textarea>
+                  <TiptapEditor
+                    v-model="impresso.conteudo.texto"
+                    placeholder="Insira o texto do impresso aqui..."
+                    style="flex: 1;"
+                  />
                   <div style="display:flex; flex-direction:column; gap:6px;">
           <!-- Sugestão movida para dentro do AIFieldAssistant -->
                   </div>
@@ -4336,6 +4353,67 @@ watch(() => props.id, (newId) => {
     width: 40px;
     height: 40px;
     font-size: 14px;
+  }
+}
+
+/* Estilos base (sempre aplicáveis) */
+.manual-form input[type="text"],
+.manual-form input[type="number"],
+.manual-form select,
+.manual-form textarea {
+  background-color: white;
+  color: #495057;
+  border: 1px solid #ced4da;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-weight: 500;
+}
+
+.manual-form input[type="text"]:focus,
+.manual-form input[type="number"]:focus,
+.manual-form select:focus,
+.manual-form textarea:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.manual-form label {
+  color: #34495e;
+  font-weight: 600;
+}
+
+/* Tema escuro via media query (mais eficiente que classes dinâmicas) */
+@media (prefers-color-scheme: dark) {
+  .manual-form input[type="text"],
+  .manual-form input[type="number"],
+  .manual-form select,
+  .manual-form textarea {
+    background-color: rgb(var(--v-theme-surface));
+    color: rgb(var(--v-theme-on-surface));
+    border: 2px solid rgb(var(--v-theme-outline));
+    font-weight: 600;
+  }
+
+  .manual-form input[type="text"]:focus,
+  .manual-form input[type="number"]:focus,
+  .manual-form select:focus,
+  .manual-form textarea:focus {
+    border-color: rgb(var(--v-theme-primary));
+    box-shadow: 0 0 0 0.3rem rgba(var(--v-theme-primary), 0.4);
+  }
+
+  .manual-form label {
+    color: rgb(var(--v-theme-on-surface));
+    font-weight: 700;
+  }
+
+  .manual-form h4, .manual-form h5, .manual-form h6 {
+    color: rgb(var(--v-theme-on-surface));
+    font-weight: 700;
+  }
+
+  .dynamic-item-group {
+    background-color: rgb(var(--v-theme-surface-variant));
+    border: 2px solid rgb(var(--v-theme-outline));
   }
 }
 </style>

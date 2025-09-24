@@ -51,23 +51,79 @@ export function useRegister() {
       const q = query(usuariosRef, where('cpf', '==', form.value.cpf))
       const snapshot = await getDocs(q)
       if (!snapshot.empty) throw new Error('Já existe um usuário cadastrado com este CPF')
-      await setDoc(doc(db, 'usuarios', user.uid), {
+      // Schema padronizado para consistência
+      const userData = {
+        // Dados pessoais obrigatórios
         nome: form.value.nome,
         sobrenome: form.value.sobrenome,
         cpf: form.value.cpf,
         cidade: form.value.cidade,
         paisOrigem: form.value.paisOrigem,
         aceitouTermos: form.value.aceitouTermos,
+
+        // Dados de cadastro e plano
         dataCadastro: new Date(),
+        dataUltimaAtualizacao: new Date(),
+        ultimoLogin: new Date(),
         trialExpiraEm: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         plano: 'trial',
         planoExpiraEm: null,
+
+        // Arrays de atividades
         estacoesConcluidas: [],
+        historicoEstacoes: [],
+        historicoSimulacoes: [],
+
+        // Estatísticas básicas
         nivelHabilidade: 0,
+        mediaGeral: 0,
+        totalScore: 0,
+        score: 0,
+
+        // Estruturas de dados organizadas
+        estatisticas: {
+          diasConsecutivos: 0,
+          estacoesPorEspecialidade: {},
+          mediaGeral: 0,
+          melhorNota: 0,
+          piorNota: 0,
+          progressoSemanal: [],
+          rankingPosicao: null,
+          sessoesCompletadas: 0,
+          tempoMedioSessao: 0,
+          tempoTotalTreinamento: 0,
+          totalEstacoesFeitas: 0,
+          totalPontos: 0,
+          ultimaAtividade: null,
+          ultimaSessao: null
+        },
+
+        performance: {},
+        pontuacoes: {},
+        resultados: {},
         statistics: {},
-        ranking: 0,
-        status: 'disponivel',
-      })
+
+        progresso: {
+          badges: [],
+          conquistas: [],
+          experiencia: 0,
+          metasSemana: {
+            estacoesPlanejadas: 0,
+            estacoesRealizadas: 0,
+            progresso: 0
+          },
+          nivel: 'Iniciante',
+          nivelAtual: 'Iniciante',
+          pontosExperiencia: 0,
+          streak: 0
+        },
+
+        // Status e posicionamento
+        ranking: null,
+        status: 'offline'
+      }
+
+      await setDoc(doc(db, 'usuarios', user.uid), userData)
       router.push('/app/dashboard')
     } catch (e) {
       error.value = e.message

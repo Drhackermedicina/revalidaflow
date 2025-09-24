@@ -60,9 +60,6 @@ const handleNavScroll = evt => {
           to="/app/dashboard"
           class="app-logo app-title-wrapper"
         >
-          <h1 class="font-weight-medium leading-normal text-xl text-uppercase">
-            Home
-          </h1>
         </RouterLink>
       </slot>
     </div>

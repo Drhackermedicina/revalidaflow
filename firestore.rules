@@ -106,7 +106,7 @@ service cloud.firestore {
         'KiSITAxXMAY5uU3bOPW5JMQPent2',  // Taís Zocche
         'RtfNENOqMUdw7pvgeeaBVSuin662',  // Usuário atual
         'anmxavJdQdgZ16bDsKKEKuaM4FW2',  // Admin 2
-        '24aZT7dURHd9r9PcCZe5U1WHt0A3',  // Admin 3
+        'gb8MEg8UMmOOUhiBu1A2EY6GkX52',  // Admin 3
         'lNwhdYgMwLhS1ZyufRzw9xLD10y1',  // stefferson ferraz
         'CUdflZgyx5SOROyjbvZ1WpIVT2w2'           // Usuário especial para agentes VS Code
       ];

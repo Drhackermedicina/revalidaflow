@@ -1,7 +1,26 @@
 // Funções utilitárias extraídas de SimulationView.vue
 
-export function formatActorText(text: string, isActorOrEvaluator: boolean): string {
+// Função para detectar se o texto já contém HTML formatado
+function isRichTextContent(text: string): boolean {
+  if (!text) return false;
+  // Verifica se contém tags HTML válidas como <p>, <strong>, <em>, <br>, etc.
+  const htmlTags = /<(p|strong|em|br|ul|li|ol|h[1-6]|div)\b[^>]*>/i;
+  return htmlTags.test(text);
+}
+
+export function formatActorText(text: string, isActorOrEvaluator?: boolean): string {
   if (!text) return '';
+
+  // Se o texto já está formatado como HTML rico, preserva a formatação
+  if (isRichTextContent(text)) {
+    // Remove apenas aspas simples se for ator/avaliador, mas preserva HTML
+    if (isActorOrEvaluator) {
+      return text.replace(/'/g, '');
+    }
+    return text;
+  }
+
+  // Processamento para texto plano (comportamento original)
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = text;
   let plainText = tempDiv.innerText;
@@ -112,6 +131,22 @@ export function formatItemDescriptionForDisplay(descriptionText: string, itemTit
 export function splitIntoParagraphs(text: string): string[] {
   if (!text) return [];
   const textAsString = String(text);
+
+  // Se já contém HTML formatado com tags <p>, extrai o conteúdo dos parágrafos
+  if (isRichTextContent(textAsString)) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = textAsString;
+    const paragraphElements = tempDiv.querySelectorAll('p');
+
+    if (paragraphElements.length > 0) {
+      return Array.from(paragraphElements).map(p => p.innerHTML.trim()).filter(p => p.length > 0);
+    }
+
+    // Se não tem <p> mas tem outras tags HTML, retorna como um parágrafo único
+    return [textAsString];
+  }
+
+  // Processamento para texto plano (comportamento original)
   const paragraphs = textAsString
     .split(/<br\s*\/?>/gi)
     .flatMap(p => p.split(/\n/))

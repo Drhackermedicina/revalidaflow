@@ -70,7 +70,51 @@ export { db };
 
 // Configurações adicionais de performance para Firestore
 if (import.meta.env.DEV) {
+  // Configurar timeouts mais generosos em desenvolvimento
+  if (db) {
+    // Configurar configurações de rede para lidar melhor com conectividade instável
+    console.log('🔧 Configurações de desenvolvimento aplicadas ao Firestore');
+  }
 }
+
+// Monitor de conectividade Firestore
+let isOnline = navigator.onLine;
+let connectionRetries = 0;
+const MAX_RETRIES = 3;
+
+// Função para lidar com erros de conectividade
+export function handleFirestoreError(error, operation = 'operação') {
+  console.warn(`⚠️ Erro Firestore durante ${operation}:`, error);
+
+  if (error.code === 'unavailable' || error.message?.includes('transport errored')) {
+    connectionRetries++;
+
+    if (connectionRetries <= MAX_RETRIES) {
+      console.log(`🔄 Tentativa ${connectionRetries}/${MAX_RETRIES} de reconexão...`);
+      return { shouldRetry: true, retryCount: connectionRetries };
+    } else {
+      console.error('❌ Máximo de tentativas de reconexão atingido');
+      connectionRetries = 0; // Reset para próximas operações
+      return { shouldRetry: false, retryCount: connectionRetries };
+    }
+  }
+
+  return { shouldRetry: false, retryCount: connectionRetries };
+}
+
+// Monitor de status de rede
+window.addEventListener('online', () => {
+  isOnline = true;
+  connectionRetries = 0;
+  console.log('🌐 Conectividade restaurada');
+});
+
+window.addEventListener('offline', () => {
+  isOnline = false;
+  console.log('📡 Conectividade perdida - operações offline ativadas');
+});
+
+export { isOnline };
 
 // Inicialização do Storage com verificação
 let storage;

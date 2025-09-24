@@ -146,7 +146,7 @@ const isAdmin = computed(() => {
     currentUser.value.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
     currentUser.value.uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
     currentUser.value.uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
-    currentUser.value.uid === '24aZT7dURHd9r9PcCZe5U1WHt0A3  ' ||
+    currentUser.value.uid === 'gb8MEg8UMmOOUhiBu1A2EY6GkX52' ||
     currentUser.value.uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
   );
 });

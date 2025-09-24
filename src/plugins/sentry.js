@@ -1,8 +1,8 @@
 import * as Sentry from '@sentry/vue'
 
 export function initSentry(app, router) {
-  // Só inicializa em produção ou se a variável de ambiente estiver definida
-  if (import.meta.env.MODE === 'production' || import.meta.env.VITE_SENTRY_DSN) {
+  // Só inicializa em produção E se a variável de ambiente estiver definida
+  if (import.meta.env.MODE === 'production' && import.meta.env.VITE_SENTRY_DSN) {
     Sentry.init({
       app,
       dsn: import.meta.env.VITE_SENTRY_DSN || 'YOUR_SENTRY_DSN_HERE',
