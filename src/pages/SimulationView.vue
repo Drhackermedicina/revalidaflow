@@ -2704,6 +2704,29 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                 </VCardText>
             </VCard>
 
+            <!-- Card para Avisos Importantes -->
+            <VCard
+              :class="[
+                'mb-6 warnings-card',
+                isDarkTheme ? 'warnings-card--dark' : 'warnings-card--light'
+              ]"
+              v-if="stationData.instrucoesParticipante?.avisosImportantes?.length"
+            >
+                <VCardItem>
+                    <template #prepend>
+                        <VIcon icon="ri-error-warning-line" color="warning" />
+                    </template>
+                    <VCardTitle>Avisos Importantes para o Candidato</VCardTitle>
+                </VCardItem>
+                <VCardText class="text-body-1">
+                    <ul class="warnings-list pl-5">
+                        <li v-for="(aviso, i) in stationData.instrucoesParticipante.avisosImportantes" :key="`actor-warning-${i}`" class="mb-2">
+                            {{ aviso }}
+                        </li>
+                    </ul>
+                </VCardText>
+            </VCard>
+
             <!-- Card para Roteiro / Informações Verbais do Ator -->
             <VCard
               id="roteiro-card"
@@ -3222,8 +3245,28 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
                          </ul>
                      </VCardText>
                  </VCard>
- 
-                 <VCard 
+
+                 <!-- Card para Avisos Importantes (CANDIDATO) -->
+                 <VCard
+                   class="mb-6"
+                   v-if="simulationStarted && stationData.instrucoesParticipante?.avisosImportantes?.length"
+                 >
+                     <VCardItem>
+                         <template #prepend>
+                             <VIcon icon="ri-error-warning-line" color="warning" />
+                         </template>
+                         <VCardTitle>Avisos Importantes</VCardTitle>
+                     </VCardItem>
+                     <VCardText class="text-body-1">
+                         <ul class="warnings-list pl-5">
+                             <li v-for="(aviso, i) in stationData.instrucoesParticipante.avisosImportantes" :key="`cand-warning-${i}`" class="mb-2">
+                                 {{ aviso }}
+                             </li>
+                         </ul>
+                     </VCardText>
+                 </VCard>
+
+                 <VCard
                    :class="[
                      'mb-6 impressos-candidate-card',
                      isDarkTheme ? 'impressos-candidate-card--dark' : 'impressos-candidate-card--light'

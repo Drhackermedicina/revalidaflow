@@ -187,8 +187,90 @@ function getSpecialty(station) {
 }
 
 function getRevalidaFacilSpecialty(station) {
-  if (!isRevalidaFacilStation(station)) return null;
-  return getSpecialty(station);
+  if (!isRevalidaFacilStation(station)) return [];
+
+  // Função para normalizar texto (remove acentos, minúsculas, espaços extras)
+  const normalizeText = (text) => {
+    return text
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/\s+/g, ' '); // Normaliza espaços múltiplos
+  };
+
+  const especialidade = normalizeText(station.especialidade || '');
+
+  // Mapear especialidades com TODAS as variações possíveis (já normalizadas)
+  const specialtyMap = {
+    'clinica-medica': [
+      // Variações principais
+      'clinica medica', 'medicina clinica', 'medicina interna',
+      'clinicamedica', 'med interna', 'cm', 'clinica',
+      // Variações com diferentes acentuações (normalizadas)
+      'medicina interna', 'int', 'interna'
+    ],
+    'pediatria': [
+      'pediatria', 'pediatrica', 'infantil', 'ped', 'neonatal',
+      'crianca', 'lactente', 'adolescente'
+    ],
+    'cirurgia': [
+      'cirurgia', 'cirurgica', 'cirurgia geral', 'cr',
+      'trauma', 'operatoria', 'procedimento cirurgico'
+    ],
+    'ginecologia': [
+      'ginecologia', 'obstetricia', 'ginecoobstetricia',
+      'g.o', 'go', 'gineco', 'obstetrica', 'gestante',
+      'mulher', 'feminino', 'gravidez'
+    ],
+    'preventiva': [
+      'preventiva', 'medicina da familia', 'medicina de familia',
+      'medicina comunitaria', 'etica medica', 'medicina social',
+      'familia', 'coletiva', 'saude publica', 'epidemiologia',
+      'prevencao', 'sus', 'atencao basica', 'mfc'
+    ],
+    'procedimentos': [
+      'procedimento', 'procedimentos', 'habilidade', 'habilidades',
+      'tecnica', 'tecnicas', 'sutura', 'drenagem', 'puncao',
+      'acesso venoso', 'intubacao'
+    ]
+  };
+
+  const matchedSpecialties = [];
+
+  // Encontrar todas as categorias correspondentes usando busca normalizada
+  for (const [category, keywords] of Object.entries(specialtyMap)) {
+    // Normalizar keywords para comparação
+    const normalizedKeywords = keywords.map(keyword => normalizeText(keyword));
+
+    // Verificar se alguma keyword está contida na especialidade
+    const match = normalizedKeywords.some(keyword => {
+      // Busca por substring (palavra contida)
+      if (especialidade.includes(keyword)) {
+        return true;
+      }
+
+      // Busca por palavras individuais para casos complexos
+      const keywordWords = keyword.split(' ');
+      const especialidadeWords = especialidade.split(' ');
+
+      // Se keyword tem múltiplas palavras, verificar se todas estão presentes
+      if (keywordWords.length > 1) {
+        return keywordWords.every(word =>
+          especialidadeWords.some(espWord => espWord.includes(word))
+        );
+      }
+
+      return false;
+    });
+
+    if (match) {
+      matchedSpecialties.push(category);
+    }
+  }
+
+  // Se nenhuma especialidade foi encontrada, retornar 'geral'
+  return matchedSpecialties.length > 0 ? matchedSpecialties : ['geral'];
 }
 
 // 👥 FUNÇÃO PARA BUSCAR DADOS DOS USUÁRIOS
@@ -372,26 +454,26 @@ const stationsRevalidaFacil = computed(() => {
 
 const filteredStationsRevalidaFacilClinicaMedica = computed(() => {
   return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station) === 'clinica-medica')
+    .filter(station => getRevalidaFacilSpecialty(station).includes('clinica-medica'))
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
 const filteredStationsRevalidaFacilCirurgia = computed(() => {
   return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station) === 'cirurgia')
+    .filter(station => getRevalidaFacilSpecialty(station).includes('cirurgia'))
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
 const filteredStationsRevalidaFacilPreventiva = computed(() => {
   return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station) === 'preventiva')
+    .filter(station => getRevalidaFacilSpecialty(station).includes('preventiva'))
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
 
 const filteredStationsRevalidaFacilPediatria = computed(() => {
   return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station) === 'pediatria')
+    .filter(station => getRevalidaFacilSpecialty(station).includes('pediatria'))
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
@@ -434,13 +516,13 @@ const filteredStationsByInepPeriod = computed(() => {
 
 const filteredStationsRevalidaFacilGO = computed(() => {
   return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station) === 'ginecologia')
+    .filter(station => getRevalidaFacilSpecialty(station).includes('ginecologia'))
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
 const filteredStationsRevalidaFacilProcedimentos = computed(() => {
   return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station) === 'procedimentos')
+    .filter(station => getRevalidaFacilSpecialty(station).includes('procedimentos'))
     .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
 });
 
@@ -875,9 +957,7 @@ function getStationArea(station) {
   return { key, ...areas[key] };
 }
 
-function getSpecialtyColor(station) {
-  const area = getStationArea(station);
-  
+function getSpecialtyColor(station, specificSpecialty = null) {
   const lightColors = {
     'clinica-medica': '#00BFFF', // Azul mais vivo
     'cirurgia': '#000080', // Azul marinho mais escuro e vivo
@@ -887,7 +967,7 @@ function getSpecialtyColor(station) {
     'procedimentos': '#6A0DAD', // Roxo mais vivo
     'geral': '#2F4F4F' // Cinza mais escuro
   };
-  
+
   const darkColors = {
     'clinica-medica': '#00CED1', // Turquesa mais vivo
     'cirurgia': '#4169E1', // Azul royal mais vivo
@@ -897,8 +977,16 @@ function getSpecialtyColor(station) {
     'procedimentos': '#9370DB', // Roxo médio mais vivo
     'geral': '#708090' // Cinza mais claro para dark
   };
-  
+
   const colors = isDarkTheme.value ? darkColors : lightColors;
+
+  // Se foi especificada uma especialidade específica, usar ela
+  if (specificSpecialty) {
+    return colors[specificSpecialty] || colors.geral;
+  }
+
+  // Senão, usar a lógica original (primeira especialidade encontrada)
+  const area = getStationArea(station);
   return colors[area.key] || colors.geral;
 }
 
@@ -995,16 +1083,16 @@ const globalFilteredStations = computed(() => {
       const specialty = getStationArea(station).fullName.toLowerCase();
       const inepPeriod = getINEPPeriod(station)?.toLowerCase() || '';
       const areaName = getStationArea(station).name.toLowerCase();
-      const revalidaSpecialty = isRevalidaFacilStation(station)
-        ? getRevalidaFacilSpecialty(station)?.toLowerCase() || ''
+      const revalidaSpecialties = isRevalidaFacilStation(station)
+        ? getRevalidaFacilSpecialty(station).map(s => s.toLowerCase()).join(' ')
         : '';
-      
+
       return title.includes(query) ||
              cleanTitle.includes(query) ||
              specialty.includes(query) ||
              inepPeriod.includes(query) ||
              areaName.includes(query) ||
-             revalidaSpecialty.includes(query);
+             revalidaSpecialties.includes(query);
     });
   }
   return filtered;
@@ -1064,7 +1152,21 @@ const filteredRevalidaFacilStations = computed(() => {
   return globalFilteredStations.value.filter(isRevalidaFacilStation);
 });
 
-const totalStations = computed(() => filteredInepStations.value.length + filteredRevalidaFacilStations.value.length);
+const totalStations = computed(() => {
+  // Contar estações INEP (não duplicadas)
+  const inepTotal = filteredInepStations.value.length;
+
+  // Contar estações Revalida Fácil por subseção (incluindo duplicações)
+  const revalidaFacilTotal =
+    filteredStationsRevalidaFacilClinicaMedica.value.length +
+    filteredStationsRevalidaFacilCirurgia.value.length +
+    filteredStationsRevalidaFacilPediatria.value.length +
+    filteredStationsRevalidaFacilGO.value.length +
+    filteredStationsRevalidaFacilPreventiva.value.length +
+    filteredStationsRevalidaFacilProcedimentos.value.length;
+
+  return inepTotal + revalidaFacilTotal;
+});
 
 async function fetchStations() {
   isLoadingStations.value = true;
@@ -1396,29 +1498,26 @@ function expandCorrectSection(station) {
   if (isRevalidaFacilStation(station)) {
     showRevalidaFacilStations.value = true;
 
-    // Expandir a subseção baseada na especialidade
-    const especialidade = station.especialidade?.toLowerCase() || '';
-    const idEstacao = station.idEstacao?.toLowerCase() || '';
+    // Expandir todas as subseções baseadas nas especialidades da estação
+    const especialidades = getRevalidaFacilSpecialty(station);
 
-    if (especialidade.includes('clínica médica') || especialidade.includes('clinica medica') ||
-        idEstacao.includes('clinica_medica')) {
+    // Expandir cada subseção correspondente
+    if (especialidades.includes('clinica-medica')) {
       showRevalidaFacilClinicaMedica.value = true;
     }
-    else if (especialidade.includes('cirurgia')) {
+    if (especialidades.includes('cirurgia')) {
       showRevalidaFacilCirurgia.value = true;
     }
-    else if (especialidade.includes('pediatria')) {
+    if (especialidades.includes('pediatria')) {
       showRevalidaFacilPediatria.value = true;
     }
-    else if (especialidade.includes('ginecologia') || especialidade.includes('obstetrícia') ||
-             especialidade.includes('obstetricia') || idEstacao.includes('go')) {
+    if (especialidades.includes('ginecologia')) {
       showRevalidaFacilGO.value = true;
     }
-    else if (especialidade.includes('preventiva') || especialidade.includes('família') ||
-             especialidade.includes('comunidade')) {
+    if (especialidades.includes('preventiva')) {
       showRevalidaFacilPreventiva.value = true;
     }
-    else if (especialidade.includes('procedimento')) {
+    if (especialidades.includes('procedimentos')) {
       showRevalidaFacilProcedimentos.value = true;
     }
   }
@@ -2250,7 +2349,7 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilClinicaMedica"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        :style="{ backgroundColor: getSpecialtyColor(station, 'clinica-medica') + getBackgroundOpacity(station) }"
                         @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
@@ -2376,7 +2475,7 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilCirurgia"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        :style="{ backgroundColor: getSpecialtyColor(station, 'cirurgia') + getBackgroundOpacity(station) }"
                         @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
@@ -2502,7 +2601,7 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilPediatria"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        :style="{ backgroundColor: getSpecialtyColor(station, 'pediatria') + getBackgroundOpacity(station) }"
                         @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
@@ -2628,7 +2727,7 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilGO"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        :style="{ backgroundColor: getSpecialtyColor(station, 'ginecologia') + getBackgroundOpacity(station) }"
                         @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
@@ -2754,7 +2853,7 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilPreventiva"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        :style="{ backgroundColor: getSpecialtyColor(station, 'preventiva') + getBackgroundOpacity(station) }"
                         @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
@@ -2880,7 +2979,7 @@ const exampleVariable = ref(null);
                         v-for="station in filteredStationsRevalidaFacilProcedimentos"
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                        :style="{ backgroundColor: getSpecialtyColor(station, 'procedimentos') + getBackgroundOpacity(station) }"
                         @click="startSimulationAsActor(station.id)"
                       >
                         <template #prepend>
