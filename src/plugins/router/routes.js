@@ -149,6 +149,12 @@ export const routes = [
         props: true,
       },
       {
+        path: 'simulation-ai/:id',
+        name: 'simulation-ai',
+        component: () => import('@/pages/SimulationViewAI.vue'),
+        props: true,
+      },
+      {
         path: 'stations-index',
         name: 'stations-index',
         component: () => import('@/pages/StationList.vue'),

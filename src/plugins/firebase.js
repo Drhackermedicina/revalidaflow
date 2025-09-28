@@ -53,16 +53,31 @@ if (useSimulatedUser) {
   db = null;
   console.warn('[Firebase Plugin] Firestore está DESATIVADO para usuário simulado.');
 } else {
-  // Lógica original para inicializar o Firestore
+  // Inicialização melhorada do Firestore com tratamento de erros
   try {
     db = getFirestore(firebaseApp);
+    console.log('✅ Firestore inicializado com instância existente');
   } catch (error) {
-    db = initializeFirestore(firebaseApp, {
-      cache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-        cacheSizeBytes: 10 * 1024 * 1024
-      })
-    });
+    console.log('🔧 Inicializando Firestore com cache persistente...');
+    try {
+      db = initializeFirestore(firebaseApp, {
+        cache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+          cacheSizeBytes: 10 * 1024 * 1024
+        })
+      });
+      console.log('✅ Firestore inicializado com cache persistente');
+    } catch (cacheError) {
+      console.warn('⚠️ Erro ao configurar cache persistente, usando configuração padrão:', cacheError);
+      // Fallback para configuração padrão sem cache persistente
+      try {
+        db = initializeFirestore(firebaseApp, {});
+        console.log('✅ Firestore inicializado com configuração padrão');
+      } catch (fallbackError) {
+        console.error('❌ Falha crítica ao inicializar Firestore:', fallbackError);
+        db = null;
+      }
+    }
   }
 }
 

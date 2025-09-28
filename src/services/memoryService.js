@@ -216,6 +216,12 @@ class MemoryService {
         }
       } catch (e) { dWarn('Erro ao ler cache:', e) }
 
+      // Verificar se Firestore está disponível
+      if (!db) {
+        console.warn('⚠️ Firestore não está disponível, usando memória local');
+        return await this.loadFromLocalStorage(stationId);
+      }
+
       // Verificar se usuário está autenticado
       const currentUser = this.getCurrentUserId();
       dLog('🔐 Usuário atual para carregar memórias:', currentUser);
@@ -226,13 +232,18 @@ class MemoryService {
       }
 
       dLog('🔍 Fazendo query no Firestore...');
-      // 🔧 QUERY SIMPLES SEM ÍNDICE COMPOSTO
-      const q = query(
+      // 🔧 QUERY SIMPLES SEM ÍNDICE COMPOSTO com timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore query timeout')), 10000)
+      );
+
+      const firestorePromise = getDocs(query(
         collection(db, 'memorias_prompts'),
         where('stationId', '==', stationId),
         limit(50)
-      );
-      const snapshot = await getDocs(q);
+      ));
+
+      const snapshot = await Promise.race([firestorePromise, timeoutPromise]);
 
       dLog('📊 Snapshot recebido:', {
         size: snapshot.size,
