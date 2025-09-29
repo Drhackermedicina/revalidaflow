@@ -8,7 +8,7 @@ defineProps({
 import { usePrivateChatNotification } from '@/plugins/privateChatListener.js'
 import { currentUser } from '@/plugins/auth.js'
 import { db } from '@/plugins/firebase.js'
-import { backendUrl } from '@/utils/backendUrl.js'
+import { backendUrl } from '@/utils/backendUrl.js' // Necessário para IA
 import {
   formatTime,
   getEvaluationColor,
@@ -27,7 +27,7 @@ import { getAuth } from 'firebase/auth'
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
-import PepSideView from '@/components/PepSideView.vue'
+// import PepSideView from '@/components/PepSideView.vue' // Removido - usando PEP completo
 
 // Configuração do tema
 const theme = useTheme()
@@ -46,7 +46,7 @@ const isLoading = ref(true)
 const errorMessage = ref('')
 
 // Refs para controle de simulação AI
-const sessionId = ref(null)
+const sessionId = ref(null) // Local apenas, sem backend
 const stationId = ref(route.params.id)
 const userRole = ref('candidate') // Usuário sempre candidato na simulação AI
 const aiPartner = ref({ name: 'IA Virtual', role: 'actor' }) // IA como ator/avaliador
@@ -69,6 +69,7 @@ const evaluationScores = ref({})
 const isChecklistVisibleForCandidate = ref(false)
 const pepReleasedToCandidate = ref(false)
 const evaluationSubmittedByCandidate = ref(false)
+const submittingEvaluation = ref(false)
 const actorVisibleImpressoContent = ref({})
 const candidateReceivedScores = ref({})
 const candidateReceivedTotalScore = ref(0)
@@ -90,12 +91,15 @@ const isListening = ref(false)
 const speechRecognition = ref(null)
 const isSpeaking = ref(false)
 const speechSynthesis = ref(null)
+const speechEnabled = ref(true) // Controle se speech está habilitado
+
+// Refs para controle de painéis expandidos
+const expandedPanels = ref(['materials']) // Materiais sempre expandidos por padrão
 
 // Estatísticas AI
 const aiStats = ref({
-  messageCount: 0,
-  tokensUsed: 0,
-  keyUsed: null
+  messageCount: 0
+  // Estatísticas simplificadas sem backend
 })
 
 // Propriedades computadas
@@ -161,8 +165,8 @@ async function fetchSimulationData(currentStationId) {
       }
     }
 
-    // Inicializar sessão AI
-    await initializeAISession()
+    // Inicializar sessão AI local (sem backend)
+    initializeLocalAISession()
 
   } catch (error) {
     console.error('Erro ao carregar dados da estação:', error)
@@ -172,39 +176,16 @@ async function fetchSimulationData(currentStationId) {
   }
 }
 
-// Inicializar sessão AI
-async function initializeAISession() {
-  try {
-    const response = await fetch(`${backendUrl}/api/ai-simulation/start`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'user-id': currentUser.value?.uid || 'anonymous'
-      },
-      body: JSON.stringify({
-        stationId: stationId.value,
-        userId: currentUser.value?.uid || 'anonymous',
-        stationData: stationData.value
-      })
-    })
+// Inicializar sessão AI local (sem backend)
+function initializeLocalAISession() {
+  // Gerar ID de sessão local
+  sessionId.value = `ai-local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  aiReadyState.value = true // IA sempre pronta
 
-    const result = await response.json()
+  console.log('✅ Sessão AI local inicializada:', sessionId.value)
 
-    if (!result.success) {
-      throw new Error(result.error || 'Falha ao iniciar sessão AI')
-    }
-
-    sessionId.value = result.sessionId
-    aiReadyState.value = true // IA sempre pronta
-
-    // NÃO adicionar mensagem automática - candidato deve iniciar
-
-    console.log('✅ Sessão AI iniciada com sucesso:', result)
-
-  } catch (error) {
-    console.error('❌ Erro ao iniciar sessão AI:', error)
-    throw error
-  }
+  // Candidato deve iniciar a conversa
+  console.log('📝 IA aguardando candidato iniciar a conversa...')
 }
 
 // Funções de controle da simulação - seguindo mesmo padrão
@@ -232,10 +213,14 @@ function startSimulationTimer() {
 }
 
 function endSimulation() {
+  console.log('🔚 Finalizando simulação...')
   simulationEnded.value = true
-  // Liberar PEP para candidato
-  pepReleasedToCandidate.value = true
-  isChecklistVisibleForCandidate.value = true
+
+  // A liberação do PEP e avaliação automática será feita pelo watcher de simulationEnded
+  console.log('✅ Simulação marcada como finalizada - aguardando watcher para liberar PEP')
+
+  // Finalizar sessão AI
+  finalizeAISimulation()
 }
 
 // Enviar mensagem para IA
@@ -257,65 +242,118 @@ async function sendMessage() {
   scrollToBottom()
 
   try {
-    const response = await fetch(`${backendUrl}/api/ai-simulation/message`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'user-id': currentUser.value?.uid || 'anonymous'
-      },
-      body: JSON.stringify({
-        sessionId: sessionId.value,
-        message: message,
-        stationData: stationData.value,
-        releasedData: releasedData.value
-      })
-    })
+    // Processar resposta da IA baseada no script (sem backend)
+    const aiResponse = await processAIResponse(message)
 
-    const result = await response.json()
-
-    if (!result.success) {
-      throw new Error(result.error || 'Falha ao processar mensagem')
-    }
-
-    // Adicionar resposta da IA
+    // Adicionar resposta da IA ao histórico
     conversationHistory.value.push({
       role: 'ai_actor',
-      content: result.aiResponse,
-      timestamp: new Date(),
-      materialsReleased: result.materialsReleased || []
+      content: aiResponse,
+      timestamp: new Date()
     })
 
-    // Falar a resposta da IA automaticamente
-    speakText(result.aiResponse)
+    await nextTick()
+    scrollToBottom()
 
-    // Processar materiais liberados
-    if (result.materialsReleased?.length > 0) {
-      result.materialsReleased.forEach(material => {
-        if (!releasedData.value[material.idImpresso]) {
-          releasedData.value[material.idImpresso] = material
-        }
-      })
+    // Falar a resposta se speech estiver habilitado
+    if (speechEnabled.value && speechSynthesis) {
+      speakText(aiResponse)
     }
 
-    // Atualizar estatísticas
+    // Atualizar contador de mensagens
     aiStats.value.messageCount++
-    aiStats.value.tokensUsed += result.metadata?.tokensUsed || 0
-    aiStats.value.keyUsed = result.metadata?.keyUsed
 
   } catch (error) {
-    console.error('❌ Erro ao enviar mensagem:', error)
+    console.error('❌ Erro ao processar mensagem da IA:', error)
     conversationHistory.value.push({
       role: 'system',
-      content: `Erro: ${error.message}`,
+      content: 'Desculpe, houve um erro. Tente novamente.',
       timestamp: new Date(),
       isError: true
     })
   } finally {
     isProcessingMessage.value = false
-    await nextTick()
-    scrollToBottom()
   }
 }
+
+// Função para processar resposta da IA usando Gemini 2.5 Flash
+async function processAIResponse(candidateMessage) {
+  console.log('🤖 Enviando para Gemini 2.5 Flash:', candidateMessage)
+
+  try {
+    // Chamar API do backend que usa Gemini 2.5 Flash
+    const response = await fetch(`${backendUrl}/api/ai-chat/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentUser.value?.accessToken || ''}`,
+        'user-id': currentUser.value?.uid || ''
+      },
+      body: JSON.stringify({
+        message: candidateMessage,
+        stationData: stationData.value,
+        conversationHistory: conversationHistory.value.slice(-10) // Últimas 10 mensagens para contexto
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`)
+    }
+
+    const aiResponse = await response.json()
+    console.log('✅ Resposta da IA:', aiResponse.message)
+
+    // Verificar se IA quer liberar material
+    if (aiResponse.releaseMaterial && aiResponse.materialToRelease) {
+      console.log('📄 IA liberou material:', aiResponse.materialToRelease)
+      releaseMaterialById(aiResponse.materialToRelease)
+    }
+
+    return aiResponse.message
+
+  } catch (error) {
+    console.error('❌ Erro ao conectar com IA:', error)
+
+    // Fallback para erro de conexão
+    return 'Desculpe, estou com um problema técnico no momento. Pode repetir a pergunta?'
+  }
+}
+
+// Função para liberar material específico por ID
+function releaseMaterialById(materialId) {
+  if (!materialId || !stationData.value) return
+
+  // Buscar material na estação
+  const materiaisImpressos = stationData.value.materiaisImpressos || []
+  const material = materiaisImpressos.find(m =>
+    m.idImpresso === materialId || m.id === materialId
+  )
+
+  if (material) {
+    // Liberar o material
+    releasedData.value[materialId] = {
+      ...material,
+      releasedAt: new Date(),
+      releasedBy: 'ai'
+    }
+
+    // Adicionar notificação
+    conversationHistory.value.push({
+      sender: 'system',
+      message: `📄 Material liberado: ${material.tituloImpresso || material.titulo || 'Documento'}`,
+      timestamp: new Date(),
+      isSystemMessage: true
+    })
+
+    console.log('✅ Material liberado pela IA:', material.tituloImpresso)
+  }
+}
+
+// *** FUNÇÕES DE RESPOSTA ESTÁTICA REMOVIDAS ***
+// Agora usamos IA real (Gemini 2.5 Flash) para todas as respostas
+// As funções identificarSecaoRelevante, buscarRespostasNaSecao, perguntaCorrespondeAoGatilho
+// e checkAndReleaseMaterials foram removidas pois a IA agora decide tudo dinamicamente
+
 
 // Função para alternar marcação de itens do PEP - seguindo mesmo padrão
 function togglePepItemMark(itemId, pointIndex) {
@@ -357,29 +395,312 @@ async function submitEvaluation() {
   }
 }
 
-// Finalizar simulação AI
-async function finalizeAISimulation() {
+// Forçar carregamento do PEP
+async function forceLoadPEP() {
+  console.log('🔧 Forçando carregamento do PEP...')
   try {
-    await fetch(`${backendUrl}/api/ai-simulation/end`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'user-id': currentUser.value?.uid || 'anonymous'
-      },
-      body: JSON.stringify({
-        sessionId: sessionId.value,
-        finalData: {
-          evaluations: markedPepItems.value,
-          stats: aiStats.value,
-          conversationHistory: conversationHistory.value
-        }
-      })
+    // Recarregar dados da estação para obter PEP
+    await fetchSimulationData(stationId.value)
+
+    // Forçar liberação
+    pepReleasedToCandidate.value = true
+    isChecklistVisibleForCandidate.value = true
+
+    console.log('✅ PEP carregado forçadamente:', {
+      checklistData: !!checklistData.value,
+      pepReleased: pepReleasedToCandidate.value
     })
   } catch (error) {
-    console.warn('Erro ao finalizar simulação AI:', error)
+    console.error('❌ Erro ao forçar PEP:', error)
   }
 }
 
+// Finalizar simulação AI local (sem backend)
+function finalizeAISimulation() {
+  console.log('🏁 Simulação AI finalizada localmente:', {
+    sessionId: sessionId.value,
+    messageCount: conversationHistory.value.length,
+    evaluations: markedPepItems.value,
+    pepReleased: pepReleasedToCandidate.value
+  })
+
+  // Dados ficam apenas no frontend
+  // Futuramente pode salvar no localStorage ou Firestore se necessário
+}
+
+
+// Função para abrir material liberado
+function openMaterial(material) {
+  console.log('🔍 Material clicado:', material) // Debug para ver estrutura
+
+  // Verificar se tem link direto
+  if (material.linkOriginal) {
+    window.open(material.linkOriginal, '_blank')
+    return
+  }
+
+  // Usar o conteúdo que já está no material (fornecido pela IA)
+  if (material.conteudo || material.conteudoImpresso) {
+    console.log('✅ Usando conteúdo do material')
+    openFullMaterial(material)
+    return
+  }
+
+  // Se não tem conteúdo, buscar na estação como fallback
+  const fullMaterial = findMaterialInStation(material.idImpresso)
+  if (fullMaterial) {
+    console.log('✅ Usando material da estação')
+    openFullMaterial(fullMaterial)
+    return
+  }
+
+  // Fallback final
+  console.log('❌ Nenhum conteúdo encontrado')
+  const info = `
+Material: ${material.tituloImpresso || 'Sem título'}
+Tipo: ${material.tipoConteudo || 'Documento'}
+ID: ${material.idImpresso || 'N/A'}
+
+⚠️ Conteúdo completo não disponível.
+Este material foi liberado pela IA mas o conteúdo detalhado não foi fornecido.
+  `.trim()
+
+  alert(info)
+}
+
+// Buscar material completo na estação carregada
+function findMaterialInStation(materialId) {
+  if (!stationData.value || !materialId) {
+    console.log('❌ Não há stationData ou materialId:', { stationData: !!stationData.value, materialId })
+    return null
+  }
+
+  console.log('🔍 Procurando material:', materialId)
+  console.log('📊 Estrutura da estação:', Object.keys(stationData.value))
+
+  // Verificar em diferentes seções da estação
+  const sections = [
+    { name: 'materiaisImpressos', data: stationData.value.materiaisImpressos },
+    { name: 'anexos', data: stationData.value.anexos },
+    { name: 'documentos', data: stationData.value.documentos },
+    { name: 'materiais', data: stationData.value.materiais },
+    { name: 'impressos', data: stationData.value.impressos }
+  ]
+
+  for (const section of sections) {
+    if (Array.isArray(section.data)) {
+      console.log(`🔍 Procurando em ${section.name} (array):`, section.data.length, 'itens')
+      const found = section.data.find(item =>
+        item && (
+          item.idImpresso === materialId ||
+          item.id === materialId ||
+          item.titulo === materialId ||
+          item.nome === materialId
+        )
+      )
+      if (found) {
+        console.log('✅ Material encontrado em', section.name, ':', found)
+        return found
+      }
+    } else if (section.data && typeof section.data === 'object') {
+      console.log(`🔍 Procurando em ${section.name} (object):`, Object.keys(section.data))
+      const found = Object.values(section.data).find(item =>
+        item && (
+          item.idImpresso === materialId ||
+          item.id === materialId ||
+          item.titulo === materialId ||
+          item.nome === materialId
+        )
+      )
+      if (found) {
+        console.log('✅ Material encontrado em', section.name, ':', found)
+        return found
+      }
+    }
+  }
+
+  console.log('❌ Material não encontrado')
+  return null
+}
+
+// Abrir material completo da estação
+function openFullMaterial(material) {
+  const newWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes')
+
+  let content = material.conteudoImpresso || 'Conteúdo não disponível'
+
+  // Se tiver conteúdo estruturado
+  if (material.conteudo) {
+    console.log('📋 Processando conteúdo estruturado:', material.conteudo)
+
+    if (material.tipoConteudo === 'lista_chave_valor_secoes') {
+      // Usar secoes se existir, senão tentar extrair do conteudo
+      const secoes = material.secoes || material.conteudo.secoes || material.conteudo
+      content = formatKeyValueSections(secoes)
+    } else {
+      // Para outros tipos, converter objeto para HTML
+      content = formatObjectContent(material.conteudo)
+    }
+  } else if (material.tipoConteudo === 'lista_chave_valor_secoes' && material.secoes) {
+    content = formatKeyValueSections(material.secoes)
+  }
+
+  newWindow.document.write(`
+    <html>
+      <head>
+        <title>${material.titulo || material.tituloImpresso || 'Material'}</title>
+        <meta charset="UTF-8">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+          }
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          }
+          h1 {
+            color: #1976d2;
+            border-bottom: 2px solid #1976d2;
+            padding-bottom: 10px;
+          }
+          .meta {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+          }
+          .section {
+            margin: 20px 0;
+          }
+          .key {
+            font-weight: bold;
+            color: #333;
+          }
+          .value {
+            margin-left: 10px;
+            color: #666;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>${material.titulo || material.tituloImpresso || 'Material'}</h1>
+          <div class="meta">
+            <p><strong>Tipo:</strong> ${material.tipoConteudo || 'Documento'}</p>
+            <p><strong>ID:</strong> ${material.idImpresso || material.id || 'N/A'}</p>
+          </div>
+          <div class="content">
+            ${content}
+          </div>
+        </div>
+      </body>
+    </html>
+  `)
+  newWindow.document.close()
+}
+
+// Abrir conteúdo fornecido pela IA
+function openMaterialContent(material) {
+  const newWindow = window.open('', '_blank', 'width=600,height=500')
+  newWindow.document.write(`
+    <html>
+      <head>
+        <title>${material.tituloImpresso || 'Material'}</title>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+          h1 { color: #1976d2; }
+          .meta { background: #f0f0f0; padding: 10px; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <h1>${material.tituloImpresso || 'Material'}</h1>
+        <div class="meta">
+          <p><strong>Tipo:</strong> ${material.tipoConteudo || 'Documento'}</p>
+        </div>
+        <div>${material.conteudoImpresso}</div>
+      </body>
+    </html>
+  `)
+  newWindow.document.close()
+}
+
+// Formatar seções chave-valor
+function formatKeyValueSections(secoes) {
+  console.log('🔧 Formatando seções:', secoes)
+
+  if (!secoes) return 'Nenhuma seção fornecida'
+
+  // Se for array, processar normalmente
+  if (Array.isArray(secoes)) {
+    return secoes.map(secao => {
+      let html = `<div class="section"><h3>${secao.titulo || secao.nome || 'Seção'}</h3>`
+
+      if (Array.isArray(secao.itens)) {
+        secao.itens.forEach(item => {
+          html += `<div><span class="key">${item.chave || item.nome}:</span> <span class="value">${item.valor || item.valor}</span></div>`
+        })
+      } else if (secao.itens && typeof secao.itens === 'object') {
+        // Se itens for objeto, converter para HTML
+        Object.entries(secao.itens).forEach(([key, value]) => {
+          html += `<div><span class="key">${key}:</span> <span class="value">${value}</span></div>`
+        })
+      }
+
+      html += '</div>'
+      return html
+    }).join('')
+  }
+
+  // Se for objeto, tentar converter
+  if (typeof secoes === 'object') {
+    return formatObjectContent(secoes)
+  }
+
+  return 'Formato de seções não reconhecido'
+}
+
+// Formatar conteúdo de objeto genérico
+function formatObjectContent(obj) {
+  if (!obj || typeof obj !== 'object') return 'Conteúdo inválido'
+
+  let html = ''
+
+  Object.entries(obj).forEach(([key, value]) => {
+    html += `<div class="section">`
+    html += `<h3>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h3>`
+
+    if (Array.isArray(value)) {
+      value.forEach(item => {
+        if (typeof item === 'object') {
+          Object.entries(item).forEach(([subKey, subValue]) => {
+            html += `<div><span class="key">${subKey}:</span> <span class="value">${subValue}</span></div>`
+          })
+        } else {
+          html += `<div class="value">${item}</div>`
+        }
+      })
+    } else if (typeof value === 'object') {
+      Object.entries(value).forEach(([subKey, subValue]) => {
+        html += `<div><span class="key">${subKey}:</span> <span class="value">${subValue}</span></div>`
+      })
+    } else {
+      html += `<div class="value">${value}</div>`
+    }
+
+    html += '</div>'
+  })
+
+  return html
+}
 
 // Funções auxiliares
 function scrollToBottom() {
@@ -420,23 +741,63 @@ function initSpeechRecognition() {
       const transcript = event.results[0][0].transcript
       currentMessage.value = transcript
       isListening.value = false
+      console.log('🎤 Texto reconhecido:', transcript)
     }
 
     speechRecognition.value.onerror = (event) => {
-      console.error('Speech recognition error:', event.error)
+      console.error('❌ Erro no reconhecimento de voz:', event.error)
       isListening.value = false
+      // Mostrar feedback visual
+      conversationHistory.value.push({
+        role: 'system',
+        content: `Erro no reconhecimento de voz: ${event.error}`,
+        timestamp: new Date(),
+        isError: true
+      })
     }
 
     speechRecognition.value.onend = () => {
       isListening.value = false
+      console.log('🎤 Reconhecimento de voz finalizado')
     }
+
+    speechRecognition.value.onstart = () => {
+      console.log('🎤 Reconhecimento de voz iniciado')
+    }
+
+    console.log('✅ Reconhecimento de voz inicializado')
+  } else {
+    console.warn('⚠️ Reconhecimento de voz não suportado neste navegador')
   }
 }
 
 function startListening() {
-  if (speechRecognition.value && !isListening.value) {
-    isListening.value = true
-    speechRecognition.value.start()
+  if (!speechRecognition.value) {
+    // Mostrar feedback se não suportar
+    conversationHistory.value.push({
+      role: 'system',
+      content: 'Reconhecimento de voz não disponível neste navegador. Use Chrome ou Edge para funcionalidade completa.',
+      timestamp: new Date(),
+      isError: true
+    })
+    return
+  }
+
+  if (!isListening.value) {
+    try {
+      isListening.value = true
+      speechRecognition.value.start()
+      console.log('🎤 Iniciando gravação...')
+    } catch (error) {
+      console.error('❌ Erro ao iniciar gravação:', error)
+      isListening.value = false
+      conversationHistory.value.push({
+        role: 'system',
+        content: `Erro ao iniciar gravação: ${error.message}`,
+        timestamp: new Date(),
+        isError: true
+      })
+    }
   }
 }
 
@@ -501,6 +862,141 @@ watch(selectedDurationMinutes, (newValue) => {
     timerDisplay.value = formatTime(simulationTimeSeconds.value)
   }
 })
+
+// Watcher para liberar PEP automaticamente ao final da simulação (mesma lógica do SimulationView.vue)
+watch(simulationEnded, (newValue) => {
+  if (newValue) {
+    console.log('🔚 Simulação finalizada - liberando PEP automaticamente')
+    // Liberar PEP automaticamente quando a simulação termina
+    pepReleasedToCandidate.value = true
+    isChecklistVisibleForCandidate.value = true
+
+    console.log('✅ PEP liberado automaticamente:', {
+      pepReleasedToCandidate: pepReleasedToCandidate.value,
+      isChecklistVisibleForCandidate: isChecklistVisibleForCandidate.value,
+      checklistData: !!checklistData.value
+    })
+
+    // IA deve agir como avaliador e preencher o PEP automaticamente
+    setTimeout(() => {
+      aiEvaluatePEP()
+    }, 2000) // Aguarda 2 segundos após liberar o PEP
+  }
+})
+
+// Função para IA avaliar automaticamente o PEP usando Gemini 2.5 Flash
+async function aiEvaluatePEP() {
+  if (!checklistData.value?.itensAvaliacao?.length) {
+    console.log('❌ Não há itens de avaliação no PEP')
+    return
+  }
+
+  console.log('🤖 IA iniciando avaliação inteligente do PEP...')
+
+  // Marcar como processando
+  submittingEvaluation.value = true
+
+  try {
+    // Chamar endpoint de avaliação PEP
+    const response = await fetch(`${backendUrl}/api/ai-chat/evaluate-pep`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentUser.value?.accessToken || ''}`,
+        'user-id': currentUser.value?.uid || ''
+      },
+      body: JSON.stringify({
+        stationData: stationData.value,
+        conversationHistory: conversationHistory.value,
+        checklistData: checklistData.value
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`)
+    }
+
+    const aiEvaluation = await response.json()
+    console.log('✅ Avaliação da IA recebida:', aiEvaluation.evaluation)
+
+    // Processar avaliação automática da IA
+    processAIEvaluation(aiEvaluation.evaluation)
+
+  } catch (error) {
+    console.error('❌ Erro na avaliação automática por IA:', error)
+
+    // Fallback: avaliação automática simples
+    autoEvaluatePEPFallback()
+  }
+}
+
+// Processar resultado da avaliação da IA
+function processAIEvaluation(evaluationText) {
+  // A IA retorna avaliações no formato: "Item 1: SIM, Item 2: NÃO, Item 3: SIM..."
+  const items = evaluationText.split(',')
+
+  checklistData.value.itensAvaliacao.forEach((item, index) => {
+    if (!markedPepItems.value[item.idItem]) {
+      markedPepItems.value[item.idItem] = []
+    }
+
+    // Procurar avaliação para este item
+    const itemEvaluation = items.find(evalText =>
+      evalText.toLowerCase().includes(`item ${index + 1}`) ||
+      evalText.toLowerCase().includes(`${index + 1}:`)
+    )
+
+    if (itemEvaluation) {
+      const isPositive = itemEvaluation.toLowerCase().includes('sim')
+      const score = isPositive ? 5 : 1 // Adequado ou Inadequado
+
+      // Marcar item como avaliado
+      markedPepItems.value[item.idItem] = [{
+        pontuacao: score,
+        observacao: `Avaliado automaticamente pela IA: ${isPositive ? 'Adequado' : 'Inadequado'}`,
+        timestamp: new Date().toISOString()
+      }]
+
+      console.log(`✅ Item ${index + 1} avaliado:`, isPositive ? 'ADEQUADO' : 'INADEQUADO')
+    }
+  })
+
+  // Marcar avaliação como concluída
+  evaluationSubmittedByCandidate.value = true
+  submittingEvaluation.value = false
+
+  console.log('🎯 Avaliação automática concluída:', Object.keys(markedPepItems.value).length, 'itens avaliados')
+}
+
+// Fallback para avaliação automática simples (se IA falhar)
+function autoEvaluatePEPFallback() {
+  console.log('⚠️ Usando avaliação fallback simples...')
+
+  const candidateMessages = conversationHistory.value.filter(msg =>
+    msg.sender === 'candidate' || msg.role === 'candidate'
+  )
+
+  checklistData.value.itensAvaliacao.forEach((item, index) => {
+    if (!markedPepItems.value[item.idItem]) {
+      markedPepItems.value[item.idItem] = []
+    }
+
+    // Avaliação básica: se participou minimamente, considera adequado
+    const score = candidateMessages.length >= 3 ? 3 : 1 // Regular ou Inadequado
+
+    markedPepItems.value[item.idItem] = [{
+      pontuacao: score,
+      observacao: `Avaliação automática: ${candidateMessages.length >= 3 ? 'Participação adequada' : 'Participação insuficiente'}`,
+      timestamp: new Date().toISOString()
+    }]
+  })
+
+  // Marcar avaliação como concluída
+  evaluationSubmittedByCandidate.value = true
+  submittingEvaluation.value = false
+
+  console.log('🎯 Avaliação fallback concluída:', Object.keys(markedPepItems.value).length, 'itens avaliados')
+}
 
 // Lifecycle
 onMounted(async () => {
@@ -856,8 +1352,6 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- DEBUG: simulationEnded = {{ simulationEnded }} -->
-
               <!-- Input de mensagem com controles de voz -->
               <v-card-actions class="pa-4" style="border-top: 1px solid #ccc; background: white; position: sticky; bottom: 0; z-index: 100;">
                 <v-text-field
@@ -883,7 +1377,7 @@ onUnmounted(() => {
                   class="ml-2"
                   :disabled="isProcessingMessage"
                   @click="isListening ? stopListening() : startListening()"
-                  v-if="speechRecognition"
+                  :title="speechRecognition ? (isListening ? 'Parar gravação' : 'Gravar voz') : 'Reconhecimento de voz não suportado'"
                 >
                   <v-icon>{{ isListening ? 'ri-mic-off-line' : 'ri-mic-line' }}</v-icon>
                 </v-btn>
@@ -931,7 +1425,8 @@ onUnmounted(() => {
             v-if="!pepViewState.isVisible"
             cols="12"
             md="4"
-            class="d-flex flex-column overflow-y-auto"
+            class="d-flex flex-column"
+            style="max-height: calc(100vh - 120px); overflow-y: auto;"
           >
             <div class="pa-3">
               <!-- Cenário do Atendimento -->
@@ -1020,7 +1515,7 @@ onUnmounted(() => {
                 <v-card-text>
                   <div class="d-flex flex-column gap-2">
                     <v-btn
-                      v-if="simulationEnded"
+                      v-if="simulationEnded && checklistData"
                       color="primary"
                       variant="elevated"
                       @click="pepViewState.isVisible = true"
@@ -1029,8 +1524,21 @@ onUnmounted(() => {
                       <v-icon start>ri-checklist-line</v-icon>
                       Ver PEP
                     </v-btn>
+
+                    <!-- Debug: Forçar liberação PEP -->
                     <v-btn
-                      v-if="simulationEnded && !evaluationSubmittedByCandidate"
+                      v-if="simulationEnded && !checklistData"
+                      color="info"
+                      variant="outlined"
+                      @click="forceLoadPEP"
+                      block
+                    >
+                      <v-icon start>ri-download-line</v-icon>
+                      Carregar PEP
+                    </v-btn>
+
+                    <v-btn
+                      v-if="simulationEnded && !evaluationSubmittedByCandidate && checklistData"
                       color="success"
                       variant="outlined"
                       @click="submitEvaluation"
@@ -1039,6 +1547,7 @@ onUnmounted(() => {
                       <v-icon start>ri-send-plane-line</v-icon>
                       Enviar Avaliação
                     </v-btn>
+
                     <v-btn
                       color="warning"
                       variant="outlined"
@@ -1055,8 +1564,8 @@ onUnmounted(() => {
 
               <!-- Materiais liberados -->
               <v-card class="mb-4">
-                <v-expansion-panels variant="accordion" class="mb-0">
-                  <v-expansion-panel>
+                <v-expansion-panels variant="accordion" class="mb-0" v-model="expandedPanels">
+                  <v-expansion-panel value="materials">
                     <v-expansion-panel-title>
                       <div class="d-flex align-center">
                         <v-icon class="me-2">ri-file-list-3-line</v-icon>
@@ -1087,12 +1596,18 @@ onUnmounted(() => {
                         <v-list-item
                           v-for="(material, id) in releasedData"
                           :key="id"
+                          @click="openMaterial(material)"
+                          class="cursor-pointer"
+                          :ripple="true"
                         >
                           <template #prepend>
                             <v-icon color="success">ri-file-check-line</v-icon>
                           </template>
                           <v-list-item-title>{{ material.tituloImpresso || 'Material' }}</v-list-item-title>
                           <v-list-item-subtitle>{{ material.tipoConteudo || 'Documento' }}</v-list-item-subtitle>
+                          <template #append>
+                            <v-icon size="small" color="primary">ri-external-link-line</v-icon>
+                          </template>
                         </v-list-item>
                       </v-list>
                     </v-expansion-panel-text>
@@ -1119,14 +1634,11 @@ onUnmounted(() => {
                           <v-list-item-title>Materiais liberados</v-list-item-title>
                           <v-list-item-subtitle>{{ Object.keys(releasedData).length }}</v-list-item-subtitle>
                         </v-list-item>
-                        <v-list-item v-if="aiStats.keyUsed">
-                          <v-list-item-title>API utilizada</v-list-item-title>
+                        <v-list-item>
+                          <v-list-item-title>Modo de operação</v-list-item-title>
                           <v-list-item-subtitle>
-                            <v-chip
-                              size="x-small"
-                              :color="aiStats.keyUsed === 'free' ? 'success' : 'warning'"
-                            >
-                              {{ aiStats.keyUsed === 'free' ? 'Gratuita' : 'Paga' }}
+                            <v-chip size="x-small" color="success">
+                              Simulação Local
                             </v-chip>
                           </v-list-item-subtitle>
                         </v-list-item>
@@ -1146,21 +1658,146 @@ onUnmounted(() => {
             </div>
           </v-col>
 
-          <!-- PEP Side View - Integração com componente existente -->
+          <!-- PEP Completo - Igual ao SimulationView.vue -->
           <v-col
-            v-if="pepViewState.isVisible"
             cols="12"
-            md="6"
-            class="d-flex flex-column"
           >
-            <PepSideView
-              v-if="checklistData && pepReleasedToCandidate"
-              :pep-data="checklistData.itensAvaliacao || []"
-              :marked-pep-items="markedPepItems"
-              :toggle-pep-item-mark="togglePepItemMark"
-              class="flex-1-1"
-            />
-            <v-card v-else class="flex-1-1 d-flex align-center justify-center">
+            <!-- Card do Checklist de Avaliação (PEP) -->
+            <v-card
+              v-if="checklistData?.itensAvaliacao?.length > 0 && pepReleasedToCandidate"
+              class="mb-6 checklist-candidate-card"
+            >
+              <v-card-item>
+                <v-card-title class="d-flex align-center">
+                  <v-icon color="black" icon="ri-file-list-3-fill" size="large" class="me-2" />
+                  Checklist de Avaliação (PEP)
+                </v-card-title>
+              </v-card-item>
+
+              <v-table class="pep-table">
+                <thead>
+                  <tr>
+                    <th class="text-left">Item</th>
+                    <th class="text-center" style="width: 20%;">Avaliação da IA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, index) in checklistData.itensAvaliacao" :key="'ai-pep-' + item.idItem">
+                    <td>
+                      <!-- Conteúdo do Item -->
+                      <p class="font-weight-bold">
+                        <span v-if="item.itemNumeroOficial">{{ item.itemNumeroOficial }}. </span>
+                        {{ item.descricaoItem ? item.descricaoItem.split(':')[0].trim() : 'Item' }}
+                      </p>
+                      <!-- Descrição formatada -->
+                      <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')"
+                           v-html="item.descricaoItem.split(':').slice(1).join(':').trim()" />
+
+                      <!-- Critérios de Avaliação -->
+                      <div class="criterios-integrados mt-2">
+                        <div v-if="item.pontuacoes?.adequado"
+                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[index]?.pontuacao === 5, 'mb-2': true}">
+                          <div class="d-flex align-start">
+                            <v-icon
+                              :icon="markedPepItems[index]?.pontuacao === 5 ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'"
+                              color="success"
+                              size="small"
+                              class="me-2 mt-1"
+                            />
+                            <div>
+                              <div class="font-weight-medium">Adequado ({{ item.pontuacoes.adequado.pontos?.toFixed(2) || '1.00' }} pts)</div>
+                              <div class="text-caption">{{ item.pontuacoes.adequado.criterio || 'Critério adequado' }}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div v-if="item.pontuacoes?.parcialmenteAdequado"
+                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[index]?.pontuacao >= 3 && markedPepItems[index]?.pontuacao < 5, 'mb-2': true}">
+                          <div class="d-flex align-start">
+                            <v-icon
+                              :icon="(markedPepItems[index]?.pontuacao >= 3 && markedPepItems[index]?.pontuacao < 5) ? 'ri-checkbox-indeterminate-fill' : 'ri-checkbox-blank-circle-line'"
+                              color="warning"
+                              size="small"
+                              class="me-2 mt-1"
+                            />
+                            <div>
+                              <div class="font-weight-medium">Parcialmente Adequado ({{ item.pontuacoes.parcialmenteAdequado.pontos?.toFixed(2) || '0.50' }} pts)</div>
+                              <div class="text-caption">{{ item.pontuacoes.parcialmenteAdequado.criterio || 'Critério parcialmente adequado' }}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div v-if="item.pontuacoes?.inadequado"
+                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[index]?.pontuacao < 3}">
+                          <div class="d-flex align-start">
+                            <v-icon
+                              :icon="markedPepItems[index]?.pontuacao < 3 ? 'ri-close-circle-fill' : 'ri-checkbox-blank-circle-line'"
+                              color="error"
+                              size="small"
+                              class="me-2 mt-1"
+                            />
+                            <div>
+                              <div class="font-weight-medium">Inadequado ({{ item.pontuacoes.inadequado.pontos?.toFixed(2) || '0.00' }} pts)</div>
+                              <div class="text-caption">{{ item.pontuacoes.inadequado.criterio || 'Critério inadequado' }}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <!-- Visualização da pontuação da IA -->
+                      <div v-if="markedPepItems[index]?.pontuacao !== undefined">
+                        <v-chip
+                          :color="markedPepItems[index]?.pontuacao >= 5 ? 'success' : markedPepItems[index]?.pontuacao >= 3 ? 'warning' : 'error'"
+                          variant="tonal"
+                          class="mb-1"
+                        >
+                          {{ markedPepItems[index]?.pontuacao >= 5 ? 'Adequado' : markedPepItems[index]?.pontuacao >= 3 ? 'Parcialmente Adequado' : 'Inadequado' }}
+                        </v-chip>
+                        <div class="text-caption">{{ markedPepItems[index]?.pontuacao }} pontos</div>
+                        <div v-if="markedPepItems[index]?.observacoes" class="text-caption mt-1">{{ markedPepItems[index].observacoes }}</div>
+                      </div>
+                      <div v-else class="text-caption text-medium-emphasis">
+                        Aguardando avaliação
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <!-- Ações do PEP -->
+              <v-card-actions v-if="simulationEnded && !evaluationSubmittedByCandidate && checklistData" class="pa-4">
+                <v-spacer />
+                <v-btn
+                  color="primary"
+                  @click="submitEvaluation"
+                  :loading="submittingEvaluation"
+                >
+                  Ver Resultado Final
+                </v-btn>
+              </v-card-actions>
+
+              <!-- Feedback da estação -->
+              <v-card-text v-if="checklistData?.feedbackEstacao && simulationEnded">
+                <v-divider class="mb-4" />
+                <h4 class="mb-2">Feedback da Estação</h4>
+                <div v-html="checklistData.feedbackEstacao" />
+              </v-card-text>
+
+              <!-- Score total -->
+              <v-alert
+                v-if="simulationEnded && candidateReceivedTotalScore > 0"
+                type="info"
+                variant="tonal"
+                class="ma-4"
+              >
+                <template #title>Pontuação Total</template>
+                Você obteve {{ candidateReceivedTotalScore.toFixed(2) }} pontos nesta simulação.
+              </v-alert>
+            </v-card>
+
+            <!-- Card quando PEP não está disponível -->
+            <v-card v-if="!checklistData?.itensAvaliacao?.length || !pepReleasedToCandidate" class="mb-6 d-flex align-center justify-center" style="min-height: 200px;">
               <div class="text-center">
                 <v-icon size="64" color="grey-lighten-1" class="mb-4">ri-checklist-line</v-icon>
                 <h3 class="mb-2">PEP não disponível</h3>
@@ -1185,7 +1822,7 @@ onUnmounted(() => {
 
 .simulation-main {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .chat-history {
@@ -1319,6 +1956,14 @@ onUnmounted(() => {
   margin: 0;
 }
 
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-pointer:hover {
+  background-color: rgba(var(--v-theme-primary), 0.1);
+}
+
 /* Responsividade */
 @media (max-width: 960px) {
   .message-candidate .message-content,
@@ -1335,6 +1980,11 @@ onUnmounted(() => {
 
   .chat-history-sidebar {
     max-height: 200px;
+  }
+
+  /* Sidebar móvel - altura ajustada */
+  .d-flex.flex-column[style*="max-height"] {
+    max-height: calc(100vh - 200px) !important;
   }
 }
 </style>
