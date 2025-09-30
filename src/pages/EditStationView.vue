@@ -2504,7 +2504,7 @@ watch(() => props.id, (newId) => {
             <textarea id="manualAvisosImportantes" v-model="formData.avisosImportantes" rows="3" placeholder="Ex: O paciente simulado pode apresentar instabilidade.&#10;Comunique-se de forma clara e objetiva com o paciente e/ou acompanhante."></textarea>
           </div>
 
-          <h4 style="font-size: 1.5rem !important; color: #d32f2f !important; font-weight: 800;">Roteiro do Ator / Informações Verbais (para o Ator/Avaliador)</h4>
+          <h4 style="font-size: 1.5rem !important; color: #d32f2f !important; font-weight: 800;">ROTEIRO DO ATOR</h4>
           <div v-for="(info, index) in formData.informacoesVerbaisSimulado" :key="info.idInfoVerbal" class="dynamic-item-group info-verbal-item">
             <div class="info-verbal-header">
               <h5>Informação Verbal {{ index + 1 }}</h5>
@@ -2579,7 +2579,7 @@ watch(() => props.id, (newId) => {
           </div>
           <button type="button" @click="adicionarInfoVerbal" class="add-item-button">+ Adicionar Informação Verbal</button>
 
-          <h4>Materiais Disponíveis (Impressos a serem liberados pelo Ator/Avaliador)</h4>
+          <h4 style="font-size: 1.5rem !important; color: #d32f2f !important; font-weight: 800;">IMPRESSOS</h4>
           <div v-if="formData.impressos.length === 0" class="empty-state-message">
             <p>Nenhum impresso adicionado. Impressos são opcionais - use o botão abaixo para adicionar materiais se necessário.</p>
           </div>
