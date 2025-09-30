@@ -1201,7 +1201,7 @@ async function onBatchQuestionsJsonUpload(event) {
           <div class="form-group"><label for="manualTipoAtendimento">Tipo de Atendimento:</label><input type="text" id="manualTipoAtendimento" v-model="formNovaEstacao.cenarioAtendimento_tipoAtendimento" placeholder="Ex: ambulatorial, emergência, enfermaria"></div>
           <div class="form-group"><label for="manualInfraestrutura">Infraestrutura da Unidade Disponível (separar por ponto e vírgula ";"):</label><textarea id="manualInfraestrutura" v-model="formNovaEstacao.cenarioAtendimento_infraestruturaUnidade" rows="3" placeholder="Ex: maca; monitor cardíaco; acesso venoso periférico; materiais para intubação"></textarea></div>
 
-          <h4>Roteiro do Ator / Informações Verbais (para o Ator/Avaliador)</h4>
+          <h4 style="font-size: 1.5rem !important; color: #d32f2f !important; font-weight: 800;">Roteiro do Ator / Informações Verbais (para o Ator/Avaliador)</h4>
           <div v-for="(info, index) in formNovaEstacao.informacoesVerbaisSimulado" :key="'infoVerbal-'+index" class="dynamic-item-group">
             <h5>Informação Verbal {{ index + 1 }}</h5>
             <div class="form-group">

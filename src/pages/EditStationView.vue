@@ -424,11 +424,6 @@ function getInitialFormData() {
   return {
     idEstacao: '',
     tituloEstacao: '',
-    numeroDaEstacao: null,
-    especialidade: '',
-    tempoDuracaoMinutos: 10,
-    palavrasChave: '',
-    nivelDificuldade: 'Médio',
     cenarioAtendimento_nivelAtencao: 'atenção primária à saúde',
     cenarioAtendimento_tipoAtendimento: 'ambulatorial',
     cenarioAtendimento_infraestruturaUnidade: '',
@@ -530,9 +525,7 @@ function undo() {
 function restoreFormData(state) {
   console.log('🔄 restoreFormData: Iniciando restauração do estado', 'timestamp:', new Date().toISOString());
   console.log('🔄 restoreFormData: Estado a restaurar:', {
-    tituloEstacao: state.tituloEstacao,
-    numeroDaEstacao: state.numeroDaEstacao,
-    especialidade: state.especialidade
+    tituloEstacao: state.tituloEstacao
   });
 
   // Restauração campo a campo para garantir reatividade
@@ -551,9 +544,7 @@ function restoreFormData(state) {
 
   console.log('✅ restoreFormData: Restauração concluída', 'timestamp:', new Date().toISOString());
   console.log('✅ restoreFormData: Estado atual do formData:', {
-    tituloEstacao: formData.value.tituloEstacao,
-    numeroDaEstacao: formData.value.numeroDaEstacao,
-    especialidade: formData.value.especialidade
+    tituloEstacao: formData.value.tituloEstacao
   });
 }
 
@@ -654,11 +645,6 @@ function detectChangedFields() {
   // Mapeamento de campos para detecção de mudanças
   const fieldsToCheck = [
     { key: 'tituloEstacao', label: 'Título da Estação' },
-    { key: 'numeroDaEstacao', label: 'Número da Estação' },
-    { key: 'especialidade', label: 'Especialidade' },
-    { key: 'tempoDuracaoMinutos', label: 'Duração em Minutos' },
-    { key: 'nivelDificuldade', label: 'Nível de Dificuldade' },
-    { key: 'palavrasChave', label: 'Palavras-chave' },
     { key: 'descricaoCasoCompleta', label: 'Descrição do Caso' },
     { key: 'tarefasPrincipais', label: 'Tarefas Principais' },
     { key: 'avisosImportantes', label: 'Avisos Importantes' },
@@ -725,11 +711,6 @@ function getNestedValue(obj, path) {
   if (path === 'avisosImportantes') {
     const avisos = obj.instrucoesParticipante?.avisosImportantes || [];
     return Array.isArray(avisos) ? avisos.join('\n') : avisos;
-  }
-  
-  if (path === 'palavrasChave') {
-    const palavras = obj.palavrasChave;
-    return Array.isArray(palavras) ? palavras.join(', ') : palavras;
   }
   
   return obj[path] || '';
@@ -875,7 +856,7 @@ async function loadOrGenerateStationContext() {
     }
   } catch (error) {
     // Contexto padrão se falhar
-    stationContext.value = `Estação clínica: ${formData.value.tituloEstacao || 'Sem título'} - ${formData.value.especialidade || 'Especialidade não definida'}`;
+    stationContext.value = `Estação clínica: ${formData.value.tituloEstacao || 'Sem título'}`;
   } finally {
     isGeneratingContext.value = false;
   }
@@ -1070,19 +1051,6 @@ function loadStationIntoForm(stationData) {
   // Dados gerais
   form.idEstacao = stationData.idEstacao || '';
   form.tituloEstacao = stationData.tituloEstacao || '';
-  form.numeroDaEstacao = stationData.numeroDaEstacao || null;
-  form.especialidade = stationData.especialidade || '';
-  form.tempoDuracaoMinutos = stationData.tempoDuracaoMinutos || 10;
-  form.nivelDificuldade = stationData.nivelDificuldade || 'Médio';
-  
-  // Palavras-chave
-  if (Array.isArray(stationData.palavrasChave)) {
-    form.palavrasChave = stationData.palavrasChave.join(', ');
-  } else if (typeof stationData.palavrasChave === 'string') {
-    form.palavrasChave = stationData.palavrasChave;
-  } else {
-    form.palavrasChave = '';
-  }
   
   // Instruções para participante
   const ip = stationData.instrucoesParticipante || {};
@@ -1249,11 +1217,6 @@ function construirObjetoEstacao() {
   const estacaoAtualizada = {
     idEstacao: idEstacaoBase,
     tituloEstacao: formData.value.tituloEstacao.trim(),
-    numeroDaEstacao: parseInt(formData.value.numeroDaEstacao, 10) || 0,
-    especialidade: formData.value.especialidade.trim(),
-    tempoDuracaoMinutos: parseInt(formData.value.tempoDuracaoMinutos, 10) || 10,
-    palavrasChave: formData.value.palavrasChave.split(',').map(kw => kw.trim()).filter(kw => kw),
-    nivelDificuldade: formData.value.nivelDificuldade,
     origem: 'REVALIDA_FACIL',
     roteiroCandidato: formData.value.roteiroCandidato.trim(),
     orientacoesCandidato: formData.value.orientacoesCandidato.trim(),
@@ -1443,7 +1406,7 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
     // Gera nome único e sanitizado para o arquivo
     const timestamp = Date.now();
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `impressos/est_${formData.value.numeroDaEstacao || 'temp'}_impresso_${impressoIndex}_${timestamp}_${cleanFileName}`;
+    const fileName = `impressos/est_${formData.value.idEstacao || 'temp'}_impresso_${impressoIndex}_${timestamp}_${cleanFileName}`;
     
     // Cria a referência no Storage
     const imageRef = storageRef(storage, fileName);
@@ -1587,12 +1550,6 @@ async function saveStationChanges() {
     
     if (!validarEstruturaEstacao(estacaoAtualizada)) {
       errorMessage.value = "Falha na validação da estrutura da estação. Verifique 'ID da Estação' e 'Título da Estação'.";
-      isSaving.value = false;
-      return;
-    }
-    
-    if (typeof estacaoAtualizada.numeroDaEstacao !== 'number' || isNaN(estacaoAtualizada.numeroDaEstacao) || estacaoAtualizada.numeroDaEstacao <= 0) {
-      errorMessage.value = "Erro de validação: O campo 'Número da Estação' deve ser um número válido e maior que zero.";
       isSaving.value = false;
       return;
     }
@@ -2493,30 +2450,18 @@ watch(() => props.id, (newId) => {
             </AIFieldAssistant>
           </div>
           
+          <h4>Cenário de Atendimento (Visível para o Candidato)</h4>
           <div class="form-group">
-            <label for="manualNumeroDaEstacao">Número da Estação (para ordenação numérica):</label>
-            <input type="number" id="manualNumeroDaEstacao" v-model.number="formData.numeroDaEstacao" required min="1" placeholder="Ex: 1, 2, 10">
-          </div>
-
-          <div class="form-group">
-            <label for="manualEspecialidade">Especialidade (Área):</label>
-            <input type="text" id="manualEspecialidade" v-model="formData.especialidade" required placeholder="Ex: Cardiologia, Clínica Médica">
+            <label for="manualNivelAtencao">Nível de Atenção:</label>
+            <input type="text" id="manualNivelAtencao" v-model="formData.cenarioAtendimento_nivelAtencao" placeholder="Ex: atenção primária, secundária, terciária">
           </div>
           <div class="form-group">
-            <label for="manualTempoDuracaoMinutos">Tempo de Duração (minutos):</label>
-            <input type="number" id="manualTempoDuracaoMinutos" v-model.number="formData.tempoDuracaoMinutos" min="1" required>
+            <label for="manualTipoAtendimento">Tipo de Atendimento:</label>
+            <input type="text" id="manualTipoAtendimento" v-model="formData.cenarioAtendimento_tipoAtendimento" placeholder="Ex: ambulatorial, emergência, enfermaria">
           </div>
           <div class="form-group">
-            <label for="manualPalavrasChave">Palavras-Chave (separadas por vírgula):</label>
-            <input type="text" id="manualPalavrasChave" v-model="formData.palavrasChave" placeholder="Ex: infarto, ECG, anamnese, dor precordial">
-          </div>
-          <div class="form-group">
-            <label for="manualNivelDificuldade">Nível de Dificuldade:</label>
-            <select id="manualNivelDificuldade" v-model="formData.nivelDificuldade">
-              <option>Fácil</option>
-              <option>Médio</option>
-              <option>Difícil</option>
-            </select>
+            <label for="manualInfraestrutura">Infraestrutura da Unidade Disponível (separar por ponto e vírgula ";"):</label>
+            <textarea id="manualInfraestrutura" v-model="formData.cenarioAtendimento_infraestruturaUnidade" rows="3" placeholder="Ex: maca; monitor cardíaco; acesso venoso periférico; materiais para intubação"></textarea>
           </div>
 
           <h4>Instruções para o Participante (Candidato)</h4>
@@ -2559,21 +2504,7 @@ watch(() => props.id, (newId) => {
             <textarea id="manualAvisosImportantes" v-model="formData.avisosImportantes" rows="3" placeholder="Ex: O paciente simulado pode apresentar instabilidade.&#10;Comunique-se de forma clara e objetiva com o paciente e/ou acompanhante."></textarea>
           </div>
 
-          <h4>Cenário de Atendimento (Visível para o Candidato)</h4>
-          <div class="form-group">
-            <label for="manualNivelAtencao">Nível de Atenção:</label>
-            <input type="text" id="manualNivelAtencao" v-model="formData.cenarioAtendimento_nivelAtencao" placeholder="Ex: atenção primária, secundária, terciária">
-          </div>
-          <div class="form-group">
-            <label for="manualTipoAtendimento">Tipo de Atendimento:</label>
-            <input type="text" id="manualTipoAtendimento" v-model="formData.cenarioAtendimento_tipoAtendimento" placeholder="Ex: ambulatorial, emergência, enfermaria">
-          </div>
-          <div class="form-group">
-            <label for="manualInfraestrutura">Infraestrutura da Unidade Disponível (separar por ponto e vírgula ";"):</label>
-            <textarea id="manualInfraestrutura" v-model="formData.cenarioAtendimento_infraestruturaUnidade" rows="3" placeholder="Ex: maca; monitor cardíaco; acesso venoso periférico; materiais para intubação"></textarea>
-          </div>
-
-          <h4>Roteiro do Ator / Informações Verbais (para o Ator/Avaliador)</h4>
+          <h4 style="font-size: 1.5rem !important; color: #d32f2f !important; font-weight: 800;">Roteiro do Ator / Informações Verbais (para o Ator/Avaliador)</h4>
           <div v-for="(info, index) in formData.informacoesVerbaisSimulado" :key="info.idInfoVerbal" class="dynamic-item-group info-verbal-item">
             <div class="info-verbal-header">
               <h5>Informação Verbal {{ index + 1 }}</h5>
@@ -2621,6 +2552,7 @@ watch(() => props.id, (newId) => {
                 :station-context="stationContext"
                 :station-id="stationId"
                 :item-index="index"
+                :showAiButton="false"
                 @field-updated="handleAIFieldUpdate"
               >
                 <input type="text" :id="'infoVerbalContexto' + index" v-model="info.contextoOuPerguntaChave" placeholder="Ex: Se o candidato perguntar sobre alergias...">
@@ -2797,7 +2729,7 @@ watch(() => props.id, (newId) => {
                 <!-- Botão IA para sugerir URL ou descrição da imagem -->
                 <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
                   <button type="button" @click.prevent="suggestForImageUrl(index)" class="ai-bulk-button" :disabled="aiBulkLoading" title="Buscar na web por URLs públicas relevantes usando título, texto descritivo e laudo deste impresso">🤖 Buscar URLs relacionadas</button>
-                  <small style="color:#666;">Busca baseada no título, texto descritivo e laudo (apenas links públicos)</small>
+                  <small style="color: rgb(var(--v-theme-on-surface-variant));">Busca baseada no título, texto descritivo e laudo (apenas links públicos)</small>
                 </div>
               </div>
               <div class="form-group">
@@ -2840,12 +2772,12 @@ watch(() => props.id, (newId) => {
                     </AIFieldAssistant>
                     
                     <!-- Aviso de duplicação -->
-                    <div v-if="detectarDuplicacaoTituloSecao(secao)" class="duplicacao-aviso" style="margin-top: 5px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; font-size: 0.9em;">
+                    <div v-if="detectarDuplicacaoTituloSecao(secao)" class="duplicacao-aviso" style="margin-top: 5px; padding: 8px; background-color: rgb(var(--v-theme-warning-container)); border: 1px solid rgb(var(--v-theme-warning)); border-radius: 4px; color: rgb(var(--v-theme-on-warning-container)); font-size: 0.9em;">
                       ⚠️ <strong>Atenção:</strong> Um ou mais itens desta seção têm a mesma chave que o título da seção. 
                       <button 
                         type="button" 
                         @click="corrigirDuplicacoesImpresso(index)"
-                        style="margin-left: 8px; padding: 2px 6px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8em;"
+                        style="margin-left: 8px; padding: 2px 6px; background-color: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); border: none; border-radius: 3px; cursor: pointer; font-size: 0.8em;"
                       >
                         Corrigir Agora
                       </button>
@@ -3082,14 +3014,14 @@ watch(() => props.id, (newId) => {
           </div>
 
           <!-- Pontuação Total da Estação (PEP / Checklist) -->
-          <div class="form-group pep-total-score-display" style="margin-top: 20px; padding: 15px; border: 2px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+          <div class="form-group pep-total-score-display" style="margin-top: 20px; padding: 15px; border: 2px solid rgb(var(--v-theme-outline)); border-radius: 8px; background-color: rgb(var(--v-theme-surface-variant));">
             <label for="pepPontuacaoTotal" style="font-weight: bold; font-size: 1.1em;">Pontuação Total Máxima da Estação (PEP):</label>
             <input type="number" step="0.001" id="pepPontuacaoTotal" v-model.number="formData.padraoEsperadoProcedimento.pontuacaoTotalEstacao" readonly title="Calculado automaticamente com base nos pontos 'Adequado' de cada item." style="font-size: 1.2em; font-weight: bold;">
             <span v-if="typeof calcularPontuacaoTotalPEP === 'number'" style="margin-left: 10px; font-size: 1.1em;">(Calculado: {{ calcularPontuacaoTotalPEP.toFixed(3) }})</span>
-            <span v-else style="margin-left: 10px; color: #999;">(Calculado: N/A)</span>
+            <span v-else style="margin-left: 10px; color: rgb(var(--v-theme-on-surface-variant));">(Calculado: N/A)</span>
             
             <!-- Alerta de validação da pontuação total -->
-            <div v-if="alertaPontuacaoTotal" class="alerta-pontuacao-total" style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;">
+            <div v-if="alertaPontuacaoTotal" class="alerta-pontuacao-total">
               ⚠️ {{ alertaPontuacaoTotal }}
             </div>
           </div>
@@ -3277,12 +3209,18 @@ watch(() => props.id, (newId) => {
 
 /* Estilos simples para botões IA bulk */
 .ai-bulk-button {
-  background: rgba(0, 123, 255, 0.08);
-  border: 1px solid rgba(0, 123, 255, 0.12);
+  background: rgba(var(--v-theme-primary), 0.08);
+  border: 1px solid rgba(var(--v-theme-primary), 0.12);
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
   margin-left: 8px;
+  color: rgb(var(--v-theme-primary));
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.ai-bulk-button:hover:not(:disabled) {
+  background: rgba(var(--v-theme-primary), 0.12);
+  border-color: rgba(var(--v-theme-primary), 0.2);
 }
 .ai-bulk-button:disabled {
   opacity: 0.6;
@@ -3352,71 +3290,71 @@ watch(() => props.id, (newId) => {
 }
 
 .back-button {
-  background-color: #6c757d;
-  color: white;
+  background-color: rgb(var(--v-theme-secondary));
+  color: rgb(var(--v-theme-on-secondary));
   margin-left: 0; /* Remove margem esquerda do botão voltar */
 }
 
 .back-button:hover {
-  background-color: #5a6268;
+  background-color: rgb(var(--v-theme-secondary-darken-1));
 }
 
 .download-button {
-  background-color: #28a745;
-  color: white;
+  background-color: rgb(var(--v-theme-success));
+  color: rgb(var(--v-theme-on-success));
 }
 
 .download-button:hover:not(:disabled) {
-  background-color: #218838;
+  background-color: rgb(var(--v-theme-success-darken-1));
 }
 
 .download-button:disabled {
-  background-color: #6c757d;
+  background-color: rgb(var(--v-theme-surface-variant));
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .download-all-button {
-  background-color: #17a2b8;
-  color: white;
+  background-color: rgb(var(--v-theme-info));
+  color: rgb(var(--v-theme-on-info));
 }
 
 .download-all-button:hover:not(:disabled) {
-  background-color: #138496;
+  background-color: rgb(var(--v-theme-info-darken-1));
 }
 
 .download-all-button:disabled {
-  background-color: #6c757d;
+  background-color: rgb(var(--v-theme-surface-variant));
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .delete-button {
-  background-color: #dc3545;
-  color: white;
+  background-color: rgb(var(--v-theme-error));
+  color: rgb(var(--v-theme-on-error));
 }
 
 .delete-button:hover:not(:disabled) {
-  background-color: #c82333;
+  background-color: rgb(var(--v-theme-error-darken-1));
 }
 
 .delete-button:disabled {
-  background-color: #adb5bd;
+  background-color: rgb(var(--v-theme-surface-variant));
   cursor: not-allowed;
 }
 
 .tab-content .card { 
-  background-color: #ffffff; 
+  background-color: rgb(var(--v-theme-surface)); 
   padding: 30px; 
-  border: 1px solid #e0e0e0; 
+  border: 1px solid rgb(var(--v-theme-outline)); 
   border-radius: 8px; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+  box-shadow: 0 4px 12px rgba(var(--v-theme-shadow), 0.08); 
 }
 
 .tab-content .card h3 { 
   margin-top: 0; 
-  color: #0056b3; 
-  border-bottom: 1px solid #eaeaea; 
+  color: rgb(var(--v-theme-primary)); 
+  border-bottom: 1px solid rgb(var(--v-theme-outline)); 
   padding-bottom: 12px; 
   margin-bottom: 25px; 
   font-weight: 600; 
@@ -3430,7 +3368,7 @@ watch(() => props.id, (newId) => {
   display: block; 
   margin-bottom: 6px; 
   font-weight: 500; 
-  color: #34495e; 
+  color: rgb(var(--v-theme-on-surface)); 
   font-size: 0.95em; 
 }
 
@@ -3440,7 +3378,7 @@ watch(() => props.id, (newId) => {
 .manual-form textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #ced4da;
+  border: 1px solid rgb(var(--v-theme-outline));
   border-radius: 4px;
   box-sizing: border-box;
   font-size: 1em;
@@ -3451,8 +3389,8 @@ watch(() => props.id, (newId) => {
 .manual-form input[type="number"]:focus,
 .manual-form select:focus,
 .manual-form textarea:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 0.2rem rgba(var(--v-theme-primary), .25);
   outline: none;
 }
 
@@ -3464,8 +3402,8 @@ watch(() => props.id, (newId) => {
 .manual-form h4 { 
   margin-top: 35px; 
   margin-bottom: 20px; 
-  color: #0056b3; 
-  border-bottom: 1px solid #e0e0e0; 
+  color: rgb(var(--v-theme-primary)); 
+  border-bottom: 1px solid rgb(var(--v-theme-outline)); 
   padding-bottom: 10px; 
   font-weight: 600; 
   font-size: 1.2em; 
@@ -3474,7 +3412,7 @@ watch(() => props.id, (newId) => {
 .manual-form h5 { 
   margin-top: 25px; 
   margin-bottom: 15px; 
-  color: #17a2b8; 
+  color: rgb(var(--v-theme-secondary)); 
   font-weight: 500; 
   font-size: 1.1em; 
 }
@@ -3482,15 +3420,15 @@ watch(() => props.id, (newId) => {
 .manual-form h6 { 
   margin-top: 18px; 
   margin-bottom: 12px; 
-  color: #28a745; 
+  color: rgb(var(--v-theme-tertiary)); 
   font-weight: 500; 
   font-size: 1.05em;
 }
 
 .dynamic-item-group {
-  background-color: #f9f9f9;
-  border: 1px solid #e7e7e7;
-  border-left: 4px solid #6c757d;
+  background-color: rgb(var(--v-theme-surface-variant));
+  border: 1px solid rgb(var(--v-theme-outline));
+  border-left: 4px solid rgb(var(--v-theme-primary));
   border-radius: 5px;
   padding: 20px;
   margin-bottom: 25px;
@@ -3498,13 +3436,14 @@ watch(() => props.id, (newId) => {
 }
 
 .dynamic-item-group h5, .dynamic-item-group h6 { 
-  margin-top: 0; 
+  margin-top: 0;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .dynamic-item-group-nested {
-  background-color: #f0f0f0;
-  border: 1px solid #d0d0d0;
-  border-left: 3px solid #17a2b8;
+  background-color: rgb(var(--v-theme-surface));
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-left: 3px solid rgb(var(--v-theme-secondary));
   padding: 15px;
   margin-top: 10px;
   margin-bottom: 10px;
@@ -3524,7 +3463,7 @@ watch(() => props.id, (newId) => {
 }
 
 .pep-item { 
-  border-left-color: #28a745; 
+  border-left-color: rgb(var(--v-theme-tertiary)); 
 }
 
 .foco-pep-item { 
@@ -3550,15 +3489,15 @@ watch(() => props.id, (newId) => {
 }
 
 .add-item-button { 
-  background-color: #007bff; 
-  color: white; 
+  background-color: rgb(var(--v-theme-primary)); 
+  color: rgb(var(--v-theme-on-primary)); 
   margin-bottom: 20px; 
   display: inline-block; 
 }
 
 .remove-item-button { 
-  background-color: #dc3545; 
-  color: white; 
+  background-color: rgb(var(--v-theme-error)); 
+  color: rgb(var(--v-theme-on-error)); 
 }
 
 .dynamic-item-group > .remove-item-button {
@@ -3570,12 +3509,12 @@ watch(() => props.id, (newId) => {
 }
 
 .add-item-button:hover:not(:disabled) { 
-  background-color: #0056b3; 
+  background-color: rgb(var(--v-theme-primary), 0.8); 
   transform: translateY(-1px); 
 }
 
 .remove-item-button:hover:not(:disabled) { 
-  background-color: #c82333; 
+  background-color: rgb(var(--v-theme-error), 0.8); 
   transform: translateY(-1px); 
 }
 
@@ -3590,34 +3529,36 @@ watch(() => props.id, (newId) => {
 }
 
 .add-item-button-small { 
-  background-color: #5cb85c; 
+  background-color: rgb(var(--v-theme-tertiary)); 
+  color: rgb(var(--v-theme-on-tertiary));
 }
 
 .remove-item-button-small { 
-  background-color: #fd7e14; 
+  background-color: rgb(var(--v-theme-warning)); 
+  color: rgb(var(--v-theme-on-warning));
 }
 
 .add-item-button-small:hover { 
-  background-color: #4cae4c;
+  background-color: rgb(var(--v-theme-tertiary), 0.8);
 }
 
 .remove-item-button-small:hover { 
-  background-color: #e6690b;
+  background-color: rgb(var(--v-theme-warning), 0.8);
 }
 
 .pontuacoes-group { 
-  border: 1px solid #ced4da; 
+  border: 1px solid rgb(var(--v-theme-outline)); 
   padding: 15px; 
   margin-top:15px; 
   border-radius: 4px; 
-  background-color: #fff; 
+  background-color: rgb(var(--v-theme-surface-variant)); 
 }
 
 .pontuacoes-group legend { 
   font-size: 1em; 
   font-weight: 500; 
   padding: 0 8px; 
-  color: #495057; 
+  color: rgb(var(--v-theme-on-surface)); 
   margin-bottom: 10px;
 }
 
@@ -3632,14 +3573,14 @@ watch(() => props.id, (newId) => {
 .pontuacoes-group > div > label:first-child { 
   font-weight:normal; 
   font-size:0.9em; 
-  color: #495057;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .pontuacoes-group > div > label:nth-of-type(2) { 
   font-weight:normal; 
   font-size:0.9em; 
   justify-self: end; 
-  color: #495057;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .pontuacoes-group input[type="text"], .pontuacoes-group input[type="number"] { 
@@ -3650,25 +3591,26 @@ watch(() => props.id, (newId) => {
 .pep-total-score-display { 
   margin-top: 20px; 
   padding-top:15px; 
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgb(var(--v-theme-outline));
 }
 
 .pep-total-score-display label { 
   font-weight: 600; 
 }
 
-.pep-total-score-display input[type="number"] { 
-  background-color: #e9ecef; 
-  cursor: not-allowed; 
-  width: auto; 
-  display: inline-block; 
-  max-width:100px; 
+.pep-total-score-display input[type="number"] {
+  background-color: rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: not-allowed;
+  width: auto;
+  display: inline-block;
+  max-width:100px;
   margin-right: 10px;
 }
 
 .pep-total-score-display span { 
   font-size: 0.9em; 
-  color: #495057;
+  color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .save-manual-button { 
@@ -3677,8 +3619,8 @@ watch(() => props.id, (newId) => {
   padding: 14px; 
   font-size: 1.15em; 
   font-weight: 600; 
-  color: white; 
-  background-color: #17a2b8; 
+  color: rgb(var(--v-theme-on-info)); 
+  background-color: rgb(var(--v-theme-info)); 
   border: none; 
   border-radius: 5px; 
   cursor: pointer; 
@@ -3687,12 +3629,12 @@ watch(() => props.id, (newId) => {
 }
 
 .save-manual-button:hover:not(:disabled) { 
-  background-color: #138496; 
+  background-color: rgb(var(--v-theme-info-darken-1)); 
   transform: translateY(-1px); 
 }
 
 .save-manual-button:disabled { 
-  background-color: #adb5bd; 
+  background-color: rgb(var(--v-theme-surface-variant)); 
   cursor: not-allowed; 
 }
 
@@ -3706,27 +3648,27 @@ watch(() => props.id, (newId) => {
 }
 
 .status-message-internal.info { 
-  background-color: #e6f7ff; 
-  color: #005f87; 
-  border-color: #91d5ff; 
+  background-color: rgb(var(--v-theme-info-container)); 
+  color: rgb(var(--v-theme-on-info-container)); 
+  border-color: rgb(var(--v-theme-info)); 
 }
 
 .status-message-internal.sucesso { 
-  background-color: #f6ffed; 
-  color: #389e0d; 
-  border-color: #b7eb8f; 
+  background-color: rgb(var(--v-theme-success-container)); 
+  color: rgb(var(--v-theme-on-success-container)); 
+  border-color: rgb(var(--v-theme-success)); 
 }
 
 .status-message-internal.erro { 
-  background-color: #fff1f0; 
-  color: #cf1322; 
-  border-color: #ffa39e; 
+  background-color: rgb(var(--v-theme-error-container)); 
+  color: rgb(var(--v-theme-on-error-container)); 
+  border-color: rgb(var(--v-theme-error)); 
 }
 
 .status-message-internal.keyboard-shortcut { 
-  background-color: #f0f5ff; 
-  color: #1890ff; 
-  border-color: #69c0ff;
+  background-color: rgb(var(--v-theme-primary-container)); 
+  color: rgb(var(--v-theme-on-primary-container)); 
+  border-color: rgb(var(--v-theme-primary));
   font-size: 14px;
   animation: fadeInOut 2s ease-in-out;
 }
@@ -3742,9 +3684,9 @@ watch(() => props.id, (newId) => {
 .alerta-pontuacao-total {
   margin-top: 15px;
   padding: 12px 15px;
-  background-color: #fff1f0;
-  color: #cf1322;
-  border: 1px solid #ffa39e;
+  background-color: rgb(var(--v-theme-error-container));
+  color: rgb(var(--v-theme-on-error-container));
+  border: 1px solid rgb(var(--v-theme-error));
   border-radius: 5px;
   font-weight: 500;
   font-size: 14px;
@@ -3765,7 +3707,7 @@ watch(() => props.id, (newId) => {
   align-items: center;
   margin-bottom: 15px;
   padding-bottom: 10px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid rgb(var(--v-theme-outline-variant));
 }
 
 .pep-controls {
@@ -3784,22 +3726,23 @@ watch(() => props.id, (newId) => {
   font-size: 14px;
   font-weight: 500;
   margin: 0;
-  color: #495057;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .position-select {
   padding: 5px 8px;
-  border: 1px solid #ced4da;
+  border: 1px solid rgb(var(--v-theme-outline));
   border-radius: 4px;
   font-size: 14px;
-  background-color: white;
+  background-color: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
   min-width: 60px;
 }
 
 .position-select:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.25);
 }
 
 .move-buttons {
@@ -3810,8 +3753,8 @@ watch(() => props.id, (newId) => {
 .move-button {
   width: 32px;
   height: 32px;
-  border: 1px solid #dee2e6;
-  background-color: #f8f9fa;
+  border: 1px solid rgb(var(--v-theme-outline));
+  background-color: rgb(var(--v-theme-surface));
   border-radius: 4px;
   font-size: 16px;
   font-weight: bold;
@@ -3820,33 +3763,34 @@ watch(() => props.id, (newId) => {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .move-button:hover:not(:disabled) {
-  background-color: #e9ecef;
-  border-color: #adb5bd;
+  background-color: rgb(var(--v-theme-surface-variant));
+  border-color: rgb(var(--v-theme-outline-variant));
 }
 
 .move-button:disabled {
-  background-color: #e9ecef;
-  color: #6c757d;
+  background-color: rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface-variant));
   cursor: not-allowed;
   opacity: 0.5;
 }
 
 .move-button.move-up {
-  color: #28a745;
+  color: rgb(var(--v-theme-tertiary));
 }
 
 .move-button.move-down {
-  color: #dc3545;
+  color: rgb(var(--v-theme-error));
 }
 
 /* Estilos para controles de informações verbais */
 .info-verbal-item {
-  border: 1px solid #e9ecef;
+  border: 1px solid rgb(var(--v-theme-outline));
   border-radius: 6px;
-  background-color: #f8f9fa;
+  background-color: rgb(var(--v-theme-surface-variant));
 }
 
 .info-verbal-header {
@@ -3855,7 +3799,7 @@ watch(() => props.id, (newId) => {
   align-items: center;
   margin-bottom: 15px;
   padding-bottom: 10px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid rgb(var(--v-theme-outline-variant));
 }
 
 .info-verbal-controls {
@@ -3871,7 +3815,7 @@ watch(() => props.id, (newId) => {
   align-items: center;
   margin-bottom: 15px;
   padding-bottom: 10px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid rgb(var(--v-theme-outline-variant));
 }
 
 .impresso-controls {
@@ -3930,29 +3874,31 @@ watch(() => props.id, (newId) => {
 .position-button {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #dee2e6;
-  background-color: #f8f9fa;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  background-color: rgb(var(--v-theme-surface));
   border-radius: 6px;
   font-size: 14px;
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .position-button:hover {
-  background-color: #e9ecef;
-  border-color: #007bff;
+  background-color: rgb(var(--v-theme-surface-variant));
+  border-color: rgb(var(--v-theme-primary));
 }
 
 .position-button.position-end {
-  background-color: #e3f2fd;
-  border-color: #2196f3;
-  color: #1976d2;
+  background-color: rgb(var(--v-theme-primary-container));
+  border-color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary-container));
   font-weight: 500;
 }
 
 .position-button.position-end:hover {
-  background-color: #bbdefb;
+  background-color: rgb(var(--v-theme-primary-container));
+  opacity: 0.8;
 }
 
 .dialog-actions {
@@ -3976,8 +3922,8 @@ watch(() => props.id, (newId) => {
 }
 
 .cancel-button:hover {
-  background-color: #6c757d;
-  color: white;
+  background-color: rgb(var(--v-theme-secondary));
+  color: rgb(var(--v-theme-on-secondary));
 }
 
 /* Estilos para header das seções */
@@ -3987,22 +3933,22 @@ watch(() => props.id, (newId) => {
   align-items: center;
   margin-bottom: 15px;
   padding: 10px;
-  background-color: #f8f9fa;
+  background-color: rgb(var(--v-theme-surface-variant));
   border-radius: 6px;
-  border: 1px solid #dee2e6;
+  border: 1px solid rgb(var(--v-theme-outline));
 }
 
 .secao-header h5 {
   margin: 0;
-  color: #495057;
+  color: rgb(var(--v-theme-on-surface));
   font-weight: 600;
 }
 
 .remove-item-button-header {
   padding: 6px 12px;
-  border: 1px solid #dc3545;
-  background-color: #dc3545;
-  color: white;
+  border: 1px solid rgb(var(--v-theme-error));
+  background-color: rgb(var(--v-theme-error));
+  color: rgb(var(--v-theme-on-error));
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
@@ -4011,8 +3957,8 @@ watch(() => props.id, (newId) => {
 }
 
 .remove-item-button-header:hover {
-  background-color: #c82333;
-  border-color: #bd2130;
+  background-color: rgb(var(--v-theme-error), 0.8);
+  border-color: rgb(var(--v-theme-error), 0.8);
   transform: translateY(-1px);
 }
 
@@ -4022,10 +3968,10 @@ watch(() => props.id, (newId) => {
 
 /* Estilos para upload de imagens */
 .upload-section {
-  border: 2px dashed #e0e0e0;
+  border: 2px dashed rgb(var(--v-theme-outline));
   border-radius: 8px;
   padding: 15px;
-  background-color: #f9f9f9;
+  background-color: rgb(var(--v-theme-surface-variant));
   margin-top: 10px;
 }
 
@@ -4098,9 +4044,9 @@ watch(() => props.id, (newId) => {
 
 /* Estilos para seção de feedback */
 .feedback-section {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-left: 4px solid #6f42c1;
+  background-color: rgb(var(--v-theme-surface-variant));
+  border: 1px solid rgb(var(--v-theme-outline));
+  border-left: 4px solid rgb(var(--v-theme-primary));
   border-radius: 5px;
   padding: 20px;
   margin: 20px 0;
@@ -4149,13 +4095,13 @@ watch(() => props.id, (newId) => {
 
 /* Estilos para status de edição */
 .edit-status-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 1px solid #dee2e6;
-  border-left: 4px solid #007bff;
+  background: linear-gradient(135deg, rgb(var(--v-theme-surface-variant)) 0%, rgb(var(--v-theme-surface)) 100%);
+  border: 1px solid rgb(var(--v-theme-outline));
+  border-left: 4px solid rgb(var(--v-theme-primary));
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(var(--v-theme-shadow), 0.1);
 }
 
 .edit-status-header {
@@ -4167,7 +4113,7 @@ watch(() => props.id, (newId) => {
 
 .edit-status-header h4 {
   margin: 0;
-  color: #495057;
+  color: rgb(var(--v-theme-on-surface));
   font-weight: 600;
 }
 
@@ -4202,7 +4148,7 @@ watch(() => props.id, (newId) => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
 .status-row:last-child {
@@ -4211,12 +4157,12 @@ watch(() => props.id, (newId) => {
 
 .status-label {
   font-weight: 500;
-  color: #6c757d;
+  color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .status-value {
   font-weight: 600;
-  color: #495057;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 /* Estilo simples para botão de sugestão IA */
@@ -4393,43 +4339,7 @@ watch(() => props.id, (newId) => {
 }
 
 .manual-form label {
-  color: #34495e;
+  color: rgb(var(--v-theme-on-surface));
   font-weight: 600;
-}
-
-/* Tema escuro via media query (mais eficiente que classes dinâmicas) */
-@media (prefers-color-scheme: dark) {
-  .manual-form input[type="text"],
-  .manual-form input[type="number"],
-  .manual-form select,
-  .manual-form textarea {
-    background-color: rgb(var(--v-theme-surface));
-    color: rgb(var(--v-theme-on-surface));
-    border: 2px solid rgb(var(--v-theme-outline));
-    font-weight: 600;
-  }
-
-  .manual-form input[type="text"]:focus,
-  .manual-form input[type="number"]:focus,
-  .manual-form select:focus,
-  .manual-form textarea:focus {
-    border-color: rgb(var(--v-theme-primary));
-    box-shadow: 0 0 0 0.3rem rgba(var(--v-theme-primary), 0.4);
-  }
-
-  .manual-form label {
-    color: rgb(var(--v-theme-on-surface));
-    font-weight: 700;
-  }
-
-  .manual-form h4, .manual-form h5, .manual-form h6 {
-    color: rgb(var(--v-theme-on-surface));
-    font-weight: 700;
-  }
-
-  .dynamic-item-group {
-    background-color: rgb(var(--v-theme-surface-variant));
-    border: 2px solid rgb(var(--v-theme-outline));
-  }
 }
 </style>

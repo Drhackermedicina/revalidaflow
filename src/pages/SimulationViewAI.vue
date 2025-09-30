@@ -92,6 +92,7 @@ const speechRecognition = ref(null)
 const isSpeaking = ref(false)
 const speechSynthesis = ref(null)
 const speechEnabled = ref(true) // Controle se speech está habilitado
+const speechTimeout = ref(null) // Timeout para parar gravação automaticamente
 
 // Refs para controle de painéis expandidos
 const expandedPanels = ref(['materials']) // Materiais sempre expandidos por padrão
@@ -302,11 +303,16 @@ async function processAIResponse(candidateMessage) {
 
     const aiResponse = await response.json()
     console.log('✅ Resposta da IA:', aiResponse.message)
+    console.log('🔍 DEBUG - Resposta completa da IA:', aiResponse)
 
-    // Verificar se IA quer liberar material
-    if (aiResponse.releaseMaterial && aiResponse.materialToRelease) {
-      console.log('📄 IA liberou material:', aiResponse.materialToRelease)
-      releaseMaterialById(aiResponse.materialToRelease)
+    // LÓGICA SIMPLES: Se IA respondeu positivamente, liberar material
+    const shouldRelease = shouldReleaseSimple(aiResponse.message, candidateMessage)
+
+    if (shouldRelease) {
+      console.log('📄 Liberando material - IA respondeu positivamente')
+      releaseSpecificMaterial(candidateMessage)
+    } else {
+      console.log('❌ Não liberando - IA negou ou não é solicitação de material')
     }
 
     return aiResponse.message
@@ -319,12 +325,251 @@ async function processAIResponse(candidateMessage) {
   }
 }
 
-// Função para liberar material específico por ID
+// LÓGICA SUPER SIMPLES para liberação de material
+function shouldReleaseSimple(aiMessage, userRequest) {
+  const aiText = aiMessage.toLowerCase()
+  const userText = userRequest.toLowerCase()
+
+  // NÃO liberar se IA negou explicitamente
+  if (aiText.includes('não consta no script') || aiText.includes('seja mais específico')) {
+    return false
+  }
+
+  // LIBERAR se usuário solicitou algo que parece exame/procedimento
+  const medicalKeywords = ['exame', 'hemograma', 'radiografia', 'físico', 'laborat', 'pcr', 'vhs', 'solicito', 'glicemia']
+  const hasMedicalRequest = medicalKeywords.some(keyword => userText.includes(keyword))
+
+  // LIBERAR se IA respondeu positivamente
+  const positiveResponses = ['ok', 'tudo bem', 'pode', 'certo', 'sim']
+  const hasPositiveResponse = positiveResponses.some(word => aiText.includes(word))
+
+  const shouldRelease = hasMedicalRequest && hasPositiveResponse
+
+  console.log('🔍 Análise simples:', {
+    hasMedicalRequest,
+    hasPositiveResponse,
+    shouldRelease,
+    userText: userText.substring(0, 50),
+    aiText: aiText.substring(0, 50)
+  })
+
+  return shouldRelease
+}
+
+// Liberar material específico baseado na análise semântica da solicitação
+function releaseSpecificMaterial(candidateMessage) {
+  if (!stationData.value) return
+
+  // Buscar materiais na estrutura CORRETA!
+  const materials = stationData.value.materiaisDisponiveis?.impressos ||
+                   stationData.value.materiaisImpressos ||
+                   stationData.value.materiais ||
+                   []
+
+  console.log('🔍 DEBUG - Estrutura completa da estação:', Object.keys(stationData.value))
+  console.log('🔍 DEBUG - materiaisDisponiveis:', stationData.value.materiaisDisponiveis)
+  console.log('🔍 Materiais encontrados:', materials)
+
+  if (materials.length === 0) {
+    console.log('❌ Nenhum material disponível na estação - CRIANDO MATERIAL FAKE PARA TESTE')
+
+    // Criar material fake para teste
+    const fakeMaterial = {
+      id: 'fake-material-test',
+      idImpresso: 'fake-material-test',
+      tituloImpresso: 'Resultado de Exame (TESTE)',
+      titulo: 'Resultado de Exame (TESTE)',
+      conteudo: 'Material de teste criado automaticamente',
+      conteudoImpresso: 'Material de teste criado automaticamente'
+    }
+
+    console.log('📄 Liberando material FAKE para teste:', fakeMaterial.tituloImpresso)
+
+    // Liberar material fake diretamente
+    releasedData.value[fakeMaterial.idImpresso] = {
+      ...fakeMaterial,
+      releasedAt: new Date(),
+      releasedBy: 'ai'
+    }
+
+    conversationHistory.value.push({
+      sender: 'system',
+      message: `📄 Material liberado: ${fakeMaterial.tituloImpresso}`,
+      timestamp: new Date(),
+      isSystemMessage: true
+    })
+
+    console.log('✅ Material FAKE liberado com sucesso!')
+    return
+  }
+
+  // Encontrar material específico baseado na solicitação
+  const materialId = findSpecificMaterial(candidateMessage, materials)
+
+  if (materialId) {
+    // Verificar se o material já foi liberado
+    if (releasedData.value[materialId]) {
+      console.log('⚠️ Material já foi liberado anteriormente:', releasedData.value[materialId].tituloImpresso)
+      return
+    }
+
+    const material = materials.find(m => (m.idImpresso || m.id) === materialId)
+    console.log('📄 Liberando material específico:', material?.tituloImpresso || material?.titulo)
+    releaseMaterialById(materialId)
+  } else {
+    console.log('❌ Nenhum material específico encontrado para a solicitação')
+  }
+}
+
+// Encontrar material específico baseado na análise dinâmica dos impressos
+function findSpecificMaterial(candidateMessage, materials) {
+  if (!candidateMessage || !materials || materials.length === 0) {
+    return null
+  }
+
+  const messageLower = candidateMessage.toLowerCase()
+  console.log('🔍 Procurando material para solicitação:', candidateMessage)
+  console.log('📋 Materiais disponíveis:', materials.map(m => ({ id: m.idImpresso, titulo: m.tituloImpresso, tipo: m.tipoConteudo })))
+
+  // Função para extrair todo o texto de um impresso baseado no tipoConteudo
+  function extractTextFromMaterial(material) {
+    let extractedText = ''
+
+    // Sempre incluir o título
+    if (material.tituloImpresso) {
+      extractedText += material.tituloImpresso.toLowerCase() + ' '
+    }
+
+    if (!material.conteudo) return extractedText.trim()
+
+    // Processar baseado no tipo de conteúdo
+    switch (material.tipoConteudo) {
+      case 'texto_simples':
+        extractedText += (material.conteudo.texto || '').toLowerCase() + ' '
+        break
+
+      case 'lista_chave_valor_secoes':
+        if (material.conteudo.secoes && Array.isArray(material.conteudo.secoes)) {
+          material.conteudo.secoes.forEach(secao => {
+            // Título da seção
+            if (secao.tituloSecao) {
+              extractedText += secao.tituloSecao.toLowerCase() + ' '
+            }
+            // Itens da seção
+            if (secao.itens && Array.isArray(secao.itens)) {
+              secao.itens.forEach(item => {
+                if (item.chave) {
+                  extractedText += item.chave.toLowerCase() + ' '
+                }
+                if (item.valor) {
+                  extractedText += item.valor.toLowerCase() + ' '
+                }
+              })
+            }
+          })
+        }
+        break
+
+      case 'imagemComLaudo':
+        if (material.conteudo.laudoCompleto) {
+          extractedText += material.conteudo.laudoCompleto.toLowerCase() + ' '
+        }
+        if (material.conteudo.texto) {
+          extractedText += material.conteudo.texto.toLowerCase() + ' '
+        }
+        if (material.conteudo.legendaImagem) {
+          extractedText += material.conteudo.legendaImagem.toLowerCase() + ' '
+        }
+        break
+
+      case 'tabela':
+        if (material.conteudo.cabecalhos) {
+          material.conteudo.cabecalhos.forEach(cab => {
+            extractedText += (cab.label || '').toLowerCase() + ' '
+          })
+        }
+        if (material.conteudo.linhas) {
+          material.conteudo.linhas.forEach(linha => {
+            Object.values(linha).forEach(valor => {
+              extractedText += (valor || '').toString().toLowerCase() + ' '
+            })
+          })
+        }
+        break
+    }
+
+    return extractedText.trim()
+  }
+
+  // Função para calcular quantas palavras da solicitação existem no material
+  function calculateMatchScore(request, materialText) {
+    const requestWords = request.toLowerCase()
+      .split(/\s+/)
+      .filter(word => word.length > 2) // Palavras com mais de 2 caracteres
+      .filter(word => !['para', 'com', 'que', 'uma', 'dos', 'das', 'por', 'seu', 'sua'].includes(word)) // Remover palavras comuns
+
+    let matchCount = 0
+    let totalWords = requestWords.length
+
+    for (const word of requestWords) {
+      if (materialText.includes(word)) {
+        matchCount++
+        console.log(`✅ Palavra "${word}" encontrada no material`)
+      }
+    }
+
+    return totalWords > 0 ? (matchCount / totalWords) : 0
+  }
+
+  // 1. Verificar correspondência direta no título
+  for (const material of materials) {
+    const tituloLower = (material.tituloImpresso || '').toLowerCase()
+
+    // Se o candidato mencionou exatamente o nome do impresso
+    if (tituloLower.includes(messageLower) || messageLower.includes(tituloLower)) {
+      console.log('✅ Correspondência direta no título:', material.tituloImpresso)
+      return material.idImpresso
+    }
+  }
+
+  // 2. Analisar conteúdo de cada material dinamicamente
+  let bestMatch = null
+  let bestScore = 0
+
+  for (const material of materials) {
+    const materialText = extractTextFromMaterial(material)
+    console.log(`📄 Analisando "${material.tituloImpresso}" (${material.tipoConteudo})`)
+    console.log(`📝 Texto extraído: ${materialText.substring(0, 150)}...`)
+
+    const score = calculateMatchScore(candidateMessage, materialText)
+    console.log(`📊 Score de correspondência: ${score.toFixed(2)} (${(score * 100).toFixed(0)}%)`)
+
+    if (score > bestScore) {
+      bestScore = score
+      bestMatch = material
+    }
+  }
+
+  // 3. Retornar melhor correspondência se score for suficiente
+  if (bestMatch && bestScore >= 0.3) { // 30% de correspondência mínima
+    console.log(`✅ Material escolhido: "${bestMatch.tituloImpresso}" com score ${(bestScore * 100).toFixed(0)}%`)
+    return bestMatch.idImpresso
+  }
+
+  // 4. Se não encontrou correspondência suficiente
+  console.log(`❌ Nenhuma correspondência suficiente (melhor score: ${(bestScore * 100).toFixed(0)}%)`)
+  return null
+}
+
 function releaseMaterialById(materialId) {
   if (!materialId || !stationData.value) return
 
-  // Buscar material na estação
-  const materiaisImpressos = stationData.value.materiaisImpressos || []
+  console.log('🔍 DEBUG - Tentando liberar material:', materialId)
+  console.log('🔍 DEBUG - Materiais disponíveis na estação:', stationData.value.materiaisDisponiveis?.impressos)
+
+  // Buscar material na estação (na estrutura CORRETA!)
+  const materiaisImpressos = stationData.value.materiaisDisponiveis?.impressos ||
+                            stationData.value.materiaisImpressos || []
   const material = materiaisImpressos.find(m =>
     m.idImpresso === materialId || m.id === materialId
   )
@@ -426,6 +671,30 @@ function finalizeAISimulation() {
 
   // Dados ficam apenas no frontend
   // Futuramente pode salvar no localStorage ou Firestore se necessário
+}
+
+// Refs para controle de zoom de imagens
+const imageZoomDialog = ref(false)
+const selectedImageForZoom = ref('')
+const selectedImageAlt = ref('')
+
+// Função para abrir zoom da imagem
+function openImageZoom(imageSrc, imageAlt) {
+  if (!imageSrc || imageSrc.trim() === '') {
+    console.error(`[ZOOM] ❌ Erro: URL da imagem está vazia ou inválida: "${imageSrc}"`)
+    return
+  }
+
+  selectedImageForZoom.value = imageSrc
+  selectedImageAlt.value = imageAlt || 'Imagem do impresso'
+  imageZoomDialog.value = true
+}
+
+// Função para fechar zoom da imagem
+function closeImageZoom() {
+  imageZoomDialog.value = false
+  selectedImageForZoom.value = ''
+  selectedImageAlt.value = ''
 }
 
 
@@ -537,6 +806,33 @@ function openFullMaterial(material) {
       // Usar secoes se existir, senão tentar extrair do conteudo
       const secoes = material.secoes || material.conteudo.secoes || material.conteudo
       content = formatKeyValueSections(secoes)
+    } else if (material.tipoConteudo === 'imagemComLaudo' || material.tipoConteudo === 'imagem_com_texto') {
+      // Processar conteúdo de imagem com laudo
+      content = ''
+
+      if (material.conteudo.textoDescritivo) {
+        content += `<div class="texto-descritivo">${material.conteudo.textoDescritivo}</div>`
+      }
+
+      if (material.conteudo.caminhoImagem) {
+        content += `<div class="imagem-container" style="text-align: center; margin: 20px 0;">
+          <img src="${material.conteudo.caminhoImagem}"
+               alt="${material.tituloImpresso}"
+               style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;" />
+        </div>`
+      }
+
+      if (material.conteudo.legendaImagem) {
+        content += `<div class="legenda" style="font-style: italic; text-align: center; margin: 10px 0;">${material.conteudo.legendaImagem}</div>`
+      }
+
+      if (material.conteudo.laudo || material.conteudo.laudoCompleto) {
+        const laudoTexto = material.conteudo.laudo || material.conteudo.laudoCompleto
+        content += `<div class="laudo" style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Laudo:</h3>
+          <p>${laudoTexto}</p>
+        </div>`
+      }
     } else {
       // Para outros tipos, converter objeto para HTML
       content = formatObjectContent(material.conteudo)
@@ -734,14 +1030,33 @@ function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     speechRecognition.value = new SpeechRecognition()
     speechRecognition.value.lang = 'pt-BR'
-    speechRecognition.value.continuous = false
-    speechRecognition.value.interimResults = false
+    speechRecognition.value.continuous = true // Permite gravação contínua
+    speechRecognition.value.interimResults = true // Mostra resultados parciais
+    speechRecognition.value.maxAlternatives = 1
 
     speechRecognition.value.onresult = (event) => {
-      const transcript = event.results[0][0].transcript
-      currentMessage.value = transcript
-      isListening.value = false
-      console.log('🎤 Texto reconhecido:', transcript)
+      let finalTranscript = ''
+      let interimTranscript = ''
+
+      // Processar todos os resultados
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript
+        } else {
+          interimTranscript += transcript
+        }
+      }
+
+      // Atualizar o texto atual (final + interim para feedback visual)
+      currentMessage.value = finalTranscript + interimTranscript
+
+      // Se temos resultado final, usar apenas ele
+      if (finalTranscript) {
+        currentMessage.value = finalTranscript.trim()
+        console.log('🎤 Texto final reconhecido:', finalTranscript)
+      }
     }
 
     speechRecognition.value.onerror = (event) => {
@@ -759,6 +1074,12 @@ function initSpeechRecognition() {
     speechRecognition.value.onend = () => {
       isListening.value = false
       console.log('🎤 Reconhecimento de voz finalizado')
+
+      // Limpar timeout se existir
+      if (speechTimeout.value) {
+        clearTimeout(speechTimeout.value)
+        speechTimeout.value = null
+      }
     }
 
     speechRecognition.value.onstart = () => {
@@ -788,6 +1109,15 @@ function startListening() {
       isListening.value = true
       speechRecognition.value.start()
       console.log('🎤 Iniciando gravação...')
+
+      // Definir timeout de 15 segundos para parar automaticamente
+      speechTimeout.value = setTimeout(() => {
+        if (isListening.value) {
+          console.log('⏰ Timeout de gravação atingido (15s)')
+          stopListening()
+        }
+      }, 15000) // 15 segundos
+
     } catch (error) {
       console.error('❌ Erro ao iniciar gravação:', error)
       isListening.value = false
@@ -805,6 +1135,12 @@ function stopListening() {
   if (speechRecognition.value && isListening.value) {
     speechRecognition.value.stop()
     isListening.value = false
+
+    // Limpar timeout se existir
+    if (speechTimeout.value) {
+      clearTimeout(speechTimeout.value)
+      speechTimeout.value = null
+    }
   }
 }
 
@@ -1021,6 +1357,20 @@ onMounted(async () => {
   if (messageInput.value && simulationStarted.value) {
     messageInput.value.focus()
   }
+
+  // Event listener para tecla ESC fechar modal de zoom
+  const handleEscKey = (event) => {
+    if (event.key === 'Escape' && imageZoomDialog.value) {
+      closeImageZoom()
+    }
+  }
+  document.addEventListener('keydown', handleEscKey)
+
+  // Cleanup no onUnmounted
+  onUnmounted(() => {
+    document.removeEventListener('keydown', handleEscKey)
+    finalizeAISimulation()
+  })
 })
 
 onUnmounted(() => {
@@ -1031,7 +1381,7 @@ onUnmounted(() => {
 <template>
   <div class="simulation-container">
     <!-- Header da simulação -->
-    <v-app-bar color="primary" density="comfortable" elevation="2">
+    <!-- <v-app-bar color="primary" density="comfortable" elevation="2">
       <v-btn
         icon="ri-arrow-left-line"
         variant="text"
@@ -1066,7 +1416,7 @@ onUnmounted(() => {
           </div>
         </div>
       </template>
-    </v-app-bar>
+    </v-app-bar> -->
 
     <!-- Loading inicial -->
     <v-main v-if="isLoading" class="d-flex align-center justify-center">
@@ -1198,22 +1548,240 @@ onUnmounted(() => {
     <v-main v-else class="simulation-main">
       <v-container fluid class="pa-0 fill-height">
         <v-row no-gutters class="fill-height">
-          <!-- Chat de comunicação central -->
+          <!-- Sidebar com informações da estação -->
           <v-col
-            :cols="pepViewState.isVisible ? 6 : 8"
+            v-if="!pepViewState.isVisible"
+            cols="12"
+            md="8"
+            class="d-flex flex-column"
+            style="max-height: calc(100vh - 120px); overflow-y: auto;"
+          >
+            <div class="pa-3">
+              <!-- Cenário do Atendimento -->
+              <v-card class="mb-4" v-if="stationData?.instrucoesParticipante?.cenarioAtendimento">
+                <v-card-item>
+                  <template #prepend>
+                    <v-icon icon="ri-hospital-line" color="info" />
+                  </template>
+                  <v-card-title>Cenário</v-card-title>
+                </v-card-item>
+                <v-card-text class="text-body-2">
+                  <p><strong>Nível:</strong> {{ stationData.instrucoesParticipante.cenarioAtendimento?.nivelAtencao }}</p>
+                  <p><strong>Tipo:</strong> {{ stationData.instrucoesParticipante.cenarioAtendimento?.tipoAtendimento }}</p>
+                  <div v-if="stationData.instrucoesParticipante.cenarioAtendimento?.infraestruturaUnidade?.length">
+                    <p class="font-weight-bold mb-2">Infraestrutura:</p>
+                    <ul class="infra-list">
+                      <li v-for="(item, index) in processInfrastructureItems(stationData.instrucoesParticipante.cenarioAtendimento.infraestruturaUnidade)"
+                          :key="`infra-main-${index}`"
+                          class="d-flex align-center mb-1">
+                        <v-icon
+                          :icon="getInfrastructureIcon(item)"
+                          :color="getInfrastructureColor(item)"
+                          class="me-2"
+                          size="16"
+                        />
+                        <span class="text-caption">
+                          {{ item.startsWith('- ') ? item.substring(2) : item }}
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                </v-card-text>
+              </v-card>
+
+              <!-- Descrição do Caso -->
+              <v-card class="mb-4" v-if="stationData?.instrucoesParticipante?.descricaoCasoCompleta">
+                <v-card-item>
+                  <template #prepend>
+                    <v-icon icon="ri-file-text-line" color="primary" />
+                  </template>
+                  <v-card-title>Caso Clínico</v-card-title>
+                </v-card-item>
+                <v-card-text class="text-body-2" v-html="stationData.instrucoesParticipante.descricaoCasoCompleta" />
+              </v-card>
+
+              <!-- Suas Tarefas -->
+              <v-card class="mb-4" v-if="stationData?.instrucoesParticipante?.tarefasPrincipais?.length">
+                <v-card-item>
+                  <template #prepend>
+                    <v-icon icon="ri-task-line" color="success" />
+                  </template>
+                  <v-card-title>Suas Tarefas</v-card-title>
+                </v-card-item>
+                <v-card-text class="text-body-2">
+                  <ul class="tasks-list">
+                    <li v-for="(tarefa, i) in stationData.instrucoesParticipante.tarefasPrincipais" :key="`task-main-${i}`" v-html="tarefa"></li>
+                  </ul>
+                </v-card-text>
+              </v-card>
+
+              <!-- Avisos Importantes -->
+              <v-card class="mb-4" v-if="stationData?.instrucoesParticipante?.avisosImportantes?.length">
+                <v-card-item>
+                  <template #prepend>
+                    <v-icon icon="ri-error-warning-line" color="warning" />
+                  </template>
+                  <v-card-title>Avisos</v-card-title>
+                </v-card-item>
+                <v-card-text class="text-body-2">
+                  <ul class="warnings-list">
+                    <li v-for="(aviso, i) in stationData.instrucoesParticipante.avisosImportantes" :key="`warning-main-${i}`">
+                      {{ aviso }}
+                    </li>
+                  </ul>
+                </v-card-text>
+              </v-card>
+
+              <!-- Materiais liberados -->
+              <v-card class="mb-4">
+                <v-expansion-panels variant="accordion" class="mb-0" v-model="expandedPanels">
+                  <v-expansion-panel value="materials">
+                    <v-expansion-panel-title>
+                      <div class="d-flex align-center">
+                        <v-icon class="me-2">ri-file-list-3-line</v-icon>
+                        Materiais Liberados
+                        <v-chip
+                          v-if="Object.keys(releasedData).length > 0"
+                          size="small"
+                          color="success"
+                          class="ml-2"
+                        >
+                          {{ Object.keys(releasedData).length }}
+                        </v-chip>
+                      </div>
+                    </v-expansion-panel-title>
+                    <v-expansion-panel-text>
+                      <div v-if="Object.keys(releasedData).length === 0" class="text-center pa-4">
+                        <v-icon size="48" color="grey-lighten-1" class="mb-2">ri-file-search-line</v-icon>
+                        <div class="text-body-2 text-medium-emphasis">
+                          Nenhum material liberado ainda
+                        </div>
+                        <div class="text-caption text-medium-emphasis mt-1">
+                          Solicite exames durante a consulta
+                        </div>
+                      </div>
+
+                      <v-expansion-panels v-else variant="inset" class="mt-4">
+                        <v-expansion-panel v-for="(material, id) in releasedData" :key="'released-main-'+id">
+                          <v-expansion-panel-title>{{ material.tituloImpresso || 'Material' }}</v-expansion-panel-title>
+                          <v-expansion-panel-text class="text-body-1">
+                            <div v-if="material.tipoConteudo === 'texto_simples'" v-html="material.conteudo.texto" />
+                            <div v-else-if="material.tipoConteudo === 'imagem_com_texto' || material.tipoConteudo === 'imagemComLaudo'">
+                              <p v-if="material.conteudo.textoDescritivo" v-html="material.conteudo.textoDescritivo"></p>
+                              <img
+                                v-if="material.conteudo.caminhoImagem"
+                                :src="material.conteudo.caminhoImagem"
+                                :alt="material.tituloImpresso"
+                                class="impresso-imagem impresso-imagem-clickable"
+                                style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0;"
+                                @click="openImageZoom(material.conteudo.caminhoImagem, material.tituloImpresso)"
+                              />
+                            </div>
+                            <div v-else-if="material.tipoConteudo === 'lista_chave_valor_secoes'">
+                              <div v-for="(secao, index) in material.conteudo.secoes" :key="'secao-main-'+index" class="mb-3">
+                                <h4 class="mb-2">{{ secao.nomeSecao }}</h4>
+                                <table class="w-100 mb-3">
+                                  <tbody>
+                                    <tr v-for="(item, i) in secao.itens" :key="'item-main-'+i">
+                                      <td class="font-weight-bold pa-1" style="width: 30%;">{{ item.chave }}:</td>
+                                      <td class="pa-1">{{ item.valor }}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                            <div v-else-if="material.tipoConteudo === 'tabela'">
+                              <v-table density="compact" class="mt-2">
+                                <thead>
+                                  <tr>
+                                    <th
+                                      v-for="(cabecalho, i) in material.conteudo.cabecalhos"
+                                      :key="'cab-main-'+i"
+                                      class="font-weight-bold"
+                                    >
+                                      {{ cabecalho }}
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr v-for="(linha, i) in material.conteudo.linhas" :key="'linha-main-'+i">
+                                    <td v-for="(celula, j) in linha" :key="'cel-main-'+j">{{ celula }}</td>
+                                  </tr>
+                                </tbody>
+                              </v-table>
+                            </div>
+                          </v-expansion-panel-text>
+                        </v-expansion-panel>
+                      </v-expansion-panels>
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
+                </v-expansion-panels>
+              </v-card>
+
+              <!-- Controles da simulação -->
+              <v-card class="mb-4">
+                <v-card-item>
+                  <template #prepend>
+                    <v-icon icon="ri-settings-line" color="primary" />
+                  </template>
+                  <v-card-title>Controles</v-card-title>
+                </v-card-item>
+                <v-card-text>
+                  <div class="d-flex flex-column gap-2">
+                    <v-btn
+                      v-if="simulationEnded && checklistData"
+                      color="primary"
+                      variant="elevated"
+                      @click="pepViewState.isVisible = true"
+                      block
+                    >
+                      <v-icon start>ri-checklist-line</v-icon>
+                      Ver PEP
+                    </v-btn>
+                    <v-btn
+                      v-if="simulationEnded && !checklistData"
+                      color="info"
+                      variant="outlined"
+                      @click="forceLoadPEP"
+                      block
+                    >
+                      <v-icon start>ri-download-line</v-icon>
+                      Carregar PEP
+                    </v-btn>
+                    <v-btn
+                      v-if="simulationEnded && !evaluationSubmittedByCandidate && checklistData"
+                      color="success"
+                      variant="outlined"
+                      @click="submitEvaluation"
+                      block
+                    >
+                      <v-icon start>ri-send-plane-line</v-icon>
+                      Enviar Avaliação
+                    </v-btn>
+                    <v-btn
+                      color="warning"
+                      variant="outlined"
+                      @click="endSimulation"
+                      v-if="!simulationEnded"
+                      block
+                    >
+                      <v-icon start>ri-stop-line</v-icon>
+                      Finalizar
+                    </v-btn>
+                  </div>
+                </v-card-text>
+              </v-card>
+            </div>
+          </v-col>
+
+          <!-- Chat Interface -->
+          <v-col
+            v-if="!pepViewState.isVisible"
+            cols="12"
+            md="4"
             class="d-flex flex-column"
           >
-            <!-- Timer do candidato -->
-            <v-card class="ma-2 mb-1" flat>
-              <v-card-text class="py-2">
-                <div class="timer-display-candidate" :class="{ 'ended': simulationEnded }">
-                  <v-icon icon="ri-time-line" class="me-1" />
-                  {{ timerDisplay }}
-                </div>
-              </v-card-text>
-            </v-card>
-
-            <!-- Chat de comunicação -->
+            <!-- Cenário da estação -->
             <v-card class="flex-1-1 d-flex flex-column ma-2" flat>
               <v-card-title class="d-flex align-center py-2">
                 <v-icon class="me-2">ri-chat-3-line</v-icon>
@@ -1271,90 +1839,30 @@ onUnmounted(() => {
                         }}
                       </v-icon>
                     </v-avatar>
-                    <span class="text-caption font-weight-bold">
+                    <div class="text-body-2 font-weight-medium">
                       {{
-                        message.role === 'candidate' ? 'Você (Candidato)' :
+                        message.role === 'candidate' ? 'Você' :
                         message.role === 'ai_actor' ? 'Paciente Virtual' :
                         'Sistema'
                       }}
-                      <v-icon
-                        v-if="message.role === 'ai_actor' && isSpeaking"
-                        size="12"
-                        color="success"
-                        class="ml-1"
-                      >
-                        ri-volume-up-line
-                      </v-icon>
-                    </span>
-                    <v-spacer />
-                    <span class="text-caption text-medium-emphasis">
-                      {{ formatTimestamp(message.timestamp) }}
-                    </span>
-                  </div>
-
-                  <div class="message-content">
-                    <v-card
-                      :color="message.role === 'candidate' ? 'primary' :
-                              message.role === 'ai_actor' ? 'surface-variant' :
-                              message.isError ? 'error' : 'info'"
-                      :variant="message.role === 'candidate' ? 'elevated' : 'tonal'"
-                      class="pa-3"
-                    >
-                      <div
-                        :class="{ 'text-white': message.role === 'candidate' }"
-                        class="text-body-2"
-                        style="white-space: pre-wrap;"
-                      >
-                        {{ message.content }}
-                      </div>
-
-                      <!-- Materiais liberados pela IA -->
-                      <div v-if="message.materialsReleased?.length > 0" class="mt-2">
-                        <v-chip
-                          v-for="material in message.materialsReleased"
-                          :key="material.idImpresso"
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                          class="me-1 mb-1"
-                        >
-                          <v-icon start size="12">ri-file-check-line</v-icon>
-                          Material liberado
-                        </v-chip>
-                      </div>
-                    </v-card>
-                  </div>
-                </div>
-
-                <!-- Indicador de processamento -->
-                <div v-if="isProcessingMessage" class="message-item">
-                  <div class="message-header d-flex align-center mb-1">
-                    <v-avatar size="24" color="green" class="me-2">
-                      <v-icon size="12" color="white">ri-robot-line</v-icon>
-                    </v-avatar>
-                    <span class="text-caption font-weight-bold">
-                      Paciente Virtual
-                    </span>
-                  </div>
-                  <v-card color="surface-variant" variant="tonal" class="pa-3">
-                    <div class="d-flex align-center">
-                      <v-progress-circular
-                        indeterminate
-                        size="16"
-                        width="2"
-                        class="me-2"
-                      />
-                      <span class="text-body-2 text-medium-emphasis">
-                        IA processando resposta...
-                      </span>
                     </div>
-                  </v-card>
+                    <v-spacer />
+                    <div class="text-caption text-medium-emphasis">
+                      {{ formatTimestamp(message.timestamp) }}
+                    </div>
+                  </div>
+                  <div
+                    class="message-content pa-3 rounded"
+                    :style="getMessageStyle(message.role)"
+                    v-html="message.content || message.message"
+                  />
                 </div>
               </div>
 
               <!-- Input de mensagem com controles de voz -->
-              <v-card-actions class="pa-4" style="border-top: 1px solid #ccc; background: white; position: sticky; bottom: 0; z-index: 100;">
+              <v-card-actions class="pa-4 chat-input-actions" style="border-top: 1px solid rgb(var(--v-theme-outline-variant)); position: sticky; bottom: 0; z-index: 100;">
                 <v-text-field
+                  id="chat-message-input"
                   ref="messageInput"
                   v-model="currentMessage"
                   label="Digite ou fale sua pergunta..."
@@ -1364,28 +1872,33 @@ onUnmounted(() => {
                   :disabled="isProcessingMessage"
                   @keydown="handleKeyPress"
                   hide-details
-                  class="flex-1-1"
+                  class="flex-1-1 chat-message-field"
                   append-inner-icon="ri-send-plane-line"
                   @click:append-inner="sendMessage"
-                />
+                  :style="{
+                    color: isDarkTheme ? 'white' : '#212121',
+                    fontWeight: isDarkTheme ? '400' : '500',
+                    backgroundColor: 'white'
+                  }"
+                >
+                </v-text-field>
 
-                <!-- Botão de microfone -->
+                <!-- Botão de voz -->
                 <v-btn
-                  :color="isListening ? 'error' : 'secondary'"
-                  :variant="isListening ? 'elevated' : 'outlined'"
+                  color="primary"
+                  variant="tonal"
                   size="large"
                   class="ml-2"
                   :disabled="isProcessingMessage"
-                  @click="isListening ? stopListening() : startListening()"
-                  :title="speechRecognition ? (isListening ? 'Parar gravação' : 'Gravar voz') : 'Reconhecimento de voz não suportado'"
+                  @click="toggleVoiceRecording"
                 >
-                  <v-icon>{{ isListening ? 'ri-mic-off-line' : 'ri-mic-line' }}</v-icon>
+                  <v-icon>{{ isListening ? 'ri-mic-fill' : 'ri-mic-line' }}</v-icon>
                 </v-btn>
 
-                <!-- Botão para parar fala da IA -->
+                <!-- Botão para parar a fala -->
                 <v-btn
                   color="warning"
-                  variant="outlined"
+                  variant="tonal"
                   size="large"
                   class="ml-2"
                   :disabled="!isSpeaking"
@@ -1418,244 +1931,6 @@ onUnmounted(() => {
                 </div>
               </v-card-text>
             </v-card>
-          </v-col>
-
-          <!-- Sidebar com informações do candidato -->
-          <v-col
-            v-if="!pepViewState.isVisible"
-            cols="12"
-            md="4"
-            class="d-flex flex-column"
-            style="max-height: calc(100vh - 120px); overflow-y: auto;"
-          >
-            <div class="pa-3">
-              <!-- Cenário do Atendimento -->
-              <v-card class="mb-4" v-if="stationData?.instrucoesParticipante?.cenarioAtendimento">
-                <v-card-item>
-                  <template #prepend>
-                    <v-icon icon="ri-hospital-line" color="info" />
-                  </template>
-                  <v-card-title>Cenário</v-card-title>
-                </v-card-item>
-                <v-card-text class="text-body-2">
-                  <p><strong>Nível:</strong> {{ stationData.instrucoesParticipante.cenarioAtendimento?.nivelAtencao }}</p>
-                  <p><strong>Tipo:</strong> {{ stationData.instrucoesParticipante.cenarioAtendimento?.tipoAtendimento }}</p>
-                  <div v-if="stationData.instrucoesParticipante.cenarioAtendimento?.infraestruturaUnidade?.length">
-                    <p class="font-weight-bold mb-2">Infraestrutura:</p>
-                    <ul class="infra-list">
-                      <li v-for="(item, index) in processInfrastructureItems(stationData.instrucoesParticipante.cenarioAtendimento.infraestruturaUnidade)"
-                          :key="`infra-sidebar-${index}`"
-                          class="d-flex align-center mb-1">
-                        <v-icon
-                          :icon="getInfrastructureIcon(item)"
-                          :color="getInfrastructureColor(item)"
-                          class="me-2"
-                          size="16"
-                        />
-                        <span class="text-caption">
-                          {{ item.startsWith('- ') ? item.substring(2) : item }}
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-                </v-card-text>
-              </v-card>
-
-              <!-- Descrição do Caso -->
-              <v-card class="mb-4" v-if="stationData?.instrucoesParticipante?.descricaoCasoCompleta">
-                <v-card-item>
-                  <template #prepend>
-                    <v-icon icon="ri-file-text-line" color="primary" />
-                  </template>
-                  <v-card-title>Caso Clínico</v-card-title>
-                </v-card-item>
-                <v-card-text class="text-body-2" v-html="stationData.instrucoesParticipante.descricaoCasoCompleta" />
-              </v-card>
-
-              <!-- Suas Tarefas -->
-              <v-card class="mb-4" v-if="stationData?.instrucoesParticipante?.tarefasPrincipais?.length">
-                <v-card-item>
-                  <template #prepend>
-                    <v-icon icon="ri-task-line" color="success" />
-                  </template>
-                  <v-card-title>Suas Tarefas</v-card-title>
-                </v-card-item>
-                <v-card-text class="text-body-2">
-                  <ul class="tasks-list">
-                    <li v-for="(tarefa, i) in stationData.instrucoesParticipante.tarefasPrincipais" :key="`task-sidebar-${i}`" v-html="tarefa"></li>
-                  </ul>
-                </v-card-text>
-              </v-card>
-
-              <!-- Avisos Importantes -->
-              <v-card class="mb-4" v-if="stationData?.instrucoesParticipante?.avisosImportantes?.length">
-                <v-card-item>
-                  <template #prepend>
-                    <v-icon icon="ri-error-warning-line" color="warning" />
-                  </template>
-                  <v-card-title>Avisos</v-card-title>
-                </v-card-item>
-                <v-card-text class="text-body-2">
-                  <ul class="warnings-list">
-                    <li v-for="(aviso, i) in stationData.instrucoesParticipante.avisosImportantes" :key="`warning-sidebar-${i}`">
-                      {{ aviso }}
-                    </li>
-                  </ul>
-                </v-card-text>
-              </v-card>
-
-              <!-- Controles da simulação -->
-              <v-card class="mb-4">
-                <v-card-item>
-                  <template #prepend>
-                    <v-icon icon="ri-settings-line" color="primary" />
-                  </template>
-                  <v-card-title>Controles</v-card-title>
-                </v-card-item>
-                <v-card-text>
-                  <div class="d-flex flex-column gap-2">
-                    <v-btn
-                      v-if="simulationEnded && checklistData"
-                      color="primary"
-                      variant="elevated"
-                      @click="pepViewState.isVisible = true"
-                      block
-                    >
-                      <v-icon start>ri-checklist-line</v-icon>
-                      Ver PEP
-                    </v-btn>
-
-                    <!-- Debug: Forçar liberação PEP -->
-                    <v-btn
-                      v-if="simulationEnded && !checklistData"
-                      color="info"
-                      variant="outlined"
-                      @click="forceLoadPEP"
-                      block
-                    >
-                      <v-icon start>ri-download-line</v-icon>
-                      Carregar PEP
-                    </v-btn>
-
-                    <v-btn
-                      v-if="simulationEnded && !evaluationSubmittedByCandidate && checklistData"
-                      color="success"
-                      variant="outlined"
-                      @click="submitEvaluation"
-                      block
-                    >
-                      <v-icon start>ri-send-plane-line</v-icon>
-                      Enviar Avaliação
-                    </v-btn>
-
-                    <v-btn
-                      color="warning"
-                      variant="outlined"
-                      @click="endSimulation"
-                      v-if="!simulationEnded"
-                      block
-                    >
-                      <v-icon start>ri-stop-line</v-icon>
-                      Finalizar
-                    </v-btn>
-                  </div>
-                </v-card-text>
-              </v-card>
-
-              <!-- Materiais liberados -->
-              <v-card class="mb-4">
-                <v-expansion-panels variant="accordion" class="mb-0" v-model="expandedPanels">
-                  <v-expansion-panel value="materials">
-                    <v-expansion-panel-title>
-                      <div class="d-flex align-center">
-                        <v-icon class="me-2">ri-file-list-3-line</v-icon>
-                        Materiais Liberados
-                        <v-chip
-                          v-if="Object.keys(releasedData).length > 0"
-                          size="small"
-                          color="success"
-                          class="ml-2"
-                        >
-                          {{ Object.keys(releasedData).length }}
-                        </v-chip>
-                      </div>
-                    </v-expansion-panel-title>
-
-                    <v-expansion-panel-text>
-                      <div v-if="Object.keys(releasedData).length === 0" class="text-center pa-4">
-                        <v-icon size="48" color="grey-lighten-1" class="mb-2">ri-file-search-line</v-icon>
-                        <div class="text-body-2 text-medium-emphasis">
-                          Nenhum material liberado ainda
-                        </div>
-                        <div class="text-caption text-medium-emphasis mt-1">
-                          Solicite exames durante a consulta
-                        </div>
-                      </div>
-
-                      <v-list v-else density="compact">
-                        <v-list-item
-                          v-for="(material, id) in releasedData"
-                          :key="id"
-                          @click="openMaterial(material)"
-                          class="cursor-pointer"
-                          :ripple="true"
-                        >
-                          <template #prepend>
-                            <v-icon color="success">ri-file-check-line</v-icon>
-                          </template>
-                          <v-list-item-title>{{ material.tituloImpresso || 'Material' }}</v-list-item-title>
-                          <v-list-item-subtitle>{{ material.tipoConteudo || 'Documento' }}</v-list-item-subtitle>
-                          <template #append>
-                            <v-icon size="small" color="primary">ri-external-link-line</v-icon>
-                          </template>
-                        </v-list-item>
-                      </v-list>
-                    </v-expansion-panel-text>
-                  </v-expansion-panel>
-
-                  <!-- Estatísticas -->
-                  <v-expansion-panel>
-                    <v-expansion-panel-title>
-                      <v-icon class="me-2">ri-bar-chart-line</v-icon>
-                      Estatísticas
-                    </v-expansion-panel-title>
-
-                    <v-expansion-panel-text>
-                      <v-list density="compact">
-                        <v-list-item>
-                          <v-list-item-title>Tempo restante</v-list-item-title>
-                          <v-list-item-subtitle>{{ timerDisplay }}</v-list-item-subtitle>
-                        </v-list-item>
-                        <v-list-item>
-                          <v-list-item-title>Mensagens trocadas</v-list-item-title>
-                          <v-list-item-subtitle>{{ aiStats.messageCount }}</v-list-item-subtitle>
-                        </v-list-item>
-                        <v-list-item>
-                          <v-list-item-title>Materiais liberados</v-list-item-title>
-                          <v-list-item-subtitle>{{ Object.keys(releasedData).length }}</v-list-item-subtitle>
-                        </v-list-item>
-                        <v-list-item>
-                          <v-list-item-title>Modo de operação</v-list-item-title>
-                          <v-list-item-subtitle>
-                            <v-chip size="x-small" color="success">
-                              Simulação Local
-                            </v-chip>
-                          </v-list-item-subtitle>
-                        </v-list-item>
-                        <v-list-item v-if="evaluationSubmittedByCandidate">
-                          <v-list-item-title>Status</v-list-item-title>
-                          <v-list-item-subtitle>
-                            <v-chip size="x-small" color="success">
-                              Avaliação enviada
-                            </v-chip>
-                          </v-list-item-subtitle>
-                        </v-list-item>
-                      </v-list>
-                    </v-expansion-panel-text>
-                  </v-expansion-panel>
-                </v-expansion-panels>
-              </v-card>
-            </div>
           </v-col>
 
           <!-- PEP Completo - Igual ao SimulationView.vue -->
@@ -1810,6 +2085,34 @@ onUnmounted(() => {
         </v-row>
       </v-container>
     </v-main>
+
+    <!-- Modal de zoom para imagens -->
+    <v-dialog
+      v-model="imageZoomDialog"
+      max-width="90vw"
+      max-height="90vh"
+      content-class="image-zoom-dialog"
+    >
+      <v-card>
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span>{{ selectedImageAlt }}</span>
+          <v-btn
+            icon="ri-close-line"
+            variant="text"
+            @click="closeImageZoom"
+          />
+        </v-card-title>
+        <v-card-text class="pa-0">
+          <div class="text-center">
+            <img
+              :src="selectedImageForZoom"
+              :alt="selectedImageAlt"
+              style="max-width: 100%; max-height: 80vh; object-fit: contain;"
+            />
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -1869,8 +2172,94 @@ onUnmounted(() => {
   }
 }
 
+.chat-input-actions {
+  background-color: rgb(var(--v-theme-surface));
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+/* Estilos específicos para o input do chat */
+.chat-input-actions :deep(.v-text-field) {
+  background-color: rgb(var(--v-theme-surface));
+}
+
+.chat-input-actions :deep(.v-text-field .v-field) {
+  background-color: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  border-color: rgb(var(--v-theme-outline-variant));
+}
+
+.chat-input-actions :deep(.v-text-field .v-field:hover) {
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.chat-input-actions :deep(.v-text-field .v-field:focus) {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.2);
+}
+
+.chat-input-actions :deep(.v-text-field .v-field__input) {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* Estilos para garantir visibilidade do card do chat no tema escuro */
+.chat-history {
+  background-color: rgb(var(--v-theme-surface)) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
 .chat-history.dark-theme {
-  background-color: rgb(var(--v-theme-surface-variant));
+  background-color: rgb(var(--v-theme-surface)) !important;
+}
+
+/* Garantir que as mensagens tenham boa visibilidade */
+.message-item {
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.message-header {
+  color: rgb(var(--v-theme-on-surface-variant)) !important;
+}
+
+.message-content {
+  background-color: rgb(var(--v-theme-surface-variant)) !important;
+  color: rgb(var(--v-theme-on-surface-variant)) !important;
+  border: 1px solid rgb(var(--v-theme-outline-variant)) !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+}
+
+/* Mensagens do candidato (usuário) */
+.message-candidate .message-content {
+  background-color: rgb(var(--v-theme-primary-container)) !important;
+  color: rgb(var(--v-theme-on-primary-container)) !important;
+  border-color: rgb(var(--v-theme-primary)) !important;
+}
+
+/* Mensagens da IA/Ator */
+.message-ai-actor .message-content {
+  background-color: rgb(var(--v-theme-secondary-container)) !important;
+  color: rgb(var(--v-theme-on-secondary-container)) !important;
+  border-color: rgb(var(--v-theme-secondary)) !important;
+}
+
+/* Mensagens do sistema */
+.message-system .message-content {
+  background-color: rgb(var(--v-theme-tertiary-container)) !important;
+  color: rgb(var(--v-theme-on-tertiary-container)) !important;
+  border-color: rgb(var(--v-theme-tertiary)) !important;
+}
+
+/* Mensagens especiais */
+.message-welcome {
+  background-color: rgb(var(--v-theme-primary-container)) !important;
+  color: rgb(var(--v-theme-on-primary-container)) !important;
+  border-left: 4px solid rgb(var(--v-theme-primary)) !important;
+}
+
+.message-error {
+  background-color: rgb(var(--v-theme-error-container)) !important;
+  color: rgb(var(--v-theme-on-error-container)) !important;
+  border-left: 4px solid rgb(var(--v-theme-error)) !important;
 }
 
 .timer-display-candidate {
@@ -1916,6 +2305,7 @@ onUnmounted(() => {
 .infra-icons-list {
   list-style: none;
   padding-left: 0;
+  margin: 0;
 }
 
 .infra-icons-list li {
@@ -1987,4 +2377,6 @@ onUnmounted(() => {
     max-height: calc(100vh - 200px) !important;
   }
 }
+
+/* DIAGNÓSTICO URGENTE: Usando apenas estilos inline no template */
 </style>

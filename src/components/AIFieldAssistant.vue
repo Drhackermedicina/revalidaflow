@@ -41,7 +41,7 @@ registerPlugins @ plugins.js:45
       
       <!-- Botão IA integrado -->
       <button
-        v-if="!isProcessing"
+        v-if="!isProcessing && showAiButton"
         @click="showAIDialog"
         class="ai-field-button"
         :class="{ 'ai-field-button--active': showDialog }"
@@ -302,6 +302,11 @@ const props = defineProps({
   context: {
     type: String,
     default: ''
+  },
+  // Usar camelCase com 'i' minúsculo para compatibilidade com kebab-case HTML
+  showAiButton: {
+    type: Boolean,
+    default: true
   }
 })
 

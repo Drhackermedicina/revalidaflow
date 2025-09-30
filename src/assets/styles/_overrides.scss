@@ -1,0 +1,115 @@
+// =========================================
+// OVERRIDES PARA CORREÇÃO DE CONTRASTE DE TEXTO
+// =========================================
+
+// PROBLEMA PRINCIPAL: Texto normal tem contraste muito baixo (cinza claro)
+// SOLUÇÃO: Forçar opacidade alta para texto legível em componentes específicos
+
+// 1. TEXTO DE ALTA ÊNFASE (títulos, labels importantes)
+.text-high-emphasis,
+.v-card-title,
+.v-dialog .v-card-title,
+h1, h2, h3, h4, h5, h6,
+.v-label,
+.v-text-field label,
+.v-select label,
+legend,
+.v-chip__content {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  opacity: 1 !important;
+}
+
+// 2. TEXTO DE MÉDIA ÊNFASE (descrições, texto secundário)
+.text-medium-emphasis,
+.v-card-text,
+.v-list-item-title,
+.v-data-table__td,
+.v-data-table__th,
+.v-alert__content,
+.v-snackbar__content,
+.v-tooltip__content,
+.v-messages,
+.v-text-field__details,
+.v-select__details {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  opacity: 0.87 !important;
+}
+
+// 3. TEXTO DE BAIXA ÊNFASE (placeholders, texto desabilitado)
+.text-low-emphasis,
+::placeholder,
+.v-text-field--disabled input,
+.v-select--disabled input {
+  color: rgb(var(--v-theme-on-surface-variant)) !important;
+  opacity: 0.6 !important;
+}
+
+// 4. CORREÇÃO PARA ÍCONES
+// Ícones devem herdar contraste do texto pai
+.v-icon {
+  color: inherit !important;
+  opacity: 0.87 !important;
+}
+
+// Ícones em botões devem herdar a cor do botão
+.v-btn .v-icon {
+  opacity: 1 !important;
+}
+
+// 5. CORREÇÃO PARA BOTÕES
+// Botões devem manter texto legível
+.v-btn {
+  color: rgb(var(--v-theme-on-primary)) !important;
+  opacity: 1 !important;
+}
+
+// 6. CORREÇÃO PARA CAMPOS DE TEXTO
+// Campos devem ter texto legível
+.v-text-field input,
+.v-select input {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  opacity: 1 !important;
+}
+
+// =========================================
+// 7. CORREÇÃO PARA AVISOS DE ACESSIBILIDADE DOS ÍCONES
+// =========================================
+
+/* Fix para avisos de acessibilidade dos ícones SVG do Vuetify */
+.v-icon.iconify[aria-hidden="true"] {
+  pointer-events: none !important;
+  outline: none !important;
+
+  &[tabindex] {
+    tabindex: -1 !important;
+  }
+
+  &:focus,
+  &:focus-within {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Remove tabindex e focus de ícones com aria-hidden */
+svg[aria-hidden="true"] {
+  pointer-events: none !important;
+  outline: none !important;
+
+  &[tabindex] {
+    tabindex: -1 !important;
+  }
+}
+
+/* Força remoção de focus em elementos aria-hidden */
+[aria-hidden="true"] {
+  &:focus,
+  &:focus-within {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}
+
+// =========================================
+// FIM DOS OVERRIDES
+// =========================================
