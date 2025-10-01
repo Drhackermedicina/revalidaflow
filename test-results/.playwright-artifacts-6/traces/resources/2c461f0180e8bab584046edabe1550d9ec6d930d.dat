@@ -1,0 +1,5 @@
+// Utilities
+import { createSimpleFunctional } from "/node_modules/vuetify/lib/util/index.mjs?v=48017b6c";
+export const VAlertTitle = createSimpleFunctional('v-alert-title');
+                                        
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiVkFsZXJ0VGl0bGUubWpzIiwibmFtZXMiOlsiY3JlYXRlU2ltcGxlRnVuY3Rpb25hbCIsIlZBbGVydFRpdGxlIl0sInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL2NvbXBvbmVudHMvVkFsZXJ0L1ZBbGVydFRpdGxlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8vIFV0aWxpdGllc1xuaW1wb3J0IHsgY3JlYXRlU2ltcGxlRnVuY3Rpb25hbCB9IGZyb20gJ0AvdXRpbCdcblxuZXhwb3J0IGNvbnN0IFZBbGVydFRpdGxlID0gY3JlYXRlU2ltcGxlRnVuY3Rpb25hbCgndi1hbGVydC10aXRsZScpXG5cbmV4cG9ydCB0eXBlIFZBbGVydFRpdGxlID0gSW5zdGFuY2VUeXBlPHR5cGVvZiBWQWxlcnRUaXRsZT5cbiJdLCJtYXBwaW5ncyI6IkFBQUE7QUFBQSxTQUNTQSxzQkFBc0I7QUFFL0IsT0FBTyxNQUFNQyxXQUFXLEdBQUdELHNCQUFzQixDQUFDLGVBQWUsQ0FBQyIsImlnbm9yZUxpc3QiOltdLCJ4X2dvb2dsZV9pZ25vcmVMaXN0IjpbMF19

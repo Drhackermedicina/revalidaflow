@@ -1,0 +1,8 @@
+// Styles
+import "/@id/__x00__plugin-vuetify:components/VGrid/VGrid.sass?v=48017b6c";
+
+// Utilities
+import { createSimpleFunctional } from "/node_modules/vuetify/lib/util/index.mjs?v=48017b6c";
+export const VSpacer = createSimpleFunctional('v-spacer', 'div', 'VSpacer');
+                                    
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiVlNwYWNlci5tanMiLCJuYW1lcyI6WyJjcmVhdGVTaW1wbGVGdW5jdGlvbmFsIiwiVlNwYWNlciJdLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9jb21wb25lbnRzL1ZHcmlkL1ZTcGFjZXIudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLy8gU3R5bGVzXG5pbXBvcnQgJy4vVkdyaWQuc2FzcydcblxuLy8gVXRpbGl0aWVzXG5pbXBvcnQgeyBjcmVhdGVTaW1wbGVGdW5jdGlvbmFsIH0gZnJvbSAnQC91dGlsJ1xuXG5leHBvcnQgY29uc3QgVlNwYWNlciA9IGNyZWF0ZVNpbXBsZUZ1bmN0aW9uYWwoJ3Ytc3BhY2VyJywgJ2RpdicsICdWU3BhY2VyJylcblxuZXhwb3J0IHR5cGUgVlNwYWNlciA9IEluc3RhbmNlVHlwZTx0eXBlb2YgVlNwYWNlcj5cbiJdLCJtYXBwaW5ncyI6IkFBQUE7QUFDQTs7QUFFQTtBQUFBLFNBQ1NBLHNCQUFzQjtBQUUvQixPQUFPLE1BQU1DLE9BQU8sR0FBR0Qsc0JBQXNCLENBQUMsVUFBVSxFQUFFLEtBQUssRUFBRSxTQUFTLENBQUMiLCJpZ25vcmVMaXN0IjpbXSwieF9nb29nbGVfaWdub3JlTGlzdCI6WzBdfQ==

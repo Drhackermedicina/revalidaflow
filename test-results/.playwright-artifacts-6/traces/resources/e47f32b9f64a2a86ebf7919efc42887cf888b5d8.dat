@@ -1,0 +1,3 @@
+export { VDialog } from "/node_modules/vuetify/lib/components/VDialog/VDialog.mjs?v=48017b6c";
+                                  
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXgubWpzIiwibmFtZXMiOlsiVkRpYWxvZyJdLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9jb21wb25lbnRzL1ZEaWFsb2cvaW5kZXgudHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IHsgVkRpYWxvZyB9IGZyb20gJy4vVkRpYWxvZydcbiJdLCJtYXBwaW5ncyI6IlNBQVNBLE9BQU8iLCJpZ25vcmVMaXN0IjpbXSwieF9nb29nbGVfaWdub3JlTGlzdCI6WzBdfQ==

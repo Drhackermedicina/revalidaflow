@@ -1,0 +1,3 @@
+export { VSnackbar } from "/node_modules/vuetify/lib/components/VSnackbar/VSnackbar.mjs?v=48017b6c";
+                                  
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXgubWpzIiwibmFtZXMiOlsiVlNuYWNrYmFyIl0sInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL2NvbXBvbmVudHMvVlNuYWNrYmFyL2luZGV4LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCB7IFZTbmFja2JhciB9IGZyb20gJy4vVlNuYWNrYmFyJ1xuIl0sIm1hcHBpbmdzIjoiU0FBU0EsU0FBUyIsImlnbm9yZUxpc3QiOltdLCJ4X2dvb2dsZV9pZ25vcmVMaXN0IjpbMF19

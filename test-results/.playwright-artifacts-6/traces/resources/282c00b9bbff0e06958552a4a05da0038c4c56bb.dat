@@ -1,0 +1,78 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/ErrorHeader.vue");/* unplugin-vue-components disabled */
+const _sfc_main = {
+  __name: 'ErrorHeader',
+  props: {
+  statusCode: {
+    type: [
+      String,
+      Number,
+    ],
+    required: false,
+  },
+  title: {
+    type: String,
+    required: false,
+  },
+  description: {
+    type: String,
+    required: false,
+  },
+},
+  setup(__props, { expose: __expose }) {
+  __expose();
+
+const props = __props
+
+const __returned__ = { props }
+Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true })
+return __returned__
+}
+
+}
+import { createCommentVNode as _createCommentVNode, toDisplayString as _toDisplayString, openBlock as _openBlock, createElementBlock as _createElementBlock } from "/node_modules/.vite/deps/vue.js?v=48017b6c"
+
+const _hoisted_1 = { class: "text-center mb-4" }
+const _hoisted_2 = {
+  key: 0,
+  class: "header-title font-weight-medium"
+}
+const _hoisted_3 = {
+  key: 1,
+  class: "text-h5 font-weight-medium mb-3"
+}
+const _hoisted_4 = { key: 2 }
+
+function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createElementBlock("div", _hoisted_1, [
+    _createCommentVNode(" 👉 Title and subtitle "),
+    ($setup.props.statusCode)
+      ? (_openBlock(), _createElementBlock("h1", _hoisted_2, _toDisplayString($setup.props.statusCode), 1 /* TEXT */))
+      : _createCommentVNode("v-if", true),
+    ($setup.props.title)
+      ? (_openBlock(), _createElementBlock("h5", _hoisted_3, _toDisplayString($setup.props.title), 1 /* TEXT */))
+      : _createCommentVNode("v-if", true),
+    ($setup.props.description)
+      ? (_openBlock(), _createElementBlock("p", _hoisted_4, _toDisplayString($setup.props.description), 1 /* TEXT */))
+      : _createCommentVNode("v-if", true)
+  ]))
+}
+
+import "/src/components/ErrorHeader.vue?vue&type=style&index=0&scoped=5ba874b3&lang.scss"
+
+_sfc_main.__hmrId = "5ba874b3"
+typeof __VUE_HMR_RUNTIME__ !== 'undefined' && __VUE_HMR_RUNTIME__.createRecord(_sfc_main.__hmrId, _sfc_main)
+import.meta.hot.on('file-changed', ({ file }) => {
+  __VUE_HMR_RUNTIME__.CHANGED_FILE = file
+})
+import.meta.hot.accept(mod => {
+  if (!mod) return
+  const { default: updated, _rerender_only } = mod
+  if (_rerender_only) {
+    __VUE_HMR_RUNTIME__.rerender(updated.__hmrId, updated.render)
+  } else {
+    __VUE_HMR_RUNTIME__.reload(updated.__hmrId, updated)
+  }
+})
+import _export_sfc from "/@id/__x00__plugin-vue:export-helper"
+export default /*#__PURE__*/_export_sfc(_sfc_main, [['render',_sfc_render],['__scopeId',"data-v-5ba874b3"],['__file',"D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/components/ErrorHeader.vue"]])
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUFjO0FBQ2QsS0FBSyxDQUFDLEtBQUssQ0FBQyxDQUFDLENBQUMsT0FnQlo7Ozs7Ozs7Ozs7cUJBSUssS0FBSyxFQUFDLGtCQUFrQjs7O0VBSXpCLEtBQUssRUFBQzs7OztFQU1OLEtBQUssRUFBQzs7Ozs7d0JBVlYsb0JBaUJNLE9BakJOLFVBaUJNO0lBaEJKLDhDQUE4QjtLQUV0QixZQUFLLENBQUMsVUFBVTt1QkFEeEIsb0JBS0ssTUFMTCxVQUtLLG1CQURBLFlBQUssQ0FBQyxVQUFVOztLQUdiLFlBQUssQ0FBQyxLQUFLO3VCQURuQixvQkFLSyxNQUxMLFVBS0ssbUJBREEsWUFBSyxDQUFDLEtBQUs7O0tBRVAsWUFBSyxDQUFDLFdBQVc7dUJBQTFCLG9CQUVJLGtDQURDLFlBQUssQ0FBQyxXQUFXIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJFcnJvckhlYWRlci52dWUiXSwic291cmNlc0NvbnRlbnQiOlsiPHNjcmlwdCBzZXR1cD5cclxuY29uc3QgcHJvcHMgPSBkZWZpbmVQcm9wcyh7XHJcbiAgc3RhdHVzQ29kZToge1xyXG4gICAgdHlwZTogW1xyXG4gICAgICBTdHJpbmcsXHJcbiAgICAgIE51bWJlcixcclxuICAgIF0sXHJcbiAgICByZXF1aXJlZDogZmFsc2UsXHJcbiAgfSxcclxuICB0aXRsZToge1xyXG4gICAgdHlwZTogU3RyaW5nLFxyXG4gICAgcmVxdWlyZWQ6IGZhbHNlLFxyXG4gIH0sXHJcbiAgZGVzY3JpcHRpb246IHtcclxuICAgIHR5cGU6IFN0cmluZyxcclxuICAgIHJlcXVpcmVkOiBmYWxzZSxcclxuICB9LFxyXG59KVxyXG48L3NjcmlwdD5cclxuXHJcbjx0ZW1wbGF0ZT5cclxuICA8ZGl2IGNsYXNzPVwidGV4dC1jZW50ZXIgbWItNFwiPlxyXG4gICAgPCEtLSDwn5GJIFRpdGxlIGFuZCBzdWJ0aXRsZSAtLT5cclxuICAgIDxoMVxyXG4gICAgICB2LWlmPVwicHJvcHMuc3RhdHVzQ29kZVwiXHJcbiAgICAgIGNsYXNzPVwiaGVhZGVyLXRpdGxlIGZvbnQtd2VpZ2h0LW1lZGl1bVwiXHJcbiAgICA+XHJcbiAgICAgIHt7IHByb3BzLnN0YXR1c0NvZGUgfX1cclxuICAgIDwvaDE+XHJcbiAgICA8aDVcclxuICAgICAgdi1pZj1cInByb3BzLnRpdGxlXCJcclxuICAgICAgY2xhc3M9XCJ0ZXh0LWg1IGZvbnQtd2VpZ2h0LW1lZGl1bSBtYi0zXCJcclxuICAgID5cclxuICAgICAge3sgcHJvcHMudGl0bGUgfX1cclxuICAgIDwvaDU+XHJcbiAgICA8cCB2LWlmPVwicHJvcHMuZGVzY3JpcHRpb25cIj5cclxuICAgICAge3sgcHJvcHMuZGVzY3JpcHRpb24gfX1cclxuICAgIDwvcD5cclxuICA8L2Rpdj5cclxuPC90ZW1wbGF0ZT5cclxuXHJcbjxzdHlsZSBsYW5nPVwic2Nzc1wiIHNjb3BlZD5cclxuLmhlYWRlci10aXRsZSB7XHJcbiAgZm9udC1zaXplOiBjbGFtcCgzcmVtLCA1dncsIDZyZW0pO1xyXG4gIGxpbmUtaGVpZ2h0OiBjbGFtcCgzcmVtLCA1dncsIDZyZW0pO1xyXG59XHJcbjwvc3R5bGU+XHJcbiJdLCJmaWxlIjoiRDovUFJPSkVUT1MgVlMgQ09ERS9SRVZBTElEQUZMT1cvRlJPTlRFTkQgRSBCQUNLRU5EL3NyYy9jb21wb25lbnRzL0Vycm9ySGVhZGVyLnZ1ZSJ9

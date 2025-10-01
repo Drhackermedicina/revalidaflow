@@ -97,6 +97,9 @@ const speechTimeout = ref(null) // Timeout para parar gravação automaticamente
 // Refs para controle de painéis expandidos
 const expandedPanels = ref(['materials']) // Materiais sempre expandidos por padrão
 
+// Refs para controle de avaliação automática
+const autoEvaluateEnabled = ref(true) // Avaliação automática habilitada por padrão
+
 // Estatísticas AI
 const aiStats = ref({
   messageCount: 0
@@ -1012,6 +1015,40 @@ function formatTimestamp(timestamp) {
   })
 }
 
+function getMessageStyle(role) {
+  const isDark = isDarkTheme.value
+
+  switch (role) {
+    case 'candidate':
+      return {
+        backgroundColor: isDark ? '#1976d2' : '#e3f2fd',
+        color: isDark ? '#fff' : '#1565c0',
+        marginLeft: 'auto',
+        maxWidth: '80%'
+      }
+    case 'ai_actor':
+      return {
+        backgroundColor: isDark ? '#2e7d32' : '#e8f5e9',
+        color: isDark ? '#fff' : '#2e7d32',
+        marginRight: 'auto',
+        maxWidth: '80%'
+      }
+    case 'system':
+      return {
+        backgroundColor: isDark ? '#f57c00' : '#fff3e0',
+        color: isDark ? '#fff' : '#e65100',
+        textAlign: 'center',
+        maxWidth: '90%',
+        margin: '0 auto'
+      }
+    default:
+      return {
+        backgroundColor: isDark ? '#424242' : '#f5f5f5',
+        color: isDark ? '#fff' : '#212121'
+      }
+  }
+}
+
 function goBack() {
   finalizeAISimulation()
   router.push('/app/station-list')
@@ -1177,6 +1214,14 @@ function stopSpeaking() {
   }
 }
 
+function toggleVoiceRecording() {
+  if (isListening.value) {
+    stopListening()
+  } else {
+    startListening()
+  }
+}
+
 // Watchers - seguindo mesmo padrão
 watch(bothUsersReady, (newValue) => {
   if (newValue && !simulationStarted.value) {
@@ -1210,13 +1255,19 @@ watch(simulationEnded, (newValue) => {
     console.log('✅ PEP liberado automaticamente:', {
       pepReleasedToCandidate: pepReleasedToCandidate.value,
       isChecklistVisibleForCandidate: isChecklistVisibleForCandidate.value,
-      checklistData: !!checklistData.value
+      checklistData: !!checklistData.value,
+      autoEvaluateEnabled: autoEvaluateEnabled.value
     })
 
-    // IA deve agir como avaliador e preencher o PEP automaticamente
-    setTimeout(() => {
-      aiEvaluatePEP()
-    }, 2000) // Aguarda 2 segundos após liberar o PEP
+    // IA deve agir como avaliador e preencher o PEP automaticamente (somente se habilitado)
+    if (autoEvaluateEnabled.value) {
+      console.log('🤖 Avaliação automática habilitada - iniciando em 2 segundos...')
+      setTimeout(() => {
+        aiEvaluatePEP()
+      }, 2000) // Aguarda 2 segundos após liberar o PEP
+    } else {
+      console.log('⏸️ Avaliação automática desabilitada - aguardando ação manual do usuário')
+    }
   }
 })
 
@@ -1267,8 +1318,63 @@ async function aiEvaluatePEP() {
 }
 
 // Processar resultado da avaliação da IA
-function processAIEvaluation(evaluationText) {
-  // A IA retorna avaliações no formato: "Item 1: SIM, Item 2: NÃO, Item 3: SIM..."
+function processAIEvaluation(evaluationData) {
+  console.log('🔍 Processando avaliação da IA...', evaluationData)
+
+  // Se evaluation é string, tentar parsear como JSON
+  let evaluations = evaluationData
+  if (typeof evaluationData === 'string') {
+    try {
+      evaluations = JSON.parse(evaluationData)
+    } catch (e) {
+      console.warn('⚠️ Não foi possível parsear JSON, usando fallback simples')
+      processAIEvaluationSimple(evaluationData)
+      return
+    }
+  }
+
+  // Se evaluation é objeto com array de itens
+  if (evaluations && Array.isArray(evaluations.items)) {
+    evaluations.items.forEach((itemEval, index) => {
+      const item = checklistData.value.itensAvaliacao[index]
+      if (!item) return
+
+      if (!markedPepItems.value[item.idItem]) {
+        markedPepItems.value[item.idItem] = []
+      }
+
+      // A IA deve retornar: { pontuacao: number, justificativa: string }
+      const pontuacao = itemEval.pontuacao || itemEval.score || 1
+      const justificativa = itemEval.justificativa || itemEval.observacao || itemEval.reasoning || 'Avaliado pela IA'
+
+      markedPepItems.value[item.idItem] = [{
+        pontuacao: pontuacao,
+        observacao: justificativa,
+        timestamp: new Date().toISOString()
+      }]
+
+      const nivel = pontuacao >= 5 ? 'ADEQUADO' : pontuacao >= 3 ? 'PARCIALMENTE ADEQUADO' : 'INADEQUADO'
+      console.log(`✅ Item ${index + 1} (${item.descricaoItem?.substring(0, 50)}...): ${nivel} (${pontuacao} pts)`)
+      console.log(`   Justificativa: ${justificativa.substring(0, 100)}...`)
+    })
+  } else {
+    // Fallback para formato simples
+    console.warn('⚠️ Formato de avaliação não reconhecido, usando fallback')
+    processAIEvaluationSimple(typeof evaluationData === 'string' ? evaluationData : JSON.stringify(evaluationData))
+    return
+  }
+
+  // Marcar avaliação como concluída
+  evaluationSubmittedByCandidate.value = true
+  submittingEvaluation.value = false
+
+  console.log('🎯 Avaliação automática concluída:', Object.keys(markedPepItems.value).length, 'itens avaliados')
+}
+
+// Fallback para formato simples (compatibilidade)
+function processAIEvaluationSimple(evaluationText) {
+  console.log('🔄 Usando fallback simples com texto:', evaluationText.substring(0, 200))
+
   const items = evaluationText.split(',')
 
   checklistData.value.itensAvaliacao.forEach((item, index) => {
@@ -1276,32 +1382,61 @@ function processAIEvaluation(evaluationText) {
       markedPepItems.value[item.idItem] = []
     }
 
-    // Procurar avaliação para este item
     const itemEvaluation = items.find(evalText =>
       evalText.toLowerCase().includes(`item ${index + 1}`) ||
       evalText.toLowerCase().includes(`${index + 1}:`)
     )
 
     if (itemEvaluation) {
-      const isPositive = itemEvaluation.toLowerCase().includes('sim')
-      const score = isPositive ? 5 : 1 // Adequado ou Inadequado
+      const evalLower = itemEvaluation.toLowerCase()
+      let score
+      let nivel
 
-      // Marcar item como avaliado
+      // Buscar pontuações reais do PEP
+      const adequadoPts = item.pontuacoes?.adequado?.pontos || 5
+      const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos || 3
+      const inadequadoPts = item.pontuacoes?.inadequado?.pontos || 0
+
+      // Detectar nível baseado na resposta da IA
+      if (evalLower.includes('não consta') ||
+          evalLower.includes('nao consta') ||
+          evalLower.includes('não realizou') ||
+          evalLower.includes('não fez') ||
+          evalLower.includes('não') && evalLower.includes('script')) {
+        // "Não consta no script" = INADEQUADO
+        score = inadequadoPts
+        nivel = 'INADEQUADO'
+      } else if (evalLower.includes('sim') ||
+                 evalLower.includes('adequado') ||
+                 evalLower.includes('realizou') ||
+                 evalLower.includes('correto')) {
+        // "SIM" ou "adequado" = ADEQUADO
+        score = adequadoPts
+        nivel = 'ADEQUADO'
+      } else if (evalLower.includes('parcial')) {
+        // "parcial" = PARCIALMENTE ADEQUADO
+        score = parcialPts
+        nivel = 'PARCIALMENTE ADEQUADO'
+      } else {
+        // Padrão = INADEQUADO
+        score = inadequadoPts
+        nivel = 'INADEQUADO'
+      }
+
       markedPepItems.value[item.idItem] = [{
         pontuacao: score,
-        observacao: `Avaliado automaticamente pela IA: ${isPositive ? 'Adequado' : 'Inadequado'}`,
+        observacao: `Avaliado automaticamente pela IA: ${nivel}`,
         timestamp: new Date().toISOString()
       }]
 
-      console.log(`✅ Item ${index + 1} avaliado:`, isPositive ? 'ADEQUADO' : 'INADEQUADO')
+      console.log(`✅ Item ${index + 1} (${item.descricaoItem?.substring(0, 40)}...): ${nivel} (${score} pts)`)
+      console.log(`   Texto avaliação: "${itemEvaluation.substring(0, 80)}..."`)
     }
   })
 
-  // Marcar avaliação como concluída
   evaluationSubmittedByCandidate.value = true
   submittingEvaluation.value = false
-
-  console.log('🎯 Avaliação automática concluída:', Object.keys(markedPepItems.value).length, 'itens avaliados')
+  console.log('🎯 Avaliação fallback concluída:', Object.keys(markedPepItems.value).length, 'itens')
 }
 
 // Fallback para avaliação automática simples (se IA falhar)
@@ -1341,6 +1476,19 @@ onMounted(async () => {
     return
   }
 
+  // Event listener para tecla ESC fechar modal de zoom
+  const handleEscKey = (event) => {
+    if (event.key === 'Escape' && imageZoomDialog.value) {
+      closeImageZoom()
+    }
+  }
+
+  // Register cleanup BEFORE any await statements
+  onUnmounted(() => {
+    document.removeEventListener('keydown', handleEscKey)
+    finalizeAISimulation()
+  })
+
   // Inicializar reconhecimento de voz
   initSpeechRecognition()
 
@@ -1358,23 +1506,8 @@ onMounted(async () => {
     messageInput.value.focus()
   }
 
-  // Event listener para tecla ESC fechar modal de zoom
-  const handleEscKey = (event) => {
-    if (event.key === 'Escape' && imageZoomDialog.value) {
-      closeImageZoom()
-    }
-  }
+  // Register event listener after setup
   document.addEventListener('keydown', handleEscKey)
-
-  // Cleanup no onUnmounted
-  onUnmounted(() => {
-    document.removeEventListener('keydown', handleEscKey)
-    finalizeAISimulation()
-  })
-})
-
-onUnmounted(() => {
-  finalizeAISimulation()
 })
 </script>
 
@@ -1676,6 +1809,18 @@ onUnmounted(() => {
                                 style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0;"
                                 @click="openImageZoom(material.conteudo.caminhoImagem, material.tituloImpresso)"
                               />
+                              <p v-if="material.conteudo.legendaImagem" class="text-caption text-center font-italic mt-2">{{ material.conteudo.legendaImagem }}</p>
+
+                              <!-- Exibir laudo se existir -->
+                              <v-card v-if="material.conteudo.laudo || material.conteudo.laudoCompleto" variant="tonal" color="info" class="mt-3">
+                                <v-card-title class="text-subtitle-1">
+                                  <v-icon start>ri-file-text-line</v-icon>
+                                  Laudo
+                                </v-card-title>
+                                <v-card-text class="text-body-2">
+                                  {{ material.conteudo.laudo || material.conteudo.laudoCompleto }}
+                                </v-card-text>
+                              </v-card>
                             </div>
                             <div v-else-if="material.tipoConteudo === 'lista_chave_valor_secoes'">
                               <div v-for="(secao, index) in material.conteudo.secoes" :key="'secao-main-'+index" class="mb-3">
@@ -1747,6 +1892,17 @@ onUnmounted(() => {
                     >
                       <v-icon start>ri-download-line</v-icon>
                       Carregar PEP
+                    </v-btn>
+                    <v-btn
+                      v-if="simulationEnded && checklistData && !evaluationSubmittedByCandidate"
+                      color="secondary"
+                      variant="tonal"
+                      :loading="submittingEvaluation"
+                      @click="aiEvaluatePEP"
+                      block
+                    >
+                      <v-icon start>ri-robot-line</v-icon>
+                      Solicitar Avaliação da IA
                     </v-btn>
                     <v-btn
                       v-if="simulationEnded && !evaluationSubmittedByCandidate && checklistData"
@@ -1890,6 +2046,7 @@ onUnmounted(() => {
                   size="large"
                   class="ml-2"
                   :disabled="isProcessingMessage"
+                  :aria-label="isListening ? 'Parar gravação' : 'Iniciar gravação de voz'"
                   @click="toggleVoiceRecording"
                 >
                   <v-icon>{{ isListening ? 'ri-mic-fill' : 'ri-mic-line' }}</v-icon>
@@ -1897,13 +2054,14 @@ onUnmounted(() => {
 
                 <!-- Botão para parar a fala -->
                 <v-btn
+                  v-if="isSpeaking"
                   color="warning"
                   variant="tonal"
                   size="large"
                   class="ml-2"
                   :disabled="!isSpeaking"
+                  aria-label="Parar síntese de voz"
                   @click="stopSpeaking"
-                  v-if="isSpeaking"
                 >
                   <v-icon>ri-volume-mute-line</v-icon>
                 </v-btn>
@@ -1916,6 +2074,7 @@ onUnmounted(() => {
                   class="ml-2"
                   :disabled="!canSendMessage"
                   :loading="isProcessingMessage"
+                  aria-label="Enviar mensagem"
                   @click="sendMessage"
                 >
                   <v-icon>ri-send-plane-line</v-icon>
@@ -1971,10 +2130,10 @@ onUnmounted(() => {
                       <!-- Critérios de Avaliação -->
                       <div class="criterios-integrados mt-2">
                         <div v-if="item.pontuacoes?.adequado"
-                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[index]?.pontuacao === 5, 'mb-2': true}">
+                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[item.idItem]?.[0]?.pontuacao === 5, 'mb-2': true}">
                           <div class="d-flex align-start">
                             <v-icon
-                              :icon="markedPepItems[index]?.pontuacao === 5 ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'"
+                              :icon="markedPepItems[item.idItem]?.[0]?.pontuacao === 5 ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'"
                               color="success"
                               size="small"
                               class="me-2 mt-1"
@@ -1987,10 +2146,10 @@ onUnmounted(() => {
                         </div>
 
                         <div v-if="item.pontuacoes?.parcialmenteAdequado"
-                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[index]?.pontuacao >= 3 && markedPepItems[index]?.pontuacao < 5, 'mb-2': true}">
+                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[item.idItem]?.[0]?.pontuacao >= 3 && markedPepItems[item.idItem]?.[0]?.pontuacao < 5, 'mb-2': true}">
                           <div class="d-flex align-start">
                             <v-icon
-                              :icon="(markedPepItems[index]?.pontuacao >= 3 && markedPepItems[index]?.pontuacao < 5) ? 'ri-checkbox-indeterminate-fill' : 'ri-checkbox-blank-circle-line'"
+                              :icon="(markedPepItems[item.idItem]?.[0]?.pontuacao >= 3 && markedPepItems[item.idItem]?.[0]?.pontuacao < 5) ? 'ri-checkbox-indeterminate-fill' : 'ri-checkbox-blank-circle-line'"
                               color="warning"
                               size="small"
                               class="me-2 mt-1"
@@ -2003,10 +2162,10 @@ onUnmounted(() => {
                         </div>
 
                         <div v-if="item.pontuacoes?.inadequado"
-                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[index]?.pontuacao < 3}">
+                          :class="{'criterio-item': true, 'criterio-selecionado': markedPepItems[item.idItem]?.[0]?.pontuacao < 3}">
                           <div class="d-flex align-start">
                             <v-icon
-                              :icon="markedPepItems[index]?.pontuacao < 3 ? 'ri-close-circle-fill' : 'ri-checkbox-blank-circle-line'"
+                              :icon="markedPepItems[item.idItem]?.[0]?.pontuacao < 3 ? 'ri-close-circle-fill' : 'ri-checkbox-blank-circle-line'"
                               color="error"
                               size="small"
                               class="me-2 mt-1"
@@ -2021,16 +2180,16 @@ onUnmounted(() => {
                     </td>
                     <td class="text-center">
                       <!-- Visualização da pontuação da IA -->
-                      <div v-if="markedPepItems[index]?.pontuacao !== undefined">
+                      <div v-if="markedPepItems[item.idItem]?.[0]?.pontuacao !== undefined">
                         <v-chip
-                          :color="markedPepItems[index]?.pontuacao >= 5 ? 'success' : markedPepItems[index]?.pontuacao >= 3 ? 'warning' : 'error'"
+                          :color="markedPepItems[item.idItem]?.[0]?.pontuacao >= 5 ? 'success' : markedPepItems[item.idItem]?.[0]?.pontuacao >= 3 ? 'warning' : 'error'"
                           variant="tonal"
                           class="mb-1"
                         >
-                          {{ markedPepItems[index]?.pontuacao >= 5 ? 'Adequado' : markedPepItems[index]?.pontuacao >= 3 ? 'Parcialmente Adequado' : 'Inadequado' }}
+                          {{ markedPepItems[item.idItem]?.[0]?.pontuacao >= 5 ? 'Adequado' : markedPepItems[item.idItem]?.[0]?.pontuacao >= 3 ? 'Parcialmente Adequado' : 'Inadequado' }}
                         </v-chip>
-                        <div class="text-caption">{{ markedPepItems[index]?.pontuacao }} pontos</div>
-                        <div v-if="markedPepItems[index]?.observacoes" class="text-caption mt-1">{{ markedPepItems[index].observacoes }}</div>
+                        <div class="text-caption">{{ markedPepItems[item.idItem]?.[0]?.pontuacao }} pontos</div>
+                        <div v-if="markedPepItems[item.idItem]?.[0]?.observacao" class="text-caption mt-1">{{ markedPepItems[item.idItem][0].observacao }}</div>
                       </div>
                       <div v-else class="text-caption text-medium-emphasis">
                         Aguardando avaliação

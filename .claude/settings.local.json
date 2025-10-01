@@ -14,7 +14,13 @@
       "Bash(npm run lint)",
       "Bash(gcloud run services describe:*)",
       "Bash(gcloud secrets versions access:*)",
-      "Bash(gcloud logging read:*)"
+      "Bash(gcloud logging read:*)",
+      "Bash(docker build:*)",
+      "Bash(docker push:*)",
+      "Bash(dir:*)",
+      "Bash(rm:*)",
+      "Bash(git checkout:*)",
+      "Bash(start \"backend\" cmd /c \"npm start\")"
     ],
     "deny": [],
     "ask": []

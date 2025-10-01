@@ -1,1 +1,19 @@
 // Write your overrides
+
+/* Correção para avisos de aria-hidden em ícones SVG do Vuetify/Iconify */
+/* Previne que SVGs com aria-hidden recebam foco, eliminando conflito de acessibilidade */
+.v-icon svg[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+/* Remove tabindex de SVGs dentro de ícones para evitar foco */
+.v-icon svg {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Garante que apenas o botão pai seja focável, não os ícones internos */
+button .v-icon svg,
+a .v-icon svg {
+  pointer-events: none !important;
+}

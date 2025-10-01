@@ -1,0 +1,507 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e6]:
+  - banner [ref=e7]:
+    - generic [ref=e8]:
+      - navigation [ref=e9]:
+        - link "Recursos" [ref=e10] [cursor=pointer]:
+          - /url: "#features"
+        - link "Metodologia" [ref=e11] [cursor=pointer]:
+          - /url: "#how-it-works"
+        - link "Planos" [ref=e12] [cursor=pointer]:
+          - /url: "#pricing"
+        - link "Suporte" [ref=e13] [cursor=pointer]:
+          - /url: "#faq"
+      - generic [ref=e14]:
+        - link "Entrar" [ref=e15] [cursor=pointer]:
+          - /url: /login
+          - generic [ref=e16] [cursor=pointer]: Entrar
+        - generic [ref=e18] [cursor=pointer]: 7 Dias Grátis
+  - generic [ref=e23]:
+    - generic [ref=e25]:
+      - generic [ref=e27]:
+        - generic [ref=e28]: 🚀
+        - generic [ref=e29]: Primeira Plataforma Adaptada ao Novo Formato da Prova do INEP REVALIDA 2025/2026
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - heading "REVALIDA FLOW" [level=1] [ref=e32]:
+            - generic [ref=e33]: REVALIDA
+            - generic [ref=e34]: FLOW
+          - generic [ref=e35]:
+            - generic [ref=e36]: Inteligência Artificial
+            - text: •
+            - generic [ref=e37]: Técnica Feynman
+            - text: •
+            - generic [ref=e38]: Ambiente de Simulação de Última Geração
+        - heading "A Única Plataforma Completa para sua Revalidação Médica no Brasil" [level=2] [ref=e39]
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - generic [ref=e43]: 🧠
+          - generic [ref=e44]:
+            - heading "Técnica Feynman IA" [level=3] [ref=e45]
+            - paragraph [ref=e46]: Explique em áudio, receba feedback inteligente
+        - generic [ref=e47]:
+          - generic [ref=e48]: 🏥
+          - generic [ref=e49]:
+            - heading "Todas as Estações INEP" [level=3] [ref=e50]
+            - paragraph [ref=e51]: 100% das estações oficiais para simulação
+        - generic [ref=e52]:
+          - generic [ref=e53]: ⭐
+          - generic [ref=e54]:
+            - heading "500+ Estações Exclusivas" [level=3] [ref=e55]
+            - paragraph [ref=e56]: Criadas por médicos já revalidados
+        - generic [ref=e57]:
+          - generic [ref=e58]: 🎯
+          - generic [ref=e59]:
+            - heading "Nova 2ª Fase INEP" [level=3] [ref=e60]
+            - paragraph [ref=e61]: Única adaptada ao novo formato com prova escrita
+      - generic [ref=e63]:
+        - generic [ref=e64]: 🎁
+        - generic [ref=e65]:
+          - generic [ref=e66]: 7 Dias Grátis - Acesso Total à Plataforma
+          - generic [ref=e67]: Sem cartão • Apenas email Google • Cancele quando quiser
+      - generic [ref=e68]:
+        - generic [ref=e69] [cursor=pointer]:
+          - generic [ref=e71] [cursor=pointer]: COMEÇAR TESTE GRÁTIS AGORA
+          - generic [ref=e72] [cursor=pointer]: →
+        - generic [ref=e74] [cursor=pointer]: Já sou membro
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e77]: 2.500+
+          - generic [ref=e78]: Médicos Aprovados
+        - generic [ref=e79]:
+          - generic [ref=e80]: 98%
+          - generic [ref=e81]: Taxa de Sucesso
+        - generic [ref=e82]:
+          - generic [ref=e83]: 550+
+          - generic [ref=e84]: Estações Disponíveis
+        - generic [ref=e85]:
+          - generic [ref=e86]: 4.9★
+          - generic [ref=e87]: Avaliação dos Usuários
+    - generic [ref=e88]:
+      - generic [ref=e89]:
+        - heading "Tecnologia que Acelera sua Aprovação" [level=3] [ref=e90]
+        - paragraph [ref=e91]: Ferramentas inteligentes para um estudo mais eficiente
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - generic [ref=e95]: EXCLUSIVO
+          - img [ref=e97]
+          - heading "IA Feynman" [level=4] [ref=e99]
+          - paragraph [ref=e100]: Explique em áudio, receba feedback instantâneo
+        - generic [ref=e101]:
+          - generic [ref=e102]: NOVO FORMATO
+          - img [ref=e104]
+          - heading "50.000+ Questões" [level=4] [ref=e106]
+          - paragraph [ref=e107]: Banco atualizado formato 2025.2
+        - generic [ref=e108]:
+          - generic [ref=e109]: AO VIVO
+          - img [ref=e111]
+          - heading "Simulações Reais" [level=4] [ref=e113]
+          - paragraph [ref=e114]: Estações clínicas com atores profissionais
+        - generic [ref=e115]:
+          - generic [ref=e116]: PERSONALIZADO
+          - img [ref=e118]
+          - heading "Cronograma IA" [level=4] [ref=e120]
+          - paragraph [ref=e121]: Planejamento personalizado inteligente
+        - generic [ref=e122]:
+          - generic [ref=e123]: INTELIGENTE
+          - img [ref=e125]
+          - heading "Flashcards IA" [level=4] [ref=e127]
+          - paragraph [ref=e128]: Repetição espaçada inteligente
+        - generic [ref=e129]:
+          - generic [ref=e130]: PREMIUM
+          - img [ref=e132]
+          - heading "Videoaulas Exclusivas" [level=4] [ref=e134]
+          - paragraph [ref=e135]: Conteúdo por médicos revalidados
+    - generic [ref=e138]:
+      - generic [ref=e139]:
+        - generic [ref=e140]:
+          - generic [ref=e141]: 2.500+
+          - generic [ref=e142]: Médicos Aprovados
+        - generic [ref=e143]:
+          - generic [ref=e144]: 98%
+          - generic [ref=e145]: Taxa de Sucesso
+        - generic [ref=e146]:
+          - generic [ref=e147]: 4.9★
+          - generic [ref=e148]: Avaliação
+      - heading "Junte-se aos Médicos que Já Foram Aprovados" [level=3] [ref=e149]
+      - paragraph [ref=e150]: Comece sua jornada de sucesso hoje mesmo
+      - generic [ref=e151] [cursor=pointer]:
+        - link "QUERO COMEÇAR AGORA" [ref=e152] [cursor=pointer]:
+          - /url: /register
+          - generic [ref=e153] [cursor=pointer]:
+            - img [ref=e154] [cursor=pointer]
+            - text: QUERO COMEÇAR AGORA
+        - generic [ref=e156] [cursor=pointer]: QUERO COMEÇAR AGORA
+  - generic [ref=e158]:
+    - generic [ref=e159]:
+      - heading "Você se identifica com isso?" [level=2] [ref=e160]
+      - paragraph [ref=e161]:
+        - text: Você passa horas lendo casos clínicos, grifando apostilas e assistindo aulas. Mas na hora de responder uma questão descritiva,
+        - strong [ref=e162]: o raciocínio trava?
+    - generic [ref=e165]:
+      - img [ref=e166]
+      - heading "O método tradicional é passivo" [level=3] [ref=e168]
+      - paragraph [ref=e169]:
+        - text: "Ele enche sua cabeça de informação, mas não treina a habilidade mais importante para um médico:"
+        - strong [ref=e170]: o raciocínio clínico aplicado.
+  - generic [ref=e172]:
+    - generic [ref=e173]:
+      - generic [ref=e175]:
+        - img [ref=e176]
+        - text: EXCLUSIVO NO REVALIDA FLOW
+      - heading "Técnica Feynman Ativo Interativo" [level=2] [ref=e178]
+      - paragraph [ref=e179]:
+        - text: A primeira plataforma do mundo que usa a Técnica Feynman e Inteligência Artificial para analisar suas respostas em áudio e fornecer feedback em tempo real. Esse método é exclusivo para a prova discursiva.
+        - strong [ref=e180]: Estude menos, aprenda mais.
+    - generic [ref=e181]:
+      - generic [ref=e183]:
+        - generic [ref=e184]: "1"
+        - img [ref=e185]
+        - generic [ref=e187]: FALE - Explique em Áudio
+        - generic [ref=e188]: Grave sua explicação do caso clínico como se estivesse em uma prova oral.
+      - generic [ref=e190]:
+        - generic [ref=e191]: "2"
+        - img [ref=e192]
+        - generic [ref=e194]: IA Analisa seu Raciocínio
+        - generic [ref=e195]: Nossa IA identifica acertos, falhas e desafia você a simplificar pontos complexos.
+      - generic [ref=e197]:
+        - generic [ref=e198]: "3"
+        - img [ref=e199]
+        - generic [ref=e201]: DOMINE - Feedback Personalizado
+        - generic [ref=e202]: Use o feedback para preencher lacunas e solidificar o aprendizado.
+  - generic [ref=e204]:
+    - heading "Por que o REVALIDA FLOW funciona?" [level=2] [ref=e206]
+    - generic [ref=e207]:
+      - generic [ref=e209]:
+        - img [ref=e210]
+        - generic [ref=e212]: Acelere seu Aprendizado
+        - generic [ref=e213]: Falar em voz alta aumenta a retenção em até 50% (Efeito de Produção).
+      - generic [ref=e215]:
+        - img [ref=e216]
+        - generic [ref=e218]: Desenvolva Confiança Real
+        - generic [ref=e219]: Simule a pressão da prova e treine sua capacidade de organizar conhecimento.
+      - generic [ref=e221]:
+        - img [ref=e222]
+        - generic [ref=e224]: Descubra seus Pontos Cegos
+        - generic [ref=e225]: A IA revela fraquezas no raciocínio que a leitura silenciosa jamais mostraria.
+      - generic [ref=e227]:
+        - img [ref=e228]
+        - generic [ref=e230]: Estude de Forma Inteligente
+        - generic [ref=e231]: Foque exatamente onde precisa melhorar, sem reler a mesma coisa.
+  - generic [ref=e233]:
+    - generic [ref=e234]:
+      - generic [ref=e236]:
+        - img [ref=e237]
+        - text: PRIMEIRA FASE
+      - heading "Preparação Completa para a 1ª Fase" [level=2] [ref=e239]
+      - paragraph [ref=e240]:
+        - strong [ref=e241]: "Adaptado ao novo formato 2025.2:"
+        - text: Somente questões objetivas, sem prova discursiva!
+    - generic [ref=e242]:
+      - generic [ref=e244]:
+        - img [ref=e245]
+        - generic [ref=e247]: Banco de Questões Atualizado
+        - generic [ref=e248]: Milhares de questões objetivas alinhadas ao novo formato 2025.2 - sem prova discursiva!
+      - generic [ref=e250]:
+        - img [ref=e251]
+        - generic [ref=e253]: Materiais de Apoio Premium
+        - generic [ref=e254]: PDFs e videoaulas sobre todos os temas do REVALIDA, produzidos por médicos revalidados.
+      - generic [ref=e256]:
+        - img [ref=e257]
+        - generic [ref=e259]: Flashcards Inteligentes
+        - generic [ref=e260]: Sistema de repetição espaçada para memorização eficiente de conceitos-chave.
+      - generic [ref=e262]:
+        - img [ref=e263]
+        - generic [ref=e265]: Cronograma Personalizado
+        - generic [ref=e266]: Planejamento de estudos adaptado ao seu perfil e tempo disponível até a prova.
+  - generic [ref=e268]:
+    - generic [ref=e269]:
+      - generic [ref=e271]:
+        - img [ref=e272]
+        - text: SEGUNDA FASE
+      - heading "Simulações de Habilidades Clínicas" [level=2] [ref=e274]
+      - paragraph [ref=e275]:
+        - text: A única plataforma com
+        - strong [ref=e276]: TODAS as estações oficiais do INEP
+        - text: desde 2011 até 2025.1 + estações exclusivas criadas por médicos revalidados.
+    - generic [ref=e277]:
+      - generic [ref=e279]:
+        - img [ref=e280]
+        - generic [ref=e282]: Simulações em Tempo Real
+        - generic [ref=e283]: Estações clínicas ao vivo com outros usuários da plataforma e feedback imediato.
+      - generic [ref=e285]:
+        - img [ref=e286]
+        - generic [ref=e288]: Atores Profissionais
+        - generic [ref=e289]: Pacientes simulados treinados especificamente para cenários do REVALIDA.
+      - generic [ref=e291]:
+        - img [ref=e292]
+        - generic [ref=e294]: Todas as Estações INEP
+        - generic [ref=e295]: Única plataforma com TODAS as estações oficiais do INEP desde 2011 até 2025.1.
+      - generic [ref=e297]:
+        - img [ref=e298]
+        - generic [ref=e300]: Estações Exclusivas
+        - generic [ref=e301]: Cenários únicos criados por médicos revalidados com vasta experiência na prova.
+  - generic [ref=e303]:
+    - generic [ref=e304]:
+      - heading "Veja a Plataforma em Ação" [level=2] [ref=e305]
+      - paragraph [ref=e306]: Descubra como o REVALIDA FLOW transforma seu estudo passivo em aprendizado ativo e eficiente.
+    - generic [ref=e310] [cursor=pointer]:
+      - img [ref=e311] [cursor=pointer]
+      - heading "Demonstração da Técnica Feynman Ativo Interativo" [level=3] [ref=e313] [cursor=pointer]
+      - paragraph [ref=e314] [cursor=pointer]: Veja como funciona nossa IA que analisa seu raciocínio em tempo real
+      - button "Assistir Demonstração (3 min)" [ref=e315] [cursor=pointer]:
+        - generic [ref=e316] [cursor=pointer]:
+          - img [ref=e317] [cursor=pointer]
+          - text: Assistir Demonstração (3 min)
+    - generic [ref=e319]:
+      - generic [ref=e321]:
+        - img [ref=e322]
+        - heading "1. Grave sua Explicação" [level=4] [ref=e324]
+        - paragraph [ref=e325]: Explique casos clínicos em áudio
+      - generic [ref=e327]:
+        - img [ref=e328]
+        - heading "2. IA Analisa" [level=4] [ref=e330]
+        - paragraph [ref=e331]: Feedback instantâneo e personalizado
+      - generic [ref=e333]:
+        - img [ref=e334]
+        - heading "3. Domine o Conteúdo" [level=4] [ref=e336]
+        - paragraph [ref=e337]: Aprenda de forma eficiente e duradoura
+  - generic [ref=e339]:
+    - generic [ref=e340]:
+      - heading "Como Funciona em 3 Passos Simples" [level=2] [ref=e341]
+      - paragraph [ref=e342]: Transforme seu estudo passivo em uma prática ativa e poderosa com nossa metodologia exclusiva.
+    - generic [ref=e343]:
+      - generic [ref=e345]:
+        - generic [ref=e346]: "1"
+        - img [ref=e347]
+        - heading "FALE" [level=3] [ref=e349]
+        - paragraph [ref=e350]: Escolha um caso clínico e grave sua resposta em áudio. Explique a fisiopatologia, diagnóstico e tratamento como se estivesse em uma prova oral.
+      - generic [ref=e352]:
+        - generic [ref=e353]: "2"
+        - img [ref=e354]
+        - heading "RECEBA FEEDBACK" [level=3] [ref=e356]
+        - paragraph [ref=e357]: Em segundos, nossa IA analisa sua explicação, identifica acertos, aponta falhas no raciocínio, e desafia você a simplificar pontos complexos.
+      - generic [ref=e359]:
+        - generic [ref=e360]: "3"
+        - img [ref=e361]
+        - heading "DOMINE" [level=3] [ref=e363]
+        - paragraph [ref=e364]: Use o feedback para preencher lacunas de conhecimento. Faça uma pergunta final para a IA e solidifique o aprendizado.
+  - generic [ref=e366]:
+    - generic [ref=e367]:
+      - heading "O que nossos médicos revalidados dizem" [level=2] [ref=e368]
+      - paragraph [ref=e369]: Centenas de médicos já foram aprovados com nossa metodologia exclusiva
+    - generic [ref=e370]:
+      - generic [ref=e372]:
+        - generic [ref=e373]:
+          - generic [ref=e374]: 👩‍⚕️
+          - generic [ref=e375]:
+            - heading "Dr. Ana Silva" [level=4] [ref=e376]
+            - paragraph [ref=e377]: Revalidada em 2024
+        - generic [ref=e378]:
+          - img [ref=e379]
+          - img [ref=e381]
+          - img [ref=e383]
+          - img [ref=e385]
+          - img [ref=e387]
+        - paragraph [ref=e389]: O REVALIDA FLOW foi fundamental para minha aprovação. As simulações são idênticas à prova real!
+      - generic [ref=e391]:
+        - generic [ref=e392]:
+          - generic [ref=e393]: 👨‍⚕️
+          - generic [ref=e394]:
+            - heading "Dr. Carlos Rodriguez" [level=4] [ref=e395]
+            - paragraph [ref=e396]: Revalidado em 2023
+        - generic [ref=e397]:
+          - img [ref=e398]
+          - img [ref=e400]
+          - img [ref=e402]
+          - img [ref=e404]
+          - img [ref=e406]
+        - paragraph [ref=e408]: A técnica Feynman mudou completamente minha forma de estudar. Aprovado na primeira tentativa!
+      - generic [ref=e410]:
+        - generic [ref=e411]:
+          - generic [ref=e412]: 👩‍⚕️
+          - generic [ref=e413]:
+            - heading "Dra. Maria Santos" [level=4] [ref=e414]
+            - paragraph [ref=e415]: Revalidada em 2024
+        - generic [ref=e416]:
+          - img [ref=e417]
+          - img [ref=e419]
+          - img [ref=e421]
+          - img [ref=e423]
+          - img [ref=e425]
+        - paragraph [ref=e427]: Plataforma completa e atualizada. O suporte é excepcional e os materiais são de alta qualidade.
+    - link "Junte-se a eles - 7 Dias Grátis" [ref=e429] [cursor=pointer]:
+      - /url: /register
+      - generic [ref=e430] [cursor=pointer]:
+        - img [ref=e431] [cursor=pointer]
+        - text: Junte-se a eles - 7 Dias Grátis
+  - generic [ref=e434]:
+    - generic [ref=e435]:
+      - heading "Planos que Cabem no seu Bolso" [level=2] [ref=e436]
+      - paragraph [ref=e437]: Comece com 7 dias gratuitos, sem cartão de crédito
+    - generic [ref=e438]:
+      - generic [ref=e440]:
+        - heading "Teste Gratuito" [level=3] [ref=e441]
+        - generic [ref=e442]: R$ 0
+        - paragraph [ref=e443]: 7 dias • Acesso completo
+        - listbox [ref=e444]:
+          - generic [ref=e445]:
+            - img [ref=e447]
+            - generic [ref=e450]: Técnica Feynman IA
+          - generic [ref=e451]:
+            - img [ref=e453]
+            - generic [ref=e456]: Banco de questões completo
+          - generic [ref=e457]:
+            - img [ref=e459]
+            - generic [ref=e462]: Simulações ilimitadas
+          - generic [ref=e463]:
+            - img [ref=e465]
+            - generic [ref=e468]: Materiais de apoio
+        - link "Começar Agora" [ref=e469] [cursor=pointer]:
+          - /url: /register
+          - generic [ref=e470] [cursor=pointer]: Começar Agora
+      - generic [ref=e472]:
+        - generic [ref=e474]: MAIS POPULAR
+        - heading "Plano Mensal" [level=3] [ref=e475]
+        - generic [ref=e476]: R$ 97
+        - paragraph [ref=e477]: por mês • Acesso completo
+        - listbox [ref=e478]:
+          - generic [ref=e479]:
+            - img [ref=e481]
+            - generic [ref=e484]: Tudo do plano gratuito
+          - generic [ref=e485]:
+            - img [ref=e487]
+            - generic [ref=e490]: Atores profissionais
+          - generic [ref=e491]:
+            - img [ref=e493]
+            - generic [ref=e496]: Suporte prioritário
+          - generic [ref=e497]:
+            - img [ref=e499]
+            - generic [ref=e502]: Cronograma personalizado
+        - link "Assinar Agora" [ref=e503] [cursor=pointer]:
+          - /url: /register
+          - generic [ref=e504] [cursor=pointer]: Assinar Agora
+      - generic [ref=e506]:
+        - heading "Plano Anual" [level=3] [ref=e507]
+        - generic [ref=e508]:
+          - generic [ref=e509]: R$ 597
+          - generic [ref=e510]: R$ 1.164
+        - paragraph [ref=e511]: Economize R$ 567!
+        - paragraph [ref=e512]: por ano • 12x sem juros
+        - listbox [ref=e513]:
+          - generic [ref=e514]:
+            - img [ref=e516]
+            - generic [ref=e519]: Tudo do plano mensal
+          - generic [ref=e520]:
+            - img [ref=e522]
+            - generic [ref=e525]: Mentoria individual
+          - generic [ref=e526]:
+            - img [ref=e528]
+            - generic [ref=e531]: Certificado de conclusão
+          - generic [ref=e532]:
+            - img [ref=e534]
+            - generic [ref=e537]: Acesso vitalício aos materiais
+        - link "Escolher Anual" [ref=e538] [cursor=pointer]:
+          - /url: /register
+          - generic [ref=e539] [cursor=pointer]: Escolher Anual
+  - generic [ref=e541]:
+    - generic [ref=e542]:
+      - heading "Dúvidas Frequentes" [level=2] [ref=e543]
+      - paragraph [ref=e544]: Tire suas dúvidas sobre o REVALIDA FLOW
+    - generic [ref=e547]:
+      - button "Como funciona o teste gratuito de 7 dias?" [ref=e550] [cursor=pointer]:
+        - text: Como funciona o teste gratuito de 7 dias?
+        - img [ref=e553] [cursor=pointer]
+      - button "A plataforma está adaptada às mudanças do REVALIDA 2025.2?" [ref=e557] [cursor=pointer]:
+        - text: A plataforma está adaptada às mudanças do REVALIDA 2025.2?
+        - img [ref=e560] [cursor=pointer]
+      - button "O que é a Técnica Feynman Ativo Interativo?" [ref=e564] [cursor=pointer]:
+        - text: O que é a Técnica Feynman Ativo Interativo?
+        - img [ref=e567] [cursor=pointer]
+      - button "Vocês têm todas as estações do INEP?" [ref=e571] [cursor=pointer]:
+        - text: Vocês têm todas as estações do INEP?
+        - img [ref=e574] [cursor=pointer]
+      - button "Como funcionam as simulações em tempo real?" [ref=e578] [cursor=pointer]:
+        - text: Como funcionam as simulações em tempo real?
+        - img [ref=e581] [cursor=pointer]
+      - button "Posso cancelar a qualquer momento?" [ref=e585] [cursor=pointer]:
+        - text: Posso cancelar a qualquer momento?
+        - img [ref=e588] [cursor=pointer]
+  - generic [ref=e591]:
+    - heading "Transforme sua preparação. Comece seu teste gratuito agora!" [level=2] [ref=e592]
+    - paragraph [ref=e593]: Pronto para destravar seu verdadeiro potencial? Cadastre-se e veja a diferença que a Técnica Feynman Ativo Interativo pode fazer na sua aprovação.
+    - generic [ref=e596]:
+      - img [ref=e597]
+      - text: Oferta por tempo limitado - 7 dias grátis
+    - generic [ref=e599]:
+      - link "Começar Agora - É Grátis" [ref=e600] [cursor=pointer]:
+        - /url: /register
+        - generic [ref=e601] [cursor=pointer]:
+          - img [ref=e602] [cursor=pointer]
+          - text: Começar Agora - É Grátis
+      - link "Já tenho conta" [ref=e604] [cursor=pointer]:
+        - /url: /login
+        - generic [ref=e605] [cursor=pointer]:
+          - img [ref=e606] [cursor=pointer]
+          - text: Já tenho conta
+    - paragraph [ref=e608]: Sem cartão de crédito • Acesso imediato • Cancele quando quiser
+  - contentinfo [ref=e609]:
+    - generic [ref=e610]:
+      - generic [ref=e611]:
+        - generic [ref=e612]:
+          - img "REVALIDA FLOW Logo" [ref=e614]
+          - paragraph [ref=e615]: A primeira plataforma com Técnica Feynman IA para revalidação médica no Brasil.
+          - generic [ref=e616]:
+            - button [ref=e617] [cursor=pointer]:
+              - img [ref=e619] [cursor=pointer]
+            - button [ref=e621] [cursor=pointer]:
+              - img [ref=e623] [cursor=pointer]
+            - button [ref=e625] [cursor=pointer]:
+              - img [ref=e627] [cursor=pointer]
+            - button [ref=e629] [cursor=pointer]:
+              - img [ref=e631] [cursor=pointer]
+        - generic [ref=e633]:
+          - heading "Plataforma" [level=3] [ref=e634]
+          - listbox [ref=e635]:
+            - link "Recursos" [ref=e638] [cursor=pointer]:
+              - /url: "#features"
+              - generic [ref=e639] [cursor=pointer]: Recursos
+            - link "Planos" [ref=e642] [cursor=pointer]:
+              - /url: "#pricing"
+              - generic [ref=e643] [cursor=pointer]: Planos
+            - link "Login" [ref=e646] [cursor=pointer]:
+              - /url: /login
+              - generic [ref=e647] [cursor=pointer]: Login
+            - link "Teste Grátis" [ref=e650] [cursor=pointer]:
+              - /url: /register
+              - generic [ref=e651] [cursor=pointer]: Teste Grátis
+        - generic [ref=e652]:
+          - heading "Suporte" [level=3] [ref=e653]
+          - listbox [ref=e654]:
+            - link "FAQ" [ref=e657] [cursor=pointer]:
+              - /url: "#faq"
+              - generic [ref=e658] [cursor=pointer]: FAQ
+            - button "Contato" [ref=e661] [cursor=pointer]:
+              - generic [ref=e662] [cursor=pointer]: Contato
+            - button "WhatsApp" [ref=e665] [cursor=pointer]:
+              - generic [ref=e666] [cursor=pointer]: WhatsApp
+            - button "Tutorial" [ref=e669] [cursor=pointer]:
+              - generic [ref=e670] [cursor=pointer]: Tutorial
+        - generic [ref=e671]:
+          - heading "Newsletter" [level=3] [ref=e672]
+          - paragraph [ref=e673]: Receba dicas exclusivas e atualizações sobre o REVALIDA
+          - generic [ref=e674]:
+            - textbox "Seu email" [ref=e679]
+            - button "Inscrever" [ref=e680] [cursor=pointer]:
+              - generic [ref=e681] [cursor=pointer]: Inscrever
+      - separator [ref=e682]
+      - generic [ref=e683]:
+        - paragraph [ref=e685]: © 2025 REVALIDA FLOW — Todos os direitos reservados.
+        - generic [ref=e687]:
+          - button "Termos de Uso" [ref=e688] [cursor=pointer]:
+            - generic [ref=e689] [cursor=pointer]: Termos de Uso
+          - button "Política de Privacidade" [ref=e690] [cursor=pointer]:
+            - generic [ref=e691] [cursor=pointer]: Política de Privacidade
+```

@@ -1,0 +1,19 @@
+{"version":8,"type":"context-options","origin":"testRunner","browserName":"","options":{},"platform":"win32","wallTime":1759300310884,"monotonicTime":540306.863,"sdkLanguage":"javascript"}
+{"type":"before","callId":"hook@1","stepId":"hook@1","startTime":540309.638,"class":"Test","method":"hook","title":"Before Hooks","params":{},"stack":[]}
+{"type":"before","callId":"fixture@26","stepId":"fixture@26","parentId":"hook@1","startTime":540317.118,"class":"Test","method":"fixture","title":"Fixture \"browser\"","params":{},"stack":[]}
+{"type":"before","callId":"pw:api@27","stepId":"pw:api@27","parentId":"fixture@26","startTime":540319.936,"class":"Test","method":"pw:api","title":"Launch browser","params":{"handleSIGINT":"false","tracesDir":"D:\\PROJETOS VS CODE\\REVALIDAFLOW\\FRONTEND E BACKEND\\test-results\\.playwright-artifacts-6\\traces","headless":"true","ignoreDefaultArgs":"undefined","ignoreAllDefaultArgs":"false","env":"undefined","timeout":"180000"},"stack":[]}
+{"type":"after","callId":"pw:api@27","endTime":540378.111,"annotations":[]}
+{"type":"after","callId":"fixture@26","endTime":540378.449,"annotations":[]}
+{"type":"before","callId":"fixture@30","stepId":"fixture@30","parentId":"hook@1","startTime":540379.838,"class":"Test","method":"fixture","title":"Fixture \"context\"","params":{},"stack":[]}
+{"type":"before","callId":"pw:api@31","stepId":"pw:api@31","parentId":"fixture@30","startTime":540381.535,"class":"Test","method":"pw:api","title":"Create context","params":{"acceptDownloads":"accept","bypassCSP":"false","colorScheme":"light","deviceScaleFactor":"1","hasTouch":"false","ignoreHTTPSErrors":"false","isMobile":"false","javaScriptEnabled":"true","locale":"en-US","offline":"false","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.16 Safari/537.36","viewport":"Object","baseURL":"http://localhost:5173","serviceWorkers":"allow","recordVideo":"Object","selectorEngines":"[]","testIdAttributeName":"data-testid","noDefaultViewport":"false","extraHTTPHeaders":"undefined","storageState":"undefined","reducedMotion":"undefined","forcedColors":"undefined","contrast":"undefined","clientCertificates":"undefined"},"stack":[]}
+{"type":"after","callId":"pw:api@31","endTime":540387.931,"annotations":[]}
+{"type":"after","callId":"fixture@30","endTime":540390.551,"annotations":[]}
+{"type":"before","callId":"fixture@32","stepId":"fixture@32","parentId":"hook@1","startTime":540390.876,"class":"Test","method":"fixture","title":"Fixture \"page\"","params":{},"stack":[]}
+{"type":"before","callId":"pw:api@33","stepId":"pw:api@33","parentId":"fixture@32","startTime":540391.881,"class":"Test","method":"pw:api","title":"Create page","params":{},"stack":[]}
+{"type":"after","callId":"pw:api@33","endTime":540442.867,"annotations":[]}
+{"type":"after","callId":"fixture@32","endTime":540442.969,"annotations":[]}
+{"type":"after","callId":"hook@1","endTime":540443.004,"annotations":[]}
+{"type":"stdout","timestamp":540443.211,"text":"🔄 Testando redirecionamento após login do agent...\n"}
+{"type":"before","callId":"pw:api@34","stepId":"pw:api@34","startTime":540444.668,"class":"Test","method":"pw:api","title":"Navigate to \"/agent-login\"","params":{"url":"/agent-login","waitUntil":"load","timeout":"0"},"stack":[{"file":"D:\\PROJETOS VS CODE\\REVALIDAFLOW\\FRONTEND E BACKEND\\tests\\e2e\\agent-login-flow.spec.js","line":35,"column":16}]}
+{"type":"after","callId":"pw:api@34","endTime":540671.533,"annotations":[]}
+{"type":"before","callId":"expect@35","stepId":"expect@35","startTime":540673.08,"class":"Test","method":"expect","title":"Expect \"toBeVisible\"","params":{},"stack":[{"file":"D:\\PROJETOS VS CODE\\REVALIDAFLOW\\FRONTEND E BACKEND\\tests\\e2e\\agent-login-flow.spec.js","line":39,"column":31}]}

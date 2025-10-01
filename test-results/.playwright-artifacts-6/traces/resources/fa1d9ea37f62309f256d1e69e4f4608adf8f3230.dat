@@ -1,0 +1,4 @@
+export { VIcon } from "/node_modules/vuetify/lib/components/VIcon/VIcon.mjs?v=48017b6c";
+export { VComponentIcon, VSvgIcon, VLigatureIcon, VClassIcon } from "/node_modules/vuetify/lib/composables/icons.mjs?v=48017b6c";
+                                  
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXgubWpzIiwibmFtZXMiOlsiVkljb24iLCJWQ29tcG9uZW50SWNvbiIsIlZTdmdJY29uIiwiVkxpZ2F0dXJlSWNvbiIsIlZDbGFzc0ljb24iXSwic291cmNlcyI6WyIuLi8uLi8uLi9zcmMvY29tcG9uZW50cy9WSWNvbi9pbmRleC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgeyBWSWNvbiB9IGZyb20gJy4vVkljb24nXG5leHBvcnQgeyBWQ29tcG9uZW50SWNvbiwgVlN2Z0ljb24sIFZMaWdhdHVyZUljb24sIFZDbGFzc0ljb24gfSBmcm9tICdAL2NvbXBvc2FibGVzL2ljb25zJ1xuIl0sIm1hcHBpbmdzIjoiU0FBU0EsS0FBSztBQUFBLFNBQ0xDLGNBQWMsRUFBRUMsUUFBUSxFQUFFQyxhQUFhLEVBQUVDLFVBQVUiLCJpZ25vcmVMaXN0IjpbXSwieF9nb29nbGVfaWdub3JlTGlzdCI6WzBdfQ==

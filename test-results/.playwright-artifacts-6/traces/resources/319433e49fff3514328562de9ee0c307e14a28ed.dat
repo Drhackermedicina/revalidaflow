@@ -1,0 +1,5 @@
+export const standardEasing = 'cubic-bezier(0.4, 0, 0.2, 1)';
+export const deceleratedEasing = 'cubic-bezier(0.0, 0, 0.2, 1)'; // Entering
+export const acceleratedEasing = 'cubic-bezier(0.4, 0, 1, 1)'; // Leaving
+                                   
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWFzaW5nLm1qcyIsIm5hbWVzIjpbInN0YW5kYXJkRWFzaW5nIiwiZGVjZWxlcmF0ZWRFYXNpbmciLCJhY2NlbGVyYXRlZEVhc2luZyJdLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy91dGlsL2Vhc2luZy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgY29uc3Qgc3RhbmRhcmRFYXNpbmcgPSAnY3ViaWMtYmV6aWVyKDAuNCwgMCwgMC4yLCAxKSdcbmV4cG9ydCBjb25zdCBkZWNlbGVyYXRlZEVhc2luZyA9ICdjdWJpYy1iZXppZXIoMC4wLCAwLCAwLjIsIDEpJyAvLyBFbnRlcmluZ1xuZXhwb3J0IGNvbnN0IGFjY2VsZXJhdGVkRWFzaW5nID0gJ2N1YmljLWJlemllcigwLjQsIDAsIDEsIDEpJyAvLyBMZWF2aW5nXG4iXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sTUFBTUEsY0FBYyxHQUFHLDhCQUE4QjtBQUM1RCxPQUFPLE1BQU1DLGlCQUFpQixHQUFHLDhCQUE4QixFQUFDO0FBQ2hFLE9BQU8sTUFBTUMsaUJBQWlCLEdBQUcsNEJBQTRCLEVBQUMiLCJpZ25vcmVMaXN0IjpbXSwieF9nb29nbGVfaWdub3JlTGlzdCI6WzBdfQ==

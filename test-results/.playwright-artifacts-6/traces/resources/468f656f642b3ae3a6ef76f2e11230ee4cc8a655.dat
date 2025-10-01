@@ -1,0 +1,98 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/pages/[...error].vue");/* unplugin-vue-components disabled */import __unplugin_components_0 from "/src/components/ErrorHeader.vue";
+import { useTheme } from "/node_modules/vuetify/lib/framework.mjs?v=48017b6c"
+import misc404 from "/src/assets/images/pages/404.png?import"
+import miscMaskDark from "/src/assets/images/pages/misc-mask-dark.png?import"
+import miscMaskLight from "/src/assets/images/pages/misc-mask-light.png?import"
+import tree from "/src/assets/images/pages/tree.png?import"
+
+
+
+import { computed } from "/node_modules/.vite/deps/vue.js?v=48017b6c";
+const _sfc_main = {
+  __name: '[...error]',
+  setup(__props, { expose: __expose }) {
+  __expose();
+
+const vuetifyTheme = useTheme()
+
+const authThemeMask = computed(() => {
+  return vuetifyTheme.global.name.value === 'light' ? miscMaskLight : miscMaskDark
+})
+
+const __returned__ = { vuetifyTheme, authThemeMask, get useTheme() { return useTheme }, get misc404() { return misc404 }, get miscMaskDark() { return miscMaskDark }, get miscMaskLight() { return miscMaskLight }, get tree() { return tree } }
+Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true })
+return __returned__
+}
+
+}
+import { resolveComponent as _resolveComponent, createVNode as _createVNode, createCommentVNode as _createCommentVNode, createTextVNode as _createTextVNode, withCtx as _withCtx, createElementVNode as _createElementVNode, openBlock as _openBlock, createElementBlock as _createElementBlock } from "/node_modules/.vite/deps/vue.js?v=48017b6c"
+
+const _hoisted_1 = { class: "misc-wrapper" }
+const _hoisted_2 = { class: "misc-avatar w-100 text-center" }
+
+function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
+  const _component_ErrorHeader = __unplugin_components_0
+                                                   
+                                                   
+
+  return (_openBlock(), _createElementBlock("div", _hoisted_1, [
+    _createVNode(_component_ErrorHeader, {
+      "status-code": "404",
+      title: "Page Not Found ⚠️",
+      description: "We couldn't find the page you are looking for."
+    }),
+    _createCommentVNode(" 👉 Image "),
+    _createElementVNode("div", _hoisted_2, [
+      _createVNode(_component_VImg, {
+        src: $setup.misc404,
+        alt: "Coming Soon",
+        "max-width": 800,
+        class: "mx-auto"
+      }, null, 8 /* PROPS */, ["src"]),
+      _createVNode(_component_VBtn, {
+        to: "/",
+        class: "mt-10"
+      }, {
+        default: _withCtx(() => [...(_cache[0] || (_cache[0] = [
+          _createTextVNode(" Back to Home ", -1 /* CACHED */)
+        ]))]),
+        _: 1 /* STABLE */
+      })
+    ]),
+    _createCommentVNode(" 👉 Footer "),
+    _createVNode(_component_VImg, {
+      src: $setup.tree,
+      class: "misc-footer-tree d-none d-md-block"
+    }, null, 8 /* PROPS */, ["src"]),
+    _createVNode(_component_VImg, {
+      src: $setup.authThemeMask,
+      class: "misc-footer-img d-none d-md-block"
+    }, null, 8 /* PROPS */, ["src"])
+  ]))
+}
+
+import "/src/pages/[...error].vue?vue&type=style&index=0&lang.scss"
+
+_sfc_main.__hmrId = "5c9d0676"
+typeof __VUE_HMR_RUNTIME__ !== 'undefined' && __VUE_HMR_RUNTIME__.createRecord(_sfc_main.__hmrId, _sfc_main)
+import.meta.hot.on('file-changed', ({ file }) => {
+  __VUE_HMR_RUNTIME__.CHANGED_FILE = file
+})
+import.meta.hot.accept(mod => {
+  if (!mod) return
+  const { default: updated, _rerender_only } = mod
+  if (_rerender_only) {
+    __VUE_HMR_RUNTIME__.rerender(updated.__hmrId, updated.render)
+  } else {
+    __VUE_HMR_RUNTIME__.reload(updated.__hmrId, updated)
+  }
+})
+import _export_sfc from "/@id/__x00__plugin-vue:export-helper"
+export default /*#__PURE__*/_export_sfc(_sfc_main, [['render',_sfc_render],['__file',"D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/pages/[...error].vue"]])
+
+/* Vuetify */
+import { VBtn as _component_VBtn } from "/node_modules/vuetify/lib/components/VBtn/index.mjs?v=48017b6c"
+import { VImg as _component_VImg } from "/node_modules/vuetify/lib/components/VImg/index.mjs?v=48017b6c"
+
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUNBLE1BQU0sQ0FBQyxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsQ0FBQyxJQUFJLENBQUMsQ0FBQyxPQUFPO0FBQ2pDLE1BQU0sQ0FBQyxPQUFPLENBQUMsSUFBSSxDQUFDLENBQUMsQ0FBQyxNQUFNLENBQUMsS0FBSyxDQUFDLEdBQUcsQ0FBQyxHQUFHO0FBQzFDLE1BQU0sQ0FBQyxZQUFZLENBQUMsSUFBSSxDQUFDLENBQUMsQ0FBQyxNQUFNLENBQUMsS0FBSyxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsSUFBSSxDQUFDLEdBQUc7QUFDMUQsTUFBTSxDQUFDLGFBQWEsQ0FBQyxJQUFJLENBQUMsQ0FBQyxDQUFDLE1BQU0sQ0FBQyxLQUFLLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxLQUFLLENBQUMsR0FBRztBQUM1RCxNQUFNLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMsTUFBTSxDQUFDLEtBQUssQ0FBQyxJQUFJLENBQUMsR0FBRzs7Ozs7Ozs7OztBQUV4QyxLQUFLLENBQUMsWUFBWSxDQUFDLENBQUMsQ0FBQyxRQUFRLENBQUM7O0FBRTlCLEtBQUssQ0FBQyxhQUFhLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNyQyxDQUFDLENBQUMsTUFBTSxDQUFDLFlBQVksQ0FBQyxNQUFNLENBQUMsSUFBSSxDQUFDLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDLGFBQWEsQ0FBQyxDQUFDLENBQUM7QUFDdEUsQ0FBQzs7Ozs7Ozs7OztxQkFJTSxLQUFLLEVBQUMsY0FBYztxQkFRbEIsS0FBSyxFQUFDLCtCQUErQjs7Ozs7Ozt3QkFSNUMsb0JBaUNNLE9BakNOLFVBaUNNO0lBaENKLGFBSUU7TUFIQSxhQUFXLEVBQUMsS0FBSztNQUNqQixLQUFLLEVBQUMsbUJBQW1CO01BQ3pCLFdBQVcsRUFBQzs7SUFHZCxpQ0FBaUI7SUFDakIsb0JBYU0sT0FiTixVQWFNO01BWkosYUFLRTtRQUpDLEdBQUcsRUFBRSxjQUFPO1FBQ2IsR0FBRyxFQUFDLGFBQWE7UUFDaEIsV0FBUyxFQUFFLEdBQUc7UUFDZixLQUFLLEVBQUM7O01BRVIsYUFLTztRQUpMLEVBQUUsRUFBQyxHQUFHO1FBQ04sS0FBSyxFQUFDOzswQkFDUCxDQUVEOzJCQUZDLGdCQUVEOzs7OztJQUdGLGtDQUFrQjtJQUNsQixhQUdFO01BRkMsR0FBRyxFQUFFLFdBQUk7TUFDVixLQUFLLEVBQUM7O0lBR1IsYUFHRTtNQUZDLEdBQUcsRUFBRSxvQkFBYTtNQUNuQixLQUFLLEVBQUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIlsuLi5lcnJvcl0udnVlIl0sInNvdXJjZXNDb250ZW50IjpbIjxzY3JpcHQgc2V0dXA+XG5pbXBvcnQgeyB1c2VUaGVtZSB9IGZyb20gJ3Z1ZXRpZnknXG5pbXBvcnQgbWlzYzQwNCBmcm9tICdAaW1hZ2VzL3BhZ2VzLzQwNC5wbmcnXG5pbXBvcnQgbWlzY01hc2tEYXJrIGZyb20gJ0BpbWFnZXMvcGFnZXMvbWlzYy1tYXNrLWRhcmsucG5nJ1xuaW1wb3J0IG1pc2NNYXNrTGlnaHQgZnJvbSAnQGltYWdlcy9wYWdlcy9taXNjLW1hc2stbGlnaHQucG5nJ1xuaW1wb3J0IHRyZWUgZnJvbSAnQGltYWdlcy9wYWdlcy90cmVlLnBuZydcblxuY29uc3QgdnVldGlmeVRoZW1lID0gdXNlVGhlbWUoKVxuXG5jb25zdCBhdXRoVGhlbWVNYXNrID0gY29tcHV0ZWQoKCkgPT4ge1xuICByZXR1cm4gdnVldGlmeVRoZW1lLmdsb2JhbC5uYW1lLnZhbHVlID09PSAnbGlnaHQnID8gbWlzY01hc2tMaWdodCA6IG1pc2NNYXNrRGFya1xufSlcbjwvc2NyaXB0PlxuXG48dGVtcGxhdGU+XG4gIDxkaXYgY2xhc3M9XCJtaXNjLXdyYXBwZXJcIj5cbiAgICA8RXJyb3JIZWFkZXJcbiAgICAgIHN0YXR1cy1jb2RlPVwiNDA0XCJcbiAgICAgIHRpdGxlPVwiUGFnZSBOb3QgRm91bmQg4pqg77iPXCJcbiAgICAgIGRlc2NyaXB0aW9uPVwiV2UgY291bGRuJ3QgZmluZCB0aGUgcGFnZSB5b3UgYXJlIGxvb2tpbmcgZm9yLlwiXG4gICAgLz5cblxuICAgIDwhLS0g8J+RiSBJbWFnZSAtLT5cbiAgICA8ZGl2IGNsYXNzPVwibWlzYy1hdmF0YXIgdy0xMDAgdGV4dC1jZW50ZXJcIj5cbiAgICAgIDxWSW1nXG4gICAgICAgIDpzcmM9XCJtaXNjNDA0XCJcbiAgICAgICAgYWx0PVwiQ29taW5nIFNvb25cIlxuICAgICAgICA6bWF4LXdpZHRoPVwiODAwXCJcbiAgICAgICAgY2xhc3M9XCJteC1hdXRvXCJcbiAgICAgIC8+XG4gICAgICA8VkJ0blxuICAgICAgICB0bz1cIi9cIlxuICAgICAgICBjbGFzcz1cIm10LTEwXCJcbiAgICAgID5cbiAgICAgICAgQmFjayB0byBIb21lXG4gICAgICA8L1ZCdG4+XG4gICAgPC9kaXY+XG5cbiAgICA8IS0tIPCfkYkgRm9vdGVyIC0tPlxuICAgIDxWSW1nXG4gICAgICA6c3JjPVwidHJlZVwiXG4gICAgICBjbGFzcz1cIm1pc2MtZm9vdGVyLXRyZWUgZC1ub25lIGQtbWQtYmxvY2tcIlxuICAgIC8+XG5cbiAgICA8VkltZ1xuICAgICAgOnNyYz1cImF1dGhUaGVtZU1hc2tcIlxuICAgICAgY2xhc3M9XCJtaXNjLWZvb3Rlci1pbWcgZC1ub25lIGQtbWQtYmxvY2tcIlxuICAgIC8+XG4gIDwvZGl2PlxuPC90ZW1wbGF0ZT5cblxuPHN0eWxlIGxhbmc9XCJzY3NzXCI+XG5AdXNlIFwiQGNvcmUvc2Nzcy90ZW1wbGF0ZS9wYWdlcy9taXNjLnNjc3NcIjtcblxuLm1pc2MtZm9vdGVyLXRyZWUge1xuICBpbmxpbmUtc2l6ZTogMTUuNjI1cmVtO1xuICBpbnNldC1ibG9jay1lbmQ6IDMuNXJlbTtcbiAgaW5zZXQtaW5saW5lLXN0YXJ0OiAwLjM3NXJlbTtcbn1cbjwvc3R5bGU+XG4iXSwiZmlsZSI6IkQ6L1BST0pFVE9TIFZTIENPREUvUkVWQUxJREFGTE9XL0ZST05URU5EIEUgQkFDS0VORC9zcmMvcGFnZXMvWy4uLmVycm9yXS52dWUifQ==

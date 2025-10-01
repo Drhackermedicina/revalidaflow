@@ -1,0 +1,3 @@
+export { VOverlay } from "/node_modules/vuetify/lib/components/VOverlay/VOverlay.mjs?v=48017b6c";
+                                  
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXgubWpzIiwibmFtZXMiOlsiVk92ZXJsYXkiXSwic291cmNlcyI6WyIuLi8uLi8uLi9zcmMvY29tcG9uZW50cy9WT3ZlcmxheS9pbmRleC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgeyBWT3ZlcmxheSB9IGZyb20gJy4vVk92ZXJsYXknXG4iXSwibWFwcGluZ3MiOiJTQUFTQSxRQUFRIiwiaWdub3JlTGlzdCI6W10sInhfZ29vZ2xlX2lnbm9yZUxpc3QiOlswXX0=
