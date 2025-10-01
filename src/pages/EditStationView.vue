@@ -1,4 +1,4 @@
-1<script setup>
+<script setup>
 // 🔧 CORREÇÃO: Definir props para aceitar ID da rota
 const props = defineProps({
   id: String // Para aceitar o ID da rota sem warnings
@@ -1117,9 +1117,9 @@ function loadStationIntoForm(stationData) {
           conteudo.secoes = (Array.isArray(imp.conteudo.secoes) ? imp.conteudo.secoes : []).map(s => ({
             tituloSecao: typeof s.tituloSecao === 'string' ? s.tituloSecao : '',
             itens: (Array.isArray(s.itens) ? s.itens : []).map(i => ({ 
-              chave: typeof i.chave === 'string' ? i.chave : '',
-              valor: typeof i.valor === 'string' ? i.valor : '' 
-            })).filter(i => i.chave || i.valor)
+              chave: i.chave?.trim() || '',
+              valor: i.valor?.trim() || ''
+            })).filter(it => it.chave || it.valor)
           })).filter(s => s.tituloSecao || s.itens.length > 0);
           
           if (conteudo.secoes.length === 0) { 
@@ -1259,13 +1259,13 @@ function construirObjetoEstacao() {
                   
                   return {
                       tituloSecao: sec.tituloSecao?.trim() || '',
-                      itens: (Array.isArray(sec.itens) ? sec.itens : []).map(it => ({
-                          chave: it.chave?.trim() || '',
-                          valor: it.valor?.trim() || ''
+                      itens: (Array.isArray(sec.itens) ? sec.itens : []).map(i => ({ 
+                          chave: i.chave?.trim() || '',
+                          valor: i.valor?.trim() || ''
                       })).filter(it => it.chave || it.valor)
                   };
               }).filter(sec => sec.tituloSecao || sec.itens.length > 0);
-              finalConteudo = { secoes: secoesTratadas.length > 0 ? secoesTratadas : [{ tituloSecao: '', itens: [{ chave: '', valor: ''}] }] };
+              finalConteudo = { secoes: secoesTratadas.length > 0 ? secoesTratadas : [{ tituloSecao: '', itens: [{chave: '', valor: ''}] }] };
           } else {
               finalConteudo = typeof currentConteudo === 'object' && currentConteudo !== null ? JSON.parse(JSON.stringify(currentConteudo)) : {};
           }
@@ -1429,12 +1429,10 @@ async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
       size: snapshot.totalBytes
     });
     
-    // Obtém a URL de download com timeout
+    // Corrigir o bloco do Promise.race
     const downloadURLPromise = Promise.race([
       getDownloadURL(snapshot.ref),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout ao obter URL de download')), 10000)
-      )
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao obter URL de download')), 10000))
     ]);
     
     const downloadURL = await downloadURLPromise;
@@ -2312,6 +2310,21 @@ watch(() => props.id, (newId) => {
     fetchStationData();
   }
 }, { immediate: true });
+
+// Função para auto-resize da textarea de descrição
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.max(el.scrollHeight, 100) + 'px';
+}
+
+function getTipoLabel(tipo) {
+  switch (tipo) {
+    case 'texto_simples': return 'Texto Simples';
+    case 'imagem_com_texto': return 'Imagem com Texto/Laudo';
+    case 'lista_chave_valor_secoes': return 'Lista Chave-Valor';
+    default: return 'Tipo Desconhecido';
+  }
+}
 </script>
 
 <template>
@@ -2427,93 +2440,96 @@ watch(() => props.id, (newId) => {
       <div class="card">
         <h3>Editando Estação ID: {{ stationId }}</h3>
         <form @submit.prevent="saveStationChanges" class="manual-form">
-          <h4>Dados Gerais da Estação</h4>
           <div class="form-group">
-            <label for="manualIdEstacao">ID da Estação (identificador único para o conteúdo, ex: cardio_iam_001):</label>
-            <input type="text" id="manualIdEstacao" v-model="formData.idEstacao" required placeholder="Ex: cardio_iam_001">
+            <label for="manualIdEstacao" style="text-transform: uppercase !important; color: red !important; font-weight: bold !important;">ID da Estação:</label>
+            <input type="text" id="manualIdEstacao" v-model="formData.idEstacao" required placeholder="Ex: cardio_iam_001" class="theme-input">
           </div>
+
+          <div class="section-divider"></div>
           <div class="form-group">
-            <label for="manualTituloEstacao">Título da Estação (como aparecerá na lista):</label>
+            <label for="manualTituloEstacao" style="text-transform: uppercase !important; color: red !important; font-weight: bold !important;">Título da Estação (como aparecerá na lista):</label>
             <AIFieldAssistant
               field-name="tituloEstacao"
               field-label="Título da Estação"
               v-model="formData.tituloEstacao"
               :station-context="stationContext"
               :station-id="stationId"
+              :showAiButton="false"
               @field-updated="handleAIFieldUpdate"
               @suggest-requested="onAISuggestRequested"
             >
               <div style="display:flex; align-items:center; gap:8px;">
-                <input type="text" id="manualTituloEstacao" v-model="formData.tituloEstacao" required placeholder="Ex: Atendimento ao Paciente com Dor Torácica Aguda">
+                <input type="text" id="manualTituloEstacao" v-model="formData.tituloEstacao" required placeholder="Ex: Atendimento ao Paciente com Dor Torácica Aguda" class="theme-input">
                 <!-- Botão de sugestão movido para dentro do AIFieldAssistant -->
               </div>
             </AIFieldAssistant>
           </div>
+
+          <div class="section-divider"></div>
           
-          <h4>Cenário de Atendimento (Visível para o Candidato)</h4>
+          <div class="form-group">
+            <label for="manualInfraestrutura" style="text-transform: uppercase !important; color: red !important; font-weight: bold !important;">Infraestrutura da Unidade Disponível (separar por ponto e vírgula ";"):</label>
+            <textarea id="manualInfraestrutura" v-model="formData.cenarioAtendimento_infraestruturaUnidade" rows="3" placeholder="Ex: maca; monitor cardíaco; acesso venoso periférico; materiais para intubação"></textarea>
+          </div>
           <div class="form-group">
             <label for="manualNivelAtencao">Nível de Atenção:</label>
-            <input type="text" id="manualNivelAtencao" v-model="formData.cenarioAtendimento_nivelAtencao" placeholder="Ex: atenção primária, secundária, terciária">
+            <input type="text" id="manualNivelAtencao" v-model="formData.cenarioAtendimento_nivelAtencao" placeholder="Ex: atenção primária, secundária, terciária" class="theme-input">
           </div>
           <div class="form-group">
             <label for="manualTipoAtendimento">Tipo de Atendimento:</label>
-            <input type="text" id="manualTipoAtendimento" v-model="formData.cenarioAtendimento_tipoAtendimento" placeholder="Ex: ambulatorial, emergência, enfermaria">
-          </div>
-          <div class="form-group">
-            <label for="manualInfraestrutura">Infraestrutura da Unidade Disponível (separar por ponto e vírgula ";"):</label>
-            <textarea id="manualInfraestrutura" v-model="formData.cenarioAtendimento_infraestruturaUnidade" rows="3" placeholder="Ex: maca; monitor cardíaco; acesso venoso periférico; materiais para intubação"></textarea>
+            <input type="text" id="manualTipoAtendimento" v-model="formData.cenarioAtendimento_tipoAtendimento" placeholder="Ex: ambulatorial, emergência, enfermaria" class="theme-input">
           </div>
 
-          <h4>Instruções para o Participante (Candidato)</h4>
+          <div class="section-divider"></div>
+
           <div class="form-group">
-            <label for="manualDescricaoCaso">Descrição Completa do Caso para o Candidato:</label>
+            <label for="manualDescricaoCaso" style="text-transform: uppercase !important; color: red !important; font-weight: bold !important;">Descrição Completa do Caso para o Candidato:</label>
             <AIFieldAssistant
               field-name="descricaoCasoCompleta"
               field-label="Descrição do Caso"
               v-model="formData.descricaoCasoCompleta"
               :station-context="stationContext"
               :station-id="stationId"
+              :showAiButton="false"
               @field-updated="handleAIFieldUpdate"
               @suggest-requested="onAISuggestRequested"
             >
-              <div style="display:flex; gap:8px; align-items:flex-start;">
-                <TiptapEditor
-                  v-model="formData.descricaoCasoCompleta"
-                  placeholder="Descreva o cenário clínico que o candidato encontrará..."
-                  style="flex: 1;"
-                />
-                <!-- Botão de sugestão movido para dentro do AIFieldAssistant -->
-              </div>
+              <textarea id="manualDescricaoCaso" v-model="formData.descricaoCasoCompleta" rows="5" placeholder="Descreva o caso clínico completo que o candidato verá... (uma seção por linha se for lista)"></textarea>
             </AIFieldAssistant>
           </div>
+
+          <div class="section-divider"></div>
           <div class="form-group">
-            <label for="manualTarefasPrincipais">Tarefas Principais do Candidato (uma por linha):</label>
+            <label for="manualTarefasPrincipais" style="text-transform: uppercase !important; color: red !important; font-weight: bold !important;">Tarefas Principais do Candidato (uma por linha):</label>
             <AIFieldAssistant
               field-name="tarefasPrincipais"
               field-label="Tarefas Principais"
               v-model="formData.tarefasPrincipais"
               :station-context="stationContext"
               :station-id="stationId"
+              :showAiButton="false"
               @field-updated="handleAIFieldUpdate"
             >
               <textarea id="manualTarefasPrincipais" v-model="formData.tarefasPrincipais" rows="4" required placeholder="Ex: Realizar anamnese completa.&#10;Interpretar o ECG.&#10;Propor conduta inicial."></textarea>
             </AIFieldAssistant>
           </div>
+
+          <div class="section-divider"></div>
           <div class="form-group">
             <label for="manualAvisosImportantes">Avisos Importantes para o Candidato (um por linha, opcional):</label>
             <textarea id="manualAvisosImportantes" v-model="formData.avisosImportantes" rows="3" placeholder="Ex: O paciente simulado pode apresentar instabilidade.&#10;Comunique-se de forma clara e objetiva com o paciente e/ou acompanhante."></textarea>
           </div>
 
-          <h4 style="font-size: 1.5rem !important; color: #d32f2f !important; font-weight: 800;">ROTEIRO DO ATOR</h4>
+          <h4 :style="{ fontSize: '2.5rem !important', color: 'rgb(var(--v-theme-error)) !important', fontWeight: '800 !important', textAlign: 'center !important' }">ROTEIRO DO ATOR</h4>
           <div v-for="(info, index) in formData.informacoesVerbaisSimulado" :key="info.idInfoVerbal" class="dynamic-item-group info-verbal-item">
             <div class="info-verbal-header">
-              <h5>Informação Verbal {{ index + 1 }}</h5>
+              <h5></h5>
               <div class="info-verbal-controls">
                 <div class="position-controls">
-                  <label :for="'posicaoInfoVerbal' + index" class="position-label">Posição:</label>
-                  <select 
-                    :id="'posicaoInfoVerbal' + index" 
-                    :value="index + 1" 
+                  <!-- <label :for="'posicaoInfoVerbal' + index" class="position-label">Posição:</label> -->
+                  <select
+                    :id="'posicaoInfoVerbal' + index"
+                    :value="index + 1"
                     @change="moverInfoVerbalParaPosicao(index, $event.target.value)"
                     class="position-select"
                   >
@@ -2521,18 +2537,18 @@ watch(() => props.id, (newId) => {
                   </select>
                 </div>
                 <div class="move-buttons">
-                  <button 
-                    type="button" 
-                    @click="moverInfoVerbalParaCima(index)" 
+                  <button
+                    type="button"
+                    @click="moverInfoVerbalParaCima(index)"
                     :disabled="index === 0"
                     class="move-button move-up"
                     title="Mover para cima"
                   >
                     ↑
                   </button>
-                  <button 
-                    type="button" 
-                    @click="moverInfoVerbalParaBaixo(index)" 
+                  <button
+                    type="button"
+                    @click="moverInfoVerbalParaBaixo(index)"
                     :disabled="index === formData.informacoesVerbaisSimulado.length - 1"
                     class="move-button move-down"
                     title="Mover para baixo"
@@ -2544,7 +2560,7 @@ watch(() => props.id, (newId) => {
               </div>
             </div>
             <div class="form-group">
-              <label :for="'infoVerbalContexto' + index">Contexto ou Pergunta-Chave do Candidato:</label>
+              <!-- <label :for="'infoVerbalContexto' + index">Contexto:</label> -->
               <AIFieldAssistant
                 :field-name="`informacoesVerbaisSimulado.${index}.contextoOuPerguntaChave`"
                 field-label="Contexto da Informação Verbal"
@@ -2555,11 +2571,10 @@ watch(() => props.id, (newId) => {
                 :showAiButton="false"
                 @field-updated="handleAIFieldUpdate"
               >
-                <input type="text" :id="'infoVerbalContexto' + index" v-model="info.contextoOuPerguntaChave" placeholder="Ex: Se o candidato perguntar sobre alergias...">
+                <input type="text" :id="'infoVerbalContexto' + index" v-model="info.contextoOuPerguntaChave" placeholder="Ex: Se o candidato perguntar sobre alergias..." class="theme-input">
               </AIFieldAssistant>
             </div>
             <div class="form-group">
-              <label :for="'infoVerbalInformacao' + index">Informação a ser Fornecida pelo Ator:</label>
               <AIFieldAssistant
                 :field-name="`informacoesVerbaisSimulado.${index}.informacao`"
                 field-label="Informação do Ator"
@@ -2578,39 +2593,46 @@ watch(() => props.id, (newId) => {
             </div>
           </div>
           <button type="button" @click="adicionarInfoVerbal" class="add-item-button">+ Adicionar Informação Verbal</button>
-
-          <h4 style="font-size: 1.5rem !important; color: #d32f2f !important; font-weight: 800;">IMPRESSOS</h4>
+          
+          <div class="section-divider"></div>
+          
           <div v-if="formData.impressos.length === 0" class="empty-state-message">
             <p>Nenhum impresso adicionado. Impressos são opcionais - use o botão abaixo para adicionar materiais se necessário.</p>
           </div>
           <div v-for="(impresso, index) in formData.impressos" :key="impresso.idImpresso" class="dynamic-item-group">
             <div class="impresso-header">
-              <h5>Impresso {{ index + 1 }}</h5>
+              <h5 :style="{ fontSize: '2.5rem !important', color: 'rgb(var(--v-theme-error)) !important', fontWeight: '800 !important', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }">
+                <span>IMPRESSO {{ index + 1 }}</span>
+                <span class="impresso-tipo" style="color: red; margin-left: 2em;">({{ getTipoLabel(impresso.tipoConteudo) }})</span>
+              </h5>
               <div class="impresso-controls">
                 <div class="position-controls">
                   <label :for="'posicaoImpresso' + index" class="position-label">Posição:</label>
-                  <select 
-                    :id="'posicaoImpresso' + index" 
-                    :value="index + 1" 
-                    @change="moverImpressoParaPosicao(index, $event.target.value)"
-                    class="position-select"
-                  >
+                  <select :id="'posicaoImpresso' + index" :value="index + 1" @change="moverImpressoParaPosicao(index, $event.target.value)" class="position-select">
                     <option v-for="pos in formData.impressos.length" :key="pos" :value="pos">{{ pos }}</option>
                   </select>
                 </div>
+                <div class="position-controls">
+                  <label :for="'tipoImpresso' + index" class="position-label">Tipo do Impresso:</label>
+                  <select :id="'tipoImpresso' + index" v-model="impresso.tipoConteudo" @change="onTipoConteudoChange(impresso)">
+                    <option value="texto_simples">Texto Simples</option>
+                    <option value="imagem_com_texto">Imagem com Texto/Laudo</option>
+                    <option value="lista_chave_valor_secoes">Lista Chave-Valor (Exames)</option>
+                  </select>
+                </div>
                 <div class="move-buttons">
-                  <button 
-                    type="button" 
-                    @click="moverImpressoParaCima(index)" 
+                  <button
+                    type="button"
+                    @click="moverImpressoParaCima(index)"
                     :disabled="index === 0"
                     class="move-button move-up"
                     title="Mover para cima"
                   >
                     ↑
                   </button>
-                  <button 
-                    type="button" 
-                    @click="moverImpressoParaBaixo(index)" 
+                  <button
+                    type="button"
+                    @click="moverImpressoParaBaixo(index)"
                     :disabled="index === formData.impressos.length - 1"
                     class="move-button move-down"
                     title="Mover para baixo"
@@ -2619,19 +2641,14 @@ watch(() => props.id, (newId) => {
                   </button>
                 </div>
                 <button type="button" @click="removerImpresso(index)" class="remove-item-button-header">Remover Impresso</button>
-                
-                <!-- Botão IA bulk para todo o impresso -->
-                <button type="button" @click.prevent="suggestForImpresso(index)" class="ai-bulk-button" :disabled="aiBulkLoading">
-                  🤖 Sugerir (Impresso)
-                </button>
               </div>
             </div>
             <div class="form-group" style="display: none;">
               <label :for="'impressoId' + index">ID do Impresso (único, ex: ecg_inicial):</label>
-              <input type="text" :id="'impressoId' + index" v-model="impresso.idImpresso" required>
+              <input type="text" :id="'impressoId' + index" v-model="impresso.idImpresso" required class="theme-input">
             </div>
             <div class="form-group">
-              <label :for="'impressoTitulo' + index">Título do Impresso (Ex: ECG de 12 Derivações):</label>
+              <label :for="'impressoTitulo' + index">Título do Impresso:</label>
               <AIFieldAssistant
                 :field-name="`impressos.${index}.tituloImpresso`"
                 field-label="Título do Impresso"
@@ -2639,22 +2656,15 @@ watch(() => props.id, (newId) => {
                 :station-context="stationContext"
                 :station-id="stationId"
                 :item-index="index"
+                :showAiButton="false"
                 @field-updated="handleAIFieldUpdate"
                 @suggest-requested="onAISuggestRequested"
               >
                 <div style="display:flex; align-items:center; gap:8px;">
-                  <input type="text" :id="'impressoTitulo' + index" v-model="impresso.tituloImpresso" required>
+                  <input type="text" :id="'impressoTitulo' + index" v-model="impresso.tituloImpresso" required class="theme-input">
                   <!-- Sugestão movida para dentro do AIFieldAssistant -->
                 </div>
               </AIFieldAssistant>
-            </div>
-            <div class="form-group">
-              <label :for="'impressoTipoConteudo' + index">Tipo de Conteúdo do Impresso:</label>
-              <select :id="'impressoTipoConteudo' + index" v-model="impresso.tipoConteudo" @change="onTipoConteudoChange(impresso)">
-                <option value="texto_simples">Texto Simples</option>
-                <option value="imagem_com_texto">Imagem com Texto/Laudo</option>
-                <option value="lista_chave_valor_secoes">Lista Chave-Valor (Exames)</option>
-              </select>
             </div>
 
             <div v-if="impresso.tipoConteudo === 'texto_simples'" class="form-group">
@@ -2666,15 +2676,12 @@ watch(() => props.id, (newId) => {
                 :station-context="stationContext"
                 :station-id="stationId"
                 :item-index="index"
+                :showAiButton="false"
         @field-updated="handleAIFieldUpdate"
         @suggest-requested="onAISuggestRequested"
               >
                 <div style="display:flex; gap:8px; align-items:flex-start;">
-                  <TiptapEditor
-                    v-model="impresso.conteudo.texto"
-                    placeholder="Insira o texto do impresso aqui..."
-                    style="flex: 1;"
-                  />
+                  <textarea :id="'impressoConteudoTexto' + index" v-model="impresso.conteudo.texto" rows="4" placeholder="Insira o texto do impresso aqui..."></textarea>
                   <div style="display:flex; flex-direction:column; gap:6px;">
           <!-- Sugestão movida para dentro do AIFieldAssistant -->
                   </div>
@@ -2691,6 +2698,7 @@ watch(() => props.id, (newId) => {
                   :station-context="stationContext"
                   :station-id="stationId"
                   :item-index="index"
+                  :showAiButton="false"
                   @field-updated="handleAIFieldUpdate"
                 >
                   <textarea :id="'impressoConteudoImgDesc' + index" v-model="impresso.conteudo.textoDescritivo" rows="2"></textarea>
@@ -2698,7 +2706,7 @@ watch(() => props.id, (newId) => {
               </div>
               <div class="form-group">
                 <label :for="'impressoConteudoImgPath' + index">Caminho/URL da Imagem:</label>
-                <input type="text" :id="'impressoConteudoImgPath' + index" v-model="impresso.conteudo.caminhoImagem" placeholder="https://exemplo.com/imagem.jpg">
+                <input type="text" :id="'impressoConteudoImgPath' + index" v-model="impresso.conteudo.caminhoImagem" placeholder="https://exemplo.com/imagem.jpg" class="theme-input">
                 
                 <!-- Campo de Upload de Imagem -->
                 <div class="upload-section mt-2">
@@ -2726,11 +2734,6 @@ watch(() => props.id, (newId) => {
                     <small>💡 Formatos aceitos: JPG, PNG, GIF, WebP. Máximo: 10MB</small>
                   </div>
                 </div>
-                <!-- Botão IA para sugerir URL ou descrição da imagem -->
-                <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-                  <button type="button" @click.prevent="suggestForImageUrl(index)" class="ai-bulk-button" :disabled="aiBulkLoading" title="Buscar na web por URLs públicas relevantes usando título, texto descritivo e laudo deste impresso">🤖 Buscar URLs relacionadas</button>
-                  <small style="color: rgb(var(--v-theme-on-surface-variant));">Busca baseada no título, texto descritivo e laudo (apenas links públicos)</small>
-                </div>
               </div>
               <div class="form-group">
                 <label :for="'impressoConteudoImgLaudo' + index">Laudo da Imagem (opcional):</label>
@@ -2741,6 +2744,7 @@ watch(() => props.id, (newId) => {
                   :station-context="stationContext"
                   :station-id="stationId"
                   :item-index="index"
+                  :showAiButton="false"
                   @field-updated="handleAIFieldUpdate"
                 >
                   <textarea :id="'impressoConteudoImgLaudo' + index" v-model="impresso.conteudo.laudo" rows="3"></textarea>
@@ -2766,18 +2770,18 @@ watch(() => props.id, (newId) => {
                         @suggest-requested="onAISuggestRequested"
                     >
                       <div style="display:flex; align-items:center; gap:8px;">
-                        <input type="text" :id="'secaoTitulo' + index + '_' + secaoIndex" v-model="secao.tituloSecao" placeholder="Ex: Hemograma">
+                        <input type="text" :id="'secaoTitulo' + index + '_' + secaoIndex" v-model="secao.tituloSecao" placeholder="Ex: Hemograma" class="theme-input">
                         <!-- Sugestão movida para dentro do AIFieldAssistant -->
                       </div>
                     </AIFieldAssistant>
                     
                     <!-- Aviso de duplicação -->
-                    <div v-if="detectarDuplicacaoTituloSecao(secao)" class="duplicacao-aviso" style="margin-top: 5px; padding: 8px; background-color: rgb(var(--v-theme-warning-container)); border: 1px solid rgb(var(--v-theme-warning)); border-radius: 4px; color: rgb(var(--v-theme-on-warning-container)); font-size: 0.9em;">
+                    <div v-if="detectarDuplicacaoTituloSecao(secao)" class="duplicacao-aviso">
                       ⚠️ <strong>Atenção:</strong> Um ou mais itens desta seção têm a mesma chave que o título da seção. 
                       <button 
                         type="button" 
                         @click="corrigirDuplicacoesImpresso(index)"
-                        style="margin-left: 8px; padding: 2px 6px; background-color: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); border: none; border-radius: 3px; cursor: pointer; font-size: 0.8em;"
+                        class="btn-sugestao-titulo"
                       >
                         Corrigir Agora
                       </button>
@@ -2791,11 +2795,12 @@ watch(() => props.id, (newId) => {
                     :station-context="stationContext"
                     :station-id="stationId"
                     :item-index="index"
+                    :showAiButton="false"
                     @field-updated="handleAIFieldUpdate"
                     @suggest-requested="onAISuggestRequested"
                   >
                     <div style="display:flex; gap:8px; align-items:center;">
-                      <input type="text" v-model="itemSecao.chave" placeholder="Chave (Ex: Hb)" style="flex-basis: 40%;">
+                      <input type="text" v-model="itemSecao.chave" placeholder="Chave (Ex: Hb)" :style="{ flexBasis: '40%' }" class="theme-input">
                       <!-- Sugestão movida para dentro do AIFieldAssistant -->
                     </div>
                   </AIFieldAssistant>
@@ -2806,11 +2811,12 @@ watch(() => props.id, (newId) => {
                     :station-context="stationContext"
                     :station-id="stationId"
                     :item-index="index"
+                    :showAiButton="false"
                     @field-updated="handleAIFieldUpdate"
                     @suggest-requested="onAISuggestRequested"
                   >
                     <div style="display:flex; gap:8px; align-items:center;">
-                      <input type="text" v-model="itemSecao.valor" placeholder="Valor (Ex: 12.5 g/dL)" style="flex-basis: 40%;">
+                      <input type="text" v-model="itemSecao.valor" placeholder="Valor (Ex: 12.5 g/dL)" :style="{ flexBasis: '40%' }" class="theme-input">
                       <!-- Sugestão movida para dentro do AIFieldAssistant -->
                     </div>
                   </AIFieldAssistant>
@@ -2822,11 +2828,11 @@ watch(() => props.id, (newId) => {
             </div>
           </div>
           <button type="button" @click="adicionarImpresso" class="add-item-button">+ Adicionar Impresso</button>
+          <div class="section-divider"></div>
 
-          <h4>Padrão Esperado de Procedimento (PEP / Checklist para Avaliador)</h4>
           <div class="form-group" style="display: none;">
             <label for="pepIdChecklist">ID do Checklist (Identificador único para este PEP):</label>
-            <input type="text" id="pepIdChecklist" v-model="formData.padraoEsperadoProcedimento.idChecklistAssociado" placeholder="Ex: pep_cardio_iam_001">
+            <input type="text" id="pepIdChecklist" v-model="formData.padraoEsperadoProcedimento.idChecklistAssociado" placeholder="Ex: pep_cardio_iam_001" class="theme-input">
           </div>
           
           <div class="form-group" style="display: none;">
@@ -2837,22 +2843,21 @@ watch(() => props.id, (newId) => {
           <div class="form-group" style="display: none;">
             <label>Síntese da Estação - Foco Principal Detalhado do PEP (um por linha):</label>
             <div v-for="(foco, index) in formData.padraoEsperadoProcedimento.sinteseEstacao.focoPrincipalDetalhado" :key="'focoPep-' + index" class="foco-pep-item">
-              <input type="text" v-model="formData.padraoEsperadoProcedimento.sinteseEstacao.focoPrincipalDetalhado[index]" :placeholder="'Foco principal ' + (index + 1) + ' da avaliação...'">
+              <input type="text" v-model="formData.padraoEsperadoProcedimento.sinteseEstacao.focoPrincipalDetalhado[index]" :placeholder="'Foco principal ' + (index + 1) + ' da avaliação...'" class="theme-input">
               <button type="button" @click="removerFocoPrincipalPEP(index)" class="remove-item-button-small" title="Remover Foco">X</button>
             </div>
             <button type="button" @click="adicionarFocoPrincipalPEP" class="add-item-button-small">+ Adicionar Foco Principal</button>
           </div>
 
-          <h5>Itens de Avaliação do PEP</h5>
           <div v-for="(item, index) in formData.padraoEsperadoProcedimento.itensAvaliacao" :key="item.idItem" class="dynamic-item-group pep-item">
             <div class="pep-item-header">
-              <h6>Item de Avaliação {{ index + 1 }}</h6>
+              <h6 :style="{ fontSize: '2rem !important', color: 'rgb(var(--v-theme-error)) !important', fontWeight: '800', textTransform: 'uppercase' }">Item de Avaliação {{ index + 1 }}</h6>
               <div class="pep-controls">
                 <div class="position-controls">
                   <label for="'posicaoItem' + index" class="position-label">Posição:</label>
-                  <select 
-                    :id="'posicaoItem' + index" 
-                    :value="index + 1" 
+                  <select
+                    :id="'posicaoItem' + index"
+                    :value="index + 1"
                     @change="moverItemPEPParaPosicao(index, $event.target.value)"
                     class="position-select"
                   >
@@ -2860,18 +2865,18 @@ watch(() => props.id, (newId) => {
                   </select>
                 </div>
                 <div class="move-buttons">
-                  <button 
-                    type="button" 
-                    @click="moverItemPEPParaCima(index)" 
+                  <button
+                    type="button"
+                    @click="moverItemPEPParaCima(index)"
                     :disabled="index === 0"
                     class="move-button move-up"
                     title="Mover para cima"
                   >
                     ↑
                   </button>
-                  <button 
-                    type="button" 
-                    @click="moverItemPEPParaBaixo(index)" 
+                  <button
+                    type="button"
+                    @click="moverItemPEPParaBaixo(index)"
                     :disabled="index === formData.padraoEsperadoProcedimento.itensAvaliacao.length - 1"
                     class="move-button move-down"
                     title="Mover para baixo"
@@ -2882,14 +2887,6 @@ watch(() => props.id, (newId) => {
                 <button type="button" @click="removerItemAvaliacaoPEP(index)" class="remove-item-button-header">Remover Item</button>
               </div>
             </div>
-            <div class="form-group" style="display: none;">
-              <label :for="'pepItemId' + index">ID do Item (único no checklist, ex: anamnese_dor):</label>
-              <input type="text" :id="'pepItemId' + index" :name="'pepItemId' + index" v-model="item.idItem" required>
-            </div>
-            <div class="form-group" style="display: none;">
-              <label :for="'pepItemNumero' + index">Número Oficial do Item (Automático - baseado na posição):</label>
-              <input type="text" :id="'pepItemNumero' + index" v-model="item.itemNumeroOficial" readonly title="Este valor é atualizado automaticamente com base na posição do item">
-            </div>
             <div class="form-group">
               <label :for="'pepItemDescricao' + index">Descrição do Item de Avaliação:</label>
               <AIFieldAssistant
@@ -2899,23 +2896,27 @@ watch(() => props.id, (newId) => {
                 :station-context="stationContext"
                 :station-id="stationId"
                 :item-index="index"
+                :showAiButton="false"
         @field-updated="handleAIFieldUpdate"
         @suggest-requested="onAISuggestRequested"
               >
                 <div style="display:flex; gap:8px; align-items:flex-start;">
-                  <textarea :id="'pepItemDescricao' + index" v-model="item.descricaoItem" rows="2" required placeholder="Descreva o que deve ser avaliado..."></textarea>
+                  <textarea
+                    :id="'pepItemDescricao' + index"
+                    v-model="item.descricaoItem"
+                    rows="5"
+                    required
+                    placeholder="Descreva o que deve ser avaliado..."
+                    @input="autoResizeTextarea($event.target)"
+                    style="min-height: 100px; resize: vertical;"
+                  ></textarea>
                   <div style="display:flex; flex-direction:column; gap:6px;">
           <!-- Sugestão movida para dentro do AIFieldAssistant -->
                   </div>
                 </div>
               </AIFieldAssistant>
-              <!-- Botão IA bulk para item PEP -->
-              <div style="margin-top:6px;">
-                <button type="button" @click.prevent="suggestForPepItem(index)" class="ai-bulk-button" :disabled="aiBulkLoading">🤖 Sugerir (Item PEP)</button>
-              </div>
             </div>
             <fieldset class="pontuacoes-group">
-              <legend>Critérios e Pontuações do Item</legend>
               <div>
                 <label :for="'pepItemAdequadoCriterio' + index">Critério - Adequado:</label>
                 <AIFieldAssistant
@@ -2925,11 +2926,12 @@ watch(() => props.id, (newId) => {
                   :station-context="stationContext"
                   :station-id="stationId"
                   :item-index="index"
+                  :showAiButton="false"
                   @field-updated="handleAIFieldUpdate"
                   @suggest-requested="onAISuggestRequested"
                 >
                   <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="text" :id="'pepItemAdequadoCriterio' + index" v-model="item.pontuacoes.adequado.criterio" placeholder="Ex: Realizou completamente e corretamente.">
+                    <input type="text" :id="'pepItemAdequadoCriterio' + index" v-model="item.pontuacoes.adequado.criterio" placeholder="Ex: Realizou completamente e corretamente." class="theme-input">
                     <!-- Sugestão movida para dentro do AIFieldAssistant -->
                   </div>
                 </AIFieldAssistant>
@@ -2945,11 +2947,12 @@ watch(() => props.id, (newId) => {
                   :station-context="stationContext"
                   :station-id="stationId"
                   :item-index="index"
+                  :showAiButton="false"
           @field-updated="handleAIFieldUpdate"
           @suggest-requested="onAISuggestRequested"
                 >
                   <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="text" :id="'pepItemParcialCriterio' + index" v-model="item.pontuacoes.parcialmenteAdequado.criterio" placeholder="Ex: Realizou parcialmente ou com pequenas falhas.">
+                    <input type="text" :id="'pepItemParcialCriterio' + index" v-model="item.pontuacoes.parcialmenteAdequado.criterio" placeholder="Ex: Realizou parcialmente ou com pequenas falhas." class="theme-input">
             <!-- Sugestão movida para dentro do AIFieldAssistant -->
                   </div>
                 </AIFieldAssistant>
@@ -2965,11 +2968,12 @@ watch(() => props.id, (newId) => {
                   :station-context="stationContext"
                   :station-id="stationId"
                   :item-index="index"
+                  :showAiButton="false"
                     @field-updated="handleAIFieldUpdate"
                     @suggest-requested="onAISuggestRequested"
                 >
                   <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="text" :id="'pepItemInadequadoCriterio' + index" v-model="item.pontuacoes.inadequado.criterio" placeholder="Ex: Não realizou ou realizou incorretamente.">
+                    <input type="text" :id="'pepItemInadequadoCriterio' + index" v-model="item.pontuacoes.inadequado.criterio" placeholder="Ex: Não realizou ou realizou incorretamente." class="theme-input">
                     <!-- Sugestão movida para dentro do AIFieldAssistant -->
                   </div>
                 </AIFieldAssistant>
@@ -2980,15 +2984,16 @@ watch(() => props.id, (newId) => {
           </div>
           <button type="button" @click="adicionarItemAvaliacaoPEP" class="add-item-button">+ Adicionar Item de Avaliação</button>
 
+          <div class="section-divider"></div>
+
           <!-- Seção de Feedback da Estação -->
-          <h5>Feedback da Estação</h5>
-          <div class="feedback-section">
+          <h5 :style="{ fontSize: '2rem !important', color: 'rgb(var(--v-theme-error)) !important', fontWeight: '800 !important', textTransform: 'uppercase !important' }">FEEDBACK DA ESTAÇÃO</h5>
             <div class="form-group">
               <label for="feedbackResumoTecnico">Resumo Técnico do Feedback:</label>
-              <textarea 
-                id="feedbackResumoTecnico" 
-                v-model="formData.padraoEsperadoProcedimento.feedbackEstacao.resumoTecnico" 
-                rows="4" 
+              <textarea
+                id="feedbackResumoTecnico"
+                v-model="formData.padraoEsperadoProcedimento.feedbackEstacao.resumoTecnico"
+                rows="4"
                 placeholder="Digite aqui o resumo técnico que será apresentado como feedback aos candidatos após a avaliação da estação..."
               ></textarea>
             </div>
@@ -2996,25 +3001,24 @@ watch(() => props.id, (newId) => {
             <div class="form-group">
               <label>Fontes Bibliográficas e Referências:</label>
               <div v-for="(fonte, index) in formData.padraoEsperadoProcedimento.feedbackEstacao.fontes" :key="'fonte-' + index" class="fonte-feedback-item">
-                <input 
-                  type="text" 
-                  v-model="formData.padraoEsperadoProcedimento.feedbackEstacao.fontes[index]" 
+                <input
+                  type="text"
+                  v-model="formData.padraoEsperadoProcedimento.feedbackEstacao.fontes[index]"
                   :placeholder="'Fonte ' + (index + 1) + ' - Ex: Diretrizes SBC 2024, Protocolo Ministério da Saúde, etc.'"
                 >
-                <button 
-                  type="button" 
-                  @click="removerFonteFeedback(index)" 
-                  class="remove-item-button-small" 
+                <button
+                  type="button"
+                  @click="removerFonteFeedback(index)"
+                  class="remove-item-button-small"
                   title="Remover Fonte"
                   :disabled="formData.padraoEsperadoProcedimento.feedbackEstacao.fontes.length === 1"
                 >×</button>
               </div>
               <button type="button" @click="adicionarFonteFeedback" class="add-item-button-small">+ Adicionar Fonte</button>
             </div>
-          </div>
 
           <!-- Pontuação Total da Estação (PEP / Checklist) -->
-          <div class="form-group pep-total-score-display" style="margin-top: 20px; padding: 15px; border: 2px solid rgb(var(--v-theme-outline)); border-radius: 8px; background-color: rgb(var(--v-theme-surface-variant));">
+          <div class="form-group pep-total-score-display">
             <label for="pepPontuacaoTotal" style="font-weight: bold; font-size: 1.1em;">Pontuação Total Máxima da Estação (PEP):</label>
             <input type="number" step="0.001" id="pepPontuacaoTotal" v-model.number="formData.padraoEsperadoProcedimento.pontuacaoTotalEstacao" readonly title="Calculado automaticamente com base nos pontos 'Adequado' de cada item." style="font-size: 1.2em; font-weight: bold;">
             <span v-if="typeof calcularPontuacaoTotalPEP === 'number'" style="margin-left: 10px; font-size: 1.1em;">(Calculado: {{ calcularPontuacaoTotalPEP.toFixed(3) }})</span>
@@ -3139,14 +3143,14 @@ watch(() => props.id, (newId) => {
         <h3>Revisar Sugestões da IA</h3>
         <p>Revise as sugestões abaixo. Aplique individualmente ou clique em "Aplicar todas".</p>
         <div style="max-height: 50vh; overflow:auto; margin-top: 12px;">
-          <div v-for="(s, idx) in aiBulkSuggestions" :key="s.fieldName + idx" style="border-bottom:1px solid #eee; padding:8px 0;">
+          <div v-for="(s, idx) in aiBulkSuggestions" :key="s.fieldName + idx" :style="{ borderBottom: '1px solid rgb(var(--v-theme-outline))', padding: '8px 0' }">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
               <strong>{{ s.label }}</strong>
               <div>
                 <button type="button" @click.prevent="applyBulkSuggestion(s)" class="ai-bulk-button">Aplicar</button>
               </div>
             </div>
-            <pre style="white-space:pre-wrap; background:#fafafa; padding:8px; border-radius:6px; margin-top:6px;">{{ s.suggestion || '(sem sugestão)' }}</pre>
+            <pre class="suggestion-pre">{{ s.suggestion || '(sem sugestão)' }}</pre>
           </div>
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
@@ -3261,8 +3265,8 @@ watch(() => props.id, (newId) => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
+  border: 4px solid rgba(var(--v-theme-outline), 0.3);
+  border-top: 4px solid rgb(var(--v-theme-primary));
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
@@ -3271,6 +3275,127 @@ watch(() => props.id, (newId) => {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Inputs simplificados */
+.manual-form input[type="text"],
+.manual-form input[type="number"],
+.manual-form select,
+.manual-form textarea {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #cccccc !important;
+  border-radius: 4px !important;
+  padding: 8px !important;
+  width: 100% !important;
+  font-size: 14px !important;
+  font-weight: normal !important;
+  font-family: inherit !important;
+  transition: none !important;
+  box-shadow: none !important;
+  min-height: auto !important;
+}
+
+.manual-form input[type="text"]:focus,
+.manual-form input[type="number"]:focus,
+.manual-form select:focus,
+.manual-form textarea:focus {
+  outline: none !important;
+  border-color: #007bff !important;
+  background-color: #ffffff !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.manual-form input[type="text"]::placeholder,
+.manual-form textarea::placeholder {
+  color: #999999 !important;
+  opacity: 1 !important;
+  font-style: normal !important;
+  font-weight: normal !important;
+}
+
+/* Inputs para tema escuro simplificados */
+.edit-station-container--dark .manual-form input[type="text"],
+.edit-station-container--dark .manual-form input[type="number"],
+.edit-station-container--dark .manual-form select,
+.edit-station-container--dark .manual-form textarea {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+  border: 1px solid #666666 !important;
+  box-shadow: none !important;
+}
+
+.edit-station-container--dark .manual-form input[type="text"]:focus,
+.edit-station-container--dark .manual-form input[type="number"]:focus,
+.edit-station-container--dark .manual-form select:focus,
+.edit-station-container--dark .manual-form textarea:focus {
+  background-color: #333333 !important;
+  border-color: #007bff !important;
+  box-shadow: none !important;
+}
+
+.edit-station-container--dark .manual-form input[type="text"]::placeholder,
+.edit-station-container--dark .manual-form textarea::placeholder {
+  color: #aaaaaa !important;
+}
+
+/* Estilos de seleção de texto melhorados */
+.theme-input::selection,
+.manual-form input[type="text"]::selection,
+.manual-form textarea::selection,
+*::selection {
+  background-color: #007bff !important;
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+.theme-input {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #cccccc !important;
+  border-radius: 4px !important;
+  padding: 8px !important;
+  width: 100% !important;
+  font-size: 14px !important;
+  font-weight: normal !important;
+  font-family: inherit !important;
+  transition: none !important;
+  box-shadow: none !important;
+  min-height: auto !important;
+}
+
+.theme-input:focus {
+  outline: none !important;
+  border-color: #007bff !important;
+  background-color: #ffffff !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.theme-input::placeholder {
+  color: #6c757d !important;
+  opacity: 0.9 !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+}
+
+/* Estilos específicos para tema escuro */
+.edit-station-container--dark .theme-input {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+  border: 1px solid #666666 !important;
+  box-shadow: none !important;
+}
+
+.edit-station-container--dark .theme-input:focus {
+  background-color: #333333 !important;
+  border-color: #007bff !important;
+  box-shadow: none !important;
+}
+
+.edit-station-container--dark .theme-input::placeholder {
+  color: #aaaaaa !important;
 }
 
 .back-button, .delete-button, .download-button, .download-all-button {
@@ -3366,47 +3491,37 @@ watch(() => props.id, (newId) => {
 
 .manual-form label { 
   display: block; 
-  margin-bottom: 6px; 
-  font-weight: 500; 
-  color: rgb(var(--v-theme-on-surface)); 
-  font-size: 0.95em; 
+  margin-bottom: 8px; 
+  font-weight: 700 !important; 
+  color: #212529 !important; 
+  font-size: 15px !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  background: transparent !important;
+  padding: 4px 0 !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
 }
 
-.manual-form input[type="text"],
-.manual-form input[type="number"],
-.manual-form select,
-.manual-form textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--v-theme-outline));
-  border-radius: 4px;
-  box-sizing: border-box;
-  font-size: 1em;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+/* Labels no tema escuro */
+.edit-station-container--dark .manual-form label {
+  color: #e9ecef !important;
+  background: transparent !important;
+  border-left-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
 }
 
-.manual-form input[type="text"]:focus,
-.manual-form input[type="number"]:focus,
-.manual-form select:focus,
-.manual-form textarea:focus {
-  border-color: rgb(var(--v-theme-primary));
-  box-shadow: 0 0 0 0.2rem rgba(var(--v-theme-primary), .25);
-  outline: none;
-}
-
-.manual-form textarea { 
-  resize: vertical; 
-  min-height: 80px; 
-}
-
-.manual-form h4 { 
-  margin-top: 35px; 
-  margin-bottom: 20px; 
-  color: rgb(var(--v-theme-primary)); 
-  border-bottom: 1px solid rgb(var(--v-theme-outline)); 
-  padding-bottom: 10px; 
-  font-weight: 600; 
-  font-size: 1.2em; 
+/* Títulos de seções simplificados */
+.manual-form h3, .manual-form h4, .manual-form h5 {
+  background: none !important;
+  color: #000000 !important;
+  padding: 5px 0 !important;
+  border: none !important;
+  margin: 15px 0 10px 0 !important;
+  font-weight: 600 !important;
 }
 
 .manual-form h5 { 
@@ -3426,28 +3541,30 @@ watch(() => props.id, (newId) => {
 }
 
 .dynamic-item-group {
-  background-color: rgb(var(--v-theme-surface-variant));
-  border: 1px solid rgb(var(--v-theme-outline));
-  border-left: 4px solid rgb(var(--v-theme-primary));
-  border-radius: 5px;
-  padding: 20px;
-  margin-bottom: 25px;
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 10px 0 !important;
+  margin-bottom: 15px !important;
   position: relative;
 }
 
 .dynamic-item-group h5, .dynamic-item-group h6 { 
-  margin-top: 0;
-  color: rgb(var(--v-theme-on-surface));
+  margin: 0 0 10px 0 !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  background: none !important;
+  padding: 0 !important;
+  border: none !important;
 }
 
 .dynamic-item-group-nested {
-  background-color: rgb(var(--v-theme-surface));
-  border: 1px solid rgb(var(--v-theme-outline-variant));
-  border-left: 3px solid rgb(var(--v-theme-secondary));
-  padding: 15px;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  border-radius: 4px;
+  background: none !important;
+  border: none !important;
+  padding: 5px 0 !important;
+  margin: 5px 0 !important;
+  border-radius: 0 !important;
 }
 
 .dynamic-item-group-very-nested {
@@ -3456,10 +3573,6 @@ watch(() => props.id, (newId) => {
   align-items: center;
   margin-bottom: 5px;
   padding-left: 10px;
-}
-
-.dynamic-item-group-very-nested input[type="text"] {
-  flex-grow: 1;
 }
 
 .pep-item { 
@@ -3547,19 +3660,19 @@ watch(() => props.id, (newId) => {
 }
 
 .pontuacoes-group { 
-  border: 1px solid rgb(var(--v-theme-outline)); 
-  padding: 15px; 
-  margin-top:15px; 
-  border-radius: 4px; 
-  background-color: rgb(var(--v-theme-surface-variant)); 
+  border: none !important; 
+  padding: 10px 0 !important; 
+  margin-top: 10px !important; 
+  border-radius: 0 !important; 
+  background: none !important; 
 }
 
 .pontuacoes-group legend { 
-  font-size: 1em; 
-  font-weight: 500; 
-  padding: 0 8px; 
-  color: rgb(var(--v-theme-on-surface)); 
-  margin-bottom: 10px;
+  font-size: 16px !important; 
+  font-weight: 600 !important; 
+  padding: 0 !important; 
+  color: #000000 !important; 
+  margin-bottom: 10px !important;
 }
 
 .pontuacoes-group > div { 
@@ -3571,16 +3684,16 @@ watch(() => props.id, (newId) => {
 }
 
 .pontuacoes-group > div > label:first-child { 
-  font-weight:normal; 
-  font-size:0.9em; 
-  color: rgb(var(--v-theme-on-surface));
+  font-weight: normal !important; 
+  font-size: 14px !important; 
+  color: #000000 !important;
 }
 
 .pontuacoes-group > div > label:nth-of-type(2) { 
-  font-weight:normal; 
-  font-size:0.9em; 
+  font-weight: normal !important; 
+  font-size: 14px !important; 
   justify-self: end; 
-  color: rgb(var(--v-theme-on-surface));
+  color: #000000 !important;
 }
 
 .pontuacoes-group input[type="text"], .pontuacoes-group input[type="number"] { 
@@ -3589,28 +3702,121 @@ watch(() => props.id, (newId) => {
 }
 
 .pep-total-score-display { 
-  margin-top: 20px; 
-  padding-top:15px; 
-  border-top: 1px solid rgb(var(--v-theme-outline));
+  margin-top: 15px !important; 
+  padding: 10px 0 !important; 
+  border-top: 1px solid #cccccc !important;
 }
 
 .pep-total-score-display label { 
-  font-weight: 600; 
+  font-weight: 600 !important; 
+  color: #000000 !important;
 }
 
 .pep-total-score-display input[type="number"] {
-  background-color: rgb(var(--v-theme-surface-variant));
-  color: rgb(var(--v-theme-on-surface-variant));
+  background-color: #f8f8f8 !important;
+  color: #000000 !important;
   cursor: not-allowed;
   width: auto;
   display: inline-block;
   max-width:100px;
-  margin-right: 10px;
+  border: 1px solid #cccccc !important;
 }
 
 .pep-total-score-display span { 
-  font-size: 0.9em; 
-  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 14px !important; 
+  color: #666666 !important;
+}
+
+/* Estilos limpos para elementos que tinham fundos inline */
+.duplicacao-aviso {
+  margin-top: 5px !important;
+  padding: 8px !important;
+  background: none !important;
+  border: 1px solid #ffc107 !important;
+  border-radius: 4px !important;
+  color: #856404 !important;
+  font-size: 14px !important;
+}
+
+.btn-sugestao-titulo {
+  margin-left: 8px !important;
+  padding: 2px 6px !important;
+  background: #f8f9fa !important;
+  color: #495057 !important;
+  border: 1px solid #dee2e6 !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+}
+
+.suggestion-pre {
+  white-space: pre-wrap !important;
+  background: #f8f9fa !important;
+  color: #495057 !important;
+  padding: 8px !important;
+  border-radius: 4px !important;
+  margin-top: 6px !important;
+  border: 1px solid #dee2e6 !important;
+}
+
+/* Tema escuro para elementos limpos */
+.edit-station-container--dark .duplicacao-aviso {
+  background: none !important;
+  border-color: #ffc107 !important;
+  color: #fff3cd !important;
+}
+
+.edit-station-container--dark .btn-sugestao-titulo {
+  background: #495057 !important;
+  color: #ffffff !important;
+  border-color: #666666 !important;
+}
+
+.edit-station-container--dark .suggestion-pre {
+  background: #495057 !important;
+  color: #ffffff !important;
+  border-color: #666666 !important;
+}
+
+.edit-station-container--dark .pontuacoes-group legend {
+  color: #ffffff !important;
+}
+
+.edit-station-container--dark .pontuacoes-group > div > label:first-child,
+.edit-station-container--dark .pontuacoes-group > div > label:nth-of-type(2) {
+  color: #ffffff !important;
+}
+
+.edit-station-container--dark .pep-total-score-display label {
+  color: #ffffff !important;
+}
+
+.edit-station-container--dark .pep-total-score-display input[type="number"] {
+  background-color: #495057 !important;
+  color: #ffffff !important;
+  border-color: #666666 !important;
+}
+
+.edit-station-container--dark .pep-total-score-display span {
+  color: #cccccc !important;
+}
+
+/* Tema escuro para secao-header */
+.edit-station-container--dark .secao-header h5 {
+  color: #ffffff !important;
+}
+
+/* Tema escuro para edit-status */
+.edit-station-container--dark .edit-status-header h4 {
+  color: #ffffff !important;
+}
+
+.edit-station-container--dark .status-label {
+  color: #cccccc !important;
+}
+
+.edit-station-container--dark .status-value {
+  color: #ffffff !important;
 }
 
 .save-manual-button { 
@@ -3772,10 +3978,11 @@ watch(() => props.id, (newId) => {
 }
 
 .move-button:disabled {
-  background-color: rgb(var(--v-theme-surface-variant));
+  background-color: rgba(var(--v-theme-surface-variant), 0.8) !important;
+  border: 1px solid rgba(var(--v-theme-outline), 0.4) !important;
   color: rgb(var(--v-theme-on-surface-variant));
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.6 !important;
 }
 
 .move-button.move-up {
@@ -3785,6 +3992,7 @@ watch(() => props.id, (newId) => {
 .move-button.move-down {
   color: rgb(var(--v-theme-error));
 }
+
 
 /* Estilos para controles de informações verbais */
 .info-verbal-item {
@@ -3851,13 +4059,13 @@ watch(() => props.id, (newId) => {
 
 .dialog-content h3 {
   margin: 0 0 16px 0;
-  color: #2c3e50;
+  color: rgb(var(--v-theme-on-surface));
   font-size: 20px;
 }
 
 .dialog-content p {
   margin: 0 0 20px 0;
-  color: #6c757d;
+  color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .position-options {
@@ -3926,44 +4134,45 @@ watch(() => props.id, (newId) => {
   color: rgb(var(--v-theme-on-secondary));
 }
 
-/* Estilos para header das seções */
+/* Header das seções limpo */
 .secao-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
-  padding: 10px;
-  background-color: rgb(var(--v-theme-surface-variant));
-  border-radius: 6px;
-  border: 1px solid rgb(var(--v-theme-outline));
+  margin-bottom: 10px !important;
+  padding: 5px 0 !important;
+  background: none !important;
+  border-radius: 0 !important;
+  border: none !important;
 }
 
 .secao-header h5 {
-  margin: 0;
-  color: rgb(var(--v-theme-on-surface));
-  font-weight: 600;
+  margin: 0 !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
 }
 
 .remove-item-button-header {
-  padding: 6px 12px;
-  border: 1px solid rgb(var(--v-theme-error));
-  background-color: rgb(var(--v-theme-error));
-  color: rgb(var(--v-theme-on-error));
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 6px 12px !important;
+  border: 1px solid #dc3545 !important;
+  background-color: #dc3545 !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: none !important;
 }
 
 .remove-item-button-header:hover {
-  background-color: rgb(var(--v-theme-error), 0.8);
-  border-color: rgb(var(--v-theme-error), 0.8);
-  transform: translateY(-1px);
+  background-color: #c82333 !important;
+  border-color: #c82333 !important;
+  transform: none !important;
 }
 
 .remove-item-button-header:active {
-  transform: translateY(0);
+  transform: none !important;
 }
 
 /* Estilos para upload de imagens */
@@ -3971,7 +4180,7 @@ watch(() => props.id, (newId) => {
   border: 2px dashed rgb(var(--v-theme-outline));
   border-radius: 8px;
   padding: 15px;
-  background-color: rgb(var(--v-theme-surface-variant));
+  background-color: transparent;
   margin-top: 10px;
 }
 
@@ -3985,14 +4194,15 @@ watch(() => props.id, (newId) => {
 .file-input {
   width: 100%;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(var(--v-theme-outline), 0.3);
   border-radius: 4px;
-  background-color: white;
+  background-color: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
   cursor: pointer;
 }
 
 .file-input:disabled {
-  background-color: #f5f5f5;
+  background-color: rgba(var(--v-theme-surface-variant), 0.5);
   cursor: not-allowed;
 }
 
@@ -4033,8 +4243,12 @@ watch(() => props.id, (newId) => {
   margin-top: 5px;
 }
 
+.edit-station-container--dark .upload-info small {
+  color: #cccccc;
+}
+
 .upload-info small {
-  color: #666;
+  color: #666666;
   font-size: 12px;
 }
 
@@ -4093,76 +4307,77 @@ watch(() => props.id, (newId) => {
   background-color: #adb5bd;
 }
 
-/* Estilos para status de edição */
+/* Status de edição limpo */
 .edit-status-card {
-  background: linear-gradient(135deg, rgb(var(--v-theme-surface-variant)) 0%, rgb(var(--v-theme-surface)) 100%);
-  border: 1px solid rgb(var(--v-theme-outline));
-  border-left: 4px solid rgb(var(--v-theme-primary));
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(var(--v-theme-shadow), 0.1);
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 10px 0 !important;
+  margin-bottom: 15px !important;
+  box-shadow: none !important;
 }
 
 .edit-status-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 10px !important;
 }
 
 .edit-status-header h4 {
-  margin: 0;
-  color: rgb(var(--v-theme-on-surface));
-  font-weight: 600;
+  margin: 0 !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+  font-size: 18px !important;
 }
 
 .edit-status-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: bold;
-  text-transform: uppercase;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  text-transform: uppercase !important;
 }
 
 .edit-status-badge.edited {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background-color: #d4edda !important;
+  color: #155724 !important;
+  border: 1px solid #c3e6cb !important;
 }
 
 .edit-status-badge.not-edited {
-  background-color: #fff3cd;
-  color: #856404;
-  border: 1px solid #ffeaa7;
+  background-color: #fff3cd !important;
+  color: #856404 !important;
+  border: 1px solid #ffeaa7 !important;
 }
 
 .edit-status-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 10px;
+  display: block !important;
+  gap: 0 !important;
 }
 
 .status-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+  padding: 4px 0 !important;
+  border-bottom: none !important;
 }
 
 .status-row:last-child {
-  border-bottom: none;
+  border-bottom: none !important;
 }
 
 .status-label {
-  font-weight: 500;
-  color: rgb(var(--v-theme-on-surface-variant));
+  font-weight: 500 !important;
+  color: #666666 !important;
+  font-size: 14px !important;
 }
 
 .status-value {
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
+  font-weight: 600 !important;
+  color: #000000 !important;
+  font-size: 14px !important;
 }
 
 /* Estilo simples para botão de sugestão IA */
@@ -4272,13 +4487,13 @@ watch(() => props.id, (newId) => {
 }
 
 .floating-undo-btn:hover:not(:disabled) {
+  background-color: #e55a2b;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  background-color: #e55a2b;
 }
 
 .floating-undo-btn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: none;
 }
 
 .floating-undo-btn:disabled {
@@ -4318,6 +4533,19 @@ watch(() => props.id, (newId) => {
   }
 }
 
+/* Divisória entre seções - mais visível */
+.section-divider {
+  height: 10px;
+  background-color: rgb(var(--v-theme-primary));
+  margin: 30px 0;
+  border-radius: 2px;
+  width: 100%;
+}
+
+.edit-station-container--dark .section-divider {
+  background-color: rgb(var(--v-theme-primary));
+}
+
 /* Estilos base (sempre aplicáveis) */
 .manual-form input[type="text"],
 .manual-form input[type="number"],
@@ -4338,8 +4566,80 @@ watch(() => props.id, (newId) => {
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-.manual-form label {
-  color: rgb(var(--v-theme-on-surface));
-  font-weight: 600;
+/* Remover fundo do toolbar do Tiptap */
+.editor-toolbar--dark[data-v-3af536a5] {
+  background-color: transparent !important;
+}
+
+/* Ajustar tamanho (reduzido 25%) e cor do botão Adicionar Informação Verbal */
+.add-item-button {
+  padding: 12px 22.5px !important;
+  font-size: 0.975em !important;
+  background-color: rgb(var(--v-theme-error)) !important;
+  color: rgb(var(--v-theme-on-error)) !important;
+}
+
+.add-item-button:hover:not(:disabled) {
+  background-color: rgb(var(--v-theme-error-darken-1)) !important;
+}
+
+/* Melhoria de visibilidade do ícone SVG no AIFieldAssistant */
+:deep(.ai-icon path[fill="currentColor"]),
+:deep(.ai-icon svg path[fill="currentColor"]) {
+  fill: rgb(var(--v-theme-primary)) !important;
+  stroke: rgb(var(--v-theme-primary)) !important;
+  stroke-width: 1.5px !important;
+  transform: scale(1.4) !important;
+  transition: all 0.2s ease !important;
+}
+
+:deep(.ai-icon:hover path[fill="currentColor"]),
+:deep(.ai-icon svg:hover path[fill="currentColor"]) {
+  stroke-width: 2px !important;
+  stroke: rgb(var(--v-theme-primary)) !important;
+  transform: scale(1.5) !important;
+}
+
+/* Ajustes para temas claro e escuro - compatibilidade condicional */
+.edit-station-container--light :deep(.ai-icon path[fill="currentColor"]),
+.edit-station-container--light :deep(.ai-icon svg path[fill="currentColor"]) {
+  fill: rgb(var(--v-theme-primary)) !important; /* Primary contrastante em tema claro (ex: roxo/azul) */
+  stroke: rgb(var(--v-theme-primary)) !important;
+}
+
+.edit-station-container--dark :deep(.ai-icon path[fill="currentColor"]),
+.edit-station-container--dark :deep(.ai-icon svg path[fill="currentColor"]) {
+  fill: rgb(var(--v-theme-primary)) !important; /* Primary visível em fundo escuro (ex: roxo claro) */
+  stroke: rgb(var(--v-theme-primary)) !important;
+}
+
+.impresso-tipo {
+  font-size: 1rem;
+  color: #666;
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: normal;
+}
+
+@media (max-width: 768px) {
+  .impresso-tipo {
+    align-self: flex-end;
+    font-size: 0.875rem;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .impresso-h5 {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+
+  .impresso-type {
+    align-self: flex-end !important;
+    font-size: 0.875rem !important;
+    margin-left: 0 !important;
+  }
 }
 </style>

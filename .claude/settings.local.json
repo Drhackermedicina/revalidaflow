@@ -11,7 +11,10 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(curl:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(gcloud run services describe:*)",
+      "Bash(gcloud secrets versions access:*)",
+      "Bash(gcloud logging read:*)"
     ],
     "deny": [],
     "ask": []

@@ -48,7 +48,7 @@ registerPlugins @ plugins.js:45
         type="button"
         title="Chat IA Livre"
       >
-        <v-icon size="16">mdi-robot</v-icon>
+        <v-icon size="16" :color="$vuetify.theme.current.dark ? 'white' : 'primary'">mdi-robot</v-icon>
       </button>
       
       <!-- Indicador de processamento -->
@@ -61,7 +61,7 @@ registerPlugins @ plugins.js:45
     <v-dialog v-model="showDialog" max-width="700" persistent>
       <v-card>
         <v-card-title class="d-flex align-center">
-          <v-icon class="me-2" color="primary">mdi-robot</v-icon>
+          <v-icon class="me-2" :color="$vuetify.theme.current.dark ? 'white' : 'primary'">mdi-robot</v-icon>
           Chat IA Livre - {{ fieldLabel || fieldName }}
           
           <v-spacer />
@@ -303,7 +303,6 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  // Usar camelCase com 'i' minúsculo para compatibilidade com kebab-case HTML
   showAiButton: {
     type: Boolean,
     default: true
@@ -791,21 +790,24 @@ onMounted(() => {
   top: 8px;
   right: 8px;
   z-index: 10;
-  background: rgba(var(--v-theme-primary), 0.1);
-  border: 1px solid rgba(var(--v-theme-primary), 0.3);
+  background: rgba(var(--v-theme-primary), 0.15);
+  border: 1px solid rgba(var(--v-theme-primary), 0.5);
   border-radius: 4px;
   padding: 4px;
   cursor: pointer;
   transition: all 0.2s;
+  backdrop-filter: blur(2px);
 }
 
 .ai-field-button:hover {
-  background: rgba(var(--v-theme-primary), 0.2);
+  background: rgba(var(--v-theme-primary), 0.25);
+  border-color: rgba(var(--v-theme-primary), 0.8);
   transform: scale(1.05);
 }
 
 .ai-field-button--active {
-  background: rgba(var(--v-theme-primary), 0.3);
+  background: rgba(var(--v-theme-primary), 0.35);
+  border-color: rgb(var(--v-theme-primary));
 }
 
 .ai-processing-indicator {
@@ -817,7 +819,8 @@ onMounted(() => {
 }
 
 .content-preview {
-  background: #f5f5f5;
+  background: rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface-variant));
   padding: 12px;
   border-radius: 4px;
   max-height: 150px;

@@ -134,7 +134,7 @@
     <EditorContent 
       :editor="editor" 
       :class="[
-        'min-h-[150px] border rounded-md tiptap-content',
+        'tiptap-content',
         isDarkTheme ? 'tiptap-content--dark' : 'tiptap-content--light'
       ]"
     />
@@ -339,18 +339,25 @@ onBeforeUnmount(() => {
 /* Conteúdo do editor baseado no tema */
 .tiptap-content {
   transition: background-color 0.2s ease, color 0.2s ease;
+  min-height: 150px;
+  border: 1px solid rgb(var(--v-theme-outline));
+  border-radius: 0.375rem;
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  overflow: hidden;
 }
 
 .tiptap-content--light {
-  background-color: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-on-surface));
-  border-color: rgb(var(--v-theme-outline));
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-color: #d0d7de !important;
 }
 
 .tiptap-content--dark {
-  background-color: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-on-surface));
-  border-color: rgb(var(--v-theme-outline));
+  background-color: #0d1117 !important;
+  color: #e6edf3 !important;
+  border-color: #30363d !important;
 }
 
 /* Estilos do ProseMirror (área de edição) */
@@ -358,13 +365,18 @@ onBeforeUnmount(() => {
   padding: 1rem;
   min-height: 150px;
   outline: none;
-  color: inherit;
-  background-color: transparent;
+  color: inherit !important;
+  background-color: transparent !important;
+  font-family: inherit;
 }
 
 :deep(.ProseMirror p) {
   margin: 0.5em 0;
-  color: inherit;
+  color: inherit !important;
+}
+
+:deep(.ProseMirror *) {
+  color: inherit !important;
 }
 
 :deep(.ProseMirror ul),
@@ -374,19 +386,33 @@ onBeforeUnmount(() => {
 
 /* Estilos para seleção de texto no editor */
 :deep(.ProseMirror::selection) {
-  background-color: rgb(var(--v-theme-primary), 0.3);
+  background-color: #0969da !important;
+  color: #ffffff !important;
 }
 
 :deep(.ProseMirror *::selection) {
-  background-color: rgb(var(--v-theme-primary), 0.3);
+  background-color: #0969da !important;
+  color: #ffffff !important;
+}
+
+/* Seleção global para o editor inteiro */
+.tiptap-content *::selection {
+  background-color: #0969da !important;
+  color: #ffffff !important;
+}
+
+.tiptap-content::selection {
+  background-color: #0969da !important;
+  color: #ffffff !important;
 }
 
 /* Placeholder styles */
 :deep(.ProseMirror p.is-empty::before) {
-  color: rgb(var(--v-theme-on-surface-variant));
+  color: rgb(var(--v-theme-on-surface-variant)) !important;
   content: attr(data-placeholder);
   float: left;
   pointer-events: none;
   height: 0;
+  opacity: 0.6;
 }
 </style>
