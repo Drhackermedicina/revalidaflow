@@ -28,6 +28,7 @@ declare module 'vue' {
     RankingCard: typeof import('./src/components/RankingCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    StationListItem: typeof import('./src/components/StationListItem.vue')['default']
     TaskManager: typeof import('./src/components/TaskManager.vue')['default']
     ThemeSwitcher: typeof import('./src/@core/components/ThemeSwitcher.vue')['default']
     TiptapEditor: typeof import('./src/components/TiptapEditor.vue')['default']
