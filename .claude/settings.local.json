@@ -20,7 +20,8 @@
       "Bash(dir:*)",
       "Bash(rm:*)",
       "Bash(git checkout:*)",
-      "Bash(start \"backend\" cmd /c \"npm start\")"
+      "Bash(start \"backend\" cmd /c \"npm start\")",
+      "Bash(timeout 30 npm run dev:*)"
     ],
     "deny": [],
     "ask": []

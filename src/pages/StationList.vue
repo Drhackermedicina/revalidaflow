@@ -2272,102 +2272,108 @@ const exampleVariable = ref(null);
                       </template>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
-                      <v-list density="comfortable">
-                        <v-list-item
-                          v-for="station in filteredStationsByInepPeriod[period]"
-                          :key="station.id"
-                          class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                          :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
-                          @click="startSimulationAsActor(station.id)"
-                        >
-                          <template #prepend>
-                            <v-icon color="info">ri-file-list-3-line</v-icon>
-                          </template>
-                          <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
-                          <v-list-item-subtitle class="text-caption">{{ station.especialidade }}</v-list-item-subtitle>
-                          
-                          <div class="d-flex align-center gap-2 mt-1">
-                            <v-chip
-                              v-if="getStationEditStatus(station.id).hasBeenEdited === false"
-                              color="warning"
-                              variant="flat"
-                              size="x-small"
-                              class="edit-status-chip"
-                            >
-                              <v-icon start size="12">ri-alert-line</v-icon>
-                              NÃO EDITADA
-                            </v-chip>
-                            <v-chip
-                              v-else-if="getStationEditStatus(station.id).hasBeenEdited === true"
-                              color="success"
-                              variant="flat"
-                              size="x-small"
-                              class="edit-status-chip"
-                            >
-                              <v-icon start size="12">ri-check-line</v-icon>
-                              EDITADA ({{ getStationEditStatus(station.id).totalEdits || 0 }}x)
-                            </v-chip>
-                          </div>
+                      <!-- 🚀 OTIMIZAÇÃO: Virtualização de lista - renderiza apenas itens visíveis -->
+                      <v-virtual-scroll
+                        :items="filteredStationsByInepPeriod[period]"
+                        :item-height="140"
+                        :height="Math.min(filteredStationsByInepPeriod[period].length * 140, 600)"
+                      >
+                        <template #default="{ item: station }">
+                          <v-list-item
+                            :key="station.id"
+                            class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
+                            :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
+                            @click="startSimulationAsActor(station.id)"
+                          >
+                            <template #prepend>
+                              <v-icon color="info">ri-file-list-3-line</v-icon>
+                            </template>
+                            <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+                            <v-list-item-subtitle class="text-caption">{{ station.especialidade }}</v-list-item-subtitle>
 
-                          <div v-if="getUserStationScore(station.id)" class="mt-2">
-                            <v-chip 
-                              :color="getUserStationScore(station.id).percentage >= 70 ? 'success' : getUserStationScore(station.id).percentage >= 50 ? 'warning' : 'error'"
-                              variant="flat"
-                              size="small"
-                              class="user-score-chip"
-                            >
-                              <v-icon start size="16">ri-star-fill</v-icon>
-                              {{ getUserStationScore(station.id).score }}/{{ getUserStationScore(station.id).maxScore }} ({{ getUserStationScore(station.id).percentage }}%)
-                            </v-chip>
-                          </div>
-                          <template #append>
-                            <div class="d-flex align-center">
-                              <v-progress-circular
-                                v-if="creatingSessionForStationId === station.id"
-                                indeterminate
-                                size="24"
-                                color="primary"
-                                class="me-2 sequential-selection-btn"
-                              />
-                              <v-btn
-                                v-if="showSequentialConfig"
-                                :color="isStationInSequence(station.id) ? 'success' : 'primary'"
-                                :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
-                                size="small"
-                                @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
-                                class="me-2 sequential-selection-btn"
-                                :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                            <div class="d-flex align-center gap-2 mt-1">
+                              <v-chip
+                                v-if="getStationEditStatus(station.id).hasBeenEdited === false"
+                                color="warning"
+                                variant="flat"
+                                size="x-small"
+                                class="edit-status-chip"
                               >
-                                <v-icon
-                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600', visibility: 'visible' }"
-                                :data-fallback="isStationInSequence(station.id) ? '✓' : '+'"
-                                :aria-hidden="false"
-                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
-                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
-                              </v-btn>
-                              <v-btn
-                                v-if="isAdmin"
-                                color="secondary"
-                                variant="text"
-                                size="small"
-                                icon="ri-pencil-line"
-                                @click.stop="goToEditStation(station.id)"
-                                class="me-2 sequential-selection-btn"
-                                aria-label="Editar Estação"
-                              />
-                              <v-btn
-                                color="primary"
-                                variant="text"
-                                size="small"
-                                icon="ri-robot-line"
-                                @click.stop="startAITraining(station.id)"
-                                class="me-2 sequential-selection-btn"
-                                aria-label="Treinar com IA"
-                              />
+                                <v-icon start size="12">ri-alert-line</v-icon>
+                                NÃO EDITADA
+                              </v-chip>
+                              <v-chip
+                                v-else-if="getStationEditStatus(station.id).hasBeenEdited === true"
+                                color="success"
+                                variant="flat"
+                                size="x-small"
+                                class="edit-status-chip"
+                              >
+                                <v-icon start size="12">ri-check-line</v-icon>
+                                EDITADA ({{ getStationEditStatus(station.id).totalEdits || 0 }}x)
+                              </v-chip>
                             </div>
-                          </template>
-                        </v-list-item>
-                      </v-list>
+
+                            <div v-if="getUserStationScore(station.id)" class="mt-2">
+                              <v-chip
+                                :color="getUserStationScore(station.id).percentage >= 70 ? 'success' : getUserStationScore(station.id).percentage >= 50 ? 'warning' : 'error'"
+                                variant="flat"
+                                size="small"
+                                class="user-score-chip"
+                              >
+                                <v-icon start size="16">ri-star-fill</v-icon>
+                                {{ getUserStationScore(station.id).score }}/{{ getUserStationScore(station.id).maxScore }} ({{ getUserStationScore(station.id).percentage }}%)
+                              </v-chip>
+                            </div>
+                            <template #append>
+                              <div class="d-flex align-center">
+                                <v-progress-circular
+                                  v-if="creatingSessionForStationId === station.id"
+                                  indeterminate
+                                  size="24"
+                                  color="primary"
+                                  class="me-2 sequential-selection-btn"
+                                />
+                                <v-btn
+                                  v-if="showSequentialConfig"
+                                  :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                                  :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
+                                  size="small"
+                                  @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                                  class="me-2 sequential-selection-btn"
+                                  :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                                >
+                                  <v-icon
+                                  :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600', visibility: 'visible' }"
+                                  :data-fallback="isStationInSequence(station.id) ? '✓' : '+'"
+                                  :aria-hidden="false"
+                                  :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                                >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                                </v-btn>
+                                <v-btn
+                                  v-if="isAdmin"
+                                  color="secondary"
+                                  variant="text"
+                                  size="small"
+                                  icon="ri-pencil-line"
+                                  @click.stop="goToEditStation(station.id)"
+                                  class="me-2 sequential-selection-btn"
+                                  aria-label="Editar Estação"
+                                />
+                                <v-btn
+                                  color="primary"
+                                  variant="text"
+                                  size="small"
+                                  icon="ri-robot-line"
+                                  @click.stop="startAITraining(station.id)"
+                                  class="me-2 sequential-selection-btn"
+                                  aria-label="Treinar com IA"
+                                />
+                              </div>
+                            </template>
+                          </v-list-item>
+                        </template>
+                      </v-virtual-scroll>
                     </v-expansion-panel-text>
                   </v-expansion-panel>
                 </template>
@@ -2412,112 +2418,118 @@ const exampleVariable = ref(null);
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="station in filteredStationsRevalidaFacilClinicaMedica"
-                        :key="station.id"
-                        class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station, 'clinica-medica') + getBackgroundOpacity(station) }"
-                        @click="startSimulationAsActor(station.id)"
-                      >
-                        <template #prepend>
-                          <v-icon color="info">ri-file-list-3-line</v-icon>
-                        </template>
-                        <v-list-item-title class="font-weight-bold text-body-1 text-on-surface">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
-                        
-                        <div class="d-flex flex-column gap-1 mt-2">
-                          <div class="d-flex align-center gap-2">
-                            <v-chip
-                              v-if="verificarEdicaoHibrida(station).hasBeenEdited === false"
-                              color="warning"
-                              variant="flat"
-                              size="x-small"
-                              class="edit-status-chip"
-                            >
-                              <v-icon start size="12">ri-alert-line</v-icon>
-                              NÃO EDITADA
-                            </v-chip>
-                            <v-chip
-                              v-else-if="verificarEdicaoHibrida(station).hasBeenEdited === true"
-                              color="success"
-                              variant="flat"
-                              size="x-small"
-                              class="edit-status-chip"
-                            >
-                              <v-icon start size="12">ri-check-line</v-icon>
-                              EDITADA ({{ verificarEdicaoHibrida(station).totalEdits || 0 }}x)
-                            </v-chip>
-                          </div>
-                          
-                          <div v-if="verificarEdicaoHibrida(station).createdDate" class="text-caption text-secondary">
-                            <v-icon size="12" class="me-1">ri-calendar-line</v-icon>
-                            Criada: {{ formatarDataBrasil(verificarEdicaoHibrida(station).createdDate) }}
+                    <!-- 🚀 OTIMIZAÇÃO: Virtualização de lista - renderiza apenas itens visíveis -->
+                    <v-virtual-scroll
+                      :items="filteredStationsRevalidaFacilClinicaMedica"
+                      :item-height="160"
+                      :height="Math.min(filteredStationsRevalidaFacilClinicaMedica.length * 160, 600)"
+                    >
+                      <template #default="{ item: station }">
+                        <v-list-item
+                          :key="station.id"
+                          class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
+                          :style="{ backgroundColor: getSpecialtyColor(station, 'clinica-medica') + getBackgroundOpacity(station) }"
+                          @click="startSimulationAsActor(station.id)"
+                        >
+                          <template #prepend>
+                            <v-icon color="info">ri-file-list-3-line</v-icon>
+                          </template>
+                          <v-list-item-title class="font-weight-bold text-body-1 text-on-surface">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
+
+                          <div class="d-flex flex-column gap-1 mt-2">
+                            <div class="d-flex align-center gap-2">
+                              <v-chip
+                                v-if="verificarEdicaoHibrida(station).hasBeenEdited === false"
+                                color="warning"
+                                variant="flat"
+                                size="x-small"
+                                class="edit-status-chip"
+                              >
+                                <v-icon start size="12">ri-alert-line</v-icon>
+                                NÃO EDITADA
+                              </v-chip>
+                              <v-chip
+                                v-else-if="verificarEdicaoHibrida(station).hasBeenEdited === true"
+                                color="success"
+                                variant="flat"
+                                size="x-small"
+                                class="edit-status-chip"
+                              >
+                                <v-icon start size="12">ri-check-line</v-icon>
+                                EDITADA ({{ verificarEdicaoHibrida(station).totalEdits || 0 }}x)
+                              </v-chip>
+                            </div>
+
+                            <div v-if="verificarEdicaoHibrida(station).createdDate" class="text-caption text-secondary">
+                              <v-icon size="12" class="me-1">ri-calendar-line</v-icon>
+                              Criada: {{ formatarDataBrasil(verificarEdicaoHibrida(station).createdDate) }}
+                            </div>
+
+                            <div v-if="getStationEditStatus(station.id).lastEditDate && getStationEditStatus(station.id).hasBeenEdited" class="text-caption text-secondary">
+                              <v-icon size="12" class="me-1">ri-edit-line</v-icon>
+                              Editada: {{ formatarDataBrasil(getStationEditStatus(station.id).lastEditDate) }}
+                            </div>
                           </div>
 
-                          <div v-if="getStationEditStatus(station.id).lastEditDate && getStationEditStatus(station.id).hasBeenEdited" class="text-caption text-secondary">
-                            <v-icon size="12" class="me-1">ri-edit-line</v-icon>
-                            Editada: {{ formatarDataBrasil(getStationEditStatus(station.id).lastEditDate) }}
-                          </div>
-                        </div>
-                        
-                        <div v-if="getUserStationScore(station.id)" class="mt-2">
-                          <v-chip
-                            :color="getUserStationScore(station.id).percentage >= 70 ? 'success' : getUserStationScore(station.id).percentage >= 50 ? 'warning' : 'error'"
-                            variant="flat"
-                            size="small"
-                            class="user-score-chip"
-                          >
-                            <v-icon start size="16">ri-star-fill</v-icon>
-                            {{ getUserStationScore(station.id).score }}/{{ getUserStationScore(station.id).maxScore }} ({{ getUserStationScore(station.id).percentage }}%)
-                          </v-chip>
-                        </div>
-                        <template #append>
-                          <div class="d-flex align-center">
-                            <v-progress-circular
-                              v-if="creatingSessionForStationId === station.id"
-                              indeterminate
-                              size="24"
-                              color="primary"
-                              class="me-2 sequential-selection-btn"
-                            />
-                            <v-btn
-                              v-if="showSequentialConfig"
-                              :color="isStationInSequence(station.id) ? 'success' : 'primary'"
-                              :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
+                          <div v-if="getUserStationScore(station.id)" class="mt-2">
+                            <v-chip
+                              :color="getUserStationScore(station.id).percentage >= 70 ? 'success' : getUserStationScore(station.id).percentage >= 50 ? 'warning' : 'error'"
+                              variant="flat"
                               size="small"
-                              @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
-                              class="me-2 sequential-selection-btn"
-                              :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              class="user-score-chip"
                             >
-                              <v-icon
-                                :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }"
-                                :aria-hidden="false"
-                                :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
-                              >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
-                            </v-btn>
-                            <v-btn
-                              v-if="isAdmin"
-                              color="secondary"
-                              variant="text"
-                              size="small"
-                              icon="ri-pencil-line"
-                              @click.stop="goToEditStation(station.id)"
-                              class="me-2 sequential-selection-btn"
-                              aria-label="Editar Estação"
-                            />
-                            <v-btn
-                              color="primary"
-                              variant="text"
-                              size="small"
-                              icon="ri-robot-line"
-                              @click.stop="startAITraining(station.id)"
-                              class="me-2 sequential-selection-btn"
-                              aria-label="Treinar com IA"
-                            />
+                              <v-icon start size="16">ri-star-fill</v-icon>
+                              {{ getUserStationScore(station.id).score }}/{{ getUserStationScore(station.id).maxScore }} ({{ getUserStationScore(station.id).percentage }}%)
+                            </v-chip>
                           </div>
-                        </template>
-                      </v-list-item>
-                    </v-list>
+                          <template #append>
+                            <div class="d-flex align-center">
+                              <v-progress-circular
+                                v-if="creatingSessionForStationId === station.id"
+                                indeterminate
+                                size="24"
+                                color="primary"
+                                class="me-2 sequential-selection-btn"
+                              />
+                              <v-btn
+                                v-if="showSequentialConfig"
+                                :color="isStationInSequence(station.id) ? 'success' : 'primary'"
+                                :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
+                                size="small"
+                                @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
+                                class="me-2 sequential-selection-btn"
+                                :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
+                              >
+                                <v-icon
+                                  :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600' }"
+                                  :aria-hidden="false"
+                                  :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
+                                >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
+                              </v-btn>
+                              <v-btn
+                                v-if="isAdmin"
+                                color="secondary"
+                                variant="text"
+                                size="small"
+                                icon="ri-pencil-line"
+                                @click.stop="goToEditStation(station.id)"
+                                class="me-2 sequential-selection-btn"
+                                aria-label="Editar Estação"
+                              />
+                              <v-btn
+                                color="primary"
+                                variant="text"
+                                size="small"
+                                icon="ri-robot-line"
+                                @click.stop="startAITraining(station.id)"
+                                class="me-2 sequential-selection-btn"
+                                aria-label="Treinar com IA"
+                              />
+                            </div>
+                          </template>
+                        </v-list-item>
+                      </template>
+                    </v-virtual-scroll>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
@@ -2538,14 +2550,19 @@ const exampleVariable = ref(null);
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="station in filteredStationsRevalidaFacilCirurgia"
-                        :key="station.id"
-                        class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                        :style="{ backgroundColor: getSpecialtyColor(station, 'cirurgia') + getBackgroundOpacity(station) }"
-                        @click="startSimulationAsActor(station.id)"
-                      >
+                    <!-- 🚀 OTIMIZAÇÃO: Virtualização de lista - renderiza apenas itens visíveis -->
+                    <v-virtual-scroll
+                      :items="filteredStationsRevalidaFacilCirurgia"
+                      :item-height="160"
+                      :height="Math.min(filteredStationsRevalidaFacilCirurgia.length * 160, 600)"
+                    >
+                      <template #default="{ item: station }">
+                        <v-list-item
+                          :key="station.id"
+                          class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
+                          :style="{ backgroundColor: getSpecialtyColor(station, 'cirurgia') + getBackgroundOpacity(station) }"
+                          @click="startSimulationAsActor(station.id)"
+                        >
                         <template #prepend>
                           <v-icon color="info">ri-file-list-3-line</v-icon>
                         </template>
@@ -2642,8 +2659,9 @@ const exampleVariable = ref(null);
                             />
                           </div>
                         </template>
-                      </v-list-item>
-                    </v-list>
+                        </v-list-item>
+                      </template>
+                    </v-virtual-scroll>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
@@ -2664,9 +2682,14 @@ const exampleVariable = ref(null);
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="station in filteredStationsRevalidaFacilPediatria"
+                    <!-- 🚀 OTIMIZAÇÃO: Virtualização de lista - renderiza apenas itens visíveis -->
+                    <v-virtual-scroll
+                      :items="filteredStationsRevalidaFacilPediatria"
+                      :item-height="160"
+                      :height="Math.min(filteredStationsRevalidaFacilPediatria.length * 160, 600)"
+    >
+                      <template #default="{ item: station }">
+                        <v-list-item
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station, 'pediatria') + getBackgroundOpacity(station) }"
@@ -2769,7 +2792,8 @@ const exampleVariable = ref(null);
                           </div>
                         </template>
                       </v-list-item>
-                    </v-list>
+                      </template>
+                    </v-virtual-scroll>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
@@ -2790,9 +2814,14 @@ const exampleVariable = ref(null);
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="station in filteredStationsRevalidaFacilGO"
+                    <!-- 🚀 OTIMIZAÇÃO: Virtualização de lista - renderiza apenas itens visíveis -->
+                    <v-virtual-scroll
+                      :items="filteredStationsRevalidaFacilGO"
+                      :item-height="160"
+                      :height="Math.min(filteredStationsRevalidaFacilGO.length * 160, 600)"
+    >
+                      <template #default="{ item: station }">
+                        <v-list-item
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station, 'ginecologia') + getBackgroundOpacity(station) }"
@@ -2895,7 +2924,8 @@ const exampleVariable = ref(null);
                           </div>
                         </template>
                       </v-list-item>
-                    </v-list>
+                      </template>
+                    </v-virtual-scroll>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
@@ -2916,9 +2946,14 @@ const exampleVariable = ref(null);
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="station in filteredStationsRevalidaFacilPreventiva"
+                    <!-- 🚀 OTIMIZAÇÃO: Virtualização de lista - renderiza apenas itens visíveis -->
+                    <v-virtual-scroll
+                      :items="filteredStationsRevalidaFacilPreventiva"
+                      :item-height="160"
+                      :height="Math.min(filteredStationsRevalidaFacilPreventiva.length * 160, 600)"
+    >
+                      <template #default="{ item: station }">
+                        <v-list-item
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station, 'preventiva') + getBackgroundOpacity(station) }"
@@ -3021,7 +3056,8 @@ const exampleVariable = ref(null);
                           </div>
                         </template>
                       </v-list-item>
-                    </v-list>
+                      </template>
+                    </v-virtual-scroll>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
@@ -3042,9 +3078,14 @@ const exampleVariable = ref(null);
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="station in filteredStationsRevalidaFacilProcedimentos"
+                    <!-- 🚀 OTIMIZAÇÃO: Virtualização de lista - renderiza apenas itens visíveis -->
+                    <v-virtual-scroll
+                      :items="filteredStationsRevalidaFacilProcedimentos"
+                      :item-height="160"
+                      :height="Math.min(filteredStationsRevalidaFacilProcedimentos.length * 160, 600)"
+    >
+                      <template #default="{ item: station }">
+                        <v-list-item
                         :key="station.id"
                         class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
                         :style="{ backgroundColor: getSpecialtyColor(station, 'procedimentos') + getBackgroundOpacity(station) }"
@@ -3147,7 +3188,8 @@ const exampleVariable = ref(null);
                           </div>
                         </template>
                       </v-list-item>
-                    </v-list>
+                      </template>
+                    </v-virtual-scroll>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
 
