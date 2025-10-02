@@ -93,6 +93,10 @@ const isSpeaking = ref(false)
 const speechSynthesis = ref(null)
 const speechEnabled = ref(true) // Controle se speech está habilitado
 const speechTimeout = ref(null) // Timeout para parar gravação automaticamente
+const autoRecordMode = ref(false) // Modo automático de gravação (VAD - Voice Activity Detection)
+const silenceTimeout = ref(null) // Timeout para detectar silêncio
+const lastSpeechTime = ref(null) // Timestamp da última fala detectada
+const selectedVoice = ref(null) // Voz selecionada baseada no paciente
 
 // Refs para controle de painéis expandidos
 const expandedPanels = ref(['materials']) // Materiais sempre expandidos por padrão
@@ -129,6 +133,14 @@ async function fetchSimulationData(currentStationId) {
   isLoading.value = true
   errorMessage.value = ''
 
+  // 🧹 LIMPAR HISTÓRICO DE CONVERSA AO TROCAR DE ESTAÇÃO
+  conversationHistory.value = []
+  console.log('🧹 Histórico de conversa limpo para nova estação:', currentStationId)
+
+  // 🔊 RESETAR VOZ SELECIONADA para nova seleção baseada no novo paciente
+  selectedVoice.value = null
+  console.log('🔊 Voz resetada para nova estação')
+
   try {
     const auth = getAuth()
     const user = auth.currentUser
@@ -147,6 +159,15 @@ async function fetchSimulationData(currentStationId) {
 
     const data = stationDoc.data()
     stationData.value = { id: currentStationId, ...data }
+
+    // 🔍 DEBUG: Verificar script do paciente
+    const patientScript = data?.materiaisDisponiveis?.informacoesVerbaisSimulado || []
+    console.log('📋 Script do paciente carregado:', patientScript.length, 'seções')
+    if (patientScript.length > 0) {
+      console.log('📋 Primeira seção do script:', patientScript[0])
+    } else {
+      console.warn('⚠️ AVISO: Script do paciente está vazio!')
+    }
 
     // Configurar timer
     simulationTimeSeconds.value = selectedDurationMinutes.value * 60
@@ -262,6 +283,16 @@ async function sendMessage() {
     // Falar a resposta se speech estiver habilitado
     if (speechEnabled.value && speechSynthesis) {
       speakText(aiResponse)
+    } else {
+      // Se síntese de voz está desabilitada mas modo automático está ativo, reiniciar gravação
+      if (autoRecordMode.value && !isListening.value) {
+        console.log('🎤 IA respondeu (sem síntese de voz) - reiniciando gravação automática...')
+        setTimeout(() => {
+          if (autoRecordMode.value && !isListening.value) {
+            startListening()
+          }
+        }, 500)
+      }
     }
 
     // Atualizar contador de mensagens
@@ -438,9 +469,43 @@ function findSpecificMaterial(candidateMessage, materials) {
   function extractTextFromMaterial(material) {
     let extractedText = ''
 
-    // Sempre incluir o título
+    // Sempre incluir o título (CRÍTICO para materiais com imagens)
     if (material.tituloImpresso) {
       extractedText += material.tituloImpresso.toLowerCase() + ' '
+    }
+
+    // Para materiais baseados em imagem, expandir o título com termos relacionados
+    const isImageBased = material.tipoConteudo === 'imagem' ||
+                         material.tipoConteudo === 'imagemComLaudo' ||
+                         (material.conteudo && material.conteudo.imagemUrl && !material.conteudo.texto)
+
+    if (isImageBased && material.tituloImpresso) {
+      // Expandir com sinônimos comuns baseados no título
+      const titulo = material.tituloImpresso.toLowerCase()
+
+      // Exames de imagem
+      if (titulo.includes('ultrassom') || titulo.includes('usg')) {
+        extractedText += 'ultrassonografia ecografia doppler '
+      }
+      if (titulo.includes('raio') || titulo.includes('rx')) {
+        extractedText += 'radiografia raio-x '
+      }
+      if (titulo.includes('tomografia') || titulo.includes('tc')) {
+        extractedText += 'tomografia computadorizada '
+      }
+
+      // Anatomia
+      if (titulo.includes('abdome') || titulo.includes('abdominal')) {
+        extractedText += 'abdome pelve fígado vesícula pâncreas baço rins intestino bexiga '
+      }
+      if (titulo.includes('membros') || titulo.includes('membro')) {
+        extractedText += 'perna braço inferior superior venoso arterial '
+      }
+
+      // Exames laboratoriais
+      if (titulo.includes('exame') || titulo.includes('laborat')) {
+        extractedText += 'exames laboratoriais sangue hemograma pcr vhs glicemia ureia creatinina '
+      }
     }
 
     if (!material.conteudo) return extractedText.trim()
@@ -474,6 +539,7 @@ function findSpecificMaterial(candidateMessage, materials) {
         break
 
       case 'imagemComLaudo':
+      case 'imagem':
         if (material.conteudo.laudoCompleto) {
           extractedText += material.conteudo.laudoCompleto.toLowerCase() + ' '
         }
@@ -482,6 +548,9 @@ function findSpecificMaterial(candidateMessage, materials) {
         }
         if (material.conteudo.legendaImagem) {
           extractedText += material.conteudo.legendaImagem.toLowerCase() + ' '
+        }
+        if (material.conteudo.descricao) {
+          extractedText += material.conteudo.descricao.toLowerCase() + ' '
         }
         break
 
@@ -504,24 +573,159 @@ function findSpecificMaterial(candidateMessage, materials) {
     return extractedText.trim()
   }
 
-  // Função para calcular quantas palavras da solicitação existem no material
-  function calculateMatchScore(request, materialText) {
-    const requestWords = request.toLowerCase()
-      .split(/\s+/)
-      .filter(word => word.length > 2) // Palavras com mais de 2 caracteres
-      .filter(word => !['para', 'com', 'que', 'uma', 'dos', 'das', 'por', 'seu', 'sua'].includes(word)) // Remover palavras comuns
+  // 🧠 DICIONÁRIO MÉDICO - Mapeia termos para categorias
+  const medicalDictionary = {
+    // EXAMES LABORATORIAIS
+    examesLab: [
+      'hemograma', 'leucograma', 'plaquetas', 'hemácias', 'leucócitos', 'neutrófilos', 'eosinófilos',
+      'pcr', 'vhs', 'proteína c reativa', 'velocidade de hemossedimentação',
+      'glicemia', 'glicose', 'hba1c', 'hemoglobina glicada',
+      'ureia', 'creatinina', 'função renal',
+      'tgo', 'tgp', 'ast', 'alt', 'transaminases', 'fosfatase alcalina', 'gama gt', 'bilirrubinas',
+      'amilase', 'lipase',
+      'eletrólitos', 'sódio', 'potássio', 'cálcio', 'magnésio',
+      'coagulograma', 'tap', 'ttpa', 'inr',
+      'beta hcg', 'bhcg', 'teste de gravidez',
+      'hormônios tireoidianos', 'tsh', 't3', 't4',
+      'urina', 'urocultura', 'exame de urina', 'urina tipo 1',
+      'fezes', 'parasitológico', 'sangue oculto',
+      'sorologia', 'hepatite', 'hiv', 'vdrl', 'sífilis'
+    ],
 
-    let matchCount = 0
-    let totalWords = requestWords.length
+    // EXAMES DE IMAGEM
+    imagemAbdome: [
+      'ultrassom', 'ultrassonografia', 'usg', 'ecografia',
+      'abdome', 'abdominal', 'pelve', 'pélvica',
+      'fígado', 'vesícula', 'vias biliares', 'pâncreas', 'baço',
+      'rins', 'bexiga', 'próstata', 'útero', 'ovários',
+      'tomografia', 'tc', 'tomografia computadorizada',
+      'ressonância', 'rm', 'ressonância magnética'
+    ],
+
+    imagemTorax: [
+      'raio-x', 'raio x', 'rx', 'radiografia',
+      'tórax', 'torácica', 'pulmão', 'pulmonar',
+      'pa', 'perfil', 'anteroposterior', 'lateral',
+      'tomografia', 'tc tórax'
+    ],
+
+    imagemOutros: [
+      'crânio', 'cerebral', 'encefálico',
+      'coluna', 'lombar', 'cervical', 'dorsal',
+      'articulação', 'joelho', 'ombro', 'quadril',
+      'mamografia', 'mama'
+    ],
+
+    // EXAME FÍSICO
+    exameFisico: [
+      'exame físico', 'semiologia', 'propedêutica',
+      'sinais vitais', 'ssvv', 'pa', 'pressão arterial', 'temperatura', 'pulso', 'fc', 'fr',
+      'ausculta', 'cardíaca', 'pulmonar', 'respiratória',
+      'palpação', 'abdominal', 'toque retal',
+      'inspeção', 'ectoscopia',
+      'percussão'
+    ],
+
+    // PROCEDIMENTOS
+    procedimentos: [
+      'eletrocardiograma', 'ecg', 'ekg',
+      'ecocardiograma', 'eco',
+      'endoscopia', 'eda',
+      'colonoscopia',
+      'broncoscopia'
+    ]
+  }
+
+  // Função inteligente para calcular compatibilidade médica
+  function calculateMatchScore(request, materialText, materialTitle) {
+    const requestLower = request.toLowerCase()
+    const materialLower = materialText.toLowerCase()
+    const titleLower = materialTitle.toLowerCase()
+
+    let score = 0
+    let matchReasons = []
+
+    // 1. MATCH DIRETO NO TÍTULO (peso alto)
+    const requestWords = requestLower.split(/\s+/).filter(w => w.length > 2)
+    const titleWords = titleLower.split(/\s+/)
 
     for (const word of requestWords) {
-      if (materialText.includes(word)) {
-        matchCount++
-        console.log(`✅ Palavra "${word}" encontrada no material`)
+      if (titleWords.some(tw => tw.includes(word) || word.includes(tw))) {
+        score += 0.3
+        matchReasons.push(`Título contém "${word}"`)
       }
     }
 
-    return totalWords > 0 ? (matchCount / totalWords) : 0
+    // 2. MATCHING SEMÂNTICO POR CATEGORIA
+    for (const [category, keywords] of Object.entries(medicalDictionary)) {
+      const requestHasCategory = keywords.some(kw => requestLower.includes(kw))
+      const materialHasCategory = keywords.some(kw => materialLower.includes(kw) || titleLower.includes(kw))
+
+      if (requestHasCategory && materialHasCategory) {
+        score += 0.4
+        matchReasons.push(`Categoria médica: ${category}`)
+        break // Evitar double counting
+      }
+    }
+
+    // 3. HIERARQUIA ANATÔMICA
+    const anatomyHierarchy = {
+      'abdome': ['pelve', 'fígado', 'vesícula', 'pâncreas', 'baço', 'rins', 'intestino', 'bexiga'],
+      'tórax': ['pulmão', 'coração', 'mediastino', 'pleura'],
+      'exames laboratoriais': ['hemograma', 'pcr', 'glicemia', 'ureia', 'creatinina']
+    }
+
+    for (const [parent, children] of Object.entries(anatomyHierarchy)) {
+      if (requestLower.includes(parent) && children.some(child => titleLower.includes(child))) {
+        score += 0.3
+        matchReasons.push(`Hierarquia: ${parent} inclui conteúdo`)
+      }
+      if (children.some(child => requestLower.includes(child)) && titleLower.includes(parent)) {
+        score += 0.3
+        matchReasons.push(`Hierarquia: solicitou parte de ${parent}`)
+      }
+    }
+
+    // 4. SINÔNIMOS MÉDICOS
+    const synonyms = [
+      ['ultrassom', 'ultrassonografia', 'usg', 'ecografia'],
+      ['raio-x', 'raio x', 'rx', 'radiografia'],
+      ['tomografia', 'tc', 'tomografia computadorizada'],
+      ['ressonância', 'rm', 'ressonância magnética'],
+      ['hemograma', 'sangue', 'hematológico'],
+      ['exame físico', 'semiologia', 'propedêutica']
+    ]
+
+    for (const synGroup of synonyms) {
+      const requestHasSyn = synGroup.some(syn => requestLower.includes(syn))
+      const materialHasSyn = synGroup.some(syn => materialLower.includes(syn) || titleLower.includes(syn))
+
+      if (requestHasSyn && materialHasSyn) {
+        score += 0.2
+        matchReasons.push(`Sinônimo encontrado`)
+        break
+      }
+    }
+
+    // 5. PALAVRAS-CHAVE ESPECÍFICAS (peso menor)
+    const specificWords = requestWords.filter(w =>
+      !['para', 'com', 'que', 'uma', 'dos', 'das', 'por', 'seu', 'sua', 'solicito', 'gostaria', 'favor'].includes(w)
+    )
+
+    const wordMatches = specificWords.filter(word => materialLower.includes(word))
+    if (wordMatches.length > 0) {
+      const wordScore = Math.min(0.3, (wordMatches.length / specificWords.length) * 0.3)
+      score += wordScore
+      matchReasons.push(`${wordMatches.length}/${specificWords.length} palavras encontradas`)
+    }
+
+    // Log detalhado
+    if (matchReasons.length > 0) {
+      console.log(`  💡 Razões do match:`, matchReasons)
+    }
+
+    // Normalizar score (máximo 1.0)
+    return Math.min(1.0, score)
   }
 
   // 1. Verificar correspondência direta no título
@@ -535,16 +739,18 @@ function findSpecificMaterial(candidateMessage, materials) {
     }
   }
 
-  // 2. Analisar conteúdo de cada material dinamicamente
+  // 2. Analisar conteúdo de cada material dinamicamente com matching inteligente
   let bestMatch = null
   let bestScore = 0
 
   for (const material of materials) {
     const materialText = extractTextFromMaterial(material)
-    console.log(`📄 Analisando "${material.tituloImpresso}" (${material.tipoConteudo})`)
+    const materialTitle = material.tituloImpresso || ''
+
+    console.log(`📄 Analisando "${materialTitle}" (${material.tipoConteudo})`)
     console.log(`📝 Texto extraído: ${materialText.substring(0, 150)}...`)
 
-    const score = calculateMatchScore(candidateMessage, materialText)
+    const score = calculateMatchScore(candidateMessage, materialText, materialTitle)
     console.log(`📊 Score de correspondência: ${score.toFixed(2)} (${(score * 100).toFixed(0)}%)`)
 
     if (score > bestScore) {
@@ -553,14 +759,14 @@ function findSpecificMaterial(candidateMessage, materials) {
     }
   }
 
-  // 3. Retornar melhor correspondência se score for suficiente
-  if (bestMatch && bestScore >= 0.3) { // 30% de correspondência mínima
+  // 3. Retornar melhor correspondência se score for suficiente (threshold reduzido para 20%)
+  if (bestMatch && bestScore >= 0.20) {
     console.log(`✅ Material escolhido: "${bestMatch.tituloImpresso}" com score ${(bestScore * 100).toFixed(0)}%`)
     return bestMatch.idImpresso
   }
 
   // 4. Se não encontrou correspondência suficiente
-  console.log(`❌ Nenhuma correspondência suficiente (melhor score: ${(bestScore * 100).toFixed(0)}%)`)
+  console.log(`❌ Nenhuma correspondência suficiente (melhor score: ${(bestScore * 100).toFixed(0)}%, threshold: 20%)`)
   return null
 }
 
@@ -1094,6 +1300,28 @@ function initSpeechRecognition() {
         currentMessage.value = finalTranscript.trim()
         console.log('🎤 Texto final reconhecido:', finalTranscript)
       }
+
+      // 🎤 VOICE ACTIVITY DETECTION (VAD) - Detectar fala e reiniciar timeout de silêncio
+      if (autoRecordMode.value && (finalTranscript || interimTranscript)) {
+        lastSpeechTime.value = Date.now()
+
+        // Limpar timeout de silêncio anterior
+        if (silenceTimeout.value) {
+          clearTimeout(silenceTimeout.value)
+        }
+
+        // Iniciar novo timeout de 2 segundos de silêncio
+        silenceTimeout.value = setTimeout(() => {
+          if (isListening.value && autoRecordMode.value) {
+            console.log('🔇 2 segundos de silêncio detectados - parando gravação automática')
+            stopListening()
+            // Se temos texto, enviar automaticamente
+            if (currentMessage.value.trim()) {
+              sendMessage()
+            }
+          }
+        }, 2000) // 2 segundos de silêncio
+      }
     }
 
     speechRecognition.value.onerror = (event) => {
@@ -1109,13 +1337,33 @@ function initSpeechRecognition() {
     }
 
     speechRecognition.value.onend = () => {
-      isListening.value = false
       console.log('🎤 Reconhecimento de voz finalizado')
 
-      // Limpar timeout se existir
+      // Limpar timeouts
       if (speechTimeout.value) {
         clearTimeout(speechTimeout.value)
         speechTimeout.value = null
+      }
+      if (silenceTimeout.value) {
+        clearTimeout(silenceTimeout.value)
+        silenceTimeout.value = null
+      }
+
+      // Se está em modo automático e ainda deve estar escutando, reiniciar
+      if (autoRecordMode.value && isListening.value) {
+        console.log('🔄 Modo automático: reiniciando reconhecimento...')
+        try {
+          setTimeout(() => {
+            if (autoRecordMode.value && isListening.value) {
+              speechRecognition.value.start()
+            }
+          }, 100) // Pequeno delay para evitar erro
+        } catch (error) {
+          console.error('❌ Erro ao reiniciar reconhecimento:', error)
+          isListening.value = false
+        }
+      } else {
+        isListening.value = false
       }
     }
 
@@ -1147,13 +1395,13 @@ function startListening() {
       speechRecognition.value.start()
       console.log('🎤 Iniciando gravação...')
 
-      // Definir timeout de 15 segundos para parar automaticamente
+      // Definir timeout de 25 segundos para parar automaticamente
       speechTimeout.value = setTimeout(() => {
         if (isListening.value) {
-          console.log('⏰ Timeout de gravação atingido (15s)')
+          console.log('⏰ Timeout de gravação atingido (25s)')
           stopListening()
         }
-      }, 15000) // 15 segundos
+      }, 25000) // 25 segundos
 
     } catch (error) {
       console.error('❌ Erro ao iniciar gravação:', error)
@@ -1173,12 +1421,167 @@ function stopListening() {
     speechRecognition.value.stop()
     isListening.value = false
 
-    // Limpar timeout se existir
+    // Limpar timeouts
     if (speechTimeout.value) {
       clearTimeout(speechTimeout.value)
       speechTimeout.value = null
     }
+    if (silenceTimeout.value) {
+      clearTimeout(silenceTimeout.value)
+      silenceTimeout.value = null
+    }
   }
+}
+
+// Extrair informações demográficas do paciente (sexo e idade)
+function extractPatientDemographics() {
+  if (!stationData.value) return { gender: null, age: null }
+
+  const patientScript = stationData.value.materiaisDisponiveis?.informacoesVerbaisSimulado || []
+
+  let allText = ''
+  patientScript.forEach(item => {
+    if (item.informacao) {
+      allText += item.informacao + '\n'
+    }
+  })
+
+  const demographics = { gender: null, age: null }
+
+  // Extrair idade
+  const ageMatch = allText.match(/(\d+)\s*anos?/i)
+  if (ageMatch) {
+    demographics.age = parseInt(ageMatch[1])
+  }
+
+  // Extrair sexo - procurar por indicadores de gênero
+  const text = allText.toLowerCase()
+
+  // Indicadores femininos
+  const feminineIndicators = [
+    /\b(mulher|feminino|senhora|sra|dona|gestante|grávida|menstruação|menopausa)\b/i,
+    /\b(casada|solteira|divorciada|viúva|separada)\b/i,
+    /\b(ela|dela)\b/i
+  ]
+
+  // Indicadores masculinos
+  const masculineIndicators = [
+    /\b(homem|masculino|senhor|sr|rapaz)\b/i,
+    /\b(casado|solteiro|divorciado|viúvo|separado)\b/i,
+    /\b(ele|dele)\b/i
+  ]
+
+  let femaleScore = 0
+  let maleScore = 0
+
+  feminineIndicators.forEach(pattern => {
+    if (pattern.test(text)) femaleScore++
+  })
+
+  masculineIndicators.forEach(pattern => {
+    if (pattern.test(text)) maleScore++
+  })
+
+  // Determinar gênero baseado em score
+  if (femaleScore > maleScore) {
+    demographics.gender = 'female'
+  } else if (maleScore > femaleScore) {
+    demographics.gender = 'male'
+  }
+
+  console.log('👤 Demografia do paciente:', demographics)
+  return demographics
+}
+
+// Selecionar voz apropriada baseada em sexo e idade
+function selectVoiceForPatient() {
+  if (!('speechSynthesis' in window)) return null
+
+  const { gender, age } = extractPatientDemographics()
+  const voices = window.speechSynthesis.getVoices()
+
+  console.log('🔊 Vozes disponíveis:', voices.map(v => ({ name: v.name, lang: v.lang, gender: v.name })))
+
+  // Filtrar vozes em português brasileiro
+  const ptBRVoices = voices.filter(v => v.lang.includes('pt-BR') || v.lang.includes('pt_BR'))
+
+  if (ptBRVoices.length === 0) {
+    console.warn('⚠️ Nenhuma voz pt-BR encontrada, usando vozes pt genéricas')
+    const ptVoices = voices.filter(v => v.lang.includes('pt'))
+    if (ptVoices.length === 0) {
+      console.warn('⚠️ Nenhuma voz em português encontrada')
+      return null
+    }
+  }
+
+  const availableVoices = ptBRVoices.length > 0 ? ptBRVoices : voices.filter(v => v.lang.includes('pt'))
+
+  // Procurar por voz feminina ou masculina baseado em palavras-chave no nome
+  let selectedVoice = null
+
+  if (gender === 'female') {
+    // Procurar vozes femininas
+    selectedVoice = availableVoices.find(v =>
+      v.name.toLowerCase().includes('female') ||
+      v.name.toLowerCase().includes('feminino') ||
+      v.name.toLowerCase().includes('maria') ||
+      v.name.toLowerCase().includes('luciana') ||
+      v.name.toLowerCase().includes('francisca')
+    )
+  } else if (gender === 'male') {
+    // Procurar vozes masculinas
+    selectedVoice = availableVoices.find(v =>
+      v.name.toLowerCase().includes('male') ||
+      v.name.toLowerCase().includes('masculino') ||
+      v.name.toLowerCase().includes('ricardo') ||
+      v.name.toLowerCase().includes('felipe')
+    )
+  }
+
+  // Se não encontrou voz específica, usar primeira disponível
+  if (!selectedVoice && availableVoices.length > 0) {
+    selectedVoice = availableVoices[0]
+  }
+
+  console.log(`🎤 Voz selecionada: ${selectedVoice?.name} (gênero: ${gender}, idade: ${age})`)
+  return selectedVoice
+}
+
+// Calcular rate e pitch baseado na idade
+function getVoiceParametersForAge(age) {
+  if (!age) return { rate: 0.9, pitch: 1.0 }
+
+  let rate = 0.9
+  let pitch = 1.0
+
+  // Crianças: voz mais aguda e rápida
+  if (age < 12) {
+    rate = 1.1
+    pitch = 1.4
+  }
+  // Adolescentes: voz um pouco mais aguda
+  else if (age < 18) {
+    rate = 1.0
+    pitch = 1.2
+  }
+  // Adultos jovens (18-40): voz normal
+  else if (age < 40) {
+    rate = 0.95
+    pitch = 1.0
+  }
+  // Adultos (40-60): voz um pouco mais grave e lenta
+  else if (age < 60) {
+    rate = 0.85
+    pitch = 0.95
+  }
+  // Idosos (60+): voz mais grave e lenta
+  else {
+    rate = 0.75
+    pitch = 0.85
+  }
+
+  console.log(`🎚️ Parâmetros de voz para idade ${age}: rate=${rate}, pitch=${pitch}`)
+  return { rate, pitch }
 }
 
 function speakText(text) {
@@ -1188,8 +1591,22 @@ function speakText(text) {
 
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = 'pt-BR'
-    utterance.rate = 0.9
-    utterance.pitch = 1.0
+
+    // Selecionar voz apropriada se ainda não foi selecionada
+    if (!selectedVoice.value) {
+      selectedVoice.value = selectVoiceForPatient()
+    }
+
+    // Aplicar voz selecionada
+    if (selectedVoice.value) {
+      utterance.voice = selectedVoice.value
+    }
+
+    // Aplicar rate e pitch baseado na idade
+    const { age } = extractPatientDemographics()
+    const { rate, pitch } = getVoiceParametersForAge(age)
+    utterance.rate = rate
+    utterance.pitch = pitch
 
     utterance.onstart = () => {
       isSpeaking.value = true
@@ -1197,10 +1614,30 @@ function speakText(text) {
 
     utterance.onend = () => {
       isSpeaking.value = false
+
+      // 🎤 Se modo automático está habilitado, reiniciar gravação após IA terminar de falar
+      if (autoRecordMode.value && !isListening.value) {
+        console.log('🎤 IA terminou de falar - reiniciando gravação automática...')
+        setTimeout(() => {
+          if (autoRecordMode.value && !isListening.value) {
+            startListening()
+          }
+        }, 500) // Pequeno delay de 500ms para evitar capturar eco da síntese
+      }
     }
 
     utterance.onerror = () => {
       isSpeaking.value = false
+
+      // 🎤 Se modo automático está habilitado, reiniciar gravação mesmo em caso de erro
+      if (autoRecordMode.value && !isListening.value) {
+        console.log('🎤 Erro na síntese de voz - reiniciando gravação automática...')
+        setTimeout(() => {
+          if (autoRecordMode.value && !isListening.value) {
+            startListening()
+          }
+        }, 500)
+      }
     }
 
     window.speechSynthesis.speak(utterance)
@@ -1219,6 +1656,22 @@ function toggleVoiceRecording() {
     stopListening()
   } else {
     startListening()
+  }
+}
+
+function toggleAutoRecordMode() {
+  autoRecordMode.value = !autoRecordMode.value
+  console.log(`🎤 Modo de gravação: ${autoRecordMode.value ? 'AUTOMÁTICO' : 'MANUAL'}`)
+
+  // Se ativou modo automático, iniciar gravação imediatamente
+  if (autoRecordMode.value && !isListening.value) {
+    console.log('🎤 Iniciando gravação automática...')
+    startListening()
+  }
+  // Se desativou modo automático e está gravando, parar
+  else if (!autoRecordMode.value && isListening.value) {
+    console.log('🎤 Parando gravação automática...')
+    stopListening()
   }
 }
 
@@ -1344,7 +1797,7 @@ function processAIEvaluation(evaluationData) {
       }
 
       // A IA deve retornar: { pontuacao: number, justificativa: string }
-      const pontuacao = itemEval.pontuacao || itemEval.score || 1
+      const pontuacao = itemEval.pontuacao || itemEval.score || 0
       const justificativa = itemEval.justificativa || itemEval.observacao || itemEval.reasoning || 'Avaliado pela IA'
 
       markedPepItems.value[item.idItem] = [{
@@ -1353,7 +1806,8 @@ function processAIEvaluation(evaluationData) {
         timestamp: new Date().toISOString()
       }]
 
-      const nivel = pontuacao >= 5 ? 'ADEQUADO' : pontuacao >= 3 ? 'PARCIALMENTE ADEQUADO' : 'INADEQUADO'
+      // Usar a classificação correta baseada nos valores reais do PEP
+      const nivel = getClassificacaoFromPontuacao(pontuacao, item)
       console.log(`✅ Item ${index + 1} (${item.descricaoItem?.substring(0, 50)}...): ${nivel} (${pontuacao} pts)`)
       console.log(`   Justificativa: ${justificativa.substring(0, 100)}...`)
     })
@@ -1469,6 +1923,33 @@ function autoEvaluatePEPFallback() {
   console.log('🎯 Avaliação fallback concluída:', Object.keys(markedPepItems.value).length, 'itens avaliados')
 }
 
+// Função para classificar pontuação baseada nos valores reais do PEP
+function getClassificacaoFromPontuacao(pontuacao, item) {
+  if (!item?.pontuacoes) {
+    // Fallback para valores antigos fixos se não houver pontuações definidas
+    if (pontuacao >= 5) return { label: 'Adequado', color: 'success' }
+    if (pontuacao >= 3) return { label: 'Parcialmente Adequado', color: 'warning' }
+    return { label: 'Inadequado', color: 'error' }
+  }
+
+  const adequado = item.pontuacoes.adequado?.pontos || 1.0
+  const parcial = item.pontuacoes.parcialmenteAdequado?.pontos || 0.5
+  const inadequado = item.pontuacoes.inadequado?.pontos || 0.0
+
+  // Compara com margem de erro mínima (0.01) para lidar com imprecisões de float
+  const epsilon = 0.01
+
+  if (Math.abs(pontuacao - adequado) < epsilon || pontuacao >= adequado - epsilon) {
+    return { label: 'Adequado', color: 'success' }
+  }
+
+  if (Math.abs(pontuacao - parcial) < epsilon || (pontuacao >= parcial - epsilon && pontuacao < adequado - epsilon)) {
+    return { label: 'Parcialmente Adequado', color: 'warning' }
+  }
+
+  return { label: 'Inadequado', color: 'error' }
+}
+
 // Lifecycle
 onMounted(async () => {
   if (!currentUser.value) {
@@ -1491,6 +1972,21 @@ onMounted(async () => {
 
   // Inicializar reconhecimento de voz
   initSpeechRecognition()
+
+  // Carregar vozes disponíveis (necessário em alguns navegadores)
+  if ('speechSynthesis' in window) {
+    // Carregar vozes imediatamente se disponível
+    if (window.speechSynthesis.getVoices().length > 0) {
+      console.log('🔊 Vozes já carregadas')
+    }
+
+    // Listener para quando as vozes forem carregadas
+    window.speechSynthesis.onvoiceschanged = () => {
+      console.log('🔊 Vozes carregadas:', window.speechSynthesis.getVoices().length)
+      // Resetar voz selecionada para forçar nova seleção
+      selectedVoice.value = null
+    }
+  }
 
   // Habilitar botão de pronto após delay
   setTimeout(() => {
@@ -2039,6 +2535,21 @@ onMounted(async () => {
                 >
                 </v-text-field>
 
+                <!-- Botão para alternar modo automático -->
+                <v-btn
+                  :color="autoRecordMode ? 'success' : 'grey'"
+                  variant="tonal"
+                  size="large"
+                  class="ml-2"
+                  :aria-label="autoRecordMode ? 'Modo automático ativo' : 'Modo manual ativo'"
+                  @click="toggleAutoRecordMode"
+                >
+                  <v-icon>{{ autoRecordMode ? 'ri-ai-generate' : 'ri-hand-coin-line' }}</v-icon>
+                  <v-tooltip activator="parent" location="top">
+                    {{ autoRecordMode ? 'Modo Automático (clique para Manual)' : 'Modo Manual (clique para Automático)' }}
+                  </v-tooltip>
+                </v-btn>
+
                 <!-- Botão de voz -->
                 <v-btn
                   color="primary"
@@ -2050,6 +2561,9 @@ onMounted(async () => {
                   @click="toggleVoiceRecording"
                 >
                   <v-icon>{{ isListening ? 'ri-mic-fill' : 'ri-mic-line' }}</v-icon>
+                  <v-tooltip activator="parent" location="top">
+                    {{ autoRecordMode ? 'Gravando automaticamente' : (isListening ? 'Parar gravação' : 'Iniciar gravação') }}
+                  </v-tooltip>
                 </v-btn>
 
                 <!-- Botão para parar a fala -->
@@ -2182,11 +2696,11 @@ onMounted(async () => {
                       <!-- Visualização da pontuação da IA -->
                       <div v-if="markedPepItems[item.idItem]?.[0]?.pontuacao !== undefined">
                         <v-chip
-                          :color="markedPepItems[item.idItem]?.[0]?.pontuacao >= 5 ? 'success' : markedPepItems[item.idItem]?.[0]?.pontuacao >= 3 ? 'warning' : 'error'"
+                          :color="getClassificacaoFromPontuacao(markedPepItems[item.idItem][0].pontuacao, item).color"
                           variant="tonal"
                           class="mb-1"
                         >
-                          {{ markedPepItems[item.idItem]?.[0]?.pontuacao >= 5 ? 'Adequado' : markedPepItems[item.idItem]?.[0]?.pontuacao >= 3 ? 'Parcialmente Adequado' : 'Inadequado' }}
+                          {{ getClassificacaoFromPontuacao(markedPepItems[item.idItem][0].pontuacao, item).label }}
                         </v-chip>
                         <div class="text-caption">{{ markedPepItems[item.idItem]?.[0]?.pontuacao }} pontos</div>
                         <div v-if="markedPepItems[item.idItem]?.[0]?.observacao" class="text-caption mt-1">{{ markedPepItems[item.idItem][0].observacao }}</div>
