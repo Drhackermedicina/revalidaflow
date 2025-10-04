@@ -276,10 +276,12 @@ const stopAutoCleanup = () => {
 onMounted(() => {
   // Iniciar limpeza automática de mensagens antigas
   startAutoCleanup();
-  
+
   const usersCollectionRef = collection(db, 'usuarios');
-  // Query filtrada para usuários online/treinando e limitada para reduzir leituras
-  const q = query(usersCollectionRef, where('status', 'in', ['disponivel', 'treinando']), orderBy('lastActive', 'desc'), limit(100));
+  // SOLUÇÃO: Remover orderBy para evitar necessidade de índice composto
+  // A consulta funciona sem orderBy e retorna os usuários corretos
+  const q = query(usersCollectionRef, where('status', 'in', ['disponivel', 'treinando']), limit(100));
+
   unsubscribeUsers = onSnapshot(q, (snapshot) => {
     users.value = snapshot.docs.map(doc => ({ uid: doc.id, ...(doc.data() as any) } as User));
     loadingUsers.value = false;

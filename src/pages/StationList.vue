@@ -1,23 +1,28 @@
 <script setup>
+
 import inepIcon from '@/assets/images/inep.png';
-import revalidaFlowIcon from '@/assets/images/botao rf.png';
 import StationListItem from '@/components/StationListItem.vue';
 import { currentUser } from '@/plugins/auth.js'
 import { db, firebaseAuth } from '@/plugins/firebase.js'
 import { backendUrl } from '@/utils/backendUrl'
 import { signOut } from 'firebase/auth'
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore'
-import { computed, onMounted, onUnmounted, reactive, ref, watch, shallowRef } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
-import { checkStationEditStatus, checkMultipleStationsEditStatus, clearStationCache } from '@/utils/cacheManager.js'
+
+// 🚀 OTIMIZAÇÃO: Composables extraídos para melhor organização
+import { useStationFiltering } from '@/composables/useStationFiltering.js'
+import { useStationCategorization } from '@/composables/useStationCategorization.js'
+import { useSequentialMode } from '@/composables/useSequentialMode.js'
+import { useCandidateSearch } from '@/composables/useCandidateSearch.js'
 
 const router = useRouter()
 const theme = useTheme()
 
 // --- Refs do Estado ---
 const isDevelopment = ref(false); // Adiciona variável de ambiente
-const stations = shallowRef([]); // Use shallowRef for performance with large arrays
+const stations = ref([]); // ✅ CORRIGIDO: ref() para reatividade completa (shallowRef causava bugs)
 const isLoadingStations = ref(true);
 const errorMessage = ref('');
 const creatingSessionForStationId = ref(null);
@@ -35,44 +40,126 @@ const userScores = ref({}); // Armazena pontuações do usuário por estação
 const fullStationsCache = ref(new Map()); // Cache de estações completas carregadas sob demanda
 const isLoadingFullStation = ref(false); // Loading para carregamento de estação completa
 
-// --- 🚀 OTIMIZAÇÃO: Caches para funções pesadas ---
-const titleCache = new Map(); // Cache para getCleanStationTitle() - evita 59 linhas de regex
-const areaCache = new Map(); // Cache para getStationArea() - evita 161 linhas de processamento
-const colorCache = new Map(); // Cache para getSpecialtyColor()
-const CACHE_SIZE_LIMIT = 500; // Limite para evitar crescimento infinito
+// 🚀 OTIMIZAÇÃO: Caches para funções de processamento de estações
+const CACHE_SIZE_LIMIT = 1000;
+const titleCache = new Map();
+const areaCache = new Map();
+const colorCache = new Map();
 
-// --- Refs para Simulação Sequencial ---
-const sequentialMode = ref(false);
-const selectedStationsSequence = ref([]);
-const currentSequenceIndex = ref(0);
-const isSequentialModeConfiguring = ref(false);
-const sequentialSessionId = ref(null);
-const showSequentialConfig = ref(false);
+// 🚀 Função de carregamento de estação completa (lazy loading) - precisa estar antes dos composables
+async function loadFullStation(stationId) {
+  if (fullStationsCache.value.has(stationId)) {
+    return fullStationsCache.value.get(stationId);
+  }
 
-// --- Refs para busca de candidatos ---
-const selectedCandidate = ref(null); // Candidato selecionado para visualizar estatísticas
-const candidateSearchQuery = ref(''); // Query de busca por candidato
-const candidateSearchSuggestions = ref([]); // Sugestões de candidatos
-const showCandidateSuggestions = ref(false); // Controle de exibição das sugestões
-const selectedCandidateScores = ref({}); // Pontuações do candidato selecionado
-const isLoadingCandidateSearch = ref(false); // Loading para busca de candidatos
+  isLoadingFullStation.value = true;
+  try {
+    const stationDocRef = doc(db, 'estacoes_clinicas', stationId);
+    const stationDocSnap = await getDoc(stationDocRef);
 
-// --- Refs para filtros e pesquisa ---
+    if (stationDocSnap.exists()) {
+      const fullStationData = { id: stationId, ...stationDocSnap.data() };
+      fullStationsCache.value.set(stationId, fullStationData);
+      return fullStationData;
+    } else {
+      console.error(`Estação ${stationId} não encontrada`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Erro ao carregar estação completa:', error);
+    errorMessage.value = `Erro ao carregar estação: ${error.message}`;
+    return null;
+  } finally {
+    isLoadingFullStation.value = false;
+  }
+}
 
+// 🚀 FUNÇÕES HELPER: Declarações necessárias antes dos composables
+// (implementações completas estão mais abaixo, após linha 450)
+let getCleanStationTitle, getStationArea;
 
-const globalSearchQuery = ref('');
+// 🚀 COMPOSABLES: Lógica extraída para melhor organização e reutilização
 const selectedStation = ref(null);
 
-// --- Opções de área para filtro ---
-const areaOptions = [
-  { title: 'Clínica Médica', value: 'clinica-medica' },
-  { title: 'Cirurgia', value: 'cirurgia' },
-  { title: 'Ginecologia e Obstetrícia', value: 'ginecologia' },
-  { title: 'Pediatria', value: 'pediatria' },
-  { title: 'Medicina da Família e Comunidade (Preventiva)', value: 'preventiva' },
-  { title: 'Procedimentos', value: 'procedimentos' },
-  { title: 'Geral', value: 'geral' }
-];
+// Composable: Filtros e busca (com aliases para evitar conflitos)
+const {
+  globalSearchQuery,
+  normalizeText: normalizeTextFromComposable,
+  isINEPStation: isINEPStationFromComposable,
+  isRevalidaFacilStation: isRevalidaFacilStationFromComposable,
+  getINEPPeriod: getINEPPeriodFromComposable,
+  getSpecialty: getSpecialtyFromComposable,
+  getRevalidaFacilSpecialty: getRevalidaFacilSpecialtyFromComposable,
+  filteredStations: filteredStationsFromComposable,
+  filteredINEPStations: filteredINEPStationsFromComposable,
+  filteredRevalidaFacilStations: filteredRevalidaFacilStationsFromComposable,
+  filteredStations2024_2: filteredStations2024_2FromComposable,
+  filteredStationsRevalidaFacilClinicaMedica,
+  filteredStationsRevalidaFacilCirurgia,
+  filteredStationsRevalidaFacilPediatria,
+  filteredStationsRevalidaFacilGO,
+  filteredStationsRevalidaFacilPreventiva,
+  filteredStationsRevalidaFacilProcedimentos
+} = useStationFiltering(stations);
+
+// Composable: Categorização e cores (com aliases para evitar conflitos)
+const {
+  areaOptions: areaOptionsFromComposable,
+  specialtyColorMap,
+  getStationBackgroundColor
+} = useStationCategorization();
+
+// Composable: Modo sequencial (com aliases para evitar conflitos)
+const {
+  sequentialMode: sequentialModeFromComposable,
+  selectedStationsSequence: selectedStationsSequenceFromComposable,
+  currentSequenceIndex: currentSequenceIndexFromComposable,
+  isSequentialModeConfiguring: isSequentialModeConfiguringFromComposable,
+  sequentialSessionId: sequentialSessionIdFromComposable,
+  showSequentialConfig: showSequentialConfigFromComposable,
+  isStationInSequence: isStationInSequenceFromComposable,
+  toggleSequentialConfig: toggleSequentialConfigFromComposable,
+  resetSequentialConfig: resetSequentialConfigFromComposable,
+  addToSequence: addToSequenceFromComposable,
+  removeFromSequence: removeFromSequenceFromComposable,
+  moveStationInSequence: moveStationInSequenceFromComposable,
+  startSequentialSimulation: startSequentialSimulationFromComposable,
+  startCurrentSequentialStation: startCurrentSequentialStationFromComposable,
+  nextSequentialStation: nextSequentialStationFromComposable
+} = useSequentialMode(loadFullStation, getCleanStationTitle, getStationArea);
+
+// Composable: Busca de candidatos (com aliases para evitar conflitos)
+const {
+  selectedCandidate,
+  candidateSearchQuery,
+  candidateSearchSuggestions,
+  showCandidateSuggestions,
+  selectedCandidateScores,
+  isLoadingCandidateSearch,
+  searchCandidates,
+  selectCandidate,
+  fetchCandidateScores,
+  clearCandidateSelection,
+  getUserStationScore: getUserStationScoreFromComposable
+} = useCandidateSearch(currentUser);
+
+// ✅ Wrappers para funções dos composables de filtros (MOVED HERE to fix hoisting errors)
+const isINEPStation = isINEPStationFromComposable;
+const isRevalidaFacilStation = isRevalidaFacilStationFromComposable;
+const getINEPPeriod = getINEPPeriodFromComposable;
+const getRevalidaFacilSpecialty = getRevalidaFacilSpecialtyFromComposable;
+
+// ✅ Wrappers para computeds de filtros
+const filteredInepStations = filteredINEPStationsFromComposable;
+const filteredRevalidaFacilStations = filteredRevalidaFacilStationsFromComposable;
+
+// ✅ Wrapper para getSpecialty do composable
+const getSpecialty = getSpecialtyFromComposable;
+
+// ✅ Wrapper para getUserStationScore
+function getUserStationScore(stationId) {
+  return getUserStationScoreFromComposable(stationId, userScores.value);
+}
 
 // --- Refs para controle dos accordions ---
 const showPreviousExamsSection = ref(false);
@@ -89,200 +176,6 @@ const isLoadingUsers = ref(false);
 const showRevalidaFacilCirurgia = ref(false); // RECOLHIDO POR PADRÃO
 const showRevalidaFacilPreventiva = ref(false); // RECOLHIDO POR PADRÃO
 const showRevalidaFacilPediatria = ref(false); // RECOLHIDO POR PADRÃO
-
-// --- Funções helper para identificação de estações ---
-function isINEPStation(station) {
-  const idEstacao = station.idEstacao || '';
-  return idEstacao.startsWith('INEP') || (idEstacao.startsWith('REVALIDA_') && !idEstacao.startsWith('REVALIDA_FACIL'));
-}
-
-function isRevalidaFacilStation(station) {
-  const idEstacao = station.idEstacao || '';
-  return idEstacao.startsWith('REVALIDA_FACIL');
-}
-
-function getINEPPeriod(station) {
-  const idEstacao = station.idEstacao || '';
-  if (!isINEPStation(station)) return null;
-  
-  // Extrair período do idEstacao (INEP_2025_1, REVALIDA_2017_CG_02, etc.)
-  const match = idEstacao.match(/(?:INEP|REVALIDA)_(\d{4})(?:_(\d))?/);
-  if (match) {
-    const year = match[1];
-    const subPeriod = match[2];
-    return subPeriod ? `${year}.${subPeriod}` : year;
-  }
-  return null;
-}
-
-function getSpecialty(station) {
-  // Função para normalizar texto (remove acentos, minúsculas, espaços extras)
-  const normalizeText = (text) => {
-    return text
-      .toLowerCase()
-      .trim()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/\s+/g, ' '); // Normaliza espaços múltiplos
-  };
-  
-  const especialidade = normalizeText(station.especialidade || '');
-  
-  // Mapear especialidades com TODAS as variações possíveis (já normalizadas)
-  const specialtyMap = {
-    'clinica-medica': [
-      // Variações principais
-      'clinica medica', 'medicina clinica', 'medicina interna',
-      'clinicamedica', 'med interna', 'cm', 'clinica',
-      // Variações com diferentes acentuações (normalizadas)
-      'medicina interna', 'int', 'interna'
-    ],
-    'pediatria': [
-      'pediatria', 'pediatrica', 'infantil', 'ped', 'neonatal',
-      'crianca', 'lactente', 'adolescente'
-    ],
-    'cirurgia': [
-      'cirurgia', 'cirurgica', 'cirurgia geral', 'cr',
-      'trauma', 'operatoria', 'procedimento cirurgico'
-    ],
-    'ginecologia': [
-      'ginecologia', 'obstetricia', 'ginecoobstetricia',
-      'g.o', 'go', 'gineco', 'obstetrica', 'gestante',
-      'mulher', 'feminino', 'gravidez'
-    ],
-    'preventiva': [
-      'preventiva', 'medicina da familia', 'medicina de familia',
-      'medicina comunitaria', 'etica medica', 'medicina social',
-      'familia', 'coletiva', 'saude publica', 'epidemiologia',
-      'prevencao', 'sus', 'atencao basica', 'mfc'
-    ],
-    'procedimentos': [
-      'procedimento', 'procedimentos', 'habilidade', 'habilidades',
-      'tecnica', 'tecnicas', 'sutura', 'drenagem', 'puncao',
-      'acesso venoso', 'intubacao'
-    ]
-  };
-  
-  // Encontrar categoria correspondente usando busca normalizada
-  for (const [category, keywords] of Object.entries(specialtyMap)) {
-    // Normalizar keywords para comparação
-    const normalizedKeywords = keywords.map(keyword => normalizeText(keyword));
-    
-    // Verificar se alguma keyword está contida na especialidade
-    const match = normalizedKeywords.some(keyword => {
-      // Busca por substring (palavra contida)
-      if (especialidade.includes(keyword)) {
-        return true;
-      }
-      
-      // Busca por palavras individuais para casos complexos
-      const keywordWords = keyword.split(' ');
-      const especialidadeWords = especialidade.split(' ');
-      
-      // Se keyword tem múltiplas palavras, verificar se todas estão presentes
-      if (keywordWords.length > 1) {
-        return keywordWords.every(word => 
-          especialidadeWords.some(espWord => espWord.includes(word))
-        );
-      }
-      
-      return false;
-    });
-    
-    if (match) {
-      return category;
-    }
-  }
-  
-  return 'geral';
-}
-
-function getRevalidaFacilSpecialty(station) {
-  if (!isRevalidaFacilStation(station)) return [];
-
-  // Função para normalizar texto (remove acentos, minúsculas, espaços extras)
-  const normalizeText = (text) => {
-    return text
-      .toLowerCase()
-      .trim()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/\s+/g, ' '); // Normaliza espaços múltiplos
-  };
-
-  const especialidade = normalizeText(station.especialidade || '');
-
-  // Mapear especialidades com TODAS as variações possíveis (já normalizadas)
-  const specialtyMap = {
-    'clinica-medica': [
-      // Variações principais
-      'clinica medica', 'medicina clinica', 'medicina interna',
-      'clinicamedica', 'med interna', 'cm', 'clinica',
-      // Variações com diferentes acentuações (normalizadas)
-      'medicina interna', 'int', 'interna'
-    ],
-    'pediatria': [
-      'pediatria', 'pediatrica', 'infantil', 'ped', 'neonatal',
-      'crianca', 'lactente', 'adolescente'
-    ],
-    'cirurgia': [
-      'cirurgia', 'cirurgica', 'cirurgia geral', 'cr',
-      'trauma', 'operatoria', 'procedimento cirurgico'
-    ],
-    'ginecologia': [
-      'ginecologia', 'obstetricia', 'ginecoobstetricia',
-      'g.o', 'go', 'gineco', 'obstetrica', 'gestante',
-      'mulher', 'feminino', 'gravidez'
-    ],
-    'preventiva': [
-      'preventiva', 'medicina da familia', 'medicina de familia',
-      'medicina comunitaria', 'etica medica', 'medicina social',
-      'familia', 'coletiva', 'saude publica', 'epidemiologia',
-      'prevencao', 'sus', 'atencao basica', 'mfc'
-    ],
-    'procedimentos': [
-      'procedimento', 'procedimentos', 'habilidade', 'habilidades',
-      'tecnica', 'tecnicas', 'sutura', 'drenagem', 'puncao',
-      'acesso venoso', 'intubacao'
-    ]
-  };
-
-  const matchedSpecialties = [];
-
-  // Encontrar todas as categorias correspondentes usando busca normalizada
-  for (const [category, keywords] of Object.entries(specialtyMap)) {
-    // Normalizar keywords para comparação
-    const normalizedKeywords = keywords.map(keyword => normalizeText(keyword));
-
-    // Verificar se alguma keyword está contida na especialidade
-    const match = normalizedKeywords.some(keyword => {
-      // Busca por substring (palavra contida)
-      if (especialidade.includes(keyword)) {
-        return true;
-      }
-
-      // Busca por palavras individuais para casos complexos
-      const keywordWords = keyword.split(' ');
-      const especialidadeWords = especialidade.split(' ');
-
-      // Se keyword tem múltiplas palavras, verificar se todas estão presentes
-      if (keywordWords.length > 1) {
-        return keywordWords.every(word =>
-          especialidadeWords.some(espWord => espWord.includes(word))
-        );
-      }
-
-      return false;
-    });
-
-    if (match) {
-      matchedSpecialties.push(category);
-    }
-  }
-
-  // Se nenhuma especialidade foi encontrada, retornar 'geral'
-  return matchedSpecialties.length > 0 ? matchedSpecialties : ['geral'];
-}
 
 // 👥 FUNÇÃO PARA BUSCAR DADOS DOS USUÁRIOS
 const buscarDadosUsuario = async (uid) => {
@@ -328,76 +221,8 @@ const buscarDadosUsuario = async (uid) => {
   }
 };
 
-// --- Cache reativo para verificações de edição ---
-const editStatusCacheReactive = ref(new Map());
-
-// --- Função otimizada para verificar edição com cache ---
-const verificarEdicaoComCache = async (station) => {
-  const cacheKey = station.id;
-
-  if (editStatusCacheReactive.value.has(cacheKey)) {
-    return editStatusCacheReactive.value.get(cacheKey);
-  }
-
-  try {
-    const hasBeenEdited = await checkStationEditStatus(db, station.id);
-    const result = {
-      hasBeenEdited: hasBeenEdited,
-      method: 'cache',
-      totalEdits: hasBeenEdited ? 1 : 0,
-      lastEditDate: null,
-      lastEditBy: null,
-      createdDate: station.criadoEmTimestamp || station.dataCadastro,
-      createdBy: station.criadoPor
-    };
-    editStatusCacheReactive.value.set(cacheKey, result);
-    return result;
-  } catch (error) {
-    console.error('❌ Erro ao verificar edição com cache:', error);
-    const fallbackResult = verificarEdicaoHibrida(station);
-    editStatusCacheReactive.value.set(cacheKey, fallbackResult);
-    return fallbackResult;
-  }
-};
-
-// --- Função para pré-carregar verificações de edição ---
-const preloadEditStatuses = async (stations) => {
-  if (!stations || stations.length === 0) return;
-
-  const stationIds = stations.map(station => station.id);
-  
-  if (isDevelopment.value) {
-    // console.log(`[CACHE] 🔍 Pré-carregando ${stations.length} verificações de edição`);
-  }
-
-  try {
-    const results = await checkMultipleStationsEditStatus(db, stationIds);
-    Object.entries(results).forEach(([stationId, hasBeenEdited]) => {
-      const station = stations.find(s => s.id === stationId);
-      if (station) {
-        const result = {
-          hasBeenEdited: hasBeenEdited,
-          method: 'cache',
-          totalEdits: hasBeenEdited ? 1 : 0,
-          lastEditDate: null,
-          lastEditBy: null,
-          createdDate: station.criadoEmTimestamp || station.dataCadastro,
-          createdBy: station.criadoPor
-        };
-        editStatusCacheReactive.value.set(stationId, result);
-      }
-    });
-
-    if (isDevelopment.value) {
-      // console.log(`[CACHE] ✅ Pré-carregamento concluído para ${Object.keys(results).length} estações`);
-    }
-  } catch (error) {
-    console.error('[CACHE] ❌ Erro no pré-carregamento:', error);
-  }
-};
-
 // --- Computed Properties ---
-const isDarkTheme = computed(() => theme.global.current.value.dark)
+const isDarkTheme = computed(() => theme.global.current.value.dark);
 
 // --- REFACTORED ADMIN CHECK ---
 const isCurrentUserAdmin = ref(false);
@@ -412,19 +237,6 @@ watch(currentUser, async (user) => {
 }, { immediate: true });
 
 const isAdmin = computed(() => isCurrentUserAdmin.value);
-
-// --- Computed property para obter status de edição de forma síncrona ---
-const getStationEditStatus = (stationId) => {
-  return editStatusCacheReactive.value.get(stationId) || {
-    hasBeenEdited: false,
-    method: 'none',
-    totalEdits: 0,
-    lastEditDate: null,
-    lastEditBy: null,
-    createdDate: null,
-    createdBy: null
-  };
-};
 
 // --- REFACTORED INEP STATIONS COMPUTED ---
 const inepPeriods = ['2025.1', '2024.2', '2024.1', '2023.2', '2023.1', '2022.2', '2022.1', '2021', '2020', '2017', '2016', '2015', '2014', '2013', '2012', '2011'];
@@ -453,14 +265,81 @@ const stationsByInepPeriod = computed(() => {
 
 const stationsRevalidaFacil = computed(() => {
   if (!stations.value) return [];
-  
+
   const filteredStations = stations.value.filter(station => {
     return isRevalidaFacilStation(station);
   });
-  
-  return filteredStations.sort((a, b) => 
+
+  return filteredStations.sort((a, b) =>
     getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true })
   );
+});
+
+// Autocomplete items para busca global
+const globalAutocompleteItems = computed(() => {
+  if (!stations.value) return [];
+
+  // Só mostrar resultados quando o usuário digitar pelo menos 2 caracteres
+  const searchQuery = globalSearchQuery.value?.trim().toLowerCase() || '';
+  if (searchQuery.length < 2) return [];
+
+  return stations.value
+    .filter(station => {
+      const title = getCleanStationTitle(station.tituloEstacao).toLowerCase();
+      const especialidade = (station.especialidade || '').toLowerCase();
+      const area = (station.area || '').toLowerCase();
+      return title.includes(searchQuery) || especialidade.includes(searchQuery) || area.includes(searchQuery);
+    })
+    .map(station => {
+      const cleanTitle = getCleanStationTitle(station.tituloEstacao);
+      const isINEP = isINEPStation(station);
+
+      // Especialidade ou área
+      const specialty = station.especialidade || station.area || '';
+
+      // Determinar a subseção com labels formatados
+      let subsection = '';
+      let subsectionChips = [];
+
+      if (isINEP) {
+        const period = getINEPPeriod(station);
+        if (period) {
+          subsectionChips.push(`INEP ${period}`);
+        }
+        // Para INEP, adicionar também a especialidade
+        if (specialty) {
+          subsectionChips.push(specialty.toUpperCase());
+        }
+      } else {
+        const specialtyNormalized = getRevalidaFacilSpecialty(station);
+        // Mapeamento de valores normalizados para labels de exibição
+        const specialtyLabels = {
+          'clinica-medica': 'CLÍNICA MÉDICA',
+          'cirurgia': 'CIRURGIA',
+          'pediatria': 'PEDIATRIA',
+          'ginecologia': 'GINECOLOGIA E OBSTETRÍCIA',
+          'preventiva': 'PREVENTIVA',
+          'procedimentos': 'PROCEDIMENTOS',
+          'geral': 'GERAL'
+        };
+        const subsectionLabel = specialtyLabels[specialtyNormalized] || specialtyNormalized || '';
+        if (subsectionLabel) {
+          subsectionChips.push(subsectionLabel);
+        }
+      }
+
+      return {
+        id: station.id,
+        title: cleanTitle,
+        subtitle: `${cleanTitle} - ${specialty}`,
+        fullName: `${cleanTitle} - ${specialty}`,
+        subsectionChips: subsectionChips,
+        iconImage: isINEP ? inepIcon : '/botaosemfundo.png',
+        isINEP: isINEP,
+        color: isINEP ? 'primary' : 'success'
+      };
+    })
+    .slice(0, 50); // Limitar a 50 resultados
 });
 
 // 🚀 OTIMIZAÇÃO: Pré-processar dados das estações para evitar recálculo no template
@@ -468,37 +347,12 @@ const enrichStation = (station) => {
   return {
     ...station,
     cleanTitle: getCleanStationTitle(station.tituloEstacao),
-    editStatus: getStationEditStatus(station.id),
     userScore: getUserStationScore(station.id),
     backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station)
   };
 };
 
-const filteredStationsRevalidaFacilClinicaMedica = computed(() => {
-  return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station).includes('clinica-medica'))
-    .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }))
-    .map(enrichStation);
-});
-
-const filteredStationsRevalidaFacilCirurgia = computed(() => {
-  return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station).includes('cirurgia'))
-    .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
-});
-
-const filteredStationsRevalidaFacilPreventiva = computed(() => {
-  return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station).includes('preventiva'))
-    .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
-});
-
-
-const filteredStationsRevalidaFacilPediatria = computed(() => {
-  return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station).includes('pediatria'))
-    .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
-});
+// ✅ Removidas duplicatas - agora vêm do composable useStationFiltering
 
 const filteredStationsByInepPeriod = computed(() => {
   const grouped = {};
@@ -506,7 +360,7 @@ const filteredStationsByInepPeriod = computed(() => {
 
   // Função para extrair o número da estação do ID (EST01, EST02, etc.)
   const getStationNumber = (stationId) => {
-    const match = stationId.match(/EST(\d+)/);1
+    const match = stationId.match(/EST(\d+)/);
     return match ? parseInt(match[1], 10) : 999;
   };
 
@@ -537,181 +391,9 @@ const filteredStationsByInepPeriod = computed(() => {
     // 🚀 OTIMIZAÇÃO: Enriquecer estações com dados pré-calculados
     grouped[period] = grouped[period].map(enrichStation);
   }
+
   return grouped;
 });
-
-const filteredStationsRevalidaFacilGO = computed(() => {
-  return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station).includes('ginecologia'))
-    .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
-});
-
-const filteredStationsRevalidaFacilProcedimentos = computed(() => {
-  return filteredRevalidaFacilStations.value
-    .filter(station => getRevalidaFacilSpecialty(station).includes('procedimentos'))
-    .sort((a, b) => getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true }));
-});
-
-const editStatusCache = new Map();
-
-function clearEditStatusCache() {
-  editStatusCache.clear();
-  if (isDevelopment.value) {
-    // console.log('🧹 Cache de status de edição limpo');
-  }
-}
-
-const isValidTimestamp = (timestamp) => {
-  if (!timestamp) return false;
-  try {
-    let date;
-    if (timestamp.toDate) {
-      date = timestamp.toDate();
-    } else {
-      date = new Date(timestamp);
-    }
-    return date instanceof Date && !isNaN(date.getTime()) && date.getTime() > 0;
-  } catch (error) {
-    return false;
-  }
-};
-
-const safeToISOString = (timestamp) => {
-  try {
-    if (!timestamp) return null;
-    let date;
-    if (timestamp.toDate) {
-      date = timestamp.toDate();
-    } else {
-      date = new Date(timestamp);
-    }
-    if (isNaN(date.getTime())) {
-      console.warn('❌ Timestamp inválido detectado:', timestamp);
-      return null;
-    }
-    return date.toISOString();
-  } catch (error) {
-    console.warn('❌ Erro ao converter timestamp:', error, timestamp);
-    return null;
-  }
-};
-
-function verificarEdicaoHibrida(station) {
-  const cacheKey = `${station.id}_${station.hasBeenEdited}_${station.atualizadoEmTimestamp}_${station.criadoEmTimestamp}`;
-  if (editStatusCache.has(cacheKey)) {
-    return editStatusCache.get(cacheKey);
-  }
-  
-  if (isDevelopment.value) {
-    // console.log('🔍 Verificando edição para estação:', station.id);
-  }
-  
-  let result;
-  
-  if (typeof station.hasBeenEdited === 'boolean') {
-    const lastEdit = station.editHistory && station.editHistory.length > 0 
-      ? station.editHistory[station.editHistory.length - 1] 
-      : null;
-    
-    if (isDevelopment.value) {
-      // console.log('🎯 Campo hasBeenEdited encontrado no banco:', station.hasBeenEdited);
-    }
-    
-    result = {
-      hasBeenEdited: station.hasBeenEdited,
-      method: 'database',
-      totalEdits: station.totalEdits || (station.editHistory ? station.editHistory.length : 0),
-      lastEditDate: lastEdit?.timestamp || station.atualizadoEmTimestamp,
-      lastEditBy: lastEdit?.editadoPor || station.atualizadoPor || station.criadoPor,
-      createdDate: station.criadoEmTimestamp || station.dataCadastro,
-      createdBy: station.criadoPor
-    };
-  }
-  else if (station.editHistory && Array.isArray(station.editHistory)) {
-    const hasModernEdit = station.editHistory.length > 0;
-    const lastEdit = hasModernEdit ? station.editHistory[station.editHistory.length - 1] : null;
-    
-    // console.log('✅ Sistema moderno detectado:', { hasEdit: hasModernEdit, totalEdits: station.editHistory.length });
-    
-    result = {
-      hasBeenEdited: hasModernEdit,
-      method: 'modern',
-      totalEdits: station.editHistory.length,
-      lastEditDate: lastEdit?.timestamp || null,
-      lastEditBy: lastEdit?.editadoPor || null,
-      createdDate: station.criadoEmTimestamp || station.dataCadastro || null,
-      createdBy: station.criadoPor || null
-    };
-  }
-  else {
-    const criadoEm = station.criadoEmTimestamp || station.dataCadastro;
-    const atualizadoEm = station.atualizadoEmTimestamp || station.dataUltimaAtualizacao;
-    const editadoPor = station.atualizadoPor || station.editadoPor || station.criadoPor || null;
-    
-    if (isValidTimestamp(criadoEm) && isValidTimestamp(atualizadoEm)) {
-      const cadastro = criadoEm.toDate ? criadoEm.toDate() : new Date(criadoEm);
-      const ultimaAtualizacao = atualizadoEm.toDate ? atualizadoEm.toDate() : new Date(atualizadoEm);
-      const hasLegacyEdit = ultimaAtualizacao.getTime() !== cadastro.getTime();
-      
-      // console.log('🔧 Sistema legacy detectado:', { 
-      //   hasEdit: hasLegacyEdit, 
-      //   cadastro: safeToISOString(criadoEm), 
-      //   ultimaAtualizacao: safeToISOString(atualizadoEm),
-      //   editadoPor: editadoPor
-      // });
-      
-      result = {
-        hasBeenEdited: hasLegacyEdit,
-        method: 'legacy',
-        totalEdits: hasLegacyEdit ? 1 : 0,
-        lastEditDate: hasLegacyEdit ? ultimaAtualizacao : null,
-        lastEditBy: hasLegacyEdit ? editadoPor : null,
-        createdDate: cadastro,
-        createdBy: station.criadoPor || editadoPor
-      };
-    } else if (isValidTimestamp(atualizadoEm)) {
-      const ultimaAtualizacao = atualizadoEm.toDate ? atualizadoEm.toDate() : new Date(atualizadoEm);
-      // console.log('🔧 Sistema legacy (só atualização) detectado');
-      
-      result = {
-        hasBeenEdited: true,
-        method: 'legacy',
-        totalEdits: 1,
-        lastEditDate: ultimaAtualizacao,
-        lastEditBy: editadoPor,
-        createdDate: null,
-        createdBy: station.criadoPor || editadoPor
-      };
-    }
-    else if (station.hasBeenEdited !== undefined) {
-      // console.log('📝 Campo hasBeenEdited detectado:', station.hasBeenEdited);
-      result = {
-        hasBeenEdited: !!station.hasBeenEdited,
-        method: 'boolean',
-        totalEdits: station.hasBeenEdited ? 1 : 0,
-        lastEditDate: null,
-        lastEditBy: editadoPor,
-        createdDate: criadoEm ? (criadoEm.toDate ? criadoEm.toDate() : new Date(criadoEm)) : null,
-        createdBy: station.criadoPor || editadoPor
-      };
-    }
-    else {
-      // console.log('ℹ️ Sem dados de edição válidos encontrados para:', station.id);
-      result = {
-        hasBeenEdited: false,
-        method: 'none',
-        totalEdits: 0,
-        lastEditDate: null,
-        lastEditBy: null,
-        createdDate: criadoEm ? (isValidTimestamp(criadoEm) ? (criadoEm.toDate ? criadoEm.toDate() : new Date(criadoEm)) : null) : null,
-        createdBy: station.criadoPor || null
-      };
-    }
-  }
-  
-  editStatusCache.set(cacheKey, result);
-  return result;
-}
 
 const formatarDataBrasil = (date) => {
   if (!date) return 'Data não disponível';
@@ -733,47 +415,8 @@ const formatarDataBrasil = (date) => {
   }
 };
 
-const formatarDataBrasilComUsuario = (station) => {
-  const info = verificarEdicaoHibrida(station);
-  if (!info.lastEditDate) return 'Data não disponível';
-  
-  try {
-    const dateObj = info.lastEditDate instanceof Date ? info.lastEditDate : 
-                   (info.lastEditDate.toDate ? info.lastEditDate.toDate() : new Date(info.lastEditDate));
-    
-    if (isNaN(dateObj.getTime())) {
-      return 'Data inválida';
-    }
-    
-    const dia = String(dateObj.getDate()).padStart(2, '0');
-    const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const ano = dateObj.getFullYear();
-    const horas = String(dateObj.getHours()).padStart(2, '0');
-    const minutos = String(dateObj.getMinutes()).padStart(2, '0');
-    const segundos = String(dateObj.getSeconds()).padStart(2, '0');
-    
-    const dataFormatada = `${dia}/${mes}/${ano} às ${horas}:${minutos}:${segundos}`;
-    const usuario = info.lastEditBy ? ` por ${info.lastEditBy}` : '';
-    
-    return `${dataFormatada}${usuario}`;
-  } catch (error) {
-    console.warn('❌ Erro ao formatar data:', error);
-    return 'Erro na data';
-  }
-};
-
-const formatarInfoEdicao = (station) => {
-  const info = verificarEdicaoHibrida(station);
-  if (!info.hasBeenEdited || !info.lastEditDate) return '';
-  
-  const dataFormatada = formatarDataBrasil(info.lastEditDate);
-  const usuario = info.lastEditBy ? ` por ${info.lastEditBy}` : '';
-  
-  return `${dataFormatada}${usuario}`;
-};
-
 // 🚀 OTIMIZAÇÃO: Função com cache - evita 59 linhas de regex repetidas
-function getCleanStationTitle(originalTitle) {
+getCleanStationTitle = function(originalTitle) {
   if (!originalTitle) return 'ESTAÇÃO SEM TÍTULO';
 
   // Verificar cache primeiro
@@ -846,7 +489,7 @@ function getStationYear(station) {
 }
 
 // 🚀 OTIMIZAÇÃO: Função com cache - evita 161 linhas de processamento repetido
-function getStationArea(station) {
+getStationArea = function(station) {
   // Criar chave de cache baseada em id e especialidade
   const cacheKey = `${station.id}_${station.especialidade || ''}_${station.tituloEstacao || ''}`;
 
@@ -881,7 +524,7 @@ function getStationArea(station) {
 
     return result;
   }
-  
+
   const especialidadeRaw = (station.especialidade || '').toLowerCase();
   const titulo = (station.tituloEstacao || '').toLowerCase();
 
@@ -890,7 +533,7 @@ function getStationArea(station) {
     .map(e => e.trim())
     .filter(e => e.length > 0)
     .map(e => e.normalize('NFD').replace(/[\u0300-\u036f]/g, '')); // Normalize and remove accents
-  
+
   const tituloNormalizado = titulo
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -912,7 +555,7 @@ function getStationArea(station) {
     'cirurgia': [
       'cirurgia', 'cirurgica', 'cr', 'trauma', 'operatoria', 'procedimento cirurgico', 'cirurgia geral',
       'trauma abdominal', 'trauma fechado', 'trauma craniano', 'ulcera peptica perfurada', 'ruptura esplenica',
-      'oclusao arterial', 'laparotomia', 'apendicectomia', 'colecistectomia', 'herniorrafia', 
+      'oclusao arterial', 'laparotomia', 'apendicectomia', 'colecistectomia', 'herniorrafia',
       'drenagem', 'sutura', 'urologia', 'ortopedia', 'neurocirurgia',
       'abdome agudo', 'hemorragia interna', 'perfuracao', 'obstrucao intestinal', 'perfurada',
       'politraumatismo', 'fraturas', 'luxacao', 'ferimento', 'corte', 'queimadura',
@@ -971,7 +614,7 @@ function getStationArea(station) {
 
   let key = 'geral';
   let matchInfo = '';
-  
+
   for (const [areaKey, keywordList] of Object.entries(keywords)) {
     const especialidadeMatch = especialidades.some(esp => matchesKeywords(esp, keywordList));
     if (especialidadeMatch) {
@@ -980,7 +623,7 @@ function getStationArea(station) {
       break;
     }
   }
-  
+
   if (key === 'geral') {
     for (const [areaKey, keywordList] of Object.entries(keywords)) {
       const tituloMatch = matchesKeywords(tituloNormalizado, keywordList);
@@ -1019,6 +662,7 @@ function getStationArea(station) {
     'pediatria': { name: 'PED', fullName: 'Pediatria', icon: '👶' },
     'ginecologia': { name: 'G.O', fullName: 'Ginecologia e Obstetrícia', icon: '👩‍⚕️' },
     'preventiva': { name: 'PREV', fullName: 'Preventiva', icon: '🛡️' },
+    'procedimentos': { name: 'PROC', fullName: 'Procedimentos', icon: '🛠️' },
     'geral': { name: 'GERAL', fullName: 'Medicina Geral', icon: '🏥' }
   };
 
@@ -1045,23 +689,23 @@ function getSpecialtyColor(station, specificSpecialty = null) {
   }
 
   const lightColors = {
-    'clinica-medica': '#00BFFF', // Azul mais vivo
-    'cirurgia': '#000080', // Azul marinho mais escuro e vivo
-    'pediatria': '#008000', // Verde mais vivo
-    'ginecologia': '#FF1493', // Rosa mais vivo
-    'preventiva': '#FF4500', // Laranja vermelho mais vivo
-    'procedimentos': '#6A0DAD', // Roxo mais vivo
-    'geral': '#2F4F4F' // Cinza mais escuro
+    'clinica-medica': '#00BFFF',
+    'cirurgia': '#000080',
+    'pediatria': '#008000',
+    'ginecologia': '#FF1493',
+    'preventiva': '#FF4500',
+    'procedimentos': '#6A0DAD',
+    'geral': '#2F4F4F'
   };
 
   const darkColors = {
-    'clinica-medica': '#00CED1', // Turquesa mais vivo
-    'cirurgia': '#4169E1', // Azul royal mais vivo
-    'pediatria': '#32CD32', // Verde lime mais vivo
-    'ginecologia': '#FF69B4', // Rosa quente mais vivo
-    'preventiva': '#FFA500', // Laranja mais vivo
-    'procedimentos': '#9370DB', // Roxo médio mais vivo
-    'geral': '#708090' // Cinza mais claro para dark
+    'clinica-medica': '#00CED1',
+    'cirurgia': '#4169E1',
+    'pediatria': '#32CD32',
+    'ginecologia': '#FF69B4',
+    'preventiva': '#FFA500',
+    'procedimentos': '#9370DB',
+    'geral': '#708090'
   };
 
   const colors = isDarkTheme.value ? darkColors : lightColors;
@@ -1099,22 +743,21 @@ function formatStationDate(station) {
   try {
     let date = null;
     let label = '';
-    
-    if (station.hasBeenEdited && station.atualizadoEmTimestamp) {
-      date = station.atualizadoEmTimestamp.toDate ? station.atualizadoEmTimestamp.toDate() : new Date(station.atualizadoEmTimestamp);
-      label = 'Editada';
-    } 
-    else if (station.criadoEmTimestamp) {
+
+    if (station.criadoEmTimestamp) {
       date = station.criadoEmTimestamp.toDate ? station.criadoEmTimestamp.toDate() : new Date(station.criadoEmTimestamp);
       label = 'Criada';
+    } else {
+      date = new Date(station.idEstacao || station.id || '');
+      label = 'Criada';
     }
-    
+
     if (!date) return 'Data N/A';
-    
+
     const now = new Date();
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) {
       return `${label} hoje`;
     } else if (diffDays === 2) {
@@ -1138,9 +781,8 @@ function getStationDifficulty(stationId, averageScore = null) {
     }, 0) || 0;
     avgScore = (Math.abs(hash) % 61) + 40;
   }
-  
   const normalizedScore = avgScore / 10;
-  
+
   if (avgScore >= 80) {
     return { level: 1, text: 'Fácil', color: '#22c55e', score: normalizedScore.toFixed(1) };
   } else if (avgScore >= 60 && avgScore < 80) {
@@ -1158,139 +800,45 @@ function getUserScore(stationId) {
     a = ((a << 5) - a) + b.charCodeAt(0);
     return a & a;
   }, 0) || 0;
-  
-  const hasScore = Math.abs(hash) % 3 !== 0;
-  if (!hasScore) return null;
-  
-  const score = (Math.abs(hash) % 41) + 60;
-  const finalScore = Math.min(score, 100);
-  
-  return (finalScore / 10).toFixed(1);
+  return hash;
 }
 
-const globalFilteredStations = computed(() => {
-  let filtered = stations.value;
-
-  if (globalSearchQuery.value.trim()) {
-    const query = globalSearchQuery.value.toLowerCase();
-    filtered = filtered.filter(station => {
-      const title = station.tituloEstacao?.toLowerCase() || '';
-      const cleanTitle = getCleanStationTitle(station.tituloEstacao).toLowerCase();
-      const specialty = getStationArea(station).fullName.toLowerCase();
-      const inepPeriod = getINEPPeriod(station)?.toLowerCase() || '';
-      const areaName = getStationArea(station).name.toLowerCase();
-      const revalidaSpecialties = isRevalidaFacilStation(station)
-        ? getRevalidaFacilSpecialty(station).map(s => s.toLowerCase()).join(' ')
-        : '';
-
-      return title.includes(query) ||
-             cleanTitle.includes(query) ||
-             specialty.includes(query) ||
-             inepPeriod.includes(query) ||
-             areaName.includes(query) ||
-             revalidaSpecialties.includes(query);
-    });
-  }
-  return filtered;
-});
-
-const globalAutocompleteItems = computed(() => {
-  if (!globalSearchQuery.value || globalSearchQuery.value.length < 3) {
-    return [];
-  }
-
-  const items = globalFilteredStations.value.map(station => {
-    const area = getStationArea(station);
-    const inepPeriod = getINEPPeriod(station);
-    const isInep = isINEPStation(station);
-    const isRevalida = isRevalidaFacilStation(station);
-
-    const section = isInep ? `INEP ${inepPeriod}`
-                  : isRevalida ? "RF " + getStationArea(station).fullName
-                  : '';
-
-    const displayedSpecialty = isRevalida ? area.fullName : station.especialidade;
-
-    return {
-      id: station.id,
-      title: `${section ? section + ' - ' : ''}${getCleanStationTitle(station.tituloEstacao)}`,
-      subtitle: displayedSpecialty,
-      raw: {
-        ...station,
-        color: getSpecialtyColor(station),
-        icon: area.icon,
-        fullName: area.fullName,
-        section: section
-      }
-    };
-  });
-
-  return items.sort((a, b) => {
-    const aIsINEP = isINEPStation(a.raw);
-    const bIsINEP = isINEPStation(b.raw);
-
-    // Priorizar estações com período válido
-    if (aIsINEP && !bIsINEP) return -1;
-    if (!aIsINEP && bIsINEP) return 1;
-
-    // Ordenar por ano descendente
-    const aYear = getStationYear(a.raw);
-    const bYear = getStationYear(b.raw);
-    return bYear - aYear;
-  });
-});
-
-const filteredInepStations = computed(() => {
-  return globalFilteredStations.value.filter(isINEPStation);
-});
-
-const filteredRevalidaFacilStations = computed(() => {
-  return globalFilteredStations.value.filter(isRevalidaFacilStation);
-});
-
 const totalStations = computed(() => {
-  // Contar estações INEP (não duplicadas)
   const inepTotal = filteredInepStations.value.length;
-
-  // Contar estações Revalida Fácil por subseção (incluindo duplicações)
-  const revalidaFacilTotal =
-    filteredStationsRevalidaFacilClinicaMedica.value.length +
-    filteredStationsRevalidaFacilCirurgia.value.length +
-    filteredStationsRevalidaFacilPediatria.value.length +
-    filteredStationsRevalidaFacilGO.value.length +
-    filteredStationsRevalidaFacilPreventiva.value.length +
-    filteredStationsRevalidaFacilProcedimentos.value.length;
-
+  const revalidaFacilTotal = [
+    filteredStationsRevalidaFacilClinicaMedica.value.length,
+    filteredStationsRevalidaFacilCirurgia.value.length,
+    filteredStationsRevalidaFacilPediatria.value.length,
+    filteredStationsRevalidaFacilGO.value.length,
+    filteredStationsRevalidaFacilPreventiva.value.length,
+    filteredStationsRevalidaFacilProcedimentos.value.length
+  ].reduce((a, b) => a + b, 0);
   return inepTotal + revalidaFacilTotal;
 });
 
 async function fetchStations() {
   isLoadingStations.value = true;
   errorMessage.value = '';
-  stations.value = [];
-
-  clearEditStatusCache();
 
   try {
     // 🚀 OTIMIZAÇÃO: Carregar apenas metadados (id, título, especialidade, numeroDaEstacao)
-    // Reduz de ~100MB para ~500KB de dados iniciais
     const stationsColRef = collection(db, 'estacoes_clinicas');
     const querySnapshot = await getDocs(stationsColRef);
-
     const stationsList = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      // Carregar apenas campos essenciais para listagem
-      stationsList.push({
+      const modifiedData = {
         id: doc.id,
+        idEstacao: data.idEstacao,  // ✅ CRITICAL: Required for filtering INEP/RevalidaFacil stations
         tituloEstacao: data.tituloEstacao,
         especialidade: data.especialidade,
-        idEstacao: data.idEstacao,
-        numeroDaEstacao: data.numeroDaEstacao || 0,
-        criadoEmTimestamp: data.criadoEmTimestamp,
-        hasBeenEdited: data.hasBeenEdited || false
-        // Campos pesados (checklist, anamnese, etc) serão carregados sob demanda
-      });
+        area: data.area,
+        numeroDaEstacao: data.numeroDaEstacao,  // ✅ Required for sorting stations
+        inepPeriod: data.inepPeriod,
+        hmAttributeOrgQualifications: data.hmAttributeOrgQualifications,
+        criadoEmTimestamp: data.criadoEmTimestamp
+      };
+      stationsList.push(modifiedData);
     });
 
     stationsList.sort((a, b) => {
@@ -1301,22 +849,20 @@ async function fetchStations() {
 
     stations.value = stationsList;
 
-    await preloadEditStatuses(stationsList);
-
     if (currentUser.value) {
       await fetchUserScores();
     }
 
     if (stations.value.length === 0) {
-      errorMessage.value = "Nenhuma estação encontrada no Firestore na coleção 'estacoes_clinicas'.";
+      errorMessage.value = "Nenhuma estação encontrada no Firestore na coleção 'estacoes_clinicas'";
     }
 
   } catch (error) {
-    console.error("ERRO ao buscar lista de estações:", error);
+    console.error('ERRO ao buscar lista de estações:', error);
     errorMessage.value = `Falha ao buscar estações: ${error.message}`;
     if (error.code === 'permission-denied') {
       errorMessage.value += " (Erro de permissão! Verifique as Regras de Segurança do Firestore)";
-    } else if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+    } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
       errorMessage.value += " (Erro de rede! Verifique sua conexão ou as configurações de CORS/segurança do navegador)";
     }
   } finally {
@@ -1356,178 +902,15 @@ async function fetchUserScores() {
     userScores.value = scores;
     
   } catch (error) {
-    console.error("ERRO ao buscar pontuações do usuário:", error);
+    console.error('ERRO ao buscar pontuações do usuário:', error);
   }
 }
 
-// 🚀 OTIMIZAÇÃO: Carregar estação completa sob demanda (lazy loading)
-async function loadFullStation(stationId) {
-  // Verificar se já está em cache
-  if (fullStationsCache.value.has(stationId)) {
-    return fullStationsCache.value.get(stationId);
-  }
+// ✅ Removidas duplicatas - agora vêm do composable useStationFiltering
 
-  isLoadingFullStation.value = true;
-  try {
-    const stationDocRef = doc(db, 'estacoes_clinicas', stationId);
-    const stationDocSnap = await getDoc(stationDocRef);
-
-    if (stationDocSnap.exists()) {
-      const fullStationData = { id: stationId, ...stationDocSnap.data() };
-
-      // Armazenar em cache
-      fullStationsCache.value.set(stationId, fullStationData);
-
-      return fullStationData;
-    } else {
-      console.error(`Estação ${stationId} não encontrada`);
-      return null;
-    }
-  } catch (error) {
-    console.error('Erro ao carregar estação completa:', error);
-    errorMessage.value = `Erro ao carregar estação: ${error.message}`;
-    return null;
-  } finally {
-    isLoadingFullStation.value = false;
-  }
-}
-
-async function searchCandidates() {
-  if (!candidateSearchQuery.value?.trim()) {
-    candidateSearchSuggestions.value = [];
-    showCandidateSuggestions.value = false;
-    return;
-  }
-
-  isLoadingCandidateSearch.value = true;
-  try {
-    const searchTerm = candidateSearchQuery.value.trim().toLowerCase();
-    
-    if (!currentUser.value?.uid) {
-      throw new Error('Usuário não autenticado');
-    }
-    
-    const usuariosRef = collection(db, 'usuarios');
-    
-    const snapshot = await getDocs(usuariosRef);
-    const candidates = [];
-    
-    snapshot.forEach((doc) => {
-      try {
-        const userData = doc.data();
-        const fullName = `${userData.nome || ''} ${userData.sobrenome || ''}`.toLowerCase();
-        const email = (userData.email || '').toLowerCase();
-        
-        if (fullName.includes(searchTerm) || email.includes(searchTerm)) {
-          candidates.push({
-            uid: doc.id,
-            nome: userData.nome || 'Sem nome',
-            sobrenome: userData.sobrenome || '',
-            email: userData.email || 'Sem email',
-            photoURL: userData.photoURL || null
-          });
-        }
-      } catch (docError) {
-        console.warn('Erro ao processar documento do usuário:', doc.id, docError);
-      }
-    });
-    
-    candidateSearchSuggestions.value = candidates.slice(0, 10);
-    showCandidateSuggestions.value = candidates.length > 0;
-    
-  } catch (error) {
-    console.error('Erro ao buscar candidatos:', error);
-    candidateSearchSuggestions.value = [];
-    showCandidateSuggestions.value = false;
-    
-    if (error.code === 'permission-denied') {
-      console.warn('Permissão negada para buscar dados do candidato. Verifique as regras do Firestore.');
-    }
-  } finally {
-    isLoadingCandidateSearch.value = false;
-  }
-}
-
-async function selectCandidate(candidate) {
-  selectedCandidate.value = candidate;
-  candidateSearchQuery.value = `${candidate.nome} ${candidate.sobrenome}`.trim();
-  showCandidateSuggestions.value = false;
-  
-  await fetchCandidateScores(candidate.uid);
-}
-
-async function fetchCandidateScores(candidateUid) {
-  try {
-    if (!candidateUid) {
-      throw new Error('UID do candidato não fornecido');
-    }
-    
-    const scores = {};
-    
-    const userDocRef = doc(db, 'usuarios', candidateUid);
-    const userDocSnap = await getDoc(userDocRef);
-    
-    if (userDocSnap.exists()) {
-      const userData = userDocSnap.data();
-      const estacoesConcluidas = userData.estacoesConcluidas || [];
-      
-      estacoesConcluidas.forEach((estacao) => {
-        try {
-          if (estacao.idEstacao && estacao.nota !== undefined) {
-            if (!scores[estacao.idEstacao] || estacao.nota > scores[estacao.idEstacao].score) {
-              scores[estacao.idEstacao] = {
-                score: estacao.nota,
-                maxScore: 100,
-                date: estacao.data?.toDate ? estacao.data.toDate() : estacao.data,
-                nomeEstacao: estacao.nomeEstacao,
-                especialidade: estacao.especialidade,
-                origem: estacao.origem
-              };
-            }
-          }
-        } catch (estacaoError) {
-          console.warn('Erro ao processar estação do candidato:', estacao, estacaoError);
-        }
-      });
-    } else {
-      console.warn('Documento do candidato não encontrado:', candidateUid);
-    }
-    
-    selectedCandidateScores.value = scores;
-    // console.log('Pontuações do candidato carregadas:', scores);
-    
-  } catch (error) {
-    console.error('Erro ao buscar pontuações do candidato:', error);
-    selectedCandidateScores.value = {};
-    
-    if (error.code === 'permission-denied') {
-      console.warn('Permissão negada para buscar dados do candidato. Verifique as regras do Firestore.');
-    }
-  }
-}
-
-function clearCandidateSelection() {
-  selectedCandidate.value = null;
-  candidateSearchQuery.value = '';
-  selectedCandidateScores.value = {};
-  showCandidateSuggestions.value = false;
-}
-
-function getUserStationScore(stationId) {
-  const scoresData = selectedCandidate.value ? selectedCandidateScores.value : userScores.value;
-  const userScore = scoresData[stationId];
-  
-  if (!userScore) return null;
-  
-  const percentage = (userScore.score / userScore.maxScore) * 100;
-  return {
-    score: userScore.score,
-    maxScore: userScore.maxScore,
-    percentage: percentage.toFixed(1),
-    date: userScore.date,
-    sessionId: userScore.sessionId
-  };
-}
+// ✅ NOTA: getCleanStationTitle, getStationArea, getSpecialtyColor e getBackgroundOpacity
+// são definidos localmente pois usam caches locais
+// getStationBackgroundColor vem do composable useStationCategorization
 
 async function startSimulationAsActor(stationId) {
   if (!stationId) {
@@ -1543,7 +926,6 @@ async function startSimulationAsActor(stationId) {
     errorApi.value = '';
 
     // 🚀 OTIMIZAÇÃO: Carregar estação completa antes de navegar (lazy loading)
-    // Isso pré-carrega a estação para a página de simulação usar
     const fullStation = await loadFullStation(stationId);
     if (!fullStation) {
       throw new Error('Não foi possível carregar os dados da estação');
@@ -1554,6 +936,17 @@ async function startSimulationAsActor(stationId) {
     if (station) {
       expandCorrectSection(station);
     }
+
+    const routeData = router.resolve({
+      path: `/app/simulation/${stationId}`,
+      query: {
+        role: 'actor'
+      }
+    });
+
+    // Limpar os campos de busca quando abre a simulação
+    selectedStation.value = null;
+    globalSearchQuery.value = '';
 
     if (selectedCandidate.value) {
       const candidateData = {
@@ -1567,19 +960,6 @@ async function startSimulationAsActor(stationId) {
 
       sessionStorage.setItem('selectedCandidate', JSON.stringify(candidateData));
     }
-
-    // Navigate to simulation view without sessionId (view mode)
-    // Resolve a rota para obter a URL completa
-    const routeData = router.resolve({
-      path: `/app/simulation/${stationId}`,
-      query: {
-        role: 'actor'
-      }
-    });
-
-    // Limpar os campos de busca quando abre a simulação
-    selectedStation.value = null;
-    globalSearchQuery.value = '';
 
     // Abre a URL em uma nova janela/aba
     window.open(routeData.href, '_blank');
@@ -1633,7 +1013,6 @@ async function startAITraining(stationId) {
 
     // Abre a URL em uma nova janela/aba
     window.open(routeData.href, '_blank');
-
   } catch (error) {
     console.error('Erro ao navegar para treinamento com IA:', error);
     alert(`Erro ao iniciar treinamento: ${error.message}`);
@@ -1650,12 +1029,8 @@ function expandCorrectSection(station) {
 
   // Se for estação REVALIDA_FACIL, expandir a seção correspondente
   if (isRevalidaFacilStation(station)) {
-    showRevalidaFacilStations.value = true;
-
     // Expandir todas as subseções baseadas nas especialidades da estação
     const especialidades = getRevalidaFacilSpecialty(station);
-
-    // Expandir cada subseção correspondente
     if (especialidades.includes('clinica-medica')) {
       showRevalidaFacilClinicaMedica.value = true;
     }
@@ -1677,145 +1052,23 @@ function expandCorrectSection(station) {
   }
 }
 
-// --- Funções para Simulação Sequencial ---
-function toggleSequentialConfig() {
-  showSequentialConfig.value = !showSequentialConfig.value;
-  if (!showSequentialConfig.value) {
-    resetSequentialConfig();
-  }
-}
+// ✅ Funções de modo sequencial - wrappers para composables
+const sequentialMode = sequentialModeFromComposable;
+const selectedStationsSequence = selectedStationsSequenceFromComposable;
+const currentSequenceIndex = currentSequenceIndexFromComposable;
+const isSequentialModeConfiguring = isSequentialModeConfiguringFromComposable;
+const sequentialSessionId = sequentialSessionIdFromComposable;
+const showSequentialConfig = showSequentialConfigFromComposable;
 
-function resetSequentialConfig() {
-  selectedStationsSequence.value = [];
-  sequentialMode.value = false;
-  isSequentialModeConfiguring.value = false;
-  currentSequenceIndex.value = 0;
-  sequentialSessionId.value = null;
-}
-
-// Helper function to check if station is in sequence (performance optimization)
-function isStationInSequence(stationId) {
-  return selectedStationsSequence.value.some(s => s.id === stationId);
-}
-
-function addToSequence(station) {
-  if (!isStationInSequence(station.id)) {
-    selectedStationsSequence.value.push({
-      id: station.id,
-      titulo: getCleanStationTitle(station.tituloEstacao),
-      especialidade: station.especialidade,
-      area: getStationArea(station),
-      order: selectedStationsSequence.value.length + 1
-    });
-  }
-}
-
-function removeFromSequence(stationId) {
-  const index = selectedStationsSequence.value.findIndex(s => s.id === stationId);
-  if (index > -1) {
-    selectedStationsSequence.value.splice(index, 1);
-    // Reordenar
-    selectedStationsSequence.value.forEach((station, idx) => {
-      station.order = idx + 1;
-    });
-  }
-}
-
-function moveStationInSequence(fromIndex, toIndex) {
-  const stations = [...selectedStationsSequence.value];
-  const [movedStation] = stations.splice(fromIndex, 1);
-  stations.splice(toIndex, 0, movedStation);
-
-  // Reordenar
-  stations.forEach((station, idx) => {
-    station.order = idx + 1;
-  });
-
-  selectedStationsSequence.value = stations;
-}
-
-async function startSequentialSimulation() {
-  if (selectedStationsSequence.value.length === 0) {
-    alert('Selecione pelo menos uma estação para a simulação sequencial');
-    return;
-  }
-
-  try {
-    isSequentialModeConfiguring.value = true;
-    sequentialMode.value = true;
-    currentSequenceIndex.value = 0;
-
-    // Gerar ID único para a sessão sequencial
-    sequentialSessionId.value = `seq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Armazenar configuração da sequência no sessionStorage
-    sessionStorage.setItem('sequentialSession', JSON.stringify({
-      sessionId: sequentialSessionId.value,
-      sequence: selectedStationsSequence.value,
-      currentIndex: 0,
-      startedAt: new Date().toISOString()
-    }));
-
-    // Iniciar primeira estação
-    await startCurrentSequentialStation();
-
-  } catch (error) {
-    console.error('Erro ao iniciar simulação sequencial:', error);
-    alert(`Erro ao iniciar simulação sequencial: ${error.message}`);
-    resetSequentialConfig();
-  }
-}
-
-async function startCurrentSequentialStation() {
-  if (currentSequenceIndex.value >= selectedStationsSequence.value.length) {
-    alert('Simulação sequencial concluída!');
-    resetSequentialConfig();
-    return;
-  }
-
-  const currentStation = selectedStationsSequence.value[currentSequenceIndex.value];
-
-  try {
-    // 🚀 OTIMIZAÇÃO: Carregar estação completa antes de navegar (lazy loading)
-    const fullStation = await loadFullStation(currentStation.id);
-    if (!fullStation) {
-      throw new Error('Não foi possível carregar os dados da estação');
-    }
-
-    // Atualizar sessionStorage com índice atual
-    const sequentialData = JSON.parse(sessionStorage.getItem('sequentialSession') || '{}');
-    sequentialData.currentIndex = currentSequenceIndex.value;
-    sessionStorage.setItem('sequentialSession', JSON.stringify(sequentialData));
-
-    // Navegar para a estação atual
-    const routeData = router.resolve({
-      path: `/app/simulation/${currentStation.id}`,
-      query: {
-        role: 'actor',
-        sequential: 'true',
-        sequenceId: sequentialSessionId.value,
-        sequenceIndex: currentSequenceIndex.value,
-        totalStations: selectedStationsSequence.value.length
-      }
-    });
-
-    window.open(routeData.href, '_blank');
-
-  } catch (error) {
-    console.error('Erro ao iniciar estação sequencial:', error);
-    alert(`Erro ao iniciar estação: ${error.message}`);
-  }
-}
-
-function nextSequentialStation() {
-  if (currentSequenceIndex.value < selectedStationsSequence.value.length - 1) {
-    currentSequenceIndex.value++;
-    startCurrentSequentialStation();
-  } else {
-    alert('Simulação sequencial concluída!');
-    resetSequentialConfig();
-  }
-}
+const toggleSequentialConfig = toggleSequentialConfigFromComposable;
+const resetSequentialConfig = resetSequentialConfigFromComposable;
+const isStationInSequence = isStationInSequenceFromComposable;
+const addToSequence = addToSequenceFromComposable;
+const removeFromSequence = removeFromSequenceFromComposable;
+const moveStationInSequence = moveStationInSequenceFromComposable;
+const startSequentialSimulation = startSequentialSimulationFromComposable;
+const startCurrentSequentialStation = startCurrentSequentialStationFromComposable;
+const nextSequentialStation = nextSequentialStationFromComposable;
 
 function goToAdminUpload() {
   router.push('/app/admin-upload');
@@ -1881,7 +1134,7 @@ onMounted(() => {
       const icon = btn.querySelector('.v-icon');
       if (icon && (!icon.innerHTML.trim() || icon.innerHTML.length < 3)) {
         const isSelected = btn.getAttribute('variant') === 'tonal';
-
+  
         // Substituir apenas se vazio
         if (isSelected) {
           icon.innerHTML = '✓';
@@ -2003,7 +1256,7 @@ const exampleVariable = ref(null);
       </template>
       Abrir/Fechar menu lateral
     </v-tooltip>
-     <v-row>
+    <v-row>
       <v-col cols="12" md="12" class="mx-auto">
         <v-card v-if="isAdmin" class="mb-4" elevation="2" rounded color="error" variant="tonal">
           <v-card-text class="py-3">
@@ -2069,7 +1322,6 @@ const exampleVariable = ref(null);
               <v-icon class="me-2">ri-list-ordered</v-icon>
               Configuração da Simulação Sequencial
             </v-card-title>
-
             <v-card-text class="pa-4">
               <!-- Lista de Estações Selecionadas -->
               <div v-if="selectedStationsSequence.length > 0" class="mb-4">
@@ -2077,7 +1329,6 @@ const exampleVariable = ref(null);
                   <v-icon class="me-2">ri-check-line</v-icon>
                   Estações Selecionadas ({{ selectedStationsSequence.length }})
                 </div>
-
                 <v-list density="compact" class="bg-grey-lighten-4 rounded">
                   <v-list-item
                     v-for="(station, index) in selectedStationsSequence"
@@ -2096,15 +1347,12 @@ const exampleVariable = ref(null);
                       <v-icon :color="station.area.key === 'clinica-medica' ? 'blue' : station.area.key === 'cirurgia' ? 'indigo' : station.area.key === 'pediatria' ? 'green' : station.area.key === 'ginecologia' ? 'pink' : station.area.key === 'preventiva' ? 'orange' : 'grey'">
                         ri-file-list-3-line
                       </v-icon>
-                    </template>
 
+                    </template>
                     <v-list-item-title class="text-body-2 font-weight-medium">
                       {{ station.titulo }}
                     </v-list-item-title>
-                    <v-list-item-subtitle class="text-caption">
-                      {{ station.area.fullName }}
-                    </v-list-item-subtitle>
-
+                    <v-list-item-subtitle class="text-caption">{{ station.area.fullName }}</v-list-item-subtitle>
                     <template #append>
                       <div class="d-flex gap-1">
                         <v-btn
@@ -2138,7 +1386,6 @@ const exampleVariable = ref(null);
                     </template>
                   </v-list-item>
                 </v-list>
-
                 <v-row class="mt-3">
                   <v-col>
                     <v-btn
@@ -2165,7 +1412,6 @@ const exampleVariable = ref(null);
                   </v-col>
                 </v-row>
               </div>
-
               <!-- Instruções -->
               <v-alert
                 v-else
@@ -2178,7 +1424,9 @@ const exampleVariable = ref(null);
                   <p>1. Clique no botão <v-icon size="small">ri-plus-line</v-icon> ao lado de cada estação que deseja incluir na sequência</p>
                   <p>2. Organize a ordem das estações usando as setas ↑↓</p>
                   <p>3. Clique em "Iniciar Simulação Sequencial" para começar</p>
-                  <p class="mt-2 font-weight-medium text-primary">A simulação abrirá cada estação sequencialmente em novas abas</p>
+                  <p class="mt-2 font-weight-medium text-primary">
+                    A simulação abrirá cada estação sequencialmente em novas abas
+                  </p>
                 </div>
               </v-alert>
             </v-card-text>
@@ -2210,16 +1458,18 @@ const exampleVariable = ref(null);
               <template #title>
                 <div class="d-flex align-center">
                   <v-avatar size="32" class="me-2">
-                    <v-img v-if="selectedCandidate.photoURL" :src="selectedCandidate.photoURL" />
+                    <v-img
+                      v-if="selectedCandidate.photoURL"
+                      :src="selectedCandidate.photoURL"
+                    />
                     <v-icon v-else>ri-user-line</v-icon>
                   </v-avatar>
                   <div>
-                    <div class="font-weight-bold">{{ selectedCandidate.nome }} {{ selectedCandidate.sobrenome }}</div>
-                    <div class="text-caption">{{ selectedCandidate.email }}</div>
+                    <div class="font-weight-bold">{{ selectedCandidate.nome }}</div>
                   </div>
                 </div>
               </template>
-              <div class="text-body-2 mt-2">
+              <div class="text-body-2">
                 Visualizando estatísticas deste candidato nas estações abaixo
               </div>
             </v-alert>
@@ -2255,7 +1505,6 @@ const exampleVariable = ref(null);
                   class="rounded-input"
                 />
               </template>
-              
               <v-card
                 v-if="candidateSearchSuggestions.length > 0"
                 elevation="8"
@@ -2271,11 +1520,14 @@ const exampleVariable = ref(null);
                   >
                     <template #prepend>
                       <v-avatar size="32">
-                        <v-img v-if="candidate.photoURL" :src="candidate.photoURL" />
+                        <v-img
+                          v-if="candidate.photoURL"
+                          :src="candidate.photoURL"
+                        />
                         <v-icon v-else>ri-user-line</v-icon>
                       </v-avatar>
                     </template>
-                    <v-list-item-title>{{ candidate.nome }} {{ candidate.sobrenome }}</v-list-item-title>
+                    <v-list-item-title>{{ candidate.nome }}</v-list-item-title>
                     <v-list-item-subtitle>{{ candidate.email }}</v-list-item-subtitle>
                   </v-list-item>
                 </v-list>
@@ -2289,8 +1541,6 @@ const exampleVariable = ref(null);
             <span class="text-h6">Buscar Estação Globalmente ({{ totalStations }})</span>
           </v-card-title>
           <v-card-text>
-            <!-- KiloCode Debug: Exibir globalAutocompleteItems no console -->
-            <!-- KiloCode Debug: Log movido para a computed property globalAutocompleteItems -->
             <v-autocomplete
               v-model="selectedStation"
               v-model:search="globalSearchQuery"
@@ -2305,18 +1555,42 @@ const exampleVariable = ref(null);
               hide-details
               clearable
               class="rounded-input"
-              no-data-text=""
-              hide-no-data
             >
               <template #item="{ props, item }">
                 <v-list-item
                   v-bind="props"
-                  :title="item.title"
-                  :subtitle="item.raw.fullName"
                   @click="startSimulationAsActor(item.raw.id)"
                 >
                   <template #prepend>
-                    <v-icon :color="item.raw.color">{{ item.raw.icon }}</v-icon>
+                    <div :style="{
+                      width: item.raw.isINEP ? '60px' : '48px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '12px'
+                    }">
+                      <v-img
+                        :src="item.raw.iconImage"
+                        :max-width="item.raw.isINEP ? '60px' : '48px'"
+                        :max-height="'32px'"
+                        contain
+                      />
+                    </div>
+                  </template>
+
+                  <template #append v-if="item.raw.subsectionChips && item.raw.subsectionChips.length > 0">
+                    <div class="d-flex gap-2">
+                      <v-chip
+                        v-for="(chip, index) in item.raw.subsectionChips"
+                        :key="index"
+                        size="small"
+                        :color="item.raw.color"
+                        variant="tonal"
+                      >
+                        {{ chip }}
+                      </v-chip>
+                    </div>
                   </template>
                 </v-list-item>
               </template>
@@ -2325,7 +1599,6 @@ const exampleVariable = ref(null);
         </v-card>
 
         <v-expansion-panels variant="accordion" class="mb-6">
-          
           <!-- INEP Revalida -->
           <v-expansion-panel class="contained-panel">
             <v-expansion-panel-title class="text-h6 font-weight-bold rounded-button-title">
@@ -2345,7 +1618,6 @@ const exampleVariable = ref(null);
             </v-expansion-panel-title>
             <v-expansion-panel-text>
               <v-expansion-panels variant="accordion" class="mt-4">
-                
                 <template v-for="period in inepPeriods" :key="period">
                   <v-expansion-panel v-if="filteredStationsByInepPeriod[period]?.length > 0">
                     <v-expansion-panel-title class="text-subtitle-1 font-weight-medium">
@@ -2354,9 +1626,7 @@ const exampleVariable = ref(null);
                           <v-col cols="auto">
                             <v-icon class="me-2" color="info">ri-calendar-event-line</v-icon>
                           </v-col>
-                          <v-col>
-                            INEP {{ period }}
-                          </v-col>
+                          <v-col>INEP {{ period }}</v-col>
                           <v-col cols="auto">
                             <v-badge :content="filteredStationsByInepPeriod[period].length" color="info" inline />
                           </v-col>
@@ -2368,102 +1638,24 @@ const exampleVariable = ref(null);
                       <v-virtual-scroll
                         :items="filteredStationsByInepPeriod[period]"
                         :item-height="140"
-                        :height="Math.min(filteredStationsByInepPeriod[period].length * 140, 600)"
+                        height="600"
+                        style="overflow-y: auto;"
                       >
                         <template #default="{ item: station }">
-                          <v-list-item
-                            :key="station.id"
-                            class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
-                            :style="{ backgroundColor: getSpecialtyColor(station) + getBackgroundOpacity(station) }"
-                            @click="startSimulationAsActor(station.id)"
-                          >
-                            <template #prepend>
-                              <v-icon color="info">ri-file-list-3-line</v-icon>
-                            </template>
-                            <v-list-item-title class="font-weight-bold text-body-1">{{ getCleanStationTitle(station.tituloEstacao) }}</v-list-item-title>
-                            <v-list-item-subtitle class="text-caption">{{ station.especialidade }}</v-list-item-subtitle>
-
-                            <div class="d-flex align-center gap-2 mt-1">
-                              <v-chip
-                                v-if="getStationEditStatus(station.id).hasBeenEdited === false"
-                                color="warning"
-                                variant="flat"
-                                size="x-small"
-                                class="edit-status-chip"
-                              >
-                                <v-icon start size="12">ri-alert-line</v-icon>
-                                NÃO EDITADA
-                              </v-chip>
-                              <v-chip
-                                v-else-if="getStationEditStatus(station.id).hasBeenEdited === true"
-                                color="success"
-                                variant="flat"
-                                size="x-small"
-                                class="edit-status-chip"
-                              >
-                                <v-icon start size="12">ri-check-line</v-icon>
-                                EDITADA ({{ getStationEditStatus(station.id).totalEdits || 0 }}x)
-                              </v-chip>
-                            </div>
-
-                            <div v-if="getUserStationScore(station.id)" class="mt-2">
-                              <v-chip
-                                :color="getUserStationScore(station.id).percentage >= 70 ? 'success' : getUserStationScore(station.id).percentage >= 50 ? 'warning' : 'error'"
-                                variant="flat"
-                                size="small"
-                                class="user-score-chip"
-                              >
-                                <v-icon start size="16">ri-star-fill</v-icon>
-                                {{ getUserStationScore(station.id).score }}/{{ getUserStationScore(station.id).maxScore }} ({{ getUserStationScore(station.id).percentage }}%)
-                              </v-chip>
-                            </div>
-                            <template #append>
-                              <div class="d-flex align-center">
-                                <v-progress-circular
-                                  v-if="creatingSessionForStationId === station.id"
-                                  indeterminate
-                                  size="24"
-                                  color="primary"
-                                  class="me-2 sequential-selection-btn"
-                                />
-                                <v-btn
-                                  v-if="showSequentialConfig"
-                                  :color="isStationInSequence(station.id) ? 'success' : 'primary'"
-                                  :variant="isStationInSequence(station.id) ? 'tonal' : 'outlined'"
-                                  size="small"
-                                  @click.stop="isStationInSequence(station.id) ? removeFromSequence(station.id) : addToSequence(station)"
-                                  class="me-2 sequential-selection-btn"
-                                  :aria-label="isStationInSequence(station.id) ? 'Remover da sequência' : 'Adicionar à sequência'"
-                                >
-                                  <v-icon
-                                  :style="{ color: isStationInSequence(station.id) ? 'var(--v-theme-success)' : 'var(--v-theme-primary)', opacity: '1', fontWeight: '600', visibility: 'visible' }"
-                                  :data-fallback="isStationInSequence(station.id) ? '✓' : '+'"
-                                  :aria-hidden="false"
-                                  :aria-label="isStationInSequence(station.id) ? 'Estação selecionada' : 'Selecionar estação'"
-                                >{{ isStationInSequence(station.id) ? 'ri-check-line' : 'ri-plus-line' }}</v-icon>
-                                </v-btn>
-                                <v-btn
-                                  v-if="isAdmin"
-                                  color="secondary"
-                                  variant="text"
-                                  size="small"
-                                  icon="ri-pencil-line"
-                                  @click.stop="goToEditStation(station.id)"
-                                  class="me-2 sequential-selection-btn"
-                                  aria-label="Editar Estação"
-                                />
-                                <v-btn
-                                  color="primary"
-                                  variant="text"
-                                  size="small"
-                                  icon="ri-robot-line"
-                                  @click.stop="startAITraining(station.id)"
-                                  class="me-2 sequential-selection-btn"
-                                  aria-label="Treinar com IA"
-                                />
-                              </div>
-                            </template>
-                          </v-list-item>
+                          <StationListItem
+                            :station="station"
+                            :user-score="getUserStationScore(station.id)"
+                            :background-color="getStationBackgroundColor(station)"
+                            :show-sequential-config="showSequentialConfig"
+                            :is-admin="isAdmin"
+                            :is-in-sequence="isStationInSequence(station.id)"
+                            :is-creating-session="creatingSessionForStationId === station.id"
+                            @click="startSimulationAsActor"
+                            @add-to-sequence="addToSequence"
+                            @remove-from-sequence="removeFromSequence"
+                            @edit-station="goToEditStation"
+                            @start-ai-training="startAITraining"
+                          />
                         </template>
                       </v-virtual-scroll>
                     </v-expansion-panel-text>
@@ -2479,7 +1671,7 @@ const exampleVariable = ref(null);
               <template #default="{ expanded }">
                 <v-row no-gutters align="center" class="w-100">
                   <v-col cols="auto">
-                    <v-img :src="revalidaFlowIcon" style="height: 80px; width: 80px; margin-right: 24px;" />
+                    <v-img src="/botaosemfundo.png" style="height: 80px; width: 80px; margin-right: 24px;" />
                   </v-col>
                   <v-col class="d-flex flex-column">
                     <div class="text-h6 font-weight-bold">REVALIDA FLOW</div>
@@ -2492,7 +1684,7 @@ const exampleVariable = ref(null);
             </v-expansion-panel-title>
             <v-expansion-panel-text>
               <v-expansion-panels variant="accordion" class="mt-4">
-                
+                <!-- PROVEDOR DE DADOS DENTRO DO DIV -->
                 <v-expansion-panel v-if="filteredStationsRevalidaFacilClinicaMedica.length > 0">
                   <v-expansion-panel-title class="text-subtitle-1 font-weight-medium">
                     <template #default="{ expanded }">
@@ -2500,29 +1692,31 @@ const exampleVariable = ref(null);
                         <v-col cols="auto">
                           <v-icon class="me-2" color="info">ri-stethoscope-line</v-icon>
                         </v-col>
-                        <v-col>
-                          Clínica Médica
-                        </v-col>
+                        <v-col>Clínica Médica</v-col>
                         <v-col cols="auto">
-                          <v-badge :content="filteredStationsRevalidaFacilClinicaMedica.length" color="info" inline />
+                          <v-badge
+                            :content="filteredStationsRevalidaFacilClinicaMedica.length"
+                            color="info"
+                            inline
+                          />
                         </v-col>
                       </v-row>
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                                        <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
+                    <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
                     <v-virtual-scroll
                       :items="filteredStationsRevalidaFacilClinicaMedica"
                       :item-height="160"
-                      :height="Math.min(filteredStationsRevalidaFacilClinicaMedica.length * 160, 600)"
+                      height="600"
+                      style="overflow-y: auto;"
                     >
                       <template #default="{ item: station }">
                         <StationListItem
                           :station="station"
-                          :edit-status="station.editStatus"
-                          :user-score="station.userScore"
+                          :user-score="getUserStationScore(station.id)"
                           :specialty="'clinica-medica'"
-                          :background-color="station.backgroundColor"
+                          :background-color="getStationBackgroundColor(station)"
                           :show-sequential-config="showSequentialConfig"
                           :is-admin="isAdmin"
                           :is-in-sequence="isStationInSequence(station.id)"
@@ -2544,31 +1738,33 @@ const exampleVariable = ref(null);
                     <template #default="{ expanded }">
                       <v-row no-gutters align="center">
                         <v-col cols="auto">
-                          <v-icon :key="'cirurgia-icon'" class="me-2" color="primary">ri-knife-line</v-icon>
+                          <v-icon class="me-2" color="primary">ri-knife-line</v-icon>
                         </v-col>
-                        <v-col>
-                          Cirurgia
-                        </v-col>
+                        <v-col>Cirurgia</v-col>
                         <v-col cols="auto">
-                          <v-badge :content="filteredStationsRevalidaFacilCirurgia.length" color="primary" inline />
+                          <v-badge
+                            :content="filteredStationsRevalidaFacilCirurgia.length"
+                            color="primary"
+                            inline
+                          />
                         </v-col>
                       </v-row>
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                                        <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
+                    <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
                     <v-virtual-scroll
                       :items="filteredStationsRevalidaFacilCirurgia"
                       :item-height="160"
-                      :height="Math.min(filteredStationsRevalidaFacilCirurgia.length * 160, 600)"
+                      height="600"
+                      style="overflow-y: auto;"
                     >
                       <template #default="{ item: station }">
                         <StationListItem
                           :station="station"
-                          :edit-status="station.editStatus"
-                          :user-score="station.userScore"
+                          :user-score="getUserStationScore(station.id)"
                           :specialty="'cirurgia'"
-                          :background-color="station.backgroundColor"
+                          :background-color="getStationBackgroundColor(station)"
                           :show-sequential-config="showSequentialConfig"
                           :is-admin="isAdmin"
                           :is-in-sequence="isStationInSequence(station.id)"
@@ -2592,29 +1788,31 @@ const exampleVariable = ref(null);
                         <v-col cols="auto">
                           <v-icon class="me-2" color="success">ri-bear-smile-line</v-icon>
                         </v-col>
-                        <v-col>
-                          Pediatria
-                        </v-col>
+                        <v-col>Pediatria</v-col>
                         <v-col cols="auto">
-                          <v-badge :content="filteredStationsRevalidaFacilPediatria.length" color="success" inline />
+                          <v-badge
+                            :content="filteredStationsRevalidaFacilPediatria.length"
+                            color="success"
+                            inline
+                          />
                         </v-col>
                       </v-row>
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                                        <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
+                    <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
                     <v-virtual-scroll
                       :items="filteredStationsRevalidaFacilPediatria"
                       :item-height="160"
-                      :height="Math.min(filteredStationsRevalidaFacilPediatria.length * 160, 600)"
+                      height="600"
+                      style="overflow-y: auto;"
                     >
                       <template #default="{ item: station }">
                         <StationListItem
                           :station="station"
-                          :edit-status="station.editStatus"
-                          :user-score="station.userScore"
+                          :user-score="getUserStationScore(station.id)"
                           :specialty="'pediatria'"
-                          :background-color="station.backgroundColor"
+                          :background-color="getStationBackgroundColor(station)"
                           :show-sequential-config="showSequentialConfig"
                           :is-admin="isAdmin"
                           :is-in-sequence="isStationInSequence(station.id)"
@@ -2638,29 +1836,31 @@ const exampleVariable = ref(null);
                         <v-col cols="auto">
                           <v-icon class="me-2" color="error">ri-women-line</v-icon>
                         </v-col>
-                        <v-col>
-                          Ginecologia e Obstetrícia
-                        </v-col>
+                        <v-col>Ginecologia e Obstetrícia</v-col>
                         <v-col cols="auto">
-                          <v-badge :content="filteredStationsRevalidaFacilGO.length" color="error" inline />
+                          <v-badge
+                            :content="filteredStationsRevalidaFacilGO.length"
+                            color="error"
+                            inline
+                          />
                         </v-col>
                       </v-row>
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                                        <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
+                    <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
                     <v-virtual-scroll
                       :items="filteredStationsRevalidaFacilGO"
                       :item-height="160"
-                      :height="Math.min(filteredStationsRevalidaFacilGO.length * 160, 600)"
+                      height="600"
+                      style="overflow-y: auto;"
                     >
                       <template #default="{ item: station }">
                         <StationListItem
                           :station="station"
-                          :edit-status="station.editStatus"
-                          :user-score="station.userScore"
+                          :user-score="getUserStationScore(station.id)"
                           :specialty="'ginecologia'"
-                          :background-color="station.backgroundColor"
+                          :background-color="getStationBackgroundColor(station)"
                           :show-sequential-config="showSequentialConfig"
                           :is-admin="isAdmin"
                           :is-in-sequence="isStationInSequence(station.id)"
@@ -2684,29 +1884,31 @@ const exampleVariable = ref(null);
                         <v-col cols="auto">
                           <v-icon class="me-2" color="warning">ri-shield-cross-line</v-icon>
                         </v-col>
-                        <v-col>
-                          Preventiva
-                        </v-col>
+                        <v-col>Preventiva</v-col>
                         <v-col cols="auto">
-                          <v-badge :content="filteredStationsRevalidaFacilPreventiva.length" color="warning" inline />
+                          <v-badge
+                            :content="filteredStationsRevalidaFacilPreventiva.length"
+                            color="warning"
+                            inline
+                          />
                         </v-col>
                       </v-row>
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                                        <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
+                    <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
                     <v-virtual-scroll
                       :items="filteredStationsRevalidaFacilPreventiva"
                       :item-height="160"
-                      :height="Math.min(filteredStationsRevalidaFacilPreventiva.length * 160, 600)"
+                      height="600"
+                      style="overflow-y: auto;"
                     >
                       <template #default="{ item: station }">
                         <StationListItem
                           :station="station"
-                          :edit-status="station.editStatus"
-                          :user-score="station.userScore"
+                          :user-score="getUserStationScore(station.id)"
                           :specialty="'preventiva'"
-                          :background-color="station.backgroundColor"
+                          :background-color="getStationBackgroundColor(station)"
                           :show-sequential-config="showSequentialConfig"
                           :is-admin="isAdmin"
                           :is-in-sequence="isStationInSequence(station.id)"
@@ -2730,29 +1932,31 @@ const exampleVariable = ref(null);
                         <v-col cols="auto">
                           <v-icon class="me-2" color="#A52A2A">ri-syringe-line</v-icon>
                         </v-col>
-                        <v-col>
-                          Procedimentos
-                        </v-col>
+                        <v-col>Procedimentos</v-col>
                         <v-col cols="auto">
-                          <v-badge :content="filteredStationsRevalidaFacilProcedimentos.length" color="#A52A2A" inline />
+                          <v-badge
+                            :content="filteredStationsRevalidaFacilProcedimentos.length"
+                            color="#A52A2A"
+                            inline
+                          />
                         </v-col>
                       </v-row>
                     </template>
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
-                                        <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
+                    <!-- 🚀 OTIMIZAÇÃO: Componente reutilizável - elimina duplicação -->
                     <v-virtual-scroll
                       :items="filteredStationsRevalidaFacilProcedimentos"
                       :item-height="160"
-                      :height="Math.min(filteredStationsRevalidaFacilProcedimentos.length * 160, 600)"
+                      height="600"
+                      style="overflow-y: auto;"
                     >
                       <template #default="{ item: station }">
                         <StationListItem
                           :station="station"
-                          :edit-status="station.editStatus"
-                          :user-score="station.userScore"
+                          :user-score="getUserStationScore(station.id)"
                           :specialty="'procedimentos'"
-                          :background-color="station.backgroundColor"
+                          :background-color="getStationBackgroundColor(station)"
                           :show-sequential-config="showSequentialConfig"
                           :is-admin="isAdmin"
                           :is-in-sequence="isStationInSequence(station.id)"
@@ -2807,6 +2011,7 @@ const exampleVariable = ref(null);
   margin-top: 4px;
   font-size: 0.7rem !important;
   height: 20px !important;
+  font-weight: 600 !important;
 }
 
 .v-expansion-panels {
@@ -2919,28 +2124,6 @@ const exampleVariable = ref(null);
   box-shadow: 0 4px 12px rgba(var(--v-theme-error), 0.3);
 }
 
-.edit-status-chip {
-  font-size: 10px !important;
-  height: 20px !important;
-  font-weight: 600 !important;
-}
-
-.date-chip {
-  font-size: 9px !important;
-  height: 18px !important;
-  opacity: 0.8;
-}
-
-.gap-2 {
-  gap: 8px;
-}
-
-@media (max-width: 768px) {
-  .edit-status-chip,
-  .date-chip {
-    display: none;
-  }
-}
 
 .user-score-chip {
   font-size: 0.75rem !important;
@@ -2974,8 +2157,11 @@ const exampleVariable = ref(null);
 .w-100 {
   width: 100%;
 }
+
 .main-content-container {
   background-color: transparent !important;
+}
+
 .rounded-input .v-input__control .v-input__slot {
   border-radius: 8px; /* Cantos mais arredondados */
 }
@@ -2997,6 +2183,7 @@ const exampleVariable = ref(null);
   margin-left: auto;
   margin-right: auto;
 }
+
 /* Estilos específicos para botões de seleção sequencial - CORES FIXAS DE ALTO CONTRASTE */
 .v-btn.sequential-selection-btn .v-icon {
   color: #1565C0 !important; /* Azul escuro fixo para alto contraste */
@@ -3103,72 +2290,5 @@ const exampleVariable = ref(null);
   justify-content: center !important;
   background-color: transparent !important;
   border: none !important;
-}
-}
-</style>
-<style>
-/* Força a transparência em elementos de alto nível */
-.station-list-page-active,
-.station-list-page-active body,
-.station-list-page-active #app,
-.station-list-page-active .v-application {
-  background-color: transparent !important;
-}
-
-.station-list-page-active .v-main,
-.station-list-page-active .v-main__wrap,
-.station-list-page-active .layout-wrapper,
-.station-list-page-active .layout-content-wrapper {
-  background-color: transparent !important;
-}
-
-/* CORREÇÃO ESPECÍFICA PARA ÍCONES DOS BOTÕES SEQUENCIAIS */
-.v-btn.sequential-selection-btn .v-icon {
-  width: 20px !important;
-  height: 20px !important;
-  font-size: 20px !important;
-  line-height: 1 !important;
-}
-
-/* Fallback para ícones que não carregam - adiciona conteúdo de emergência */
-.v-btn[variant="outlined"].sequential-selection-btn .v-icon:empty::before,
-.v-btn[variant="outlined"].sequential-selection-btn .v-icon:not(:has(svg))::before {
-  content: '+' !important;
-  color: #1565C0 !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 24px !important;
-  height: 24px !important;
-  line-height: 24px !important;
-  text-align: center !important;
-}
-
-.v-btn[variant="tonal"].sequential-selection-btn .v-icon:empty::before,
-.v-btn[variant="tonal"].sequential-selection-btn .v-icon:not(:has(svg))::before {
-  content: '✓' !important;
-  color: #2E7D32 !important;
-}
-
-/* Força exibição do ícone usando unicode como backup */
-.v-btn.sequential-selection-btn .v-icon::after {
-  content: attr(data-fallback) !important;
-  color: inherit !important;
-  font-size: 16px !important;
-  font-weight: bold !important;
-  display: none !important;
-}
-
-.v-btn.sequential-selection-btn .v-icon:empty::after {
-  display: inline-flex !important;
-}
-
-/* CSS simplificado para botões */
-.v-btn.sequential-selection-btn {
-  position: relative !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
 }
 </style>

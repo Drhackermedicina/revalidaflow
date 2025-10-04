@@ -1,6 +1,0 @@
-import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/assets/performance-optimizations.css");import { updateStyle as __vite__updateStyle, removeStyle as __vite__removeStyle } from "/@vite/client"
-const __vite__id = "D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets/performance-optimizations.css"
-const __vite__css = "/* Este arquivo pode conter otimizações de performance de CSS. */\r\n/* Por enquanto, ele estará vazio. */\r\n"
-__vite__updateStyle(__vite__id, __vite__css)
-import.meta.hot.accept()
-import.meta.hot.prune(() => __vite__removeStyle(__vite__id))

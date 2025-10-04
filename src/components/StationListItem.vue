@@ -6,10 +6,6 @@ const props = defineProps({
     type: Object,
     required: true
   },
-  editStatus: {
-    type: Object,
-    default: () => ({ hasBeenEdited: false, totalEdits: 0 })
-  },
   userScore: {
     type: Object,
     default: null
@@ -78,66 +74,6 @@ const scoreColor = computed(() => {
     <v-list-item-subtitle v-if="station.especialidade && !showDetailedDates" class="text-caption">
       {{ station.especialidade }}
     </v-list-item-subtitle>
-
-    <!-- Status de Edição -->
-    <div v-if="showDetailedDates" class="d-flex flex-column gap-1 mt-2">
-      <div class="d-flex align-center gap-2">
-        <v-chip
-          v-if="editStatus.hasBeenEdited === false"
-          color="warning"
-          variant="flat"
-          size="x-small"
-          class="edit-status-chip"
-        >
-          <v-icon start size="12">ri-alert-line</v-icon>
-          NÃO EDITADA
-        </v-chip>
-        <v-chip
-          v-else-if="editStatus.hasBeenEdited === true"
-          color="success"
-          variant="flat"
-          size="x-small"
-          class="edit-status-chip"
-        >
-          <v-icon start size="12">ri-check-line</v-icon>
-          EDITADA ({{ editStatus.totalEdits || 0 }}x)
-        </v-chip>
-      </div>
-
-      <div v-if="editStatus.createdDate" class="text-caption text-secondary">
-        <v-icon size="12" class="me-1">ri-calendar-line</v-icon>
-        Criada: {{ editStatus.createdDate }}
-      </div>
-
-      <div v-if="editStatus.lastEditDate && editStatus.hasBeenEdited" class="text-caption text-secondary">
-        <v-icon size="12" class="me-1">ri-edit-line</v-icon>
-        Editada: {{ editStatus.lastEditDate }}
-      </div>
-    </div>
-
-    <!-- Status de Edição Simples (INEP) -->
-    <div v-else class="d-flex align-center gap-2 mt-1">
-      <v-chip
-        v-if="editStatus.hasBeenEdited === false"
-        color="warning"
-        variant="flat"
-        size="x-small"
-        class="edit-status-chip"
-      >
-        <v-icon start size="12">ri-alert-line</v-icon>
-        NÃO EDITADA
-      </v-chip>
-      <v-chip
-        v-else-if="editStatus.hasBeenEdited === true"
-        color="success"
-        variant="flat"
-        size="x-small"
-        class="edit-status-chip"
-      >
-        <v-icon start size="12">ri-check-line</v-icon>
-        EDITADA ({{ editStatus.totalEdits || 0 }}x)
-      </v-chip>
-    </div>
 
     <!-- Pontuação do Usuário -->
     <div v-if="userScore" class="mt-2">

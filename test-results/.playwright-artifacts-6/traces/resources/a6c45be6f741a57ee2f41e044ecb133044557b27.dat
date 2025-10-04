@@ -1,8 +1,0 @@
-// Utilities
-import { getCurrentInstance } from "/node_modules/vuetify/lib/util/getCurrentInstance.mjs?v=48017b6c"; // Types
-export function useRender(render) {
-  const vm = getCurrentInstance('useRender');
-  vm.render = render;
-}
-                                      
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidXNlUmVuZGVyLm1qcyIsIm5hbWVzIjpbImdldEN1cnJlbnRJbnN0YW5jZSIsInVzZVJlbmRlciIsInJlbmRlciIsInZtIl0sInNvdXJjZXMiOlsiLi4vLi4vc3JjL3V0aWwvdXNlUmVuZGVyLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8vIFV0aWxpdGllc1xuaW1wb3J0IHsgZ2V0Q3VycmVudEluc3RhbmNlIH0gZnJvbSAnLi9nZXRDdXJyZW50SW5zdGFuY2UnXG5cbi8vIFR5cGVzXG5pbXBvcnQgdHlwZSB7IFZOb2RlIH0gZnJvbSAndnVlJ1xuXG5leHBvcnQgZnVuY3Rpb24gdXNlUmVuZGVyIChyZW5kZXI6ICgpID0+IFZOb2RlKTogdm9pZCB7XG4gIGNvbnN0IHZtID0gZ2V0Q3VycmVudEluc3RhbmNlKCd1c2VSZW5kZXInKSBhcyBhbnlcbiAgdm0ucmVuZGVyID0gcmVuZGVyXG59XG4iXSwibWFwcGluZ3MiOiJBQUFBO0FBQUEsU0FDU0Esa0JBQWtCLG9DQUUzQjtBQUdBLE9BQU8sU0FBU0MsU0FBU0EsQ0FBRUMsTUFBbUIsRUFBUTtFQUNwRCxNQUFNQyxFQUFFLEdBQUdILGtCQUFrQixDQUFDLFdBQVcsQ0FBUTtFQUNqREcsRUFBRSxDQUFDRCxNQUFNLEdBQUdBLE1BQU07QUFDcEIiLCJpZ25vcmVMaXN0IjpbXSwieF9nb29nbGVfaWdub3JlTGlzdCI6WzBdfQ==

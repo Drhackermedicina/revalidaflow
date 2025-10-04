@@ -1,3 +1,0 @@
-export { VApp } from "/node_modules/vuetify/lib/components/VApp/VApp.mjs?v=48017b6c";
-                                  
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXgubWpzIiwibmFtZXMiOlsiVkFwcCJdLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9jb21wb25lbnRzL1ZBcHAvaW5kZXgudHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IHsgVkFwcCB9IGZyb20gJy4vVkFwcCdcbiJdLCJtYXBwaW5ncyI6IlNBQVNBLElBQUkiLCJpZ25vcmVMaXN0IjpbXSwieF9nb29nbGVfaWdub3JlTGlzdCI6WzBdfQ==

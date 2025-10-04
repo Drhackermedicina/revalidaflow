@@ -1,5 +1,0 @@
-// Utilities
-import { createSimpleFunctional } from "/node_modules/vuetify/lib/util/index.mjs?v=48017b6c";
-export const VCardTitle = createSimpleFunctional('v-card-title');
-                                       
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiVkNhcmRUaXRsZS5tanMiLCJuYW1lcyI6WyJjcmVhdGVTaW1wbGVGdW5jdGlvbmFsIiwiVkNhcmRUaXRsZSJdLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9jb21wb25lbnRzL1ZDYXJkL1ZDYXJkVGl0bGUudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLy8gVXRpbGl0aWVzXG5pbXBvcnQgeyBjcmVhdGVTaW1wbGVGdW5jdGlvbmFsIH0gZnJvbSAnQC91dGlsJ1xuXG5leHBvcnQgY29uc3QgVkNhcmRUaXRsZSA9IGNyZWF0ZVNpbXBsZUZ1bmN0aW9uYWwoJ3YtY2FyZC10aXRsZScpXG5cbmV4cG9ydCB0eXBlIFZDYXJkVGl0bGUgPSBJbnN0YW5jZVR5cGU8dHlwZW9mIFZDYXJkVGl0bGU+XG4iXSwibWFwcGluZ3MiOiJBQUFBO0FBQUEsU0FDU0Esc0JBQXNCO0FBRS9CLE9BQU8sTUFBTUMsVUFBVSxHQUFHRCxzQkFBc0IsQ0FBQyxjQUFjLENBQUMiLCJpZ25vcmVMaXN0IjpbXSwieF9nb29nbGVfaWdub3JlTGlzdCI6WzBdfQ==
