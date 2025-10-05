@@ -27,7 +27,7 @@ export function useMedicalChat() {
   // Mensagem inicial especializada para medicina
   const initialMessage = {
     id: Date.now(),
-    text: 'Olá! Sou o Gemini, seu assistente médico especializado. Tenho conhecimento atualizado até outubro de 2025, incluindo as diretrizes médicas mais recentes. Posso ajudá-lo com dúvidas sobre medicina, Revalida, estações clínicas, casos médicos e muito mais. Como posso auxiliá-lo hoje?',
+    text: 'Olá! Sou o Gemini, seu assistente médico especializado. Tenho conhecimento atualizado até outubro de 2025, incluindo as diretrizes médicas mais recentes. Sempre cito minhas fontes ao final das respostas para transparência e confiabilidade. Posso ajudá-lo com dúvidas sobre medicina, Revalida, estações clínicas, casos médicos e muito mais. Como posso auxiliá-lo hoje?',
     sender: 'gemini',
     timestamp: new Date(),
     type: 'medical'
@@ -97,6 +97,21 @@ INSTRUÇÕES CRÍTICAS:
 - Mantenha ética médica e confidencialidade
 - Seja útil para preparação de exames e prática clínica moderna
 
+OBRIGATÓRIO - CITAR FONTES:
+- SEMPRE cite as fontes ao final de cada resposta
+- Inclua links diretos para as diretrizes e referências utilizadas
+- Use fontes confiáveis: OMS, Ministério da Saúde, sociedades médicas brasileiras
+- Formato: "---\n**Fontes:**\n- [Nome da diretriz](link)\n- [Outra referência](link)"
+
+FONTES DE REFERÊNCIA DISPONÍVEIS (2025):
+- Ministério da Saúde Brasil: https://www.gov.br/saude
+- OMS (Organização Mundial da Saúde): https://www.who.int
+- SBC (Sociedade Brasileira de Cardiologia): https://www.cardiol.br
+- SBEM (Sociedade Brasileira de Endocrinologia): https://www.endocrino.org.br
+- CFM (Conselho Federal de Medicina): https://portal.cfm.org.br
+- ANVISA: https://www.gov.br/anvisa
+- Revalida: https://portal.cfm.org.br/revalida
+
 IMPORTANTE SOBRE TEMPO:
 - Estamos em outubro de 2025
 - Considere avanços médicos recentes
@@ -104,7 +119,7 @@ IMPORTANTE SOBRE TEMPO:
 
 Pergunta do usuário: ${currentInput}
 
-Responda de forma clara, objetiva e clinicamente relevante, considerando o contexto temporal atual.
+Responda de forma clara, objetiva e clinicamente relevante, considerando o contexto temporal atual. SEMPRE termine com a seção de fontes citadas.
       `
 
       const response = await geminiService.makeRequest(currentInput, medicalContext)
