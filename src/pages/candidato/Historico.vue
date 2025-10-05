@@ -177,7 +177,10 @@ onMounted(() => {
 <style scoped>
 /* Estilos específicos da página Historico */
 .historico-description {
-  @apply text-body-1 mb-4;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .history-table {

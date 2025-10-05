@@ -17,8 +17,6 @@ declare module 'vue' {
     CardStatisticsVertical: typeof import('./src/@core/components/cards/CardStatisticsVertical.vue')['default']
     CardStatisticsWithImages: typeof import('./src/@core/components/cards/CardStatisticsWithImages.vue')['default']
     ChatNotificationFloat: typeof import('./src/components/ChatNotificationFloat.vue')['default']
-    ChatSettings: typeof import('./src/components/ChatSettings.vue')['default']
-    CorrecaoEditores: typeof import('./src/components/CorrecaoEditores.vue')['default']
     ErrorHeader: typeof import('./src/components/ErrorHeader.vue')['default']
     GeminiChat: typeof import('./src/components/GeminiChat.vue')['default']
     GlobalLoader: typeof import('./src/components/GlobalLoader.vue')['default']
