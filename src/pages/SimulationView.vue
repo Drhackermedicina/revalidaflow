@@ -13,6 +13,7 @@ import { useSequentialNavigation } from '@/composables/useSequentialNavigation.t
 import { useEvaluation } from '@/composables/useEvaluation.ts';
 import { useImagePreloading } from '@/composables/useImagePreloading.ts';
 import { useScriptMarking } from '@/composables/useScriptMarking.ts';
+import { useSimulationMeet } from '@/composables/useSimulationMeet.ts';
 import { usePrivateChatNotification } from '@/plugins/privateChatListener.js';
 import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
@@ -227,6 +228,26 @@ const {
 const debouncedToggleParagraphMark = toggleParagraphMark;
 const debouncedToggleScriptContext = toggleScriptContext;
 
+// Router e Route (necessários para alguns composables)
+const route = useRoute();
+const router = useRouter();
+
+// Google Meet integration
+const {
+  communicationMethod,
+  meetLink,
+  meetLinkCopied,
+  candidateMeetLink,
+  candidateOpenedMeet,
+  openGoogleMeet,
+  copyMeetLink,
+  checkCandidateMeetLink,
+  openCandidateMeet,
+  validateMeetLink,
+  isMeetMode,
+  getMeetLinkForInvite
+} = useSimulationMeet({ userRole, route });
+
 // Refs para dados da simulação
 const releasedData = ref({});
 const isChecklistVisibleForCandidate = ref(false);
@@ -277,8 +298,6 @@ function togglePepItemMark(itemId, pointIndex) {
 
 // Refs para informações do parceiro e da sessão
 const partner = ref(null);
-const route = useRoute();
-const router = useRouter();
 
 const inviteLinkToShow = ref('');
 const copySuccess = ref(false);
@@ -381,7 +400,7 @@ async function sendLinkViaPrivateChat() {
       inviteLink: inviteLinkToShow.value,
       stationTitle: stationData.value?.tituloEstacao || 'Estação',
       duration: selectedDurationMinutes.value || 10,
-      meetLink: communicationMethod.value === 'meet' ? meetLink.value?.trim() : null,
+      meetLink: getMeetLinkForInvite(),
       senderName: currentUser.value?.displayName || 'Avaliador',
       senderUid: currentUser.value?.uid
     });
@@ -991,15 +1010,10 @@ async function generateInviteLinkWithDuration() {
   }
 
   if ((userRole.value === 'actor' || userRole.value === 'evaluator') && stationId.value && sessionId.value) {
-    if (communicationMethod.value === 'meet') {
-      if (!meetLink.value) {
-        errorMessage.value = "Cole o link da sala do Google Meet antes de gerar o convite.";
-        return;
-      }
-      // Validação simples do link do Meet
-      const trimmedLink = meetLink.value.trim();
-      if (!/^https:\/\/meet\.google\.com\//.test(trimmedLink)) {
-        errorMessage.value = "O link do Meet deve começar com https://meet.google.com/";
+    if (isMeetMode()) {
+      const validation = validateMeetLink(meetLink.value);
+      if (!validation.valid) {
+        errorMessage.value = validation.error;
         return;
       }
     }
@@ -1019,9 +1033,10 @@ async function generateInviteLinkWithDuration() {
           inviteQuery.candidateUid = selectedCandidate.uid;
           inviteQuery.candidateName = selectedCandidate.name;
         }
-        
-        if (communicationMethod.value === 'meet') {
-          inviteQuery.meet = meetLink.value.trim();
+
+        const meetLinkForInvite = getMeetLinkForInvite();
+        if (meetLinkForInvite) {
+          inviteQuery.meet = meetLinkForInvite;
         }
         // Busca recursiva da rota protegida
         const routeDef = findRouteByName(router.options.routes, 'station-simulation');
@@ -1049,25 +1064,8 @@ async function generateInviteLinkWithDuration() {
   }
 }
 
-
-const candidateMeetLink = ref('');
-const candidateOpenedMeet = ref(false);
-
-function checkCandidateMeetLink() {
-  if (userRole.value === 'candidate' && route.query.meet && typeof route.query.meet === 'string') {
-    candidateMeetLink.value = route.query.meet;
-  } else {
-    candidateMeetLink.value = '';
-  }
-  candidateOpenedMeet.value = false; // Sempre reinicia ao entrar
-}
-
-function openCandidateMeet() {
-  if (candidateMeetLink.value) {
-    window.open(candidateMeetLink.value, '_blank');
-    candidateOpenedMeet.value = true;
-  }
-}
+// candidateMeetLink, candidateOpenedMeet, checkCandidateMeetLink e openCandidateMeet
+// movidos para useSimulationMeet composable
 
 watch(() => route.fullPath, (newPath, oldPath) => {
   if (newPath !== oldPath && route.name === 'SimulationView') {
@@ -1286,9 +1284,7 @@ setupDebugFunction({
 });
 
 // --- NOVO: Comunicação Google Meet ---
-const communicationMethod = ref(''); // 'voice' ou 'meet'
-const meetLink = ref('');
-const meetLinkCopied = ref(false);
+// communicationMethod, meetLink, meetLinkCopied movidos para useSimulationMeet composable
 
 // Watcher para debugging de variáveis sequenciais (movido para após definições)
 watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
@@ -1310,18 +1306,7 @@ watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
   { immediate: true }
 );
 
-function openGoogleMeet() {
-  // Abre uma nova sala do Meet
-  window.open('https://meet.google.com/new', '_blank');
-}
-
-function copyMeetLink() {
-  if (meetLink.value) {
-    navigator.clipboard.writeText(meetLink.value);
-    meetLinkCopied.value = true;
-    setTimeout(() => { meetLinkCopied.value = false; }, 2000);
-  }
-}
+// openGoogleMeet e copyMeetLink movidos para useSimulationMeet composable
 
 // --- CONTROLE DE USUÁRIOS ONLINE E CONVITE INTERNO ---
 const onlineCandidates = ref([]); // Lista de candidatos online
@@ -1345,7 +1330,7 @@ function sendInternalInvite(candidate) {
     toUserId: candidate.userId,
     sessionId: sessionId.value,
     stationId: stationId.value,
-    meetLink: communicationMethod.value === 'meet' ? meetLink.value.trim() : '',
+    meetLink: getMeetLinkForInvite() || '',
     duration: selectedDurationMinutes.value
   });
 }
