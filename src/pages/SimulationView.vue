@@ -6,12 +6,16 @@ defineProps({
 
 // Imports
 /* AgentAssistant legacy component import removed during agent cleanup */
+import { useSimulationSession } from '@/composables/useSimulationSession.ts';
 import { useSimulationSocket } from '@/composables/useSimulationSocket.ts';
 import { useSimulationInvites } from '@/composables/useSimulationInvites.js';
+import { useSequentialNavigation } from '@/composables/useSequentialNavigation.ts';
+import { useEvaluation } from '@/composables/useEvaluation.ts';
+import { useImagePreloading } from '@/composables/useImagePreloading.ts';
+import { useScriptMarking } from '@/composables/useScriptMarking.ts';
 import { usePrivateChatNotification } from '@/plugins/privateChatListener.js';
 import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
-import { registrarConclusaoEstacao } from '@/services/stationEvaluationService.js';
 import { backendUrl } from '@/utils/backendUrl.js';
 import { loadAudioFile, playAudioSegment } from '@/utils/audioService.js'; // Importar as novas funções de áudio
 import {
@@ -36,38 +40,13 @@ import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 import PepSideView from '@/components/PepSideView.vue';
 
-// --- Funções Utilitárias para Otimização de Performance ---
-function memoize(func) {
-  const cache = new Map();
-  return (...args) => {
-    const key = JSON.stringify(args);
-    if (cache.has(key)) return cache.get(key);
-    const result = func(...args);
-    cache.set(key, result);
-    return result;
-  };
-}
-
-function debounce(func, wait) {
-  let timeout;
-  return (...args) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), wait);
-  };
-}
+// Funções utilitárias importadas
+import { memoize } from '@/utils/memoization.js';
 
 // Funções de formatação memoizadas
 const memoizedFormatActorText = memoize(formatActorText);
 const memoizedFormatIdentificacaoPaciente = memoize(formatIdentificacaoPaciente);
 const memoizedFormatItemDescriptionForDisplay = memoize(formatItemDescriptionForDisplay);
-// Funções de eventos com debounce
-const debouncedToggleScriptContext = debounce((idx, event) => {
-  toggleScriptContext(idx, event);
-}, 100);
-
-const debouncedToggleParagraphMark = debounce((contextIdx, paragraphIdx, event) => {
-  toggleParagraphMark(contextIdx, paragraphIdx, event);
-}, 100);
 
 // Configuração do tema
 const theme = useTheme();
@@ -109,57 +88,151 @@ function editStationData(field, value) {
   }
 }
 
-// Refs para dados da estação e checklist
-const stationData = ref(null);
-const checklistData = ref(null);
-// Refs para controle de UI e estado
-const isLoading = ref(true);
-const errorMessage = ref('');
+// Inicializa o composable de sessão
+const {
+  stationId,
+  sessionId,
+  userRole,
+  localSessionId,
+  stationData,
+  checklistData,
+  isLoading,
+  errorMessage,
+  isSettingUpSession,
+  isSequentialMode,
+  sequenceId,
+  sequenceIndex,
+  totalSequentialStations,
+  sequentialData,
+  simulationTimeSeconds,
+  timerDisplay,
+  selectedDurationMinutes,
+  isActorOrEvaluator,
+  isCandidate,
+  fetchSimulationData,
+  setupSequentialMode,
+  setupDuration,
+  validateSessionParams,
+  clearSession,
+  updateDuration
+} = useSimulationSession();
 
-// --- Refs para Simulação Sequencial ---
-const isSequentialMode = ref(false);
-const sequenceId = ref(null);
-const sequenceIndex = ref(0);
-const totalSequentialStations = ref(0);
-const sequentialData = ref(null);
-// Socket removido - dependência não essencial
+// Inicializa composable de navegação sequencial
+const {
+  setupSequentialNavigation,
+  goToNextSequentialStation,
+  goToPreviousSequentialStation,
+  exitSequentialMode,
+  canGoToPrevious,
+  canGoToNext,
+  sequentialProgress,
+  currentSequentialStation,
+  setupDebugFunction
+} = useSequentialNavigation({
+  isSequentialMode,
+  sequenceId,
+  sequenceIndex,
+  totalSequentialStations,
+  sequentialData
+});
+
+// Socket - declarado antes para uso nos composables
 let socket = ref(null);
 let connectionStatus = ref('');
 let connect = () => {};
 let disconnect = () => {};
 
+// Refs necessários para useEvaluation
+const simulationEnded = ref(false);
+
+// Refs para notificações
+const showNotificationSnackbar = ref(false);
+const notificationMessage = ref('');
+const notificationColor = ref('info');
+
+const showNotification = (message, color = 'info') => {
+  notificationMessage.value = message;
+  notificationColor.value = color;
+  showNotificationSnackbar.value = true;
+};
+
+// Inicializa composable de avaliação
+const {
+  evaluationScores,
+  candidateReceivedScores,
+  candidateReceivedTotalScore,
+  evaluationSubmittedByCandidate,
+  pepReleasedToCandidate,
+  totalScore,
+  allEvaluationsCompleted,
+  submitEvaluation,
+  releasePepToCandidate,
+  updateEvaluationScore,
+  clearEvaluationScores,
+  updateCandidateReceivedScores
+} = useEvaluation({
+  socket,
+  sessionId,
+  stationId,
+  userRole,
+  currentUser,
+  stationData,
+  checklistData,
+  simulationEnded,
+  showNotification
+});
+
+// Inicializa composable de preload de imagens
+const {
+  imageLoadAttempts,
+  imageLoadSources,
+  imagesPreloadStatus,
+  allImagesPreloaded,
+  zoomedImageSrc,
+  zoomedImageAlt,
+  imageZoomDialog,
+  getImageId,
+  getImageSource,
+  handleImageLoad,
+  handleImageError,
+  clearImageCache,
+  preloadSingleImage,
+  preloadSingleImageAdvanced,
+  preloadImpressoImages,
+  isImagePreloaded,
+  ensureImageIsPreloaded,
+  openImageZoom,
+  closeImageZoom
+} = useImagePreloading({ stationData });
+
+// Inicializa composable de marcação de roteiro
+const {
+  markedScriptContexts,
+  markedScriptSentences,
+  markedParagraphs,
+  markedMainItems,
+  markedSubItems,
+  toggleScriptContext,
+  toggleScriptSentence,
+  isParagraphMarked,
+  toggleParagraphMark,
+  toggleMainItem,
+  toggleSubItem,
+  getItemClasses,
+  handleClick,
+  clearAllMarkings
+} = useScriptMarking({ userRole });
+
 // Refs para dados da simulação
 const releasedData = ref({});
-const evaluationScores = ref({});
 const isChecklistVisibleForCandidate = ref(false);
-const pepReleasedToCandidate = ref(false);
-const evaluationSubmittedByCandidate = ref(false);
-
 const actorVisibleImpressoContent = ref({});
-const candidateReceivedScores = ref({});
-const candidateReceivedTotalScore = ref(0);
 const actorReleasedImpressoIds = ref({});
 
 // Modal de impressos
 const impressosModalOpen = ref(false);
 
-// Refs para controlar carregamento de imagens
-const imageLoadAttempts = ref({});
-const imageLoadSources = ref({});
-const imagesPreloadStatus = ref({}); // NOVO: Track do status de cada imagem
-const allImagesPreloaded = ref(false); // NOVO: Flag global de pré-carregamento completo
-
-// Refs para controle de zoom de imagens
-const imageZoomDialog = ref(false);
-const selectedImageForZoom = ref('');
-const selectedImageAlt = ref('');
-
-// Refs para controlar itens marcados do roteiro
-const markedScriptContexts = ref({});
-const markedScriptSentences = ref({});
-
-// Refs para armazenar marcações
-const markedParagraphs = ref({});
+// Refs para controlar itens marcados do roteiro (movidos para useScriptMarking composable)
 
 // NOVO: Ref para controlar a visibilidade da split view
 const pepViewState = ref({
@@ -194,8 +267,7 @@ function togglePepItemMark(itemId, pointIndex) {
 
 
 
-// Variável para controlar o debounce dos cliques
-const lastClickTime = ref({});
+// Variável lastClickTime movida para useScriptMarking composable
 
 // Função para separar texto em sentenças
 
@@ -203,14 +275,6 @@ const lastClickTime = ref({});
 const partner = ref(null);
 const route = useRoute();
 const router = useRouter();
-
-const stationId = ref(null);
-const sessionId = ref(null);
-const userRole = ref(null);
-
-// Propriedades computadas para papéis
-const isActorOrEvaluator = computed(() => userRole.value === 'actor' || userRole.value === 'evaluator');
-const isCandidate = computed(() => userRole.value === 'candidate');
 
 const inviteLinkToShow = ref('');
 const copySuccess = ref(false);
@@ -246,18 +310,13 @@ function openEditPage() {
 const myReadyState = ref(false);
 const partnerReadyState = ref(false);
 const simulationStarted = ref(false);
-const simulationEnded = ref(false);
+// simulationEnded movido para linha 138 (antes da inicialização dos composables)
 const simulationWasManuallyEndedEarly = ref(false);
 // Ref para controlar delay do botão "Estou pronto" do candidato
 const candidateReadyButtonEnabled = ref(false);
-// Refs para o timer e seleção de duração
-const simulationTimeSeconds = ref(10 * 60);
-const timerDisplay = ref(formatTime(simulationTimeSeconds.value));
-const selectedDurationMinutes = ref(10);
 
 // NOVO: Ref para controlar ativação do backend (delayed activation)
 const backendActivated = ref(false);
-const localSessionId = ref(null); // Temporary session ID for view mode
 
 
 
@@ -279,114 +338,7 @@ async function playSoundEffect() {
 
 
 
-async function fetchSimulationData(currentStationId) {
-  
-  if (!currentStationId) {
-    errorMessage.value = 'ID da estação inválido.';
-    isLoading.value = false;
-    console.error('[DIAGNOSTIC] Erro: ID da estação não fornecido');
-    return;
-  }
-  
-  isLoading.value = true;
-  errorMessage.value = '';
-  
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    
-    if (!user) {
-      throw new Error('Usuário não autenticado no Firebase');
-    }
-    
-    const stationDocRef = doc(db, 'estacoes_clinicas', currentStationId);
-    const stationSnap = await getDoc(stationDocRef);
-    
-    
-    if (!stationSnap.exists()) {
-      throw new Error(`Estação ${currentStationId} não encontrada no Firestore.`);
-    }
-    
-    const stationDataRaw = stationSnap.data();
-    // console.log('[DIAGNOSTIC] Dados brutos da estação:', stationDataRaw ? 'Disponíveis' : 'Nulos');
-    // console.log('[DIAGNOSTIC] Campos disponíveis:', stationDataRaw ? Object.keys(stationDataRaw) : 'Nenhum');
-    
-    stationData.value = { id: stationSnap.id, ...stationDataRaw };
-
-    const durationFromQuery = route.query.duration ? parseInt(route.query.duration) : null;
-    const validOptions = [5, 6, 7, 8, 9, 10];
-
-    if (!durationFromQuery || !validOptions.includes(durationFromQuery)) {
-      const stationDefaultMinutes = stationData.value?.tempoDuracaoMinutos;
-      if (stationDefaultMinutes && validOptions.includes(stationDefaultMinutes)) {
-        selectedDurationMinutes.value = stationDefaultMinutes;
-      } else {
-        if (!validOptions.includes(selectedDurationMinutes.value)) {
-          selectedDurationMinutes.value = 10;
-        }
-      }
-    }
-    simulationTimeSeconds.value = selectedDurationMinutes.value * 60;
-    timerDisplay.value = formatTime(simulationTimeSeconds.value);
-
-    if (stationData.value?.padraoEsperadoProcedimento) {
-      checklistData.value = stationData.value.padraoEsperadoProcedimento;
-      
-      // Verifica feedbackEstacao em diferentes locais (estação raiz ou dentro do PEP)
-      if (stationData.value.feedbackEstacao && !checklistData.value.feedbackEstacao) {
-        checklistData.value.feedbackEstacao = stationData.value.feedbackEstacao;
-      }
-      
-      if (!checklistData.value.itensAvaliacao || !Array.isArray(checklistData.value.itensAvaliacao) || checklistData.value.itensAvaliacao.length === 0) {
-        console.warn("[DIAGNOSTIC] PEP não contém 'itensAvaliacao' válidos.");
-      } else {
-        // Inicializa markedPepItems para cada item do checklist
-        checklistData.value.itensAvaliacao.forEach(item => {
-          if (item.idItem && !markedPepItems.value[item.idItem]) {
-            markedPepItems.value[item.idItem] = [];
-          }
-        });
-      }
-    } else {
-      console.warn("[DIAGNOSTIC] 'padraoEsperadoProcedimento' não encontrado na estação. PEP (checklistData) será nulo.");
-      checklistData.value = null;
-    }
-    
-    // Pré-carrega imagens dos impressos após carregar dados com sucesso
-    setTimeout(() => {
-      preloadImpressoImages();
-    }, 100);
-    
-    
-  } catch (error) {
-    // console.error("[DIAGNOSTIC] Erro ao buscar dados:", error);
-    // console.error("[DIAGNOSTIC] Tipo de erro:", error.name);
-    // console.error("[DIAGNOSTIC] Mensagem de erro:", error.message);
-    // console.error("[DIAGNOSTIC] Stack trace:", error.stack);
-    
-    // Classificação de erros para melhor feedback ao usuário
-    if (error.message.includes('permission-denied') || error.message.includes('Permission denied')) {
-      errorMessage.value = 'Permissão negada: Verifique se você está autenticado e tem acesso a esta estação.';
-    } else if (error.message.includes('not-found') || error.message.includes('not found')) {
-      errorMessage.value = `Estação ${currentStationId} não encontrada no banco de dados.`;
-    } else if (error.message.includes('network') || error.message.includes('Network')) {
-      errorMessage.value = 'Erro de rede: Verifique sua conexão com a internet.';
-    } else {
-      errorMessage.value = `Falha ao carregar dados da estação: ${error.message}`;
-    }
-    
-    stationData.value = null;
-    checklistData.value = null;
-  } finally {
-    isLoading.value = false;
-    // console.log("[DIAGNOSTIC] Finalizado. isLoading:", isLoading.value,
-    //             "stationData:", !!stationData.value,
-    //             "checklistData:", !!checklistData.value,
-    //             "errorMessage:", errorMessage.value);
-    
-    // WebSocket connection will be initiated only when backend is activated (on second user ready)
-  }
-}
+// fetchSimulationData agora está no composable useSimulationSession
 
 
 function clearSelectedCandidate() {
@@ -773,74 +725,33 @@ function loadSelectedCandidate() {
 }
 
 
-const isSettingUpSession = ref(false);
-
-
 function setupSession() {
-  
   if (isSettingUpSession.value) {
-    // console.log("SETUP_SESSION: ⚠️ Já está em execução, ignorando chamada duplicada");
     return;
   }
-  
+
   isSettingUpSession.value = true;
-  
+
+  // Reset de estado
   errorMessage.value = '';
   isLoading.value = true;
   if (socket.value && socket.value.connected) { socket.value.disconnect(); }
   socket.value = null;
-  stationData.value = null;
-  checklistData.value = null;
-  stationId.value = route.params.id;
-  sessionId.value = route.query.sessionId; // CORREÇÃO: de route.query.session para route.query.sessionId
-  userRole.value = route.query.role || 'evaluator'; // DEBUG: Define como 'evaluator' se não especificado
 
-  // --- Configuração da Simulação Sequencial ---
-  isSequentialMode.value = route.query.sequential === 'true';
-  sequenceId.value = route.query.sequenceId || null;
-  sequenceIndex.value = parseInt(route.query.sequenceIndex) || 0;
-  totalSequentialStations.value = parseInt(route.query.totalStations) || 0;
+  // Configura IDs e papel do usuário
+  stationId.value = route.params.id;
+  sessionId.value = route.query.sessionId;
+  userRole.value = route.query.role || 'evaluator';
+
+  // Configuração do modo sequencial
+  setupSequentialMode(route.query);
 
   // Auto-ready para navegação sequencial
   const shouldAutoReady = route.query.autoReady === 'true';
 
-  if (isSequentialMode.value) {
-    console.log('[SEQUENTIAL] Modo sequencial detectado:', {
-      sequenceId: sequenceId.value,
-      currentIndex: sequenceIndex.value,
-      totalStations: totalSequentialStations.value
-    });
-
-    // Carregar dados da sessão sequencial do sessionStorage
-    const savedSequentialData = sessionStorage.getItem('sequentialSession');
-    if (savedSequentialData) {
-      try {
-        sequentialData.value = JSON.parse(savedSequentialData);
-        console.log('[SEQUENTIAL] Dados da sessão sequencial carregados:', sequentialData.value);
-      } catch (error) {
-        console.error('[SEQUENTIAL] Erro ao carregar dados da sessão sequencial:', error);
-        sequentialData.value = null;
-      }
-    } else {
-      console.warn('[SEQUENTIAL] Nenhum dado de sessão sequencial encontrado no sessionStorage');
-      sequentialData.value = null;
-    }
-
-    // NOVO: Validar se sequentialData está correto e avisar se há problemas
-    if (sequentialData.value) {
-      if (!sequentialData.value.sequence || !Array.isArray(sequentialData.value.sequence)) {
-        console.error('[SEQUENTIAL] sequentialData.sequence é inválido:', sequentialData.value.sequence);
-        sequentialData.value = null;
-      } else if (sequentialData.value.sequence.length !== totalSequentialStations.value) {
-        console.warn('[SEQUENTIAL] Mismatch entre sequentialData.sequence.length e totalSequentialStations:',
-          sequentialData.value.sequence.length, 'vs', totalSequentialStations.value);
-      }
-    }
-  }
-
-
   inviteLinkToShow.value = '';
 
+  // Reset de estados da simulação
   myReadyState.value = false;
   partnerReadyState.value = false;
   simulationStarted.value = false;
@@ -860,28 +771,17 @@ function setupSession() {
   clearImageCache();
 
   // Carregar candidato selecionado se for ator/avaliador
-  if (userRole.value === 'actor' || userRole.value === 'evaluator') {
+  if (isActorOrEvaluator.value) {
     loadSelectedCandidate();
   }
 
-  const durationFromQuery = route.query.duration ? parseInt(route.query.duration) : null;
-  const validOptions = [5, 6, 7, 8, 9, 10];
-  if (durationFromQuery && validOptions.includes(durationFromQuery)) {
-      selectedDurationMinutes.value = durationFromQuery;
-  } else {
-      selectedDurationMinutes.value = 10;
-      if(durationFromQuery) console.warn(`Duração inválida (${durationFromQuery}) na URL, usando padrão ${selectedDurationMinutes.value} min.`);
-  }
-  timerDisplay.value = formatTime(simulationTimeSeconds.value * 60);
-  // Allow view mode without sessionId
-  if (!stationId.value) {
-    errorMessage.value = "Link inválido: ID Estação não encontrado.";
-    isLoading.value = false;
-    isSettingUpSession.value = false;
-    return;
-  }
-  if (!userRole.value || !['actor', 'candidate', 'evaluator'].includes(userRole.value)) {
-    errorMessage.value = "Link inválido: Papel não definido/incorreto.";
+  // Configuração de duração
+  setupDuration(route.query);
+
+  // Validação de parâmetros
+  const validation = validateSessionParams();
+  if (!validation.valid) {
+    errorMessage.value = validation.error;
     isLoading.value = false;
     isSettingUpSession.value = false;
     return;
@@ -901,17 +801,35 @@ function setupSession() {
   connect = socketApi.connect;
   disconnect = socketApi.disconnect;
 
-  // Chama fetchSimulationData e libera o lock ao finalizar
-  fetchSimulationData(stationId.value).finally(() => {
+  // Busca dados da estação e configura pós-carregamento
+  fetchSimulationData(stationId.value).then(() => {
+    // Inicializa markedPepItems para cada item do checklist
+    if (checklistData.value?.itensAvaliacao) {
+      checklistData.value.itensAvaliacao.forEach(item => {
+        if (item.idItem && !markedPepItems.value[item.idItem]) {
+          markedPepItems.value[item.idItem] = [];
+        }
+      });
+    }
+
+    // Pré-carrega imagens dos impressos
+    setTimeout(() => {
+      preloadImpressoImages();
+    }, 100);
+  }).finally(() => {
     isSettingUpSession.value = false;
-    // Se já temos um sessionId (vindo da URL, por exemplo), conectamos o WebSocket
+
+    // Se já temos um sessionId, conecta o WebSocket usando o composable
     if (sessionId.value) {
+      // Usa o método connect() do composable ao invés de connectWebSocket()
+      connect();
+
+      // Configura os event listeners após a conexão
       connectWebSocket();
 
       // Auto-ready para navegação sequencial
       if (shouldAutoReady && isActorOrEvaluator.value) {
         console.log('[SEQUENTIAL] Auto-ready ativado para navegação sequencial');
-        // Aguardar um pouco para a conexão WebSocket ser estabelecida
         setTimeout(() => {
           if (!myReadyState.value && socket.value?.connected) {
             sendReady();
@@ -923,24 +841,9 @@ function setupSession() {
 }
 
 
-const totalScore = computed(() => {
-  return Object.values(evaluationScores.value).reduce((sum, score) => {
-    const numScore = parseFloat(score);
-    return sum + (isNaN(numScore) ? 0 : numScore);
-  }, 0);
-});
+// totalScore e allEvaluationsCompleted movidos para useEvaluation composable
 
 const bothParticipantsReady = computed(() => myReadyState.value && partnerReadyState.value && !!partner.value);
-
-// Computed para verificar se todas as avaliações do PEP estão completas
-const allEvaluationsCompleted = computed(() => {
-  if (!checklistData.value?.itensAvaliacao?.length) return false;
-
-  return checklistData.value.itensAvaliacao.every(item => {
-    const score = evaluationScores.value[item.idItem];
-    return score !== undefined && score !== null && score !== '';
-  });
-});
 
 watch(bothParticipantsReady, (newValue) => {
   if (newValue && !backendActivated.value) {
@@ -1162,21 +1065,6 @@ function openCandidateMeet() {
   }
 }
 
-
-
-// onMounted(() => {
-//   // console.log("SimulationView Montado. Configurando sessão inicial...");
-//   setupSession();
-//   checkCandidateMeetLink();
-//   
-//   // Inicializa o sidebar como fechado por padrão
-//   setTimeout(() => {
-//     const wrapper = document.querySelector('.layout-wrapper');
-//     if (wrapper && !wrapper.classList.contains('layout-vertical-nav-collapsed')) {
-//       wrapper.classList.add('layout-vertical-nav-collapsed');
-//     }
-//   }, 100); // Pequeno delay para garantir que o DOM foi renderizado
-// });
 watch(() => route.fullPath, (newPath, oldPath) => {
   if (newPath !== oldPath && route.name === 'SimulationView') {
     // console.log("MUDANÇA DE ROTA (SimulationView fullPath):", newPath, "Reconfigurando sessão...");
@@ -1313,421 +1201,7 @@ function handleStartSimulationClick() {
   }
 }
 
-async function submitEvaluation() {
-  
-  if (userRole.value !== 'candidate') {
-    console.error('[DEBUG] submitEvaluation: ERRO - Não é candidato');
-    alert("Apenas o candidato pode submeter avaliação.");
-    return;
-  }
-  if (!socket.value?.connected || !sessionId.value) {
-    console.error('[DEBUG] submitEvaluation: ERRO - Não conectado ou sem sessionId');
-    alert("Não conectado a uma sessão válida.");
-    return;
-  }
-  
-  // Verificar se é o candidato que tem os scores (recebidos do avaliador)
-  const scoresToSubmit = candidateReceivedScores.value && Object.keys(candidateReceivedScores.value).length > 0
-    ? candidateReceivedScores.value
-    : evaluationScores.value;
-    
-  if (Object.keys(scoresToSubmit).length === 0) {
-    console.error('[DEBUG] submitEvaluation: ERRO - Nenhuma pontuação registrada');
-    alert("Nenhuma pontuação foi registrada pelo avaliador.");
-    return;
-  }
-
-  
-  try {
-    socket.value.emit('CANDIDATE_SUBMIT_EVALUATION', {
-      sessionId: sessionId.value,
-      stationId: stationId.value,
-      candidateId: currentUser.value?.uid,
-      scores: scoresToSubmit,
-      totalScore: candidateReceivedTotalScore.value || totalScore.value
-    });
-    
-    // Marcar como submetido
-    evaluationSubmittedByCandidate.value = true;
-  } catch (error) {
-    console.error('[DEBUG] submitEvaluation: ERRO ao emitir evento:', error);
-    alert('Erro ao submeter avaliação. Veja o console para detalhes.');
-    return;
-  }
-
-  // --- Integração Firestore: registrar avaliação NO CANDIDATO ---
-  // O candidato usa seu próprio UID
-  const candidateUid = currentUser.value?.uid;
-  
-  // Validação final
-  if (!candidateUid) {
-    console.error('[DEBUG] submitEvaluation: ERRO - UID do candidato não disponível');
-    alert('Não foi possível identificar o candidato para registrar a avaliação.');
-    return;
-  }
-
-  // Registro da avaliação
-  const finalScore = candidateReceivedTotalScore.value || totalScore.value;
-  if (stationId.value && typeof finalScore === 'number') {
-    try {
-      const avaliacaoData = {
-        uid: candidateUid,
-        idEstacao: stationId.value,
-        nota: finalScore,
-        data: new Date(),
-        nomeEstacao: stationData.value?.tituloEstacao || 'Estação Clínica',
-        especialidade: stationData.value?.especialidade || 'Geral',
-        origem: stationData.value?.origem || 'SIMULACAO'
-      };
-      await registrarConclusaoEstacao(avaliacaoData);
-      
-      // Mostrar notificação de sucesso
-      showNotification('Avaliação submetida com sucesso!', 'success');
-    } catch (err) {
-      console.error('[DEBUG] submitEvaluation: ERRO ao registrar no Firestore:', err);
-      alert('Erro ao registrar avaliação. Veja o console para detalhes.');
-    }
-  } else {
-    console.error('[DEBUG] submitEvaluation: Dados insuficientes para registrar');
-    console.error('[DEBUG] submitEvaluation: stationId =', stationId.value);
-    console.error('[DEBUG] submitEvaluation: finalScore =', finalScore);
-    alert('Dados insuficientes para registrar avaliação.');
-  }
-}
-
-function releasePepToCandidate() {
-  if (!socket.value?.connected || !sessionId.value) { alert("Erro: Não conectado."); return; }
-  if (pepReleasedToCandidate.value) { return; }
-  if(userRole.value !== 'actor' && userRole.value !== 'evaluator') {alert("Não autorizado."); return;}
-  
-  // NOVA VERIFICAÇÃO: Só permite liberar o PEP após o fim da estação
-  if (!simulationEnded.value) {
-    alert("O PEP só pode ser liberado após o encerramento da estação.");
-    return;
-  }
-
-  // SINCRONIZAÇÃO: Envia avaliações atuais junto com a liberação do PEP
-  const currentScores = {};
-  Object.keys(evaluationScores.value).forEach(key => {
-    const score = evaluationScores.value[key];
-    currentScores[key] = typeof score === 'string' ? parseFloat(score) : score;
-  });
-
-  const currentTotal = Object.values(currentScores).reduce((sum, v) => sum + (isNaN(v) ? 0 : v), 0);
-
-  // Libera o PEP após verificar todas as condições
-  const payload = { sessionId: sessionId.value };
-  socket.value.emit('ACTOR_RELEASE_PEP', payload);
-  
-  // SINCRONIZAÇÃO: Força envio das avaliações atuais imediatamente após liberação
-  setTimeout(() => {
-    if (Object.keys(currentScores).length > 0) {
-      socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
-        sessionId: sessionId.value,
-        scores: currentScores,
-        totalScore: currentTotal,
-        forceSync: true // Flag especial para sincronização forçada
-      });
-    }
-  }, 100); // Pequeno delay para garantir que o PEP foi liberado primeiro
-  
-  pepReleasedToCandidate.value = true;
-}
-
-// --- Funções para controle de carregamento de imagens ---
-function getImageId(impressoId, context) {
-  return `${impressoId}-${context}`;
-}
-
-function getImageSource(imagePath, imageId) {
-  // SILENCIOSO: Cache lookup sem logs - operação muito frequente
-  
-  // Se a imagem foi pré-carregada, retorna a URL original do cache (SEM LOG)
-  if (imageLoadSources.value[imageId]) {
-    return imageLoadSources.value[imageId];
-  }
-  
-  // Se não foi pré-carregada, registra a URL original (SEM LOG INICIAL)
-  // // console.log(`[CACHE] ⚠️ PRIMEIRA VEZ - Imagem não pré-carregada: ${imageId}`);
-  
-  // Registra imediatamente no cache para evitar múltiplas tentativas
-  imageLoadSources.value = {
-    ...imageLoadSources.value,
-    [imageId]: imagePath
-  };
-  
-  // Força o pré-carregamento em background para próximas vezes (SEM LOG EXCESSIVO)
-  ensureImageIsPreloaded(imagePath, imageId, 'Imagem do impresso');
-  
-  // Retorna a URL original (primeira vez pode ser lenta, próximas serão instantâneas)
-  return imagePath;
-}
-
-function handleImageError(imagePath, imageId) {
-  // Incrementa tentativas
-  const attempts = (imageLoadAttempts.value[imageId] || 0) + 1;
-  imageLoadAttempts.value = {
-    ...imageLoadAttempts.value,
-    [imageId]: attempts
-  };
-  
-  // Máximo de 3 tentativas
-  if (attempts <= 3) {
-    // Força recarregamento adicionando timestamp
-    const separator = imagePath.includes('?') ? '&' : '?';
-    const newUrl = `${imagePath}${separator}reload=${Date.now()}&attempt=${attempts}`;
-    
-    // Atualiza a fonte da imagem
-    imageLoadSources.value = {
-      ...imageLoadSources.value,
-      [imageId]: newUrl
-    };
-    
-    // Tenta novamente após um delay
-    setTimeout(() => {
-      preloadSingleImage(newUrl, imageId, 'Imagem do impresso');
-    }, 1000 * attempts); // Delay progressivo
-    
-  } else {
-    
-    // Remove do cache para permitir tentativa manual posterior
-    if (imageLoadSources.value[imageId]) {
-      delete imageLoadSources.value[imageId];
-      imageLoadSources.value = { ...imageLoadSources.value };
-    }
-  }
-}
-
-// --- Função para limpar cache de imagens ---
-function clearImageCache() {
-  // SILENCIOSO: Removido logs de cache - operação interna
-  imageLoadSources.value = {};
-  imageLoadAttempts.value = {};
-  imagesPreloadStatus.value = {}; // NOVO: Limpa status de pré-carregamento
-  allImagesPreloaded.value = false; // NOVO: Reset flag global
-}
-
-function handleImageLoad(imageId) {
-  // SILENCIOSO: Removido log de primeira carga - sistema deve ser silencioso
-  // const isFirstLoad = !imageLoadSources.value[imageId + '_loaded'];
-  
-  // if (isFirstLoad) {
-  //   // console.log(`[DEBUG] ✅ PRIMEIRA CARGA - Imagem carregada: ${imageId}`);
-  //   // console.log(`[DEBUG] ✅ PRIMEIRA CARGA - Timestamp: ${new Date().toISOString()}`);
-  //   
-  //   // Marca como carregada para evitar logs futuros
-  //   imageLoadSources.value[imageId + '_loaded'] = true;
-  // }
-  
-  // Reset tentativas quando carrega com sucesso
-  if (imageLoadAttempts.value[imageId]) {
-    delete imageLoadAttempts[imageId];
-  }
-}
-
-// Função para abrir zoom da imagem
-function openImageZoom(imageSrc, imageAlt) {
-  if (!imageSrc || imageSrc.trim() === '') {
-    console.error(`[ZOOM] ❌ Erro: URL da imagem está vazia ou inválida: "${imageSrc}"`);
-    return;
-  }
-
-  // Verifica se a imagem está 100% pré-carregada
-  const imageId = Object.keys(imageLoadSources.value).find(id => 
-    imageLoadSources.value[id] === imageSrc
-  );
-  
-  if (imageId && imagesPreloadStatus.value[imageId] === 'loaded') {
-    // ABERTURA INSTANTÂNEA: Imagem está garantidamente carregada
-  } else if (allImagesPreloaded.value) {
-    // Todas foram pré-carregadas, mas talvez seja um ID diferente
-  } else {
-    // Fallback: força carregamento imediato
-    const img = new Image();
-    img.src = imageSrc;
-  }
-
-  selectedImageForZoom.value = imageSrc;
-  selectedImageAlt.value = imageAlt || 'Imagem do impresso';
-  imageZoomDialog.value = true;
-}
-
-// Função para fechar zoom da imagem
-function closeImageZoom() {
-  // SILENCIOSO: Removido log de fechamento
-  // // console.log(`[ZOOM] 🔍 Fechando modal de zoom`);
-  imageZoomDialog.value = false;
-  selectedImageForZoom.value = '';
-  selectedImageAlt.value = '';
-}
-
-// Função para tratar erro na imagem do modal de zoom
-function handleZoomImageError() {
-  // console.error(`[DEBUG] ❌ DIAGNÓSTICO - Erro ao carregar imagem no modal de zoom:`);
-  // console.error(`[DEBUG] ❌ DIAGNÓSTICO - URL que falhou: ${selectedImageForZoom.value}`);
-  // console.error(`[DEBUG] ❌ DIAGNÓSTICO - Cache de imagens:`, imageLoadSources.value);
-  // console.error(`[DEBUG] ❌ DIAGNÓSTICO - Timestamp do erro: ${new Date().toISOString()}`);
-  
-  // Verificar se o evento está sendo disparado
-}
-
-// Função para confirmar carregamento da imagem no modal de zoom
-function handleZoomImageLoad() {
-  // Logs removidos
-}
-
-// --- Função para pré-carregar uma única imagem (versão simples) ---
-function preloadSingleImage(imagePath, imageId, altText) {
-  if (!imagePath || !imageId) {
-    return;
-  }
-
-  // Verifica se já foi pré-carregada
-  if (imageLoadSources.value[imageId]) {
-    // console.log(`[PRELOAD] ✅ Já pré-carregada: ${imageId}`);
-    return;
-  }
-
-  // Cria nova imagem para pré-carregamento
-  const img = new Image();
-
-  // Configura handlers
-  img.onload = () => {
-    // console.log(`[PRELOAD] ✅ Pré-carregada com sucesso: ${imageId}`);
-    imageLoadSources.value = {
-      ...imageLoadSources.value,
-      [imageId]: imagePath
-    };
-    handleImageLoad(imageId);
-  };
-
-  img.onerror = () => {
-    handleImageError(imagePath, imageId);
-  };
-
-  // Inicia pré-carregamento
-  img.src = imagePath;
-}
-
-// --- Função para pré-carregar uma única imagem (versão avançada com callback) ---
-function preloadSingleImageAdvanced(imagePath, imageId, altText, onSuccess) {
-  if (!imagePath || !imageId) {
-    return;
-  }
-
-  // Verifica se já foi pré-carregada
-  if (imageLoadSources.value[imageId]) {
-    // console.log(`[PRELOAD] ✅ Já pré-carregada: ${imageId}`);
-    if (onSuccess) onSuccess();
-    return;
-  }
-
-  // Cria nova imagem para pré-carregamento
-  const img = new Image();
-
-  // Configura handlers
-  img.onload = () => {
-    // console.log(`[PRELOAD] ✅ Pré-carregada com sucesso (avançada): ${imageId}`);
-    imageLoadSources.value = {
-      ...imageLoadSources.value,
-      [imageId]: imagePath
-    };
-    imagesPreloadStatus.value[imageId] = 'loaded';
-    handleImageLoad(imageId);
-    if (onSuccess) onSuccess();
-  };
-
-  img.onerror = () => {
-    console.error(`[PRELOAD] ❌ Erro ao pré-carregar (avançada): ${imageId} - ${imagePath}`);
-    imagesPreloadStatus.value[imageId] = 'error';
-    handleImageError(imagePath, imageId);
-  };
-
-  // Inicia pré-carregamento
-  img.src = imagePath;
-}
-
-// --- Função para pré-carregar imagens dos impressos ---
-function preloadImpressoImages() {
-  if (!stationData.value?.materiaisDisponiveis?.impressos) {
-    return;
-  }
-
-  const impressosComImagem = stationData.value.materiaisDisponiveis.impressos.filter(
-    impresso => impresso.tipoConteudo === 'imagem_com_texto' && 
-               impresso.conteudo?.caminhoImagem
-  );
-
-  if (impressosComImagem.length === 0) {
-    allImagesPreloaded.value = true; // Marca como completo se não há imagens
-    return;
-  }
-
-  // Reset status de pré-carregamento
-  allImagesPreloaded.value = false;
-  imagesPreloadStatus.value = {};
-
-  const imagesToPreload = [];
-  
-  impressosComImagem.forEach(impresso => {
-    const imagePath = impresso.conteudo.caminhoImagem;
-    
-    // IDs para ator e candidato
-    const actorImageId = getImageId(impresso.idImpresso, 'actor-img-texto');
-    const candidateImageId = getImageId(impresso.idImpresso, 'candidate-img-texto');
-    
-    imagesToPreload.push({ path: imagePath, id: actorImageId, title: impresso.tituloImpresso });
-    imagesToPreload.push({ path: imagePath, id: candidateImageId, title: impresso.tituloImpresso });
-  });
-
-  // Inicializa status de todas as imagens
-  imagesToPreload.forEach(img => {
-    imagesPreloadStatus.value[img.id] = 'loading';
-  });
-
-  // Pré-carrega todas as imagens e monitora conclusão
-  let loadedCount = 0;
-  const totalImages = imagesToPreload.length;
-
-  imagesToPreload.forEach(img => {
-    preloadSingleImageAdvanced(img.path, img.id, img.title, () => {
-      loadedCount++;
-      imagesPreloadStatus.value[img.id] = 'loaded';
-      
-      // Verifica se todas as imagens foram carregadas
-      if (loadedCount === totalImages) {
-        allImagesPreloaded.value = true;
-      }
-    }, () => {
-      loadedCount++;
-      imagesPreloadStatus.value[img.id] = 'error';
-      
-      // Mesmo com erro, verifica se é a última
-      if (loadedCount === totalImages) {
-        allImagesPreloaded.value = true;
-        // console.log(`[PRELOAD] ⚠️ Pré-carregamento finalizado com algumas falhas. Total: ${totalImages}`);
-      }
-    });
-  });
-}
-
-// --- Função para verificar se uma imagem está pré-carregada ---
-function isImagePreloaded(imageId) {
-  const isInCache = !!imageLoadSources.value[imageId];
-  // CORREÇÃO: Removendo log excessivo que aparecia constantemente
-  // // console.log(`[PRELOAD-CHECK] ✅ CORREÇÃO - Verificando ${imageId}: ${isInCache ? 'DISPONÍVEL' : 'NÃO DISPONÍVEL'}`);
-  return isInCache;
-}
-
-// --- Função para forçar pré-carregamento se necessário ---
-function ensureImageIsPreloaded(imagePath, imageId, altText) {
-  if (!isImagePreloaded(imageId)) {
-    preloadSingleImage(imagePath, imageId, altText);
-  } else {
-    // CORREÇÃO: Removendo log excessivo
-    // // console.log(`[PRELOAD-ENSURE] ✅ CORREÇÃO - Imagem ${imageId} já disponível para uso instantâneo`);
-  }
-}
+// submitEvaluation(), releasePepToCandidate() e funções de imagens movidas para composables
 
 
 
@@ -1789,308 +1263,22 @@ watch(simulationEnded, (newValue) => {
   }
 });
 
-
-// Funções para marcar/desmarcar partes do roteiro
-function toggleScriptContext(idx, event) {
-  // Impedir a propagação do evento para evitar múltiplos cliques
-  if (event) {
-    event.stopPropagation();
-    event.preventDefault();
-  }
-  
-  if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-    const clickKey = `c-${idx}`;
-    
-    // Verificar se houve um clique recente para evitar duplicação
-    const now = Date.now();
-    if (lastClickTime.value[clickKey] && now - lastClickTime.value[clickKey] < 500) {
-      return;
-    }
-    
-    // Registrar o tempo do clique
-    lastClickTime.value[clickKey] = now;
-    
-    // Use um timeout mínimo para evitar problemas de renderização
-    setTimeout(() => {
-      // Toggle o valor (invertendo o estado atual)
-      markedScriptContexts.value[idx] = !markedScriptContexts.value[idx];
-      
-      // Criar uma cópia do objeto ref para garantir que a atualização da UI seja acionada
-      markedScriptContexts.value = { ...markedScriptContexts.value };
-      
-      // Força a atualização do DOM após a alteração
-      nextTick(() => {
-        // Atualiza o atributo data-marked explicitamente
-        const elements = document.querySelectorAll(`[data-marked]`);
-        elements.forEach(el => {
-          // Garante que a classe CSS permaneça aplicada
-          if (el.getAttribute('data-marked') === 'true') {
-            if (el.classList.contains('marked-context-primary') || el.classList.contains('marked-context-warning')) {
-              el.style.backgroundColor = el.classList.contains('marked-context-primary') 
-                ? 'rgba(var(--v-theme-primary), 0.15)' 
-                : 'rgba(var(--v-theme-warning), 0.2)';
-            }
-          }
-        });
-      });
-    }, 10);
-  }
-}
-
-function toggleScriptSentence(idx, sentenceIdx) {
-  if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-    const key = `${idx}-${sentenceIdx}`;
-    markedScriptSentences.value[key] = !markedScriptSentences.value[key];
-    // Criar uma cópia do objeto ref para garantir que a atualização da UI seja acionada
-    markedScriptSentences.value = { ...markedScriptSentences.value };
-  }
-}
-
-// --- Adiciona os refs ausentes para marcação de itens do roteiro ---
-const markedMainItems = ref({});
-const markedSubItems = ref({});
-
-// Funções para marcar/desmarcar itens do roteiro
-function toggleMainItem(itemId) {
-  markedMainItems.value[itemId] = !markedMainItems.value[itemId];
-}
-
-function toggleSubItem(itemId) {
-  markedSubItems.value[itemId] = !markedSubItems.value[itemId];
-}
-
-// Função que retorna a classe CSS baseada no estado do item
-function getItemClasses(itemType, itemId) {
-  if (itemType === 'main') {
-    return {
-      'marked': markedMainItems.value[itemId]
-    };
-  } else if (itemType === 'sub') {
-    return {
-      'marked': markedSubItems.value[itemId]
-    };
-  }
-  return {};
-}
-
-// Função para lidar com cliques nos itens do roteiro
-function handleClick(event) {
-  // Identifica qual elemento foi clicado
-  const mainItem = event.target.closest('.main-item');
-  const subItem = event.target.closest('.subitem');
-  
-  if (mainItem) {
-    // Se clicou em um item principal
-    const itemId = mainItem.getAttribute('data-main-item-id');
-    if (itemId) {
-      toggleMainItem(itemId);
-      event.stopPropagation(); // Evita a propagação do evento
-    }
-  } else if (subItem) {
-    // Se clicou em um subitem
-    const itemId = subItem.getAttribute('data-subitem-id');
-    if (itemId) {
-      toggleSubItem(itemId);
-      event.stopPropagation(); // Evita a propagação do evento
-    }
-  }
-}
-
-// CORREÇÃO: Removendo onMounted duplicado - já consolidado no principal
-// Setup do listener de eventos para marcação - MOVIDO PARA O onMounted PRINCIPAL
-// onMounted(() => {
-//   document.addEventListener('toggleMark', (e) => toggleMark(e.detail));
-// });
+// Funções de marcação movidas para useScriptMarking composable
 
 onUnmounted(() => {
   document.removeEventListener('toggleMark', (e) => toggleMark(e.detail));
 });
 
 // --- FUNÇÕES PARA SIMULAÇÃO SEQUENCIAL ---
-function setupSequentialNavigation() {
-  console.log('[SEQUENTIAL] Configurando navegação sequencial');
+// setupSequentialNavigation(), goToNextSequentialStation() movidos para useSequentialNavigation composable
 
-  // Adicionar botões de navegação ou listeners específicos se necessário
-  // Por ora, apenas logs para debugging
-  if (sequentialData.value && sequentialData.value.sequence) {
-    const currentStation = sequentialData.value.sequence[sequenceIndex.value];
-    console.log('[SEQUENTIAL] Estação atual:', currentStation);
-    console.log('[SEQUENTIAL] Progresso:', `${sequenceIndex.value + 1}/${totalSequentialStations.value}`);
-  }
-}
-
-function goToNextSequentialStation() {
-  console.log('[SEQUENTIAL] goToNextSequentialStation called');
-  console.log('[SEQUENTIAL] isSequentialMode:', isSequentialMode.value);
-  console.log('[SEQUENTIAL] sequentialData:', sequentialData.value);
-
-  if (!isSequentialMode.value) {
-    console.error('[SEQUENTIAL] Not in sequential mode, aborting navigation');
-    return;
-  }
-
-  // NOVO: Fallback para reconstruir sequentialData se estiver perdido
-  if (!sequentialData.value) {
-    console.warn('[SEQUENTIAL] sequentialData is null, attempting to reconstruct from sessionStorage');
-
-    const savedData = sessionStorage.getItem('sequentialSession');
-    if (savedData) {
-      try {
-        sequentialData.value = JSON.parse(savedData);
-        console.log('[SEQUENTIAL] Reconstructed sequentialData from sessionStorage:', sequentialData.value);
-      } catch (error) {
-        console.error('[SEQUENTIAL] Failed to parse sessionStorage:', error);
-      }
-    }
-
-    // Se ainda não temos sequentialData, tentar navegar com informações limitadas
-    if (!sequentialData.value) {
-      console.warn('[SEQUENTIAL] sequentialData still null, attempting navigation with route params only');
-
-      const nextIndex = sequenceIndex.value + 1;
-      if (nextIndex < totalSequentialStations.value) {
-        // Navegar apenas com parâmetros de rota, sem depender de sequentialData
-        const routeData = router.resolve({
-          path: `/app/stations`, // Voltar para lista de estações para reconfigurar
-          query: {
-            sequential: 'true',
-            sequenceId: sequenceId.value,
-            sequenceIndex: nextIndex,
-            totalStations: totalSequentialStations.value,
-            message: 'sequential_data_lost'
-          }
-        });
-
-        alert('Dados da sessão sequencial foram perdidos. Redirecionando para reconfiguração...');
-        window.location.href = routeData.href;
-        return;
-      } else {
-        alert('Simulação sequencial concluída!');
-        sessionStorage.removeItem('sequentialSession');
-        router.push('/app/stations');
-        return;
-      }
-    }
-  }
-
-  const nextIndex = sequenceIndex.value + 1;
-  console.log('[SEQUENTIAL] Next index:', nextIndex, 'Total stations:', totalSequentialStations.value);
-
-  if (nextIndex < totalSequentialStations.value) {
-    // Atualizar sessionStorage
-    const updatedData = { ...sequentialData.value };
-    updatedData.currentIndex = nextIndex;
-    sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData));
-    console.log('[SEQUENTIAL] Updated sessionStorage with new index:', nextIndex);
-
-    // Navegar para próxima estação
-    const nextStation = sequentialData.value.sequence[nextIndex];
-    console.log('[SEQUENTIAL] Next station:', nextStation);
-
-    if (nextStation) {
-      const routeData = router.resolve({
-        path: `/app/simulation/${nextStation.id}`,
-        query: {
-          role: 'actor',
-          sequential: 'true',
-          sequenceId: sequenceId.value,
-          sequenceIndex: nextIndex,
-          totalStations: totalSequentialStations.value,
-          autoReady: 'true'  // Indica que deve ir direto para o estado "pronto"
-        }
-      });
-
-      console.log('[SEQUENTIAL] Navigating to:', routeData.href);
-      // Abrir em nova aba ou substituir aba atual
-      window.location.href = routeData.href;
-    } else {
-      console.error('[SEQUENTIAL] Next station not found in sequence');
-      alert('Erro: Próxima estação não encontrada na sequência');
-    }
-  } else {
-    console.log('[SEQUENTIAL] Reached end of sequence');
-    alert('Simulação sequencial concluída!');
-    // Limpar dados da sessão sequencial
-    sessionStorage.removeItem('sequentialSession');
-    router.push('/app/stations');
-  }
-}
-
-// Função de debug global para diagnosticar problemas sequenciais
-window.debugSequentialNavigation = function() {
-  console.log('=== SEQUENTIAL NAVIGATION DEBUG ===');
-  console.log('isSequentialMode:', isSequentialMode.value);
-  console.log('isActorOrEvaluator:', isActorOrEvaluator.value);
-  console.log('simulationEnded:', simulationEnded.value);
-  console.log('allEvaluationsCompleted:', allEvaluationsCompleted.value);
-  console.log('canGoToNext:', canGoToNext.value);
-  console.log('sequenceIndex:', sequenceIndex.value);
-  console.log('totalSequentialStations:', totalSequentialStations.value);
-  console.log('sequentialData:', sequentialData.value);
-  console.log('sessionStorage sequentialSession:', sessionStorage.getItem('sequentialSession'));
-  console.log('evaluationScores:', evaluationScores.value);
-  console.log('checklistData:', checklistData.value);
-  console.log('===================================');
-};
-
-function goToPreviousSequentialStation() {
-  if (!isSequentialMode.value || !sequentialData.value) return;
-
-  const prevIndex = sequenceIndex.value - 1;
-  if (prevIndex >= 0) {
-    // Atualizar sessionStorage
-    const updatedData = { ...sequentialData.value };
-    updatedData.currentIndex = prevIndex;
-    sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData));
-
-    // Navegar para estação anterior
-    const prevStation = sequentialData.value.sequence[prevIndex];
-    if (prevStation) {
-      const routeData = router.resolve({
-        path: `/app/simulation/${prevStation.id}`,
-        query: {
-          role: 'actor',
-          sequential: 'true',
-          sequenceId: sequenceId.value,
-          sequenceIndex: prevIndex,
-          totalStations: totalSequentialStations.value
-        }
-      });
-
-      window.location.href = routeData.href;
-    }
-  }
-}
-
-function exitSequentialMode() {
-  // Limpar dados da sessão sequencial
-  sessionStorage.removeItem('sequentialSession');
-  router.push('/app/stations');
-}
-
-// Propriedades computadas para navegação sequencial
-const canGoToPrevious = computed(() => {
-  return isSequentialMode.value && sequenceIndex.value > 0;
-});
-
-const canGoToNext = computed(() => {
-  return isSequentialMode.value && sequenceIndex.value < totalSequentialStations.value - 1;
-});
-
-const sequentialProgress = computed(() => {
-  if (!isSequentialMode.value || totalSequentialStations.value === 0) return { current: 0, total: 0, percentage: 0 };
-
-  const current = sequenceIndex.value + 1;
-  const total = totalSequentialStations.value;
-  const percentage = Math.round((current / total) * 100);
-
-  return { current, total, percentage };
-});
-
-const currentSequentialStation = computed(() => {
-  if (!isSequentialMode.value || !sequentialData.value || !sequentialData.value.sequence) return null;
-
-  return sequentialData.value.sequence[sequenceIndex.value] || null;
+// Função de debug para diagnóstico - agora usa composable
+setupDebugFunction({
+  isActorOrEvaluator,
+  simulationEnded,
+  allEvaluationsCompleted,
+  evaluationScores,
+  checklistData
 });
 
 // --- NOVO: Comunicação Google Meet ---
@@ -2194,14 +1382,6 @@ function declineInternalInvite() {
   internalInviteDialog.value = false;
 }
 
-// CORREÇÃO: Removendo onMounted duplicado - já consolidado no principal
-// Adiciona listener do socket para convite interno - MOVIDO PARA O onMounted PRINCIPAL
-// onMounted(() => {
-//   // ...existing code...
-//   if (socket.value) {
-//     socket.value.on('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
-//   }
-// });
 onUnmounted(() => {
   // ...existing code...
   if (socket.value) {
@@ -2238,58 +1418,9 @@ function toggleCollapse() {
 
 // Função Adicionada: divide o texto em parágrafos para exibição
 
-// Variáveis para o snackbar de notificação
-const showNotificationSnackbar = ref(false);
-const notificationMessage = ref('');
-const notificationColor = ref('info');
+// Notificações movidas para linha 141-149 (antes da inicialização dos composables)
 
-// Função para mostrar uma notificação temporária
-function showNotification(message, color = 'info') {
-  notificationMessage.value = message;
-  notificationColor.value = color;
-  showNotificationSnackbar.value = true;
-  setTimeout(() => {
-    showNotificationSnackbar.value = false;
-  }, 5000); // Fechará automaticamente após 5 segundos
-}
-
-// Funções para verificar e alternar marcações de parágrafos
-function isParagraphMarked(contextIdx, paragraphIdx) {
-  if (!markedParagraphs.value) return false;
-  const key = `${contextIdx}-${paragraphIdx}`;
-  return markedParagraphs.value[key] === true;
-}
-
-function toggleParagraphMark(contextIdx, paragraphIdx, event) {
-  // Impedir a propagação do evento para evitar múltiplos cliques
-  if (event) {
-    event.stopPropagation();
-    event.preventDefault();
-  }
-  
-  if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-    const key = `${contextIdx}-${paragraphIdx}`;
-    const clickKey = `p-${key}`;
-    
-    // Verificar se houve um clique recente para evitar duplicação
-    const now = Date.now();
-    if (lastClickTime.value[clickKey] && now - lastClickTime.value[clickKey] < 500) {
-      return;
-    }
-    
-    // Registrar o tempo do clique
-    lastClickTime.value[clickKey] = now;
-    
-    // Use um timeout mínimo para evitar problemas de renderização
-    setTimeout(() => {
-      // Toggle o estado de marcação
-      markedParagraphs.value[key] = !markedParagraphs.value[key];
-      
-      // Forçar reatividade criando um novo objeto
-      markedParagraphs.value = { ...markedParagraphs.value };
-    }, 10);
-  }
-}
+// Funções de marcação de parágrafos movidas para useScriptMarking composable
 
 // --- NOVO: Função para processar e padronizar os itens de infraestrutura ---
 </script>
@@ -3777,1182 +2908,8 @@ function toggleParagraphMark(contextIdx, paragraphIdx, event) {
    </VNavigationDrawer>
 
    <!-- AgentAssistant component removed (legacy agent) -->
- </template> <style scoped>
- .simulation-page-container {
-     font-size: 1.1rem; /* Aumenta a fonte base */
- }
+ </template>
 
-/* Realce geral dos cards dentro da página de simulação: borda um pouco mais espessa,
-   cor baseada nas variáveis de tema para respeitar light/dark e aspecto profissional */
-.simulation-page-container :where(.v-card) {
-  /* Fallback neutro para cards */
-  border: 1.4px solid rgba(0,0,0,0.05) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.04) !important;
-}
-
-:deep(.v-theme--light) .simulation-page-container :where(.v-card) {
-  border: 1.6px solid rgba(0,0,0,0.08) !important;
-}
-
-:deep(.v-theme--dark) .simulation-page-container :where(.v-card) {
-  border: 1.6px solid rgba(255,255,255,0.06) !important;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.18) !important;
-}
- 
-.pep-split-view-border-right {
-  /* Fallback neutro */
-  border-right: 1.6px solid rgba(0,0,0,0.06);
-  padding-right: 18px; /* Adiciona um padding para a borda não ficar colada no conteúdo */
-}
-
-:deep(.v-theme--light) .pep-split-view-border-right {
-  border-right: 1.6px solid rgba(0,0,0,0.08) !important;
-}
-:deep(.v-theme--dark) .pep-split-view-border-right {
-  border-right: 1.6px solid rgba(255,255,255,0.06) !important;
-}
- 
- /* Estilos para o PepSideView dentro da split view */
- .pep-side-view-card {
-   padding-left: 16px; /* Adiciona um padding para o conteúdo não ficar colado na borda */
- }
-
-/* Realce visual extra para o PepSideView: contorno e divisórias internas mais perceptíveis */
-:deep(.pep-side-view) {
-  border: 1.2px solid rgba(var(--v-theme-outline), 0.24);
-  border-radius: 8px;
-  padding: 6px;
-}
-
-:deep(.pep-side-view .pep-group-divider) {
-  border-bottom: 1.6px solid rgba(var(--v-theme-outline), 0.32) !important;
-  margin-bottom: 8px !important;
-}
-
-:deep(.v-theme--dark) .pep-side-view .pep-group-divider {
-  border-bottom: 1.6px solid rgba(var(--v-theme-outline), 0.40) !important;
-}
- 
- @media (max-width: 960px) { /* md breakpoint for Vuetify is 960px */
-   .pep-split-view-border-right {
-     border-right: none;
-     border-bottom: 1px solid rgba(var(--v-theme-outline), 0.3);
-     padding-right: 0;
-     padding-bottom: 16px;
-   }
- 
-   .pep-side-view-card {
-     padding-left: 0;
-     padding-top: 16px;
-   }
- }
- 
- .text-body-1, .text-body-2, .text-caption, .v-list-item-title, .v-list-item-subtitle {
-     font-size: inherit !important; /* Garante que os componentes filhos herdem a fonte aumentada */
- }
- 
- .timer-display {
-   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-   border-radius: 8px;
-   padding: 8px 16px;
-   font-size: 1.25rem;
-   font-weight: 500;
-   background-color: rgba(var(--v-theme-on-surface), 0.04);
-   display: inline-flex;
-   align-items: center;
- }
- 
- .timer-display.ended {
-   border-color: rgb(var(--v-theme-error));
-   background-color: rgba(var(--v-theme-error), 0.1);
-   color: rgb(var(--v-theme-error));
- }
- 
- .timer-display-candidate {
-     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-     border-radius: 8px;
-     padding: 16px;
-     font-size: 2rem; /* Fonte maior para o timer do candidato */
-     font-weight: 500;
-     text-align: center;
-     background-color: rgba(var(--v-theme-on-surface), 0.04);
-     display: inline-flex;
-     align-items: center;
- }
- 
- .timer-display-candidate.ended {
-     border-color: rgb(var(--v-theme-error));
-     background-color: rgba(var(--v-theme-error), 0.1);
-     color: rgb(var(--v-theme-error));
- }
- 
- .cursor-pointer {
-   cursor: pointer;
- }
- 
- .impresso-imagem {
-  width: 650px;
-  height: 480px;
-  max-width: 100%;
-  object-fit: contain;
-  border: 1.4px solid rgba(var(--v-theme-outline), 0.32);
-  margin: 10px 0;
-  background-color: rgba(var(--v-theme-surface-variant), 0.5);
- }
- 
- /* Estilo para imagens clicáveis */
- .impresso-imagem-clickable {
-   cursor: pointer;
-   transition: all 0.3s ease;
- }
- 
- .impresso-imagem-clickable:hover {
-   transform: scale(1.02);
-   border-color: rgba(var(--v-theme-primary), 0.6);
-   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
- }
- 
- /* Responsividade para telas menores */
- @media (max-width: 768px) {
-   .impresso-imagem {
-     width: 100%;
-     height: auto;
-     max-width: 650px;
-     max-height: 480px;
-   }
- }
- 
- /* Para tablets */
- @media (max-width: 1024px) and (min-width: 769px) {
-   .impresso-imagem {
-     width: 100%;
-     height: auto;
-     max-width: 650px;
-     max-height: 480px;
-   }
- }
- 
- .laudo-impresso pre {
-   white-space: pre-wrap;
-   font-family: monospace;
-   font-size: 0.9rem;
-   background-color: rgba(var(--v-theme-surface-variant), 0.5);
-   padding: 10px;
-   border-radius: 4px;
- }
- 
- /* Ajuste para modo escuro - remove sombras e melhora legibilidade */
- .v-theme--dark .laudo-impresso pre {
-   background-color: rgba(var(--v-theme-surface), 0.2);
-   color: rgb(var(--v-theme-on-surface));
-   text-shadow: none !important;
-   box-shadow: none !important;
- }
- 
- /* Removido o hover que causava sombra 
- /* Remova completamente qualquer efeito de hover nos itens da lista */
- .roteiro-list li:hover {
-   background-color: transparent !important;
- }
- 
- /* Estilização da sidebar do candidato */
- .candidate-sidebar {
-     position: sticky;
-     top: 80px; /* Ajuste conforme a altura do seu header/app-bar */
- }
- 
- /* NOVO: Estilização específica para o texto das tarefas na sidebar */
- .candidate-sidebar .tasks-list {
-     padding-left: 20px;
-     line-height: 1.6;
-     font-size: 0.85rem; /* Reduzido 1-2 números menores */
-     color: rgba(var(--v-theme-error), 0.8); /* Vermelho para destaque do candidato */
-     font-weight: 600; /* Bold para melhor legibilidade com fonte menor */
- }
- 
- /* Estilos melhorados para marcação de parágrafos */
- .paragraph-item {
-   transition: background-color 0.2s ease;
-   margin-bottom: 0;
-   border-radius: 4px;
- }
- 
- /* Removido o hover que causava sombra 
- .paragraph-item:hover {
-   background-color: rgba(var(--v-theme-warning), 0.08);
- }
- */
- 
- /* Novos estilos de marcação - aplicados apenas ao texto */
- span.marked-warning {
-   display: inline-block;
-   background-color: rgba(var(--v-theme-warning), 0.2);
-   border-radius: 3px;
-   padding: 0 2px;
-   pointer-events: auto;
- }
- 
- span.marked-warning p {
-   background-color: rgba(var(--v-theme-warning), 0.2);
-   pointer-events: auto;
- }
- 
- .paragraph-item.marked-warning div * {
-   background-color: transparent;
- }
- 
- .paragraph-item.marked-primary div {
-   display: inline-block;
-   background-color: rgba(var(--v-theme-primary), 0.15);
-   border-radius: 3px;
-   color: rgb(var(--v-theme-primary));
-   padding: 0 2px;
- }
- 
- span.marked-primary {
-   display: inline-block;
-   background-color: rgba(var(--v-theme-primary), 0.15);
-   border-radius: 3px;
-   color: rgb(var(--v-theme-primary));
-   padding: 0 2px;
-   pointer-events: auto;
- }
- 
- span.marked-primary p {
-   background-color: rgba(var(--v-theme-primary), 0.15);
-   color: rgb(var(--v-theme-primary));
-   pointer-events: auto;
- }
- 
- .paragraph-item.marked-primary div * {
-   background-color: transparent;
-   color: rgb(var(--v-theme-primary));
- }
- 
- /* Novos estilos para marcação de contexto - aplicados apenas ao texto */
- /* Estilos de marcação para contextos com !important para máxima prioridade */
- .marked-context-warning {
-   display: inline-block !important;
-   background-color: rgba(var(--v-theme-warning), 0.2) !important;
-   padding: 0 2px !important;
-   border-radius: 3px !important;
-   box-shadow: none !important;
-   position: relative !important;
-   z-index: 10 !important; /* Valor alto para garantir que fique acima de outros elementos */
-   cursor: pointer !important;
- }
- 
- .marked-context-warning * {
-   background-color: transparent !important;
- }
- 
- .marked-context-warning:hover,
- .marked-context-warning:active,
- .marked-context-warning:focus {
-   background-color: rgba(var(--v-theme-warning), 0.2) !important;
- }
- 
- .marked-context-warning * {
-   background-color: transparent !important;
- }
- 
- .marked-context-primary {
-   display: inline-block !important;
-   background-color: rgba(var(--v-theme-primary), 0.15) !important;
-   color: rgb(var(--v-theme-primary)) !important;
-   padding: 0 2px !important;
-   border-radius: 3px !important;
-   box-shadow: none !important;
-   position: relative !important;
-   z-index: 10 !important; /* Valor alto para garantir que fique acima de outros elementos */
-   cursor: pointer !important;
- }
- 
- .marked-context-primary * {
-   background-color: transparent !important;
-   color: rgb(var(--v-theme-primary)) !important;
- }
- 
- .marked-context-primary:hover,
- .marked-context-primary:active,
- .marked-context-primary:focus {
-   background-color: rgba(var(--v-theme-primary), 0.15) !important;
-   color: rgb(var(--v-theme-primary)) !important;
- }
- 
- .marked-context-primary * {
-   background-color: transparent !important;
-   color: rgb(var(--v-theme-primary)) !important;
- }
- 
- /* Garante que não haverá sombra ou hover em nenhum elemento */
- .roteiro-list li,
- .roteiro-list .font-weight-bold,
- .roteiro-list .paragraph-item,
- .roteiro-list span,
- .marked-context-warning,
- .marked-context-primary,
- .marked-warning,
- .marked-primary {
-   box-shadow: none !important;
-   outline: none !important;
-   text-shadow: none !important;
- }
- 
- /* Desativa qualquer efeito de hover, mas preserva as marcações */
- .roteiro-list *:hover {
-   box-shadow: none !important;
- }
- 
- /* Regra específica para garantir que o hover não afete elementos marcados */
- .roteiro-list li:hover span[data-marked="true"].marked-context-warning {
-   background-color: rgba(var(--v-theme-warning), 0.2) !important;
- }
- 
- .roteiro-list li:hover span[data-marked="true"].marked-context-primary {
-   background-color: rgba(var(--v-theme-primary), 0.15) !important;
- }
- 
- /* Garante que a área clicável seja suficiente */
- .roteiro-list li .font-weight-bold {
-   margin-bottom: 0 !important; 
-   padding: 2px 4px !important;
-   border-radius: 4px;
- }
- 
- .roteiro-list li .mt-2 {
-   margin-top: 2px !important;
- }
- 
- /* Redução ainda mais agressiva do espaçamento entre linhas */
- .roteiro-list p {
-   margin-bottom: 0 !important;
-   margin-top: 0 !important;
-   line-height: 1.1 !important;
- }
- 
- /* Ajuste específico para o conteúdo da informação */
- .roteiro-list .border-s-2 {
-   padding-top: 0 !important;
-   padding-bottom: 0 !important;
-   margin-top: 1px !important;
-   margin-bottom: 0 !important;
- }
- 
- /* Melhoria nos botões de impressos */
- .impresso-btn {
-   margin-bottom: 4px;
-   border-radius: 6px;
-   font-weight: 500;
-   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-   transition: transform 0.1s ease, box-shadow 0.1s ease;
- }
- 
- .impresso-btn:hover {
-   background-color: rgb(var(--v-theme-success)) !important;
-   transform: translateY(-1px);
-   box-shadow: 0 2px 5px rgba(0,0,0,0.15);
- }
- 
- .impresso-btn:active {
-   transform: translateY(0);
-   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
- }
- 
- .impresso-control-item {
-   margin-bottom: 8px;
- }
- 
- /* Estilos para textos em maiúsculo */
- .uppercase-title {
-   color: rgb(var(--v-theme-primary));
- }
- 
- .uppercase-content {
-   color: rgb(var(--v-theme-primary));
- }
- 
- .bg-primary-lighten-4 {
-   background-color: rgba(var(--v-theme-primary), 0.15) !important;
- }
- 
- /* Aplicar a marcação de cores apenas no texto, não em áreas vazias - Estilos não utilizados removidos */
- 
- /* Estilo para itens em maiúsculo detectados no processamento do roteiro */
- .uppercase-item strong {
-   color: rgb(var(--v-theme-primary));
- }
- 
- .uppercase-item {
-   color: rgb(var(--v-theme-primary));
- }
- 
- /* Melhorias na manipulação de eventos para evitar problemas de reatividade */
- .roteiro-list .paragraph-item,
- .roteiro-list .font-weight-bold {
-   isolation: isolate;
-   position: relative;
-   z-index: 1;
- }
- 
- /* Garante que o evento click seja corretamente capturado */
- .roteiro-list span {
-   cursor: pointer;
-   user-select: none;
-   -webkit-user-select: none;
- }
- 
- /* Estilos para a lista de infraestrutura */
- .infra-icons-list {
-   list-style-type: none;
-   padding-left: 0.5rem;
- }
- 
- .infra-icons-list li {
-   margin-bottom: 8px;
-   padding: 4px 8px;
-   border-radius: 4px;
-   display: flex;
-   align-items: center;
- }
- 
- /* Estilo para sub-itens de infraestrutura */
- .infra-icons-list li:has(span:first-child:contains('- ')) {
-   margin-left: 1.5rem;
-   margin-top: -4px;
-   margin-bottom: 4px;
-   padding-left: 0;
-   color: rgba(var(--v-theme-on-surface), 0.85);
-   font-size: 0.95rem;
- }
- 
- /* Aplica estilo quando o item começa com '- ' */
- .infra-icons-list li span[data-sub-item="true"] {
-   opacity: 0.85;
- }
- 
- /* Estilos para o PEP (Checklist de Avaliação) */
- .criterios-list {
-   background-color: transparent !important;
-   padding: 0 !important;
- }
- 
- .criterios-list .v-list-item {
-   min-height: auto !important;
-   padding: 4px 8px !important;
-   margin-bottom: 4px !important;
-   border-radius: 4px;
- }
- 
- .criterios-list .v-list-item-title {
-   font-size: 0.85rem !important;
-   line-height: 1.2 !important;
- }
- 
- .criterios-list .v-list-item-subtitle {
-   font-size: 0.75rem !important;
-   line-height: 1.3 !important;
-   opacity: 0.85;
-   white-space: normal !important;
- }
- 
- .criterio-selecionado {
-   background-color: rgba(var(--v-theme-surface-variant), 0.5) !important;
-   margin-top: -4px;
-   margin-bottom: 4px;
-   padding-left: 0;
-   color: rgba(var(--v-theme-on-surface), 0.85);
-   font-size: 0.95rem;
- }
- 
- /* === TEMA ESCURO E CLARO - CARDS DO SIMULADOR === */
- 
- /* Card do container principal */
- .simulation-page-container--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .simulation-page-container--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card principal do header */
- .main-header-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .main-header-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .main-header-card--light .v-card-title,
- .main-header-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .main-header-card--dark .v-card-title,
- .main-header-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card do candidato */
- .candidate-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-primary), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .candidate-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-primary), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .candidate-card--light .v-card-title,
- .candidate-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .candidate-card--dark .v-card-title,
- .candidate-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card de preparação */
- .preparation-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .preparation-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .preparation-card--light .v-card-title,
- .preparation-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .preparation-card--dark .v-card-title,
- .preparation-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card do cenário */
- .scenario-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .scenario-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .scenario-card--light .v-card-title,
- .scenario-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .scenario-card--dark .v-card-title,
- .scenario-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card de infraestrutura */
- .infrastructure-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .infrastructure-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .infrastructure-card--light .v-card-title,
- .infrastructure-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .infrastructure-card--dark .v-card-title,
- .infrastructure-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card de descrição do caso */
- .case-description-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .case-description-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .case-description-card--light .v-card-title,
- .case-description-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .case-description-card--dark .v-card-title,
- .case-description-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card de tarefas */
- .tasks-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .tasks-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .tasks-card--light .v-card-title,
- .tasks-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .tasks-card--dark .v-card-title,
- .tasks-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card de script */
- .script-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .script-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .script-card--light .v-card-title,
- .script-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .script-card--dark .v-card-title,
- .script-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Cards de impressos */
- .impressos-actor-card--light,
- .impressos-candidate-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .impressos-actor-card--dark,
- .impressos-candidate-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .impressos-actor-card--light .v-card-title,
- .impressos-actor-card--light .v-card-text,
- .impressos-candidate-card--light .v-card-title,
- .impressos-candidate-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .impressos-actor-card--dark .v-card-title,
- .impressos-actor-card--dark .v-card-text,
- .impressos-candidate-card--dark .v-card-title,
- .impressos-candidate-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Cards de checklist */
- .checklist-evaluator-card--light,
- .checklist-candidate-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .checklist-evaluator-card--dark,
- .checklist-candidate-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .checklist-evaluator-card--light .v-card-title,
- .checklist-evaluator-card--light .v-card-text,
- .checklist-candidate-card--light .v-card-title,
- .checklist-candidate-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .checklist-evaluator-card--dark .v-card-title,
- .checklist-evaluator-card--dark .v-card-text,
- .checklist-candidate-card--dark .v-card-title,
- .checklist-candidate-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Card de score */
- .score-card--light {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-primary), 0.2) !important;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
- }
- 
- .score-card--dark {
-   background-color: rgba(var(--v-theme-surface)) !important;
-   border: 1px solid rgba(var(--v-theme-primary), 0.3) !important;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
- }
- 
- .score-card--light .v-card-title,
- .score-card--light .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- .score-card--dark .v-card-title,
- .score-card--dark .v-card-text {
-   color: rgba(var(--v-theme-on-surface)) !important;
- }
- 
- /* Aplica estilo quando o item começa com '- ' */
- .infra-icons-list li span[data-sub-item="true"] {
-   opacity: 0.85;
- }
- 
- /* Estilos para lista chave-valor dos impressos */
- .chave-valor-list {
-   padding: 8px 0;
- }
- 
- .chave-valor-item {
-   margin-bottom: 6px;
-   line-height: 1.4;
-   padding: 2px 0;
- }
- 
- .chave-valor-item:last-child {
-   margin-bottom: 0;
- }
- 
- .chave-valor-item strong {
-   color: #1976d2;
-   margin-right: 4px;
- }
- 
- /* Tema escuro para lista chave-valor */
- .theme--dark .chave-valor-item strong {
-   color: #90caf9;
- }
- 
- /* Estilos para o modal de zoom */
- .image-zoom-card {
-   max-height: 95vh !important;
-   overflow: hidden;
- }
- 
- /* Container SIMPLES para zoom - solução para caixa branca */
- .zoom-container-simple {
-   overflow: auto;
-   max-height: 80vh;
-   display: flex;
-   justify-content: center;
-   align-items: center;
-   background-color: rgba(0, 0, 0, 0.02);
-   padding: 8px;
- }
- 
- /* Imagem SIMPLES para zoom - corrige problema de renderização */
- .zoom-image-simple {
-   max-width: 100% !important;
-   height: auto !important;
-   cursor: pointer;
-   transition: transform 0.2s ease;
-   border-radius: 4px;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
- }
- 
- .zoom-image-simple:hover {
-   transform: scale(1.02);
- }
- 
- .zoom-image-simple:active {
-   transform: scale(0.98);
- }
- 
- /* Container com scroll para imagens ampliadas - VERSÃO ORIGINAL */
- .zoom-container {
-   overflow: auto;
-   max-height: 85vh;
-   display: flex;
-   justify-content: center;
-   align-items: center;
-   scrollbar-width: thin;
-   scrollbar-color: rgba(var(--v-theme-on-surface), 0.3) transparent;
- }
- 
- .zoom-container::-webkit-scrollbar {
-   width: 8px;
-   height: 8px;
- }
- 
- .zoom-container::-webkit-scrollbar-track {
-   background: transparent;
- }
- 
- .zoom-container::-webkit-scrollbar-thumb {
-   background-color: rgba(var(--v-theme-on-surface), 0.3);
-   border-radius: 4px;
- }
- 
- .zoom-image {
-   cursor: zoom-out;
-   transition: all 0.3s ease;
-   position: relative;
- }
- 
- /* Imagem com resolução aumentada (30% maior) */
- .zoom-image-enhanced {
-   transform: scale(1.3);
-   transform-origin: center;
-   min-width: 100%;
-   min-height: 100%;
- }
- 
- .zoom-image:hover {
-   filter: brightness(1.1);
- }
- 
- .zoom-image:active {
-   transform: scale(0.98);
- }
- 
- /* Hover específico para imagem ampliada */
- .zoom-image-enhanced:hover {
-   filter: brightness(1.1);
-   transform: scale(1.32); /* Leve aumento adicional no hover */
- }
- 
- .zoom-image-enhanced:active {
-   transform: scale(1.28); /* Feedback tátil no clique */
- }
- 
- /* Responsividade para o modal de zoom */
- @media (max-width: 768px) {
-   .image-zoom-card {
-     margin: 0;
-     max-height: 100vh !important;
-     border-radius: 0 !important;
-   }
-   
-   .zoom-container {
-     max-height: 80vh;
-   }
-   
-   /* Responsividade para versão simplificada - MOBILE */
-   .zoom-container-simple {
-     max-height: 70vh;
-     padding: 4px;
-   }
-   
-   .zoom-image-simple {
-     width: 100% !important;
-     height: auto !important;
-   }
-   
-   .zoom-image-enhanced {
-     transform: scale(1.2); /* Menor aumento em mobile para melhor usabilidade */
-   }
-   
-   .zoom-image-enhanced:hover {
-     transform: scale(1.22);
-   }
-   
-   .zoom-image-enhanced:active {
-     transform: scale(1.18);
-   }
- }
- 
- /* Responsividade para tablets */
- @media (min-width: 769px) and (max-width: 1024px) {
-   /* Responsividade para versão simplificada - TABLET */
-   .zoom-container-simple {
-     max-height: 75vh;
-   }
-   
-   .zoom-image-enhanced {
-     transform: scale(1.25); /* Escala intermediária para tablets */
-   }
-   
-   .zoom-image-enhanced:hover {
-     transform: scale(1.27);
-   }
-   
-   .zoom-image-enhanced:active {
-     transform: scale(1.23);
-   }
- }
- 
- /* Tecla ESC para fechar modal */
- .image-zoom-card .v-card-title {
-   background-color: rgba(var(--v-theme-surface), 0.95);
-   backdrop-filter: blur(10px);
- }
- 
- .orange-text {
-   background-color: rgba(255, 165, 0, 0.2) !important; /* Laranja com 20% de opacidade */
-   border-radius: 4px;
-   padding: 2px 4px;
- }
- 
- .orange-text .v-icon {
-   color: orange !important;
- }
- 
- .orange-text .font-weight-medium {
-   color: orange !important;
- }
- 
- .orange-text .text-caption {
-   color: rgba(255, 165, 0, 0.8) !important;
- }
- .pep-floating-container {
-   position: fixed;
-   top: 80px; /* Valor aproximado para ficar abaixo do header */
-   right: 20px; /* Mantém a posição à direita */
-   max-height: calc(100vh - 100px); /* Ajuste para ocupar a maior parte da altura da tela */
-   overflow-y: auto;
-   z-index: 1000; /* Garante que fique acima de outros elementos */
-   width: 300px; /* Largura fixa para a janela flutuante */
-   background-color: white; /* Fundo branco para visibilidade */
-   border: 1px solid #e0e0e0; /* Borda leve */
-   border-radius: 8px; /* Cantos arredondados */
-   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Sombra para destaque */
- }
- 
- @media (max-width: 768px) {
-   .pep-floating-container {
-     right: 10px;
-     top: 70px; /* Ajuste para mobile */
-     max-height: calc(100vh - 80px); /* Ajuste para mobile */
-     width: calc(100% - 20px); /* Ocupa a largura total menos margens */
-   }
- }
-
-/* Botão flutuante compacto para impressos */
-.impressos-floating-button-compact {
-  position: fixed;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1000;
-  border-radius: 50%;
-  width: 40px !important;
-  height: 40px !important;
-  min-width: 40px !important;
-  padding: 0 !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-}
-
-.impressos-floating-button-compact:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.impressos-floating-button-compact:active {
-  transform: scale(0.95);
-}
-
-/* Quando a drawer está aberta, destacar o botão */
-.impressos-floating-button-compact.v-btn--variant-flat {
-  border-color: rgb(var(--v-theme-info));
-  background-color: rgba(var(--v-theme-info), 0.1) !important;
-  box-shadow: 0 2px 12px rgba(var(--v-theme-info), 0.3);
-}
-
-/* Responsividade para mobile */
-@media (max-width: 768px) {
-  .impressos-floating-button-compact {
-    right: 12px;
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-  }
-
-  .impressos-content {
-    max-height: calc(90vh - 100px) !important;
-  }
-}
-
-/* Estilos para a drawer de impressos */
-.impressos-drawer {
-  height: fit-content !important;
-  min-height: 250px !important;
-  max-height: 70vh !important;
-  top: 15vh !important;
-  bottom: 15vh !important;
-  border-radius: 8px 0 0 8px !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-  width: 320px !important;
-}
-
-.impressos-drawer-container {
-  height: fit-content !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-  min-height: 0 !important;
-}
-
-.impressos-card {
-  height: fit-content !important;
-  display: flex !important;
-  flex-direction: column !important;
-  border-radius: 8px 0 0 8px !important;
-  overflow: hidden !important;
-  min-height: 0 !important;
-}
-
-.impressos-content {
-  flex: 1 !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  padding: 16px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-start !important;
-  min-height: 0 !important;
-  height: fit-content !important;
-  max-height: none !important;
-}
-
-.impressos-content > div:first-child {
-  flex: 0 0 auto !important;
-}
-
-.impressos-content > div:last-child {
-  flex: 0 0 auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-start !important;
-  width: 100% !important;
-  height: fit-content !important;
-}
-
-.impressos-content .text-center {
-  margin: 0 !important;
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-  align-items: center !important;
-  height: 100% !important;
-}
-
-.impresso-control-item {
-  padding: 8px 0 !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-}
-
-.impresso-control-item:last-child {
-  border-bottom: none !important;
-  margin-bottom: 0 !important;
-}
-
-/* Estilos para o card de navegação sequencial */
-.sequential-navigation-card--light {
-  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%) !important;
-  border: 2px solid rgba(25, 118, 210, 0.1) !important;
-}
-
-.sequential-navigation-card--dark {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
-  border: 2px solid rgba(144, 202, 249, 0.2) !important;
-}
-
-.sequential-navigation-card .v-card-item {
-  padding-bottom: 8px !important;
-}
-
-.sequential-navigation-card .v-alert {
-  border-radius: 12px !important;
-}
-
-/* Estilos para o botão do olho do PEP */
-.pep-eye-button {
-  transition: all 0.2s ease-in-out;
-  border-radius: 8px;
-  min-width: 48px !important;
-  height: 48px !important;
-}
-
-.pep-eye-button:hover {
-  background-color: rgba(var(--v-theme-primary), 0.1) !important;
-  transform: scale(1.05);
-}
-
-.pep-eye-button .v-icon {
-  font-size: 24px !important;
-  transition: color 0.2s ease-in-out;
-}
-
-.pep-eye-button:hover .v-icon {
-  color: rgb(var(--v-theme-primary)) !important;
-}
-
-/* === CARD DE NAVEGAÇÃO SEQUENCIAL === */
-
-/* Card de navegação sequencial */
-.sequential-next-card--light {
-  background-color: rgba(var(--v-theme-surface)) !important;
-  border: 2px solid rgba(var(--v-theme-primary), 0.3) !important;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
-}
-
-.sequential-next-card--dark {
-  background-color: rgba(var(--v-theme-surface)) !important;
-  border: 2px solid rgba(var(--v-theme-primary), 0.4) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-}
-
-.sequential-next-card--light .v-card-title,
-.sequential-next-card--light .v-card-text {
-  color: rgba(var(--v-theme-on-surface)) !important;
-}
-
-.sequential-next-card--dark .v-card-title,
-.sequential-next-card--dark .v-card-text {
-  color: rgba(var(--v-theme-on-surface)) !important;
-}
+<style scoped lang="scss">
+@import '@/assets/styles/simulation-view.scss';
 </style>

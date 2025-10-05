@@ -1,56 +1,64 @@
-// Arquivo movido para padronização de rotas do candidato
-
 <template>
-  <div class="ranking-view">
-    <v-container>
-      <v-row>
-        <v-col cols="12">
-          <v-card elevation="2" class="mb-6">
-            <v-card-title class="text-h4 py-4 primary-text">
+  <div :class="themeClasses.container">
+    <VContainer>
+      <VRow>
+        <VCol cols="12">
+          <VCard :class="themeClasses.card" elevation="2" class="mb-6">
+            <VCardTitle class="text-h4 py-4">
               Ranking de Desempenho
-              <v-spacer></v-spacer>
-              <v-chip
+              <VSpacer></VSpacer>
+              <VChip
                 color="primary"
                 :class="{'ma-2': true, 'active': filtroAtivo === 'geral'}"
                 @click="filtrarPor('geral')"
               >
                 Geral
-              </v-chip>
-              <v-chip
+              </VChip>
+              <VChip
                 color="success"
                 :class="{'ma-2': true, 'active': filtroAtivo === 'mediaNota'}"
                 @click="filtrarPor('mediaNota')"
               >
                 Média de Notas
-              </v-chip>
-              <v-chip
+              </VChip>
+              <VChip
                 color="info"
                 :class="{'ma-2': true, 'active': filtroAtivo === 'quantidade'}"
                 @click="filtrarPor('quantidade')"
               >
                 Quantidade de Estações
-              </v-chip>
-            </v-card-title>
-            
-            <v-card-text>
-              <v-alert v-if="loading" type="info" text>
-                Carregando dados do ranking...
-              </v-alert>
-              
-              <v-alert v-if="error" type="error" text>
+              </VChip>
+            </VCardTitle>
+
+            <VCardText>
+              <!-- Loading State -->
+              <div v-if="loading"
+                :class="[
+                  'd-flex justify-center align-center pa-8',
+                  themeClasses.loading
+                ]"
+                role="status"
+                aria-live="polite"
+              >
+                <VProgressCircular indeterminate color="primary" size="64" aria-hidden="true" />
+                <span class="ml-4 text-h6" aria-label="Carregando ranking">Carregando dados do ranking...</span>
+              </div>
+
+              <!-- Error State -->
+              <VAlert v-if="error" type="error" text>
                 {{ error }}
-              </v-alert>
+              </VAlert>
 
               <div v-if="!loading && !error">
                 <div class="meu-ranking text-center pa-4 mb-6">
                   <h3 class="text-h5 mb-2">Seu ranking</h3>
-                  <v-avatar 
-                    size="90" 
-                    :color="obterCorRanking(meuRanking?.posicao || 999)" 
+                  <VAvatar
+                    size="90"
+                    :color="obterCorRanking(meuRanking?.posicao || 999)"
                     class="white--text mb-2"
                   >
                     {{ meuRanking?.posicao || '?' }}
-                  </v-avatar>
+                  </VAvatar>
                   <div class="text-h6">{{ meuRanking?.nome || 'Seu nome' }}</div>
                   <div class="text-subtitle-1">{{ meuRanking?.pontos || 0 }} pontos</div>
                   <div class="d-flex justify-space-around mt-2">
@@ -69,7 +77,7 @@
                   </div>
                 </div>
 
-                <v-table>
+                <VTable>
                   <thead>
                     <tr>
                       <th class="text-left">Posição</th>
@@ -79,30 +87,30 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr 
-                      v-for="(usuario, index) in ranking" 
+                    <tr
+                      v-for="(usuario, index) in ranking"
                       :key="usuario.id"
                       :class="{'minha-linha': usuario.id === currentUserId}"
                     >
                       <td>
-                        <v-avatar 
-                          size="36" 
-                          :color="obterCorRanking(index + 1)" 
+                        <VAvatar
+                          size="36"
+                          :color="obterCorRanking(index + 1)"
                           class="white--text mr-2"
                         >
                           {{ index + 1 }}
-                        </v-avatar>
+                        </VAvatar>
                       </td>
                       <td>
                         <div class="d-flex align-center">
-                          <v-avatar class="mr-3" size="40">
-                            <v-img
+                          <VAvatar class="mr-3" size="40">
+                            <VImg
                               v-if="usuario.photoURL"
                               :src="usuario.photoURL"
                               alt="Avatar"
-                            ></v-img>
+                            ></VImg>
                             <span v-else>{{ obterIniciais(usuario.nome, usuario.sobrenome) }}</span>
-                          </v-avatar>
+                          </VAvatar>
                           <div>
                             <div class="font-weight-medium">{{ usuario.nome }} {{ usuario.sobrenome }}</div>
                             <div class="text-caption">{{ usuario.cidade }}, {{ usuario.paisOrigem }}</div>
@@ -118,19 +126,19 @@
                       </td>
                     </tr>
                   </tbody>
-                </v-table>
+                </VTable>
               </div>
-            </v-card-text>
-          </v-card>
+            </VCardText>
+          </VCard>
 
-          <v-card elevation="2" class="mb-6">
-            <v-card-title class="text-h5">
+          <VCard :class="themeClasses.card" elevation="2" class="mb-6">
+            <VCardTitle class="text-h5">
               Estatísticas por Especialidade
-            </v-card-title>
-            <v-card-text>
-              <v-row v-if="!loading && especialidades.length > 0">
-                <v-col v-for="especialidade in especialidades" :key="especialidade.nome" cols="12" md="4">
-                  <v-card variant="outlined" class="pa-3">
+            </VCardTitle>
+            <VCardText>
+              <VRow v-if="!loading && especialidades.length > 0">
+                <VCol v-for="especialidade in especialidades" :key="especialidade.nome" cols="12" md="4">
+                  <VCard variant="outlined" class="pa-3">
                     <div class="text-h6 mb-2">{{ especialidade.nome }}</div>
                     <div class="d-flex justify-space-between mb-1">
                       <span class="text-caption">Estações:</span>
@@ -140,80 +148,72 @@
                       <span class="text-caption">Média de notas:</span>
                       <span class="font-weight-medium">{{ formatarNota(especialidade.mediaNotas) }}</span>
                     </div>
-                    <v-progress-linear
+                    <VProgressLinear
                       :model-value="(especialidade.mediaNotas/10)*100"
                       :color="obterCorNota(especialidade.mediaNotas)"
                       height="10"
                       rounded
                       class="mt-2"
-                    ></v-progress-linear>
-                  </v-card>
-                </v-col>
-              </v-row>
-              <v-alert v-else-if="!loading" type="info" text>
+                    ></VProgressLinear>
+                  </VCard>
+                </VCol>
+              </VRow>
+              <VAlert v-else-if="!loading" type="info" text>
                 Você ainda não completou nenhuma estação.
-              </v-alert>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
-    </v-container>
+              </VAlert>
+            </VCardText>
+          </VCard>
+        </VCol>
+      </VRow>
+    </VContainer>
   </div>
 </template>
 
 <script setup>
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query } from 'firebase/firestore';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue'
+import { useThemeConfig } from '@/composables/useThemeConfig'
+import { useFirebaseData } from '@/composables/useFirebaseData'
+import { currentUser } from '@/plugins/auth'
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore'
+import { db } from '@/plugins/firebase'
+
+const { themeClasses } = useThemeConfig()
+const { userData } = useFirebaseData()
 
 // Estado
-const loading = ref(true);
-const error = ref(null);
-const ranking = ref([]);
-const currentUserId = ref(null);
-const meuRanking = ref(null);
-const especialidades = ref([]);
-const filtroAtivo = ref('geral');
+const loading = ref(true)
+const error = ref(null)
+const ranking = ref([])
+const meuRanking = ref(null)
+const filtroAtivo = ref('geral')
 
-// Firebase
-const auth = getAuth();
-const db = getFirestore();
+// Computed properties
+const currentUserId = computed(() => currentUser.value?.uid)
 
 // Buscar ranking
 async function buscarRanking() {
-  loading.value = true;
-  error.value = null;
-  
+  loading.value = true
+  error.value = null
+
   try {
     // Determinar campo para ordenar com base no filtro
-    let campoOrdenacao = 'ranking'; // padrão
-    
+    let campoOrdenacao = 'ranking'
+
     if (filtroAtivo.value === 'mediaNota') {
-      campoOrdenacao = 'nivelHabilidade';
+      campoOrdenacao = 'nivelHabilidade'
     } else if (filtroAtivo.value === 'quantidade') {
-      campoOrdenacao = 'estacoesConcluidas';
+      campoOrdenacao = 'estacoesConcluidas'
     }
-    
+
     // Buscar top 50 usuários
-    const usuariosRef = collection(db, 'usuarios');
-    const q = query(usuariosRef, orderBy(campoOrdenacao, 'desc'), limit(50));
-    const querySnapshot = await getDocs(q);
-    
-    const rankingData = [];
+    const usuariosRef = collection(db, 'usuarios')
+    const q = query(usuariosRef, orderBy(campoOrdenacao, 'desc'), limit(50))
+    const querySnapshot = await getDocs(q)
+
+    const rankingData = []
     querySnapshot.forEach((doc) => {
-      const userData = doc.data();
-      
-      // Calcular estações concluídas
-      const estacoesConcluidas = Array.isArray(userData.estacoesConcluidas) 
-        ? userData.estacoesConcluidas.length 
-        : 0;
-      
-      // Calcular média de notas
-      const mediaNota = userData.nivelHabilidade || 0;
-      
-      // Calcular pontos
-      const pontos = userData.ranking || 0;
-      
+      const userData = doc.data()
+
       rankingData.push({
         id: doc.id,
         nome: userData.nome || 'Usuário',
@@ -221,168 +221,123 @@ async function buscarRanking() {
         cidade: userData.cidade || 'Desconhecida',
         paisOrigem: userData.paisOrigem || 'Brasil',
         photoURL: userData.photoURL,
-        estacoesConcluidas,
-        mediaNota,
+        estacoesConcluidas: Array.isArray(userData.estacoesConcluidas) ? userData.estacoesConcluidas.length : 0,
+        mediaNota: userData.nivelHabilidade || 0,
         nivelHabilidade: userData.nivelHabilidade || 0,
-        pontos,
-      });
-    });
-    
-    ranking.value = rankingData;
-    
+        pontos: userData.ranking || 0,
+      })
+    })
+
+    ranking.value = rankingData
+
     // Encontrar minha posição no ranking
     if (currentUserId.value) {
-      const minhaPos = rankingData.findIndex(u => u.id === currentUserId.value);
+      const minhaPos = rankingData.findIndex(u => u.id === currentUserId.value)
       if (minhaPos !== -1) {
         meuRanking.value = {
           ...rankingData[minhaPos],
           posicao: minhaPos + 1
-        };
+        }
       } else {
-        // Se não estiver nos top 50, buscar especificamente meus dados
-        await buscarMeusDados();
+        // Usar dados do usuário atual se disponível
+        if (userData.value) {
+          meuRanking.value = {
+            id: currentUserId.value,
+            nome: userData.value.nome || 'Você',
+            sobrenome: userData.value.sobrenome || '',
+            estacoesConcluidas: userData.value.estacoesConcluidas?.length || 0,
+            mediaNota: userData.value.nivelHabilidade || 0,
+            nivelHabilidade: userData.value.nivelHabilidade || 0,
+            pontos: userData.value.ranking || 0,
+            posicao: 999
+          }
+        }
       }
     }
   } catch (err) {
-    console.error('Erro ao buscar ranking:', err);
-    error.value = 'Não foi possível carregar o ranking. Tente novamente mais tarde.';
+    console.error('Erro ao buscar ranking:', err)
+    error.value = 'Não foi possível carregar o ranking. Tente novamente mais tarde.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
-// Buscar meus dados quando não estou no top 50
-async function buscarMeusDados() {
-  if (!currentUserId.value) return;
-  
-  try {
-    const userDoc = await getDoc(doc(db, 'usuarios', currentUserId.value));
-    
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      
-      // Calcular estações concluídas
-      const estacoesConcluidas = Array.isArray(userData.estacoesConcluidas) 
-        ? userData.estacoesConcluidas.length 
-        : 0;
-      
-      // Calcular média de notas
-      const mediaNota = userData.nivelHabilidade || 0;
-      
-      // Calcular pontos
-      const pontos = userData.ranking || 0;
-      
-      meuRanking.value = {
-        id: userDoc.id,
-        nome: userData.nome || 'Você',
-        sobrenome: userData.sobrenome || '',
-        estacoesConcluidas,
-        mediaNota,
-        nivelHabilidade: userData.nivelHabilidade || 0,
-        pontos,
-        posicao: 999 // Posição desconhecida fora do top 50
-      };
-      
-      // Processar estatísticas por especialidade
-      processarEstatisticas(userData.statistics || {});
-    }
-  } catch (err) {
-    console.error('Erro ao buscar meus dados:', err);
-  }
-}
+// Computed para estatísticas por especialidade
+const especialidades = computed(() => {
+  const stats = userData.value?.statistics
+  if (!stats) return []
 
-// Processar estatísticas por especialidade
-function processarEstatisticas(statistics) {
-  const especialidadesData = [];
-  
-  // Remover a estatística geral para processamento separado
-  const { geral, ...especialidadesObj } = statistics;
-  
-  // Processar cada especialidade
-  for (const [nome, dados] of Object.entries(especialidadesObj)) {
-    especialidadesData.push({
-      nome: nome.charAt(0).toUpperCase() + nome.slice(1), // Capitalizar
+  const { geral, ...especialidadesObj } = stats
+
+  return Object.entries(especialidadesObj)
+    .map(([nome, dados]) => ({
+      nome: nome.charAt(0).toUpperCase() + nome.slice(1),
       concluidas: dados.concluidas || 0,
       mediaNotas: dados.mediaNotas || 0,
       total: dados.total || 0
-    });
-  }
-  
-  // Ordenar por número de estações concluídas
-  especialidadesData.sort((a, b) => b.concluidas - a.concluidas);
-  
-  especialidades.value = especialidadesData;
-}
+    }))
+    .sort((a, b) => b.concluidas - a.concluidas)
+})
 
 // Filtrar ranking
 function filtrarPor(filtro) {
-  filtroAtivo.value = filtro;
-  buscarRanking();
+  filtroAtivo.value = filtro
+  buscarRanking()
 }
 
 // Formatar nota para exibição
 function formatarNota(nota) {
-  if (nota === undefined || nota === null) return '0.00';
-  return (Math.round(nota * 100) / 100).toFixed(2);
+  if (nota === undefined || nota === null) return '0.00'
+  return (Math.round(nota * 100) / 100).toFixed(2)
 }
 
 // Formatar nível para exibição
 function formatarNivel(nivel) {
-  if (nivel === undefined || nivel === null) return 'Iniciante';
-  
-  if (nivel >= 9) return 'Expert';
-  if (nivel >= 7.5) return 'Avançado';
-  if (nivel >= 5) return 'Intermediário';
-  return 'Iniciante';
+  if (nivel === undefined || nivel === null) return 'Iniciante'
+
+  if (nivel >= 9) return 'Expert'
+  if (nivel >= 7.5) return 'Avançado'
+  if (nivel >= 5) return 'Intermediário'
+  return 'Iniciante'
 }
 
 // Obter cor com base na posição no ranking
 function obterCorRanking(posicao) {
-  if (posicao === 1) return 'amber-darken-2'; // Ouro
-  if (posicao === 2) return 'grey-lighten-1'; // Prata
-  if (posicao === 3) return 'amber-darken-4'; // Bronze
-  if (posicao <= 10) return 'blue';
-  if (posicao <= 20) return 'teal';
-  return 'grey';
+  if (posicao === 1) return 'amber-darken-2'
+  if (posicao === 2) return 'grey-lighten-1'
+  if (posicao === 3) return 'amber-darken-4'
+  if (posicao <= 10) return 'blue'
+  if (posicao <= 20) return 'teal'
+  return 'grey'
 }
 
 // Obter cor com base na nota
 function obterCorNota(nota) {
-  if (nota >= 9) return 'success';
-  if (nota >= 7) return 'info';
-  if (nota >= 5) return 'warning';
-  return 'error';
+  if (nota >= 9) return 'success'
+  if (nota >= 7) return 'info'
+  if (nota >= 5) return 'warning'
+  return 'error'
 }
 
 // Obter iniciais do nome
 function obterIniciais(nome, sobrenome) {
-  const n = nome ? nome.charAt(0).toUpperCase() : '';
-  const s = sobrenome ? sobrenome.charAt(0).toUpperCase() : '';
-  return n + s;
+  const n = nome ? nome.charAt(0).toUpperCase() : ''
+  const s = sobrenome ? sobrenome.charAt(0).toUpperCase() : ''
+  return n + s
 }
 
-// Monitorar usuário autenticado
+// Lifecycle hooks
 onMounted(() => {
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
-    if (user) {
-      currentUserId.value = user.uid;
-      buscarRanking();
-    } else {
-      error.value = 'Você precisa estar autenticado para ver o ranking.';
-      loading.value = false;
-    }
-  });
-  
-  // Limpar listener ao desmontar
-  return () => unsubscribe();
-});
+  if (currentUserId.value) {
+    buscarRanking()
+  } else {
+    error.value = 'Você precisa estar autenticado para ver o ranking.'
+    loading.value = false
+  }
+})
 </script>
 
 <style scoped>
-.ranking-view {
-  min-height: 100vh;
-}
-
 .active {
   font-weight: bold !important;
   transform: scale(1.05);

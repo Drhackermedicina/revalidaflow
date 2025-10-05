@@ -27,7 +27,7 @@ const props = defineProps({
             :icon="item.icon || 'ri-checkbox-blank-circle-line'"
             class="nav-item-icon"
             :color="item.iconColor || undefined"
-            aria-hidden="true"
+            :aria-label="item.title"
           />
         </template>
         {{ item.title }}

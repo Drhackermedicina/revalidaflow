@@ -1,81 +1,135 @@
 <template>
-  <div class="performance-view">
-    <div class="container">
-      <h1>Performance</h1>
-      <div v-if="loading" style="text-align:center; margin: 2rem 0;">
-        Carregando dados...
-      </div>
-      <div v-else>
-        <div v-if="error" style="color:red; text-align:center; margin-bottom:1rem;">{{ error }}</div>
-        <v-row class="mb-6" justify="center">
-          <v-col cols="12" md="3">
-            <v-card outlined>
-              <v-card-title>Simulações concluídas</v-card-title>
-              <v-card-text>{{ simulations }}</v-card-text>
-            </v-card>
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-card outlined>
-              <v-card-title>Média de notas</v-card-title>
-              <v-card-text>{{ averageScore }}</v-card-text>
-            </v-card>
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-card outlined>
-              <v-card-title>Streak</v-card-title>
-              <v-card-text>{{ streak }}</v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-        <v-row>
-          <v-col cols="12">
-            <v-card outlined>
-              <v-card-title>Evolução de desempenho</v-card-title>
-                <div v-if="performanceHistory.length > 0" style="margin-bottom: 2rem;">
-                  <PerformanceChart :history="performanceHistory" aria-label="Gráfico de evolução de desempenho" />
-                </div>
-              <v-card-text>
-                <div v-if="performanceHistory.length === 0">Nenhum dado de desempenho ainda.</div>
-                <ul v-else>
-                  <li v-for="(item, idx) in performanceHistory" :key="idx">
-                    {{ item.data }}: {{ item.score }}
-                  </li>
-                </ul>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-      </div>
-    </div>
+  <div :class="themeClasses.container">
+    <VContainer>
+      <VRow>
+        <VCol cols="12">
+          <VCard
+            title="Performance do Candidato"
+            :class="themeClasses.card"
+            elevation="2"
+          >
+            <VCardText>
+              <p class="text-body-1 mb-4 performance-description">
+                Acompanhe sua evolução e mantenha o foco nos estudos.
+              </p>
+
+              <!-- Loading State -->
+              <div v-if="loading"
+                :class="[
+                  'd-flex justify-center align-center pa-8',
+                  themeClasses.loading
+                ]"
+                role="status"
+                aria-live="polite"
+              >
+                <VProgressCircular indeterminate color="primary" size="64" aria-hidden="true" />
+                <span class="ml-4 text-h6" aria-label="Carregando performance">Carregando dados de performance...</span>
+              </div>
+
+              <!-- Error State -->
+              <div v-else-if="error" class="error-container">
+                <VAlert type="error" text>{{ error }}</VAlert>
+              </div>
+
+              <!-- Content -->
+              <div v-else>
+                <VRow class="mb-6" justify="center">
+                  <VCol cols="12" md="4">
+                    <VCard :class="['mb-4', themeClasses.card]" elevation="2">
+                      <VCardTitle class="d-flex align-center gap-2">
+                        <VIcon icon="ri-check-circle-line" color="success" size="24" />
+                        <span class="text-h6 font-weight-bold">Simulações concluídas</span>
+                      </VCardTitle>
+                      <VCardText>
+                        <div class="stat-value">{{ simulations }}</div>
+                      </VCardText>
+                    </VCard>
+                  </VCol>
+                  <VCol cols="12" md="4">
+                    <VCard :class="['mb-4', themeClasses.card]" elevation="2">
+                      <VCardTitle class="d-flex align-center gap-2">
+                        <VIcon icon="ri-star-line" color="warning" size="24" />
+                        <span class="text-h6 font-weight-bold">Média de notas</span>
+                      </VCardTitle>
+                      <VCardText>
+                        <div class="stat-value">{{ averageScore }}</div>
+                      </VCardText>
+                    </VCard>
+                  </VCol>
+                  <VCol cols="12" md="4">
+                    <VCard :class="['mb-4', themeClasses.card]" elevation="2">
+                      <VCardTitle class="d-flex align-center gap-2">
+                        <VIcon icon="ri-fire-line" color="error" size="24" />
+                        <span class="text-h6 font-weight-bold">Streak</span>
+                      </VCardTitle>
+                      <VCardText>
+                        <div class="stat-value">{{ streak }}</div>
+                      </VCardText>
+                    </VCard>
+                  </VCol>
+                </VRow>
+
+                <VRow>
+                  <VCol cols="12">
+                    <VCard :class="['mb-4', themeClasses.card]" elevation="2">
+                      <VCardTitle class="d-flex align-center gap-2">
+                        <VIcon icon="ri-line-chart-line" color="primary" size="24" />
+                        <span class="text-h6 font-weight-bold">Evolução de desempenho</span>
+                      </VCardTitle>
+                      <VCardText>
+                        <div v-if="performanceHistory.length > 0" class="chart-container">
+                          <PerformanceChart :history="performanceHistory" aria-label="Gráfico de evolução de desempenho" />
+                        </div>
+                        <div v-if="performanceHistory.length === 0" class="no-data-message">
+                          <VIcon icon="ri-bar-chart-line" size="48" color="grey" />
+                          <p class="text-body-1 mt-2">Nenhum dado de desempenho ainda.</p>
+                          <p class="text-caption text-medium-emphasis">Complete algumas simulações para ver sua evolução!</p>
+                        </div>
+                        <div v-else class="history-list">
+                          <h4 class="text-subtitle-1 mb-3">Histórico detalhado</h4>
+                          <ul class="performance-history">
+                            <li v-for="(item, idx) in performanceHistory" :key="idx" class="history-item">
+                              <span class="date">{{ item.data }}</span>
+                              <span class="score">{{ item.score }}</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </VCardText>
+                    </VCard>
+                  </VCol>
+                </VRow>
+              </div>
+            </VCardText>
+          </VCard>
+        </VCol>
+      </VRow>
+    </VContainer>
   </div>
 </template>
 
 <script setup>
-import { useUserStore } from '@/stores/userStore'
 import { computed, onMounted } from 'vue'
+import { useThemeConfig } from '@/composables/useThemeConfig'
+import { useFirebaseData } from '@/composables/useFirebaseData'
+import PerformanceChart from '@/components/PerformanceChart.vue'
 
-const userStore = useUserStore()
-// DEBUG: Verificar retorno de usuários após fetch
-
-onMounted(() => {
-  userStore.fetchUsers()
-})
-
-const currentUserUid = computed(() => userStore.state.user?.uid)
-const userData = computed(() => {
-  if (!currentUserUid.value) return null
-  return userStore.state.users.find(u => u.uid === currentUserUid.value) || null
-})
+const { isDarkTheme, themeClasses } = useThemeConfig()
+const { loading, error, userData, fetchUserStats } = useFirebaseData()
 
 const simulations = computed(() => userData.value?.estacoesConcluidas?.length ?? 0)
+
 const averageScore = computed(() => {
   const media = userData.value?.statistics?.geral?.mediaNotas
   return media !== undefined ? Number(media).toFixed(2) : '-'
 })
+
 const streak = computed(() => {
   const concluidas = userData.value?.estacoesConcluidas || []
+  if (!concluidas.length) return '-'
+
   let streakCount = 0
   let lastDate = null
+
   concluidas
     .map(item => {
       if (item.data?.toDate) return item.data.toDate()
@@ -97,8 +151,10 @@ const streak = computed(() => {
         }
       }
     })
-  return concluidas.length ? streakCount : '-'
+
+  return streakCount
 })
+
 const performanceHistory = computed(() => {
   const concluidas = userData.value?.estacoesConcluidas || []
   return concluidas.map(item => ({
@@ -106,25 +162,89 @@ const performanceHistory = computed(() => {
     score: item.nota ?? '-'
   }))
 })
-const loading = computed(() => userStore.state.users.length === 0)
-const error = computed(() => !userData.value ? 'Usuário não encontrado ou não autenticado.' : '')
+
+// Lifecycle hooks
+onMounted(() => {
+  fetchUserStats()
+})
 </script>
 
 <style scoped>
-.performance-view {
-  padding: 20px;
-  min-height: 100vh;
-  background-color: white;
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: rgb(var(--v-theme-primary));
+  text-align: center;
+  margin-top: 0.5rem;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
+.chart-container {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: rgba(var(--v-theme-surface-variant), 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(var(--v-theme-outline), 0.08);
 }
 
-.dark-theme .performance-view {
-  background-color: #1a1a1a;
-  color: white;
+.no-data-message {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.history-list {
+  margin-top: 2rem;
+}
+
+.performance-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  background: rgba(var(--v-theme-surface-variant), 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(var(--v-theme-outline), 0.08);
+  transition: background-color 0.2s ease;
+}
+
+.history-item:hover {
+  background: rgba(var(--v-theme-surface-variant), 0.5);
+}
+
+.date {
+  font-weight: 500;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.score {
+  font-weight: bold;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.error-container {
+  margin-bottom: 1rem;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .history-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
 }
 </style>

@@ -1,0 +1,180 @@
+// =========================================
+// UTILITÁRIOS CSS PARA PÁGINAS DO CANDIDATO
+// =========================================
+// Centraliza estilos comuns para reduzir duplicação
+
+// Containers temáticos
+.container--light {
+  background: rgb(var(--v-theme-background));
+  color: rgb(var(--v-theme-on-background));
+  min-height: 100vh;
+  padding: 24px 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container--dark {
+  background: rgb(var(--v-theme-background));
+  color: rgb(var(--v-theme-on-background));
+  min-height: 100vh;
+  padding: 24px 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+// Cards temáticos
+.card--light {
+  background: rgb(var(--v-theme-surface)) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  border: 1px solid rgba(var(--v-theme-outline), 0.12) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.3s ease;
+}
+
+.card--dark {
+  background: rgb(var(--v-theme-surface)) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  border: 1px solid rgba(var(--v-theme-outline), 0.24) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.24) !important;
+  transition: all 0.3s ease;
+}
+
+.card--light:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-2px);
+}
+
+.card--dark:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  transform: translateY(-2px);
+}
+
+// Containers de loading
+.loading--light {
+  background: rgba(var(--v-theme-surface), 0.95) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--v-theme-outline), 0.12);
+}
+
+.loading--dark {
+  background: rgba(var(--v-theme-surface), 0.95) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--v-theme-outline), 0.24);
+}
+
+// Tabelas temáticas
+.table--light {
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table--dark {
+  background: rgb(var(--v-theme-surface-dim));
+  color: rgb(var(--v-theme-on-surface));
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+// Headers de tabela
+.table-header--light {
+  background: rgba(var(--v-theme-primary), 0.05);
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.table-header--dark {
+  background: rgba(var(--v-theme-primary), 0.15);
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.table-header--light th,
+.table-header--dark th {
+  font-weight: 600;
+  padding: 16px 12px;
+  border-bottom: 2px solid rgba(var(--v-theme-primary), 0.2);
+}
+
+// Linhas de tabela
+.table-row--light {
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  transition: background-color 0.3s ease;
+}
+
+.table-row--dark {
+  background: rgb(var(--v-theme-surface-dim));
+  color: rgb(var(--v-theme-on-surface));
+  transition: background-color 0.3s ease;
+}
+
+.table-row--light:hover {
+  background: rgba(var(--v-theme-primary), 0.05);
+}
+
+.table-row--dark:hover {
+  background: rgba(var(--v-theme-primary), 0.10);
+}
+
+.table-row--light td,
+.table-row--dark td {
+  padding: 12px;
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.12);
+}
+
+// Utilitários de texto
+.text-readable {
+  line-height: 1.6 !important;
+  letter-spacing: 0.01em !important;
+}
+
+.text-high-contrast {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  font-weight: 600 !important;
+}
+
+// Utilitários de espaçamento
+.spacing-section {
+  margin-bottom: 24px;
+}
+
+.spacing-card {
+  padding: 24px;
+}
+
+// Utilitários de responsividade
+@media (max-width: 768px) {
+  .container--light,
+  .container--dark {
+    padding: 16px 0;
+  }
+
+  .card--light,
+  .card--dark {
+    margin: 0 8px;
+    border-radius: 8px;
+  }
+
+  .spacing-card {
+    padding: 16px;
+  }
+
+  .table-header--light th,
+  .table-header--dark th,
+  .table-row--light td,
+  .table-row--dark td {
+    padding: 8px 6px;
+  }
+}
+
+// Transições globais
+.container--light,
+.container--dark,
+.card--light,
+.card--dark,
+.table--light,
+.table--dark,
+.table-row--light,
+.table-row--dark {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

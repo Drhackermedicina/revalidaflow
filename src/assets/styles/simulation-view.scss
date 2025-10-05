@@ -1,0 +1,1177 @@
+ .simulation-page-container {
+     font-size: 1.1rem; /* Aumenta a fonte base */
+ }
+
+/* Realce geral dos cards dentro da página de simulação: borda um pouco mais espessa,
+   cor baseada nas variáveis de tema para respeitar light/dark e aspecto profissional */
+.simulation-page-container :where(.v-card) {
+  /* Fallback neutro para cards */
+  border: 1.4px solid rgba(0,0,0,0.05) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04) !important;
+}
+
+:deep(.v-theme--light) .simulation-page-container :where(.v-card) {
+  border: 1.6px solid rgba(0,0,0,0.08) !important;
+}
+
+:deep(.v-theme--dark) .simulation-page-container :where(.v-card) {
+  border: 1.6px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18) !important;
+}
+ 
+.pep-split-view-border-right {
+  /* Fallback neutro */
+  border-right: 1.6px solid rgba(0,0,0,0.06);
+  padding-right: 18px; /* Adiciona um padding para a borda não ficar colada no conteúdo */
+}
+
+:deep(.v-theme--light) .pep-split-view-border-right {
+  border-right: 1.6px solid rgba(0,0,0,0.08) !important;
+}
+:deep(.v-theme--dark) .pep-split-view-border-right {
+  border-right: 1.6px solid rgba(255,255,255,0.06) !important;
+}
+ 
+ /* Estilos para o PepSideView dentro da split view */
+ .pep-side-view-card {
+   padding-left: 16px; /* Adiciona um padding para o conteúdo não ficar colado na borda */
+ }
+
+/* Realce visual extra para o PepSideView: contorno e divisórias internas mais perceptíveis */
+:deep(.pep-side-view) {
+  border: 1.2px solid rgba(var(--v-theme-outline), 0.24);
+  border-radius: 8px;
+  padding: 6px;
+}
+
+:deep(.pep-side-view .pep-group-divider) {
+  border-bottom: 1.6px solid rgba(var(--v-theme-outline), 0.32) !important;
+  margin-bottom: 8px !important;
+}
+
+:deep(.v-theme--dark) .pep-side-view .pep-group-divider {
+  border-bottom: 1.6px solid rgba(var(--v-theme-outline), 0.40) !important;
+}
+ 
+ @media (max-width: 960px) { /* md breakpoint for Vuetify is 960px */
+   .pep-split-view-border-right {
+     border-right: none;
+     border-bottom: 1px solid rgba(var(--v-theme-outline), 0.3);
+     padding-right: 0;
+     padding-bottom: 16px;
+   }
+ 
+   .pep-side-view-card {
+     padding-left: 0;
+     padding-top: 16px;
+   }
+ }
+ 
+ .text-body-1, .text-body-2, .text-caption, .v-list-item-title, .v-list-item-subtitle {
+     font-size: inherit !important; /* Garante que os componentes filhos herdem a fonte aumentada */
+ }
+ 
+ .timer-display {
+   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+   border-radius: 8px;
+   padding: 8px 16px;
+   font-size: 1.25rem;
+   font-weight: 500;
+   background-color: rgba(var(--v-theme-on-surface), 0.04);
+   display: inline-flex;
+   align-items: center;
+ }
+ 
+ .timer-display.ended {
+   border-color: rgb(var(--v-theme-error));
+   background-color: rgba(var(--v-theme-error), 0.1);
+   color: rgb(var(--v-theme-error));
+ }
+ 
+ .timer-display-candidate {
+     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+     border-radius: 8px;
+     padding: 16px;
+     font-size: 2rem; /* Fonte maior para o timer do candidato */
+     font-weight: 500;
+     text-align: center;
+     background-color: rgba(var(--v-theme-on-surface), 0.04);
+     display: inline-flex;
+     align-items: center;
+ }
+ 
+ .timer-display-candidate.ended {
+     border-color: rgb(var(--v-theme-error));
+     background-color: rgba(var(--v-theme-error), 0.1);
+     color: rgb(var(--v-theme-error));
+ }
+ 
+ .cursor-pointer {
+   cursor: pointer;
+ }
+ 
+ .impresso-imagem {
+  width: 650px;
+  height: 480px;
+  max-width: 100%;
+  object-fit: contain;
+  border: 1.4px solid rgba(var(--v-theme-outline), 0.32);
+  margin: 10px 0;
+  background-color: rgba(var(--v-theme-surface-variant), 0.5);
+ }
+ 
+ /* Estilo para imagens clicáveis */
+ .impresso-imagem-clickable {
+   cursor: pointer;
+   transition: all 0.3s ease;
+ }
+ 
+ .impresso-imagem-clickable:hover {
+   transform: scale(1.02);
+   border-color: rgba(var(--v-theme-primary), 0.6);
+   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+ }
+ 
+ /* Responsividade para telas menores */
+ @media (max-width: 768px) {
+   .impresso-imagem {
+     width: 100%;
+     height: auto;
+     max-width: 650px;
+     max-height: 480px;
+   }
+ }
+ 
+ /* Para tablets */
+ @media (max-width: 1024px) and (min-width: 769px) {
+   .impresso-imagem {
+     width: 100%;
+     height: auto;
+     max-width: 650px;
+     max-height: 480px;
+   }
+ }
+ 
+ .laudo-impresso pre {
+   white-space: pre-wrap;
+   font-family: monospace;
+   font-size: 0.9rem;
+   background-color: rgba(var(--v-theme-surface-variant), 0.5);
+   padding: 10px;
+   border-radius: 4px;
+ }
+ 
+ /* Ajuste para modo escuro - remove sombras e melhora legibilidade */
+ .v-theme--dark .laudo-impresso pre {
+   background-color: rgba(var(--v-theme-surface), 0.2);
+   color: rgb(var(--v-theme-on-surface));
+   text-shadow: none !important;
+   box-shadow: none !important;
+ }
+ 
+ /* Removido o hover que causava sombra 
+ /* Remova completamente qualquer efeito de hover nos itens da lista */
+ .roteiro-list li:hover {
+   background-color: transparent !important;
+ }
+ 
+ /* Estilização da sidebar do candidato */
+ .candidate-sidebar {
+     position: sticky;
+     top: 80px; /* Ajuste conforme a altura do seu header/app-bar */
+ }
+ 
+ /* NOVO: Estilização específica para o texto das tarefas na sidebar */
+ .candidate-sidebar .tasks-list {
+     padding-left: 20px;
+     line-height: 1.6;
+     font-size: 0.85rem; /* Reduzido 1-2 números menores */
+     color: rgba(var(--v-theme-error), 0.8); /* Vermelho para destaque do candidato */
+     font-weight: 600; /* Bold para melhor legibilidade com fonte menor */
+ }
+ 
+ /* Estilos melhorados para marcação de parágrafos */
+ .paragraph-item {
+   transition: background-color 0.2s ease;
+   margin-bottom: 0;
+   border-radius: 4px;
+ }
+ 
+ /* Removido o hover que causava sombra 
+ .paragraph-item:hover {
+   background-color: rgba(var(--v-theme-warning), 0.08);
+ }
+ */
+ 
+ /* Novos estilos de marcação - aplicados apenas ao texto */
+ span.marked-warning {
+   display: inline-block;
+   background-color: rgba(var(--v-theme-warning), 0.2);
+   border-radius: 3px;
+   padding: 0 2px;
+   pointer-events: auto;
+ }
+ 
+ span.marked-warning p {
+   background-color: rgba(var(--v-theme-warning), 0.2);
+   pointer-events: auto;
+ }
+ 
+ .paragraph-item.marked-warning div * {
+   background-color: transparent;
+ }
+ 
+ .paragraph-item.marked-primary div {
+   display: inline-block;
+   background-color: rgba(var(--v-theme-primary), 0.15);
+   border-radius: 3px;
+   color: rgb(var(--v-theme-primary));
+   padding: 0 2px;
+ }
+ 
+ span.marked-primary {
+   display: inline-block;
+   background-color: rgba(var(--v-theme-primary), 0.15);
+   border-radius: 3px;
+   color: rgb(var(--v-theme-primary));
+   padding: 0 2px;
+   pointer-events: auto;
+ }
+ 
+ span.marked-primary p {
+   background-color: rgba(var(--v-theme-primary), 0.15);
+   color: rgb(var(--v-theme-primary));
+   pointer-events: auto;
+ }
+ 
+ .paragraph-item.marked-primary div * {
+   background-color: transparent;
+   color: rgb(var(--v-theme-primary));
+ }
+ 
+ /* Novos estilos para marcação de contexto - aplicados apenas ao texto */
+ /* Estilos de marcação para contextos com !important para máxima prioridade */
+ .marked-context-warning {
+   display: inline-block !important;
+   background-color: rgba(var(--v-theme-warning), 0.2) !important;
+   padding: 0 2px !important;
+   border-radius: 3px !important;
+   box-shadow: none !important;
+   position: relative !important;
+   z-index: 10 !important; /* Valor alto para garantir que fique acima de outros elementos */
+   cursor: pointer !important;
+ }
+ 
+ .marked-context-warning * {
+   background-color: transparent !important;
+ }
+ 
+ .marked-context-warning:hover,
+ .marked-context-warning:active,
+ .marked-context-warning:focus {
+   background-color: rgba(var(--v-theme-warning), 0.2) !important;
+ }
+ 
+ .marked-context-warning * {
+   background-color: transparent !important;
+ }
+ 
+ .marked-context-primary {
+   display: inline-block !important;
+   background-color: rgba(var(--v-theme-primary), 0.15) !important;
+   color: rgb(var(--v-theme-primary)) !important;
+   padding: 0 2px !important;
+   border-radius: 3px !important;
+   box-shadow: none !important;
+   position: relative !important;
+   z-index: 10 !important; /* Valor alto para garantir que fique acima de outros elementos */
+   cursor: pointer !important;
+ }
+ 
+ .marked-context-primary * {
+   background-color: transparent !important;
+   color: rgb(var(--v-theme-primary)) !important;
+ }
+ 
+ .marked-context-primary:hover,
+ .marked-context-primary:active,
+ .marked-context-primary:focus {
+   background-color: rgba(var(--v-theme-primary), 0.15) !important;
+   color: rgb(var(--v-theme-primary)) !important;
+ }
+ 
+ .marked-context-primary * {
+   background-color: transparent !important;
+   color: rgb(var(--v-theme-primary)) !important;
+ }
+ 
+ /* Garante que não haverá sombra ou hover em nenhum elemento */
+ .roteiro-list li,
+ .roteiro-list .font-weight-bold,
+ .roteiro-list .paragraph-item,
+ .roteiro-list span,
+ .marked-context-warning,
+ .marked-context-primary,
+ .marked-warning,
+ .marked-primary {
+   box-shadow: none !important;
+   outline: none !important;
+   text-shadow: none !important;
+ }
+ 
+ /* Desativa qualquer efeito de hover, mas preserva as marcações */
+ .roteiro-list *:hover {
+   box-shadow: none !important;
+ }
+ 
+ /* Regra específica para garantir que o hover não afete elementos marcados */
+ .roteiro-list li:hover span[data-marked="true"].marked-context-warning {
+   background-color: rgba(var(--v-theme-warning), 0.2) !important;
+ }
+ 
+ .roteiro-list li:hover span[data-marked="true"].marked-context-primary {
+   background-color: rgba(var(--v-theme-primary), 0.15) !important;
+ }
+ 
+ /* Garante que a área clicável seja suficiente */
+ .roteiro-list li .font-weight-bold {
+   margin-bottom: 0 !important; 
+   padding: 2px 4px !important;
+   border-radius: 4px;
+ }
+ 
+ .roteiro-list li .mt-2 {
+   margin-top: 2px !important;
+ }
+ 
+ /* Redução ainda mais agressiva do espaçamento entre linhas */
+ .roteiro-list p {
+   margin-bottom: 0 !important;
+   margin-top: 0 !important;
+   line-height: 1.1 !important;
+ }
+ 
+ /* Ajuste específico para o conteúdo da informação */
+ .roteiro-list .border-s-2 {
+   padding-top: 0 !important;
+   padding-bottom: 0 !important;
+   margin-top: 1px !important;
+   margin-bottom: 0 !important;
+ }
+ 
+ /* Melhoria nos botões de impressos */
+ .impresso-btn {
+   margin-bottom: 4px;
+   border-radius: 6px;
+   font-weight: 500;
+   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+   transition: transform 0.1s ease, box-shadow 0.1s ease;
+ }
+ 
+ .impresso-btn:hover {
+   background-color: rgb(var(--v-theme-success)) !important;
+   transform: translateY(-1px);
+   box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+ }
+ 
+ .impresso-btn:active {
+   transform: translateY(0);
+   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+ }
+ 
+ .impresso-control-item {
+   margin-bottom: 8px;
+ }
+ 
+ /* Estilos para textos em maiúsculo */
+ .uppercase-title {
+   color: rgb(var(--v-theme-primary));
+ }
+ 
+ .uppercase-content {
+   color: rgb(var(--v-theme-primary));
+ }
+ 
+ .bg-primary-lighten-4 {
+   background-color: rgba(var(--v-theme-primary), 0.15) !important;
+ }
+ 
+ /* Aplicar a marcação de cores apenas no texto, não em áreas vazias - Estilos não utilizados removidos */
+ 
+ /* Estilo para itens em maiúsculo detectados no processamento do roteiro */
+ .uppercase-item strong {
+   color: rgb(var(--v-theme-primary));
+ }
+ 
+ .uppercase-item {
+   color: rgb(var(--v-theme-primary));
+ }
+ 
+ /* Melhorias na manipulação de eventos para evitar problemas de reatividade */
+ .roteiro-list .paragraph-item,
+ .roteiro-list .font-weight-bold {
+   isolation: isolate;
+   position: relative;
+   z-index: 1;
+ }
+ 
+ /* Garante que o evento click seja corretamente capturado */
+ .roteiro-list span {
+   cursor: pointer;
+   user-select: none;
+   -webkit-user-select: none;
+ }
+ 
+ /* Estilos para a lista de infraestrutura */
+ .infra-icons-list {
+   list-style-type: none;
+   padding-left: 0.5rem;
+ }
+ 
+ .infra-icons-list li {
+   margin-bottom: 8px;
+   padding: 4px 8px;
+   border-radius: 4px;
+   display: flex;
+   align-items: center;
+ }
+ 
+ /* Estilo para sub-itens de infraestrutura */
+ .infra-icons-list li:has(span:first-child:contains('- ')) {
+   margin-left: 1.5rem;
+   margin-top: -4px;
+   margin-bottom: 4px;
+   padding-left: 0;
+   color: rgba(var(--v-theme-on-surface), 0.85);
+   font-size: 0.95rem;
+ }
+ 
+ /* Aplica estilo quando o item começa com '- ' */
+ .infra-icons-list li span[data-sub-item="true"] {
+   opacity: 0.85;
+ }
+ 
+ /* Estilos para o PEP (Checklist de Avaliação) */
+ .criterios-list {
+   background-color: transparent !important;
+   padding: 0 !important;
+ }
+ 
+ .criterios-list .v-list-item {
+   min-height: auto !important;
+   padding: 4px 8px !important;
+   margin-bottom: 4px !important;
+   border-radius: 4px;
+ }
+ 
+ .criterios-list .v-list-item-title {
+   font-size: 0.85rem !important;
+   line-height: 1.2 !important;
+ }
+ 
+ .criterios-list .v-list-item-subtitle {
+   font-size: 0.75rem !important;
+   line-height: 1.3 !important;
+   opacity: 0.85;
+   white-space: normal !important;
+ }
+ 
+ .criterio-selecionado {
+   background-color: rgba(var(--v-theme-surface-variant), 0.5) !important;
+   margin-top: -4px;
+   margin-bottom: 4px;
+   padding-left: 0;
+   color: rgba(var(--v-theme-on-surface), 0.85);
+   font-size: 0.95rem;
+ }
+ 
+ /* === TEMA ESCURO E CLARO - CARDS DO SIMULADOR === */
+ 
+ /* Card do container principal */
+ .simulation-page-container--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .simulation-page-container--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card principal do header */
+ .main-header-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .main-header-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .main-header-card--light .v-card-title,
+ .main-header-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .main-header-card--dark .v-card-title,
+ .main-header-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card do candidato */
+ .candidate-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-primary), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .candidate-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-primary), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .candidate-card--light .v-card-title,
+ .candidate-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .candidate-card--dark .v-card-title,
+ .candidate-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card de preparação */
+ .preparation-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .preparation-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .preparation-card--light .v-card-title,
+ .preparation-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .preparation-card--dark .v-card-title,
+ .preparation-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card do cenário */
+ .scenario-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .scenario-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .scenario-card--light .v-card-title,
+ .scenario-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .scenario-card--dark .v-card-title,
+ .scenario-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card de infraestrutura */
+ .infrastructure-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .infrastructure-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .infrastructure-card--light .v-card-title,
+ .infrastructure-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .infrastructure-card--dark .v-card-title,
+ .infrastructure-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card de descrição do caso */
+ .case-description-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .case-description-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .case-description-card--light .v-card-title,
+ .case-description-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .case-description-card--dark .v-card-title,
+ .case-description-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card de tarefas */
+ .tasks-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .tasks-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .tasks-card--light .v-card-title,
+ .tasks-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .tasks-card--dark .v-card-title,
+ .tasks-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card de script */
+ .script-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .script-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .script-card--light .v-card-title,
+ .script-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .script-card--dark .v-card-title,
+ .script-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Cards de impressos */
+ .impressos-actor-card--light,
+ .impressos-candidate-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .impressos-actor-card--dark,
+ .impressos-candidate-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .impressos-actor-card--light .v-card-title,
+ .impressos-actor-card--light .v-card-text,
+ .impressos-candidate-card--light .v-card-title,
+ .impressos-candidate-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .impressos-actor-card--dark .v-card-title,
+ .impressos-actor-card--dark .v-card-text,
+ .impressos-candidate-card--dark .v-card-title,
+ .impressos-candidate-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Cards de checklist */
+ .checklist-evaluator-card--light,
+ .checklist-candidate-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .checklist-evaluator-card--dark,
+ .checklist-candidate-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-outline), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .checklist-evaluator-card--light .v-card-title,
+ .checklist-evaluator-card--light .v-card-text,
+ .checklist-candidate-card--light .v-card-title,
+ .checklist-candidate-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .checklist-evaluator-card--dark .v-card-title,
+ .checklist-evaluator-card--dark .v-card-text,
+ .checklist-candidate-card--dark .v-card-title,
+ .checklist-candidate-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Card de score */
+ .score-card--light {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-primary), 0.2) !important;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+ }
+ 
+ .score-card--dark {
+   background-color: rgba(var(--v-theme-surface)) !important;
+   border: 1px solid rgba(var(--v-theme-primary), 0.3) !important;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+ 
+ .score-card--light .v-card-title,
+ .score-card--light .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ .score-card--dark .v-card-title,
+ .score-card--dark .v-card-text {
+   color: rgba(var(--v-theme-on-surface)) !important;
+ }
+ 
+ /* Aplica estilo quando o item começa com '- ' */
+ .infra-icons-list li span[data-sub-item="true"] {
+   opacity: 0.85;
+ }
+ 
+ /* Estilos para lista chave-valor dos impressos */
+ .chave-valor-list {
+   padding: 8px 0;
+ }
+ 
+ .chave-valor-item {
+   margin-bottom: 6px;
+   line-height: 1.4;
+   padding: 2px 0;
+ }
+ 
+ .chave-valor-item:last-child {
+   margin-bottom: 0;
+ }
+ 
+ .chave-valor-item strong {
+   color: #1976d2;
+   margin-right: 4px;
+ }
+ 
+ /* Tema escuro para lista chave-valor */
+ .theme--dark .chave-valor-item strong {
+   color: #90caf9;
+ }
+ 
+ /* Estilos para o modal de zoom */
+ .image-zoom-card {
+   max-height: 95vh !important;
+   overflow: hidden;
+ }
+ 
+ /* Container SIMPLES para zoom - solução para caixa branca */
+ .zoom-container-simple {
+   overflow: auto;
+   max-height: 80vh;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   background-color: rgba(0, 0, 0, 0.02);
+   padding: 8px;
+ }
+ 
+ /* Imagem SIMPLES para zoom - corrige problema de renderização */
+ .zoom-image-simple {
+   max-width: 100% !important;
+   height: auto !important;
+   cursor: pointer;
+   transition: transform 0.2s ease;
+   border-radius: 4px;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+ }
+ 
+ .zoom-image-simple:hover {
+   transform: scale(1.02);
+ }
+ 
+ .zoom-image-simple:active {
+   transform: scale(0.98);
+ }
+ 
+ /* Container com scroll para imagens ampliadas - VERSÃO ORIGINAL */
+ .zoom-container {
+   overflow: auto;
+   max-height: 85vh;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   scrollbar-width: thin;
+   scrollbar-color: rgba(var(--v-theme-on-surface), 0.3) transparent;
+ }
+ 
+ .zoom-container::-webkit-scrollbar {
+   width: 8px;
+   height: 8px;
+ }
+ 
+ .zoom-container::-webkit-scrollbar-track {
+   background: transparent;
+ }
+ 
+ .zoom-container::-webkit-scrollbar-thumb {
+   background-color: rgba(var(--v-theme-on-surface), 0.3);
+   border-radius: 4px;
+ }
+ 
+ .zoom-image {
+   cursor: zoom-out;
+   transition: all 0.3s ease;
+   position: relative;
+ }
+ 
+ /* Imagem com resolução aumentada (30% maior) */
+ .zoom-image-enhanced {
+   transform: scale(1.3);
+   transform-origin: center;
+   min-width: 100%;
+   min-height: 100%;
+ }
+ 
+ .zoom-image:hover {
+   filter: brightness(1.1);
+ }
+ 
+ .zoom-image:active {
+   transform: scale(0.98);
+ }
+ 
+ /* Hover específico para imagem ampliada */
+ .zoom-image-enhanced:hover {
+   filter: brightness(1.1);
+   transform: scale(1.32); /* Leve aumento adicional no hover */
+ }
+ 
+ .zoom-image-enhanced:active {
+   transform: scale(1.28); /* Feedback tátil no clique */
+ }
+ 
+ /* Responsividade para o modal de zoom */
+ @media (max-width: 768px) {
+   .image-zoom-card {
+     margin: 0;
+     max-height: 100vh !important;
+     border-radius: 0 !important;
+   }
+   
+   .zoom-container {
+     max-height: 80vh;
+   }
+   
+   /* Responsividade para versão simplificada - MOBILE */
+   .zoom-container-simple {
+     max-height: 70vh;
+     padding: 4px;
+   }
+   
+   .zoom-image-simple {
+     width: 100% !important;
+     height: auto !important;
+   }
+   
+   .zoom-image-enhanced {
+     transform: scale(1.2); /* Menor aumento em mobile para melhor usabilidade */
+   }
+   
+   .zoom-image-enhanced:hover {
+     transform: scale(1.22);
+   }
+   
+   .zoom-image-enhanced:active {
+     transform: scale(1.18);
+   }
+ }
+ 
+ /* Responsividade para tablets */
+ @media (min-width: 769px) and (max-width: 1024px) {
+   /* Responsividade para versão simplificada - TABLET */
+   .zoom-container-simple {
+     max-height: 75vh;
+   }
+   
+   .zoom-image-enhanced {
+     transform: scale(1.25); /* Escala intermediária para tablets */
+   }
+   
+   .zoom-image-enhanced:hover {
+     transform: scale(1.27);
+   }
+   
+   .zoom-image-enhanced:active {
+     transform: scale(1.23);
+   }
+ }
+ 
+ /* Tecla ESC para fechar modal */
+ .image-zoom-card .v-card-title {
+   background-color: rgba(var(--v-theme-surface), 0.95);
+   backdrop-filter: blur(10px);
+ }
+ 
+ .orange-text {
+   background-color: rgba(255, 165, 0, 0.2) !important; /* Laranja com 20% de opacidade */
+   border-radius: 4px;
+   padding: 2px 4px;
+ }
+ 
+ .orange-text .v-icon {
+   color: orange !important;
+ }
+ 
+ .orange-text .font-weight-medium {
+   color: orange !important;
+ }
+ 
+ .orange-text .text-caption {
+   color: rgba(255, 165, 0, 0.8) !important;
+ }
+ .pep-floating-container {
+   position: fixed;
+   top: 80px; /* Valor aproximado para ficar abaixo do header */
+   right: 20px; /* Mantém a posição à direita */
+   max-height: calc(100vh - 100px); /* Ajuste para ocupar a maior parte da altura da tela */
+   overflow-y: auto;
+   z-index: 1000; /* Garante que fique acima de outros elementos */
+   width: 300px; /* Largura fixa para a janela flutuante */
+   background-color: white; /* Fundo branco para visibilidade */
+   border: 1px solid #e0e0e0; /* Borda leve */
+   border-radius: 8px; /* Cantos arredondados */
+   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Sombra para destaque */
+ }
+ 
+ @media (max-width: 768px) {
+   .pep-floating-container {
+     right: 10px;
+     top: 70px; /* Ajuste para mobile */
+     max-height: calc(100vh - 80px); /* Ajuste para mobile */
+     width: calc(100% - 20px); /* Ocupa a largura total menos margens */
+   }
+ }
+
+/* Botão flutuante compacto para impressos */
+.impressos-floating-button-compact {
+  position: fixed;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+  border-radius: 50%;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  padding: 0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.impressos-floating-button-compact:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.impressos-floating-button-compact:active {
+  transform: scale(0.95);
+}
+
+/* Quando a drawer está aberta, destacar o botão */
+.impressos-floating-button-compact.v-btn--variant-flat {
+  border-color: rgb(var(--v-theme-info));
+  background-color: rgba(var(--v-theme-info), 0.1) !important;
+  box-shadow: 0 2px 12px rgba(var(--v-theme-info), 0.3);
+}
+
+/* Responsividade para mobile */
+@media (max-width: 768px) {
+  .impressos-floating-button-compact {
+    right: 12px;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+
+  .impressos-content {
+    max-height: calc(90vh - 100px) !important;
+  }
+}
+
+/* Estilos para a drawer de impressos */
+.impressos-drawer {
+  height: fit-content !important;
+  min-height: 250px !important;
+  max-height: 70vh !important;
+  top: 15vh !important;
+  bottom: 15vh !important;
+  border-radius: 8px 0 0 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+  width: 320px !important;
+}
+
+.impressos-drawer-container {
+  height: fit-content !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+}
+
+.impressos-card {
+  height: fit-content !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 8px 0 0 8px !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+}
+
+.impressos-content {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  min-height: 0 !important;
+  height: fit-content !important;
+  max-height: none !important;
+}
+
+.impressos-content > div:first-child {
+  flex: 0 0 auto !important;
+}
+
+.impressos-content > div:last-child {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  height: fit-content !important;
+}
+
+.impressos-content .text-center {
+  margin: 0 !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  height: 100% !important;
+}
+
+.impresso-control-item {
+  padding: 8px 0 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.impresso-control-item:last-child {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+}
+
+/* Estilos para o card de navegação sequencial */
+.sequential-navigation-card--light {
+  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%) !important;
+  border: 2px solid rgba(25, 118, 210, 0.1) !important;
+}
+
+.sequential-navigation-card--dark {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+  border: 2px solid rgba(144, 202, 249, 0.2) !important;
+}
+
+.sequential-navigation-card .v-card-item {
+  padding-bottom: 8px !important;
+}
+
+.sequential-navigation-card .v-alert {
+  border-radius: 12px !important;
+}
+
+/* Estilos para o botão do olho do PEP */
+.pep-eye-button {
+  transition: all 0.2s ease-in-out;
+  border-radius: 8px;
+  min-width: 48px !important;
+  height: 48px !important;
+}
+
+.pep-eye-button:hover {
+  background-color: rgba(var(--v-theme-primary), 0.1) !important;
+  transform: scale(1.05);
+}
+
+.pep-eye-button .v-icon {
+  font-size: 24px !important;
+  transition: color 0.2s ease-in-out;
+}
+
+.pep-eye-button:hover .v-icon {
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+/* === CARD DE NAVEGAÇÃO SEQUENCIAL === */
+
+/* Card de navegação sequencial */
+.sequential-next-card--light {
+  background-color: rgba(var(--v-theme-surface)) !important;
+  border: 2px solid rgba(var(--v-theme-primary), 0.3) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.sequential-next-card--dark {
+  background-color: rgba(var(--v-theme-surface)) !important;
+  border: 2px solid rgba(var(--v-theme-primary), 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.sequential-next-card--light .v-card-title,
+.sequential-next-card--light .v-card-text {
+  color: rgba(var(--v-theme-on-surface)) !important;
+}
+
+.sequential-next-card--dark .v-card-title,
+.sequential-next-card--dark .v-card-text {
+  color: rgba(var(--v-theme-on-surface)) !important;
+}

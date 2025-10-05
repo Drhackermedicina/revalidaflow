@@ -1,45 +1,37 @@
 <template>
-  <VRow 
-    :class="[
-      'estatisticas-container',
-      isDarkTheme ? 'estatisticas-container--dark' : 'estatisticas-container--light'
-    ]"
-  >
-    <VCol cols="12">
-      <VCard 
-        title="Estatísticas de Desempenho do Candidato"
-        :class="[
-          'main-card',
-          isDarkTheme ? 'main-card--dark' : 'main-card--light'
-        ]"
-      >
+  <div :class="themeClasses.container">
+    <VContainer>
+      <VRow>
+        <VCol cols="12">
+          <VCard
+            title="Estatísticas de Desempenho do Candidato"
+            :class="themeClasses.card"
+            elevation="2"
+          >
         <VCardText>
-          <p class="text-body-1 mb-4">Analise seu desempenho em diversas áreas e identifique pontos de melhoria.</p>
+          <p class="text-body-1 mb-4 estatisticas-description" role="text" style="color: rgb(var(--v-theme-on-surface)) !important; font-weight: 500 !important; font-size: 1.1rem !important; line-height: 1.7 !important;">Analise seu desempenho em diversas áreas e identifique pontos de melhoria.</p>
 
           <!-- Loading State -->
-          <div v-if="loading" 
+          <div v-if="loading"
             :class="[
-              'd-flex justify-center align-center pa-8 loading-container',
-              isDarkTheme ? 'loading-container--dark' : 'loading-container--light'
+              'd-flex justify-center align-center pa-8',
+              themeClasses.loading
             ]"
+            role="status"
+            aria-live="polite"
           >
-            <VProgressCircular indeterminate color="primary" size="64" />
-            <span class="ml-4 text-h6">Carregando estatísticas...</span>
+            <VProgressCircular indeterminate color="primary" size="64" aria-hidden="true" />
+            <span class="ml-4 text-h6" aria-label="Carregando estatísticas">Carregando estatísticas...</span>
           </div>
 
           <!-- Content -->
           <div v-else>
             <VRow>
             <VCol cols="12" md="6">
-              <VCard 
-                :class="[
-                  'mb-4 chart-card',
-                  isDarkTheme ? 'chart-card--dark' : 'chart-card--light'
-                ]"
-              >
+              <VCard :class="['mb-4', themeClasses.card]">
                 <VCardTitle class="d-flex align-center gap-2">
                   <VIcon icon="ri-line-chart-line" color="primary" size="24" />
-                  <span class="text-h6 font-weight-bold">Pontuação Média por Simulação</span>
+                  <span class="text-h6 font-weight-bold" style="color: rgb(var(--v-theme-on-surface)) !important; font-weight: 700 !important;">Pontuação Média por Simulação</span>
                 </VCardTitle>
                 <VCardText>
                   <VueApexCharts
@@ -47,22 +39,19 @@
                     height="200"
                     :options="averageScoreChartOptions"
                     :series="[averageScore]"
+                    aria-label="Gráfico radial mostrando a pontuação média por simulação"
+                    role="img"
                   />
-                  <p class="text-caption text-medium-emphasis text-center mt-n4">Sua média nas últimas simulações.</p>
+                  <p class="text-caption text-medium-emphasis text-center mt-n4" role="text" style="color: rgb(var(--v-theme-on-surface)) !important; font-weight: 500 !important;">Sua média nas últimas simulações.</p>
                 </VCardText>
               </VCard>
             </VCol>
 
             <VCol cols="12" md="6">
-              <VCard 
-                :class="[
-                  'mb-4 chart-card',
-                  isDarkTheme ? 'chart-card--dark' : 'chart-card--light'
-                ]"
-              >
+              <VCard :class="['mb-4', themeClasses.card]">
                 <VCardTitle class="d-flex align-center gap-2">
                   <VIcon icon="ri-medal-line" color="warning" size="24" />
-                  <span class="text-h6 font-weight-bold">Melhor Pontuação</span>
+                  <span class="text-h6 font-weight-bold" style="color: rgb(var(--v-theme-on-surface)) !important; font-weight: 700 !important;">Melhor Pontuação</span>
                 </VCardTitle>
                 <VCardText>
                   <VueApexCharts
@@ -70,8 +59,10 @@
                     height="200"
                     :options="bestScoreChartOptions"
                     :series="[bestScore]"
+                    aria-label="Gráfico radial mostrando a melhor pontuação obtida"
+                    role="img"
                   />
-                  <p class="text-caption text-medium-emphasis text-center mt-n4">Sua maior pontuação em uma única simulação.</p>
+                  <p class="text-caption text-medium-emphasis text-center mt-n4" role="text" style="color: rgb(var(--v-theme-on-surface)) !important; font-weight: 500 !important;">Sua maior pontuação em uma única simulação.</p>
                 </VCardText>
               </VCard>
             </VCol>
@@ -79,38 +70,35 @@
 
           <VDivider class="my-6" />
 
-          <h3 class="text-h6 mb-4">Desempenho por Área</h3>
+          <h3 class="text-h6 mb-4 estatisticas-section-title" role="heading" aria-level="3" style="color: rgb(var(--v-theme-on-surface)) !important; font-weight: 700 !important; font-size: 1.25rem !important;">Desempenho por Área</h3>
           <VueApexCharts
             type="bar"
             height="350"
             :options="performanceByAreaChartOptions"
             :series="performanceByAreaSeries"
+            aria-label="Gráfico de barras mostrando o desempenho por área de conhecimento médico"
+            role="img"
           />
-          <p class="text-caption text-medium-emphasis text-center mt-4">Desempenho detalhado em cada área de conhecimento.</p>
+          <p class="text-caption text-medium-emphasis text-center mt-4 estatisticas-chart-description" role="text" style="color: rgb(var(--v-theme-on-surface)) !important; font-weight: 500 !important; font-size: 0.9rem !important; line-height: 1.6 !important;">Desempenho detalhado em cada área de conhecimento.</p>
           </div>
         </VCardText>
       </VCard>
     </VCol>
   </VRow>
+</VContainer>
+</div>
 </template>
 
 <script setup>
-import { currentUser } from '@/plugins/auth';
-import { db } from '@/plugins/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
 import { useTheme } from 'vuetify';
+import { useThemeConfig } from '@/composables/useThemeConfig';
+import { useFirebaseData } from '@/composables/useFirebaseData';
 
 const vuetifyTheme = useTheme();
-const loading = ref(true);
-
-// Computed para detectar tema escuro
-const isDarkTheme = computed(() => vuetifyTheme.global.name.value === 'dark');
-
-const averageScore = ref(0);
-const bestScore = ref(0);
-const performanceByArea = ref([]);
+const { isDarkTheme, themeClasses } = useThemeConfig();
+const { loading, userData, fetchUserStats } = useFirebaseData();
 
 // Mapeamento de especialidades
 const especialidadeNomes = {
@@ -121,70 +109,34 @@ const especialidadeNomes = {
   'medicina-preventiva': 'Medicina Preventiva',
 };
 
-// Carregar estatísticas reais do usuário
-const loadUserStatistics = async () => {
-  if (!currentUser.value?.uid) {
-    loading.value = false;
-    return;
-  }
-  
-  try {
-    
-    const userDoc = await getDoc(doc(db, 'usuarios', currentUser.value.uid));
-    if (!userDoc.exists()) {
-      loading.value = false;
-      return;
-    }
-    
-    const userData = userDoc.data();
-    
-    // Média geral baseada no nível de habilidade
-    if (userData.nivelHabilidade !== undefined) {
-      averageScore.value = Math.round(userData.nivelHabilidade * 10); // Converter para escala 0-100
-    }
-    
-    // Melhor pontuação das estações concluídas
-    if (userData.estacoesConcluidas?.length) {
-      const notas = userData.estacoesConcluidas.map(estacao => estacao.nota || 0);
-      bestScore.value = Math.max(...notas);
-    }
-    
-    // Performance por área baseada em statistics
-    const areasData = [];
-    
-    if (userData.statistics) {
-      Object.entries(userData.statistics).forEach(([especialidade, dados]) => {
-        if (especialidade !== 'geral' && especialidadeNomes[especialidade]) {
-          const mediaNotas = dados.mediaNotas || 0;
-          const score = Math.round(mediaNotas * 10); // Converter para escala 0-100
-          
-          areasData.push({
-            name: especialidadeNomes[especialidade],
-            description: `Desempenho em ${especialidadeNomes[especialidade].toLowerCase()}`,
-            score: Math.min(score, 100) // Garantir que não passe de 100
-          });
-        }
-      });
-    }
-    
-    // Se não há statistics, criar áreas padrão com score 0
-    if (areasData.length === 0) {
-      Object.entries(especialidadeNomes).forEach(([slug, nome]) => {
-        areasData.push({
-          name: nome,
-          description: `Desempenho em ${nome.toLowerCase()}`,
-          score: 0
-        });
-      });
-    }
-    
-    performanceByArea.value = areasData;
-  } catch (error) {
-    console.error('❌ Erro ao carregar estatísticas:', error);
-  } finally {
-    loading.value = false;
-  }
-};
+// Computed properties simplificadas
+const averageScore = computed(() => {
+  const nivel = userData.value?.nivelHabilidade;
+  return nivel !== undefined ? Math.round(nivel * 10) : 0;
+});
+
+const bestScore = computed(() => {
+  const estacoes = userData.value?.estacoesConcluidas || [];
+  const notas = estacoes.map(estacao => estacao.nota || 0);
+  return notas.length ? Math.max(...notas) : 0;
+});
+
+const performanceByArea = computed(() => {
+  const stats = userData.value?.statistics;
+  if (!stats) return [];
+
+  const areas = Object.entries(stats)
+    .filter(([key]) => key !== 'geral' && especialidadeNomes[key])
+    .map(([key, dados]) => ({
+      name: especialidadeNomes[key],
+      score: Math.min(Math.round((dados.mediaNotas || 0) * 10), 100)
+    }));
+
+  return areas.length ? areas : Object.values(especialidadeNomes).map(nome => ({
+    name: nome,
+    score: 0
+  }));
+});
 
 // Opções para o gráfico de Pontuação Média
 const averageScoreChartOptions = computed(() => ({
@@ -193,6 +145,7 @@ const averageScoreChartOptions = computed(() => ({
     sparkline: {
       enabled: true,
     },
+    background: 'transparent',
   },
   plotOptions: {
     radialBar: {
@@ -208,7 +161,15 @@ const averageScoreChartOptions = computed(() => ({
           fontSize: '22px',
           fontWeight: 600,
           formatter: (val) => `${val}%`,
+          color: isDarkTheme.value
+            ? vuetifyTheme.current.value.colors.onSurface
+            : vuetifyTheme.current.value.colors.onSurface,
         },
+      },
+      track: {
+        background: isDarkTheme.value
+          ? 'rgba(255, 255, 255, 0.1)'
+          : 'rgba(0, 0, 0, 0.1)',
       },
     },
   },
@@ -217,6 +178,9 @@ const averageScoreChartOptions = computed(() => ({
   },
   colors: [vuetifyTheme.current.value.colors.success],
   labels: ['Média'],
+  theme: {
+    mode: isDarkTheme.value ? 'dark' : 'light',
+  },
 }));
 
 // Opções para o gráfico de Melhor Pontuação
@@ -226,6 +190,7 @@ const bestScoreChartOptions = computed(() => ({
     sparkline: {
       enabled: true,
     },
+    background: 'transparent',
   },
   plotOptions: {
     radialBar: {
@@ -241,7 +206,15 @@ const bestScoreChartOptions = computed(() => ({
           fontSize: '22px',
           fontWeight: 600,
           formatter: (val) => `${val}%`,
+          color: isDarkTheme.value
+            ? vuetifyTheme.current.value.colors.onSurface
+            : vuetifyTheme.current.value.colors.onSurface,
         },
+      },
+      track: {
+        background: isDarkTheme.value
+          ? 'rgba(255, 255, 255, 0.1)'
+          : 'rgba(0, 0, 0, 0.1)',
       },
     },
   },
@@ -250,6 +223,9 @@ const bestScoreChartOptions = computed(() => ({
   },
   colors: [vuetifyTheme.current.value.colors.warning],
   labels: ['Melhor'],
+  theme: {
+    mode: isDarkTheme.value ? 'dark' : 'light',
+  },
 }));
 
 // Opções e séries para o gráfico de Desempenho por Área (Barra)
@@ -259,6 +235,7 @@ const performanceByAreaChartOptions = computed(() => ({
     toolbar: {
       show: false,
     },
+    background: 'transparent',
   },
   plotOptions: {
     bar: {
@@ -275,7 +252,9 @@ const performanceByAreaChartOptions = computed(() => ({
     offsetX: 30,
     style: {
       fontSize: '12px',
-      colors: [vuetifyTheme.current.value.colors.onSurface],
+      colors: [isDarkTheme.value
+        ? vuetifyTheme.current.value.colors.onSurface
+        : vuetifyTheme.current.value.colors.onSurface],
     },
   },
   xaxis: {
@@ -284,25 +263,46 @@ const performanceByAreaChartOptions = computed(() => ({
     labels: {
       formatter: (val) => `${val}%`,
       style: {
-        colors: vuetifyTheme.current.value.colors.onSurface,
+        colors: isDarkTheme.value
+          ? vuetifyTheme.current.value.colors.onSurface
+          : vuetifyTheme.current.value.colors.onSurface,
       },
     },
   },
   yaxis: {
     labels: {
       style: {
-        colors: vuetifyTheme.current.value.colors.onSurface,
+        colors: isDarkTheme.value
+          ? vuetifyTheme.current.value.colors.onSurface
+          : vuetifyTheme.current.value.colors.onSurface,
       },
     },
   },
   grid: {
-    show: false,
+    show: true,
+    borderColor: isDarkTheme.value
+      ? 'rgba(255, 255, 255, 0.1)'
+      : 'rgba(0, 0, 0, 0.1)',
+    xaxis: {
+      lines: {
+        show: false,
+      },
+    },
+    yaxis: {
+      lines: {
+        show: true,
+      },
+    },
   },
   colors: [vuetifyTheme.current.value.colors.info],
   tooltip: {
+    theme: isDarkTheme.value ? 'dark' : 'light',
     y: {
       formatter: (val) => `${val}%`,
     },
+  },
+  theme: {
+    mode: isDarkTheme.value ? 'dark' : 'light',
   },
 }));
 
@@ -315,108 +315,22 @@ const performanceByAreaSeries = computed(() => [
 
 // Lifecycle hooks
 onMounted(() => {
-  loadUserStatistics();
+  fetchUserStats();
 });
-
-// Watch para mudanças no usuário
-watch(currentUser, (newUser) => {
-  if (newUser?.uid) {
-    loadUserStatistics();
-  }
-}, { immediate: false });
 </script>
 
 <style scoped>
-/* Container das estatísticas com tema adaptativo */
-.estatisticas-container--light {
-  background: rgb(var(--v-theme-background));
-  color: rgb(var(--v-theme-on-background));
-  padding: 24px;
+/* Melhorar visual dos gráficos */
+.apexcharts-text {
+  fill: rgb(var(--v-theme-on-surface)) !important;
+  font-weight: 500 !important;
 }
 
-.estatisticas-container--dark {
-  background: rgb(var(--v-theme-background));
-  color: rgb(var(--v-theme-on-background));
-  padding: 24px;
-}
-
-/* Card principal com tema adaptativo */
-.main-card--light {
+.apexcharts-tooltip {
   background: rgb(var(--v-theme-surface)) !important;
   color: rgb(var(--v-theme-on-surface)) !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
-  border: 1px solid rgba(var(--v-theme-outline), 0.12) !important;
-}
-
-.main-card--dark {
-  background: rgb(var(--v-theme-surface)) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.24) !important;
-  border: 1px solid rgba(var(--v-theme-outline), 0.24) !important;
-}
-
-/* Cards de gráficos com tema adaptativo */
-.chart-card--light {
-  background: rgb(var(--v-theme-surface)) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  border: 1px solid rgba(var(--v-theme-outline), 0.12) !important;
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05) !important;
-  transition: all 0.3s ease;
-}
-
-.chart-card--dark {
-  background: rgb(var(--v-theme-surface)) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  border: 1px solid rgba(var(--v-theme-outline), 0.24) !important;
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.15) !important;
-  transition: all 0.3s ease;
-}
-
-.chart-card--light:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
-  transform: translateY(-2px);
-}
-
-.chart-card--dark:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
-  transform: translateY(-2px);
-}
-
-/* Container de loading com tema adaptativo */
-.loading-container--light {
-  background: rgba(var(--v-theme-surface), 0.95) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  border-radius: 12px;
-  border: 1px solid rgba(var(--v-theme-outline), 0.12);
-}
-
-.loading-container--dark {
-  background: rgba(var(--v-theme-surface), 0.95) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  border-radius: 12px;
-  border: 1px solid rgba(var(--v-theme-outline), 0.24);
-}
-
-/* Melhorias gerais de responsividade */
-@media (max-width: 768px) {
-  .chart-card--light,
-  .chart-card--dark {
-    margin-bottom: 16px;
-  }
-  
-  .main-card--light,
-  .main-card--dark {
-    border-radius: 8px;
-  }
-}
-
-/* Transições suaves para mudanças de tema */
-.estatisticas-container--light,
-.estatisticas-container--dark,
-.main-card--light,
-.main-card--dark,
-.chart-card--light,
-.chart-card--dark {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  border: 1px solid rgb(var(--v-theme-outline)) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 </style>

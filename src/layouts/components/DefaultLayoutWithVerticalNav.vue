@@ -36,7 +36,7 @@ function openGeminiIA() {
               @click="toggleVerticalOverlayNavActive(true)"
               v-bind="props"
             >
-              <VIcon icon="ri-menu-line" aria-hidden="true" />
+              <VIcon icon="ri-menu-line" aria-label="Abrir menu de navegação" />
             </IconBtn>
           </template>
           Abrir menu
@@ -48,16 +48,17 @@ function openGeminiIA() {
             class="mx-2 gemini-btn circular-gemini-btn"
             @click="openGeminiIA"
             title="Gemini IA"
+            aria-label="Abrir assistente Gemini IA"
           >
             <!-- Usar emoji de robô simples para compatibilidade e aparência consistente -->
-            <span class="gemini-emoji" aria-hidden="true">🤖</span>
+            <span class="gemini-emoji" aria-hidden="false">🤖</span>
           </v-btn>
         </div>
 
         <div class="d-flex align-center">
           <!-- Sininho -->
-          <IconBtn>
-            <VIcon icon="ri-notification-line" aria-hidden="true" />
+          <IconBtn aria-label="Notificações">
+            <VIcon icon="ri-notification-line" />
           </IconBtn>
 
           <!-- Tema claro/escuro -->

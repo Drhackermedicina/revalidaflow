@@ -54,7 +54,6 @@ const {
   isINEPStation,
   isRevalidaFacilStation,
   getINEPPeriod,
-  getSpecialty,
   getRevalidaFacilSpecialty,
   filteredINEPStations,
   filteredRevalidaFacilStations,
@@ -305,7 +304,6 @@ watch(currentUser, (newUser) => {
                   :is-admin="isAdmin"
                   :get-user-station-score="getUserStationScore"
                   :get-station-background-color="getStationBackgroundColor"
-                  :get-specialty="getSpecialty"
                   :is-station-in-sequence="isStationInSequence"
                   :creating-session-for-station-id="creatingSessionForStationId"
                   @station-click="handleStartSimulation"

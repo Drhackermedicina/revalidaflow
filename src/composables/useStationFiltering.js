@@ -1,10 +1,13 @@
 import { ref, computed } from 'vue'
+import { useStationCache } from './useStationCache'
 
 /**
  * Composable para filtros e busca de estações
- * Extrai lógica de filtragem do StationList.vue
+ * Consolida toda lógica de filtragem, normalização e limpeza de títulos
  */
 export function useStationFiltering(stations) {
+  const { memoize } = useStationCache()
+
   // --- State ---
   const globalSearchQuery = ref('')
 
@@ -90,29 +93,66 @@ export function useStationFiltering(stations) {
   }
 
   /**
-   * Limpa título da estação removendo prefixos redundantes
+   * Limpa título da estação removendo prefixos redundantes (VERSÃO ROBUSTA)
+   * Implementa a mesma lógica complexa do StationList.vue original
    */
-  const getCleanStationTitle = (originalTitle) => {
+  const getCleanStationTitleImpl = (originalTitle) => {
     if (!originalTitle) return 'ESTAÇÃO SEM TÍTULO'
 
     let cleanTitle = originalTitle
-      .replace(/^ESTAÇÃO\s+/i, '')
-      .replace(/^ESTACAO\s+/i, '')
-      .replace(/^E\.\s+/i, '')
-      .replace(/^E\s+/i, '')
-      .replace(/^\d+\s*[-–—]\s*/g, '')
-      .replace(/^REVALIDA_FACIL_/i, '')
-      .replace(/^REVALIDA_/i, '')
-      .replace(/^INEP_/i, '')
-      .replace(/_/g, ' ')
-      .trim()
 
-    if (!cleanTitle) return 'ESTAÇÃO SEM TÍTULO'
+    // Remover prefixos INEP 2024.2
+    cleanTitle = cleanTitle.replace(/^INEP\s*2024\.2[\s\:\-]*\/?/gi, '')
+    cleanTitle = cleanTitle.replace(/INEP\s*2024\.2[\s\:\-]*\/?/gi, '')
 
-    cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1)
+    // Remover prefixos REVALIDA
+    cleanTitle = cleanTitle.replace(/^REVALIDA[\s\:\-]*\/?/gi, '')
+    cleanTitle = cleanTitle.replace(/^REVALIDA\s*F[AÁ]CIL\s*[\-\:\s]+/i, '')
+    cleanTitle = cleanTitle.replace(/^REVALIDAFACIL\s*[\-\:\s]+/i, '')
+
+    // Remover prefixos de estação e especialidades
+    cleanTitle = cleanTitle.replace(/^(ESTAÇÃO\s+|CLINICA\s*MEDICA\s+|CLÍNICA\s*MÉDICA\s+|CIRURGIA\s+|PEDIATRIA\s+|PREVENTIVA\s+|GINECOLOGIA\s+|OBSTETRICIA\s+|G\.O\s+|GO\s+|\d{4}\.\d\s+|\d{4}\s+|\d+\s*[\-\|\:]\s*)/gi, '')
+
+    // Remover códigos de especialidade em parênteses/colchetes
+    cleanTitle = cleanTitle.replace(/\s*[\(\[\-]\s*(CM|CR|PED|G\.O|GO|PREV|GERAL)\s*[\)\]\-]\s*/gi, ' ')
+    cleanTitle = cleanTitle.replace(/\s+\-\s+(CM|CR|PED|G\.O|GO|PREV|GERAL)\s*/gi, ' ')
+    cleanTitle = cleanTitle.replace(/\s+(CM|CR|PED|G\.O|GO|PREV|GERAL)(?=\s|$|[\-\:\.])/gi, ' ')
+    cleanTitle = cleanTitle.replace(/^(CM|CR|PED|G\.O|GO|PREV|GERAL)(?=\s|$|[\-\:\.])/gi, '')
+
+    // Remover caracteres especiais no início
+    cleanTitle = cleanTitle.replace(/^[\s\-\:\|\.\\_]*/, '')
+    cleanTitle = cleanTitle.replace(/^[^a-zA-ZÀ-ÿ]*([a-zA-ZÀ-ÿ].*)$/, '$1')
+    cleanTitle = cleanTitle.trim()
+
+    // Fallback se resultado for muito curto
+    if (!cleanTitle || cleanTitle.length < 2) {
+      let fallback = originalTitle
+        .replace(/INEP\s*2024\.2[\s\:\-]*\/?/gi, '')
+        .replace(/Clínica Médica|Clinica Medica/gi, '')
+        .replace(/Cirurgia Geral|Cirurgia/gi, '')
+        .replace(/Pediatria/gi, '')
+        .replace(/Ginecologia e Obstetrícia|Ginecologia E Obstetricia/gi, '')
+        .replace(/Medicina da Família|Medicina De Familia/gi, '')
+        .replace(/(CM|CR|PED|G\.O|GO|PREV|GERAL)(?=\s|$|[\s\:\-]+)/gi, '')
+        .replace(/[\s\-\:\s]{2,}/g, ' ')
+        .trim()
+
+      return fallback || originalTitle
+    }
+
+    // Capitalizar primeira letra de cada palavra
+    cleanTitle = cleanTitle.toLowerCase().split(' ').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
 
     return cleanTitle
   }
+
+  // Memoizar getCleanStationTitle
+  const getCleanStationTitle = memoize(
+    getCleanStationTitleImpl,
+    (originalTitle) => originalTitle || 'EMPTY'
+  )
 
   // --- Computed: Filtros principais ---
 
@@ -231,6 +271,143 @@ export function useStationFiltering(stations) {
       ))
   })
 
+  // --- Computed: Agrupamento por período INEP ---
+
+  /**
+   * Agrupa estações INEP por período (2025.1, 2024.2, etc)
+   */
+  const stationsByInepPeriod = computed(() => {
+    const grouped = {}
+    const inepStations = filteredINEPStations.value
+
+    for (const station of inepStations) {
+      const period = getINEPPeriod(station)
+      if (period) {
+        if (!grouped[period]) {
+          grouped[period] = []
+        }
+        grouped[period].push(station)
+      }
+    }
+
+    // Ordenar estações dentro de cada período
+    for (const period in grouped) {
+      grouped[period].sort((a, b) =>
+        getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true })
+      )
+    }
+
+    return grouped
+  })
+
+  /**
+   * Agrupa estações INEP filtradas por período (para uso com busca global)
+   */
+  const filteredStationsByInepPeriod = computed(() => {
+    const grouped = {}
+    const inepStations = filteredINEPStations.value
+
+    // Função para extrair o número da estação do ID
+    const getStationNumber = (stationId) => {
+      const match = stationId.match(/EST(\d+)/)
+      return match ? parseInt(match[1], 10) : 999
+    }
+
+    for (const station of inepStations) {
+      const period = getINEPPeriod(station)
+      if (period) {
+        if (!grouped[period]) {
+          grouped[period] = []
+        }
+        grouped[period].push(station)
+      }
+    }
+
+    // Ordenar estações dentro de cada período
+    for (const period in grouped) {
+      grouped[period].sort((a, b) => {
+        const numA = getStationNumber(a.idEstacao || a.id || '')
+        const numB = getStationNumber(b.idEstacao || b.id || '')
+
+        if (numA !== numB) {
+          return numA - numB
+        }
+
+        return getCleanStationTitle(a.tituloEstacao).localeCompare(getCleanStationTitle(b.tituloEstacao), 'pt-BR', { numeric: true })
+      })
+    }
+
+    return grouped
+  })
+
+  // --- Computed: Autocomplete global ---
+
+  /**
+   * Items para autocomplete de busca global
+   * Retorna lista formatada com ícones, chips e metadados
+   */
+  const globalAutocompleteItems = computed(() => {
+    if (!stations.value) return []
+
+    const searchQuery = globalSearchQuery.value?.trim().toLowerCase() || ''
+    if (searchQuery.length < 2) return []
+
+    return stations.value
+      .filter(station => {
+        const title = getCleanStationTitle(station.tituloEstacao).toLowerCase()
+        const especialidade = (station.especialidade || '').toLowerCase()
+        const area = (station.area || '').toLowerCase()
+        return title.includes(searchQuery) || especialidade.includes(searchQuery) || area.includes(searchQuery)
+      })
+      .map(station => {
+        const cleanTitle = getCleanStationTitle(station.tituloEstacao)
+        const isINEP = isINEPStation(station)
+
+        const specialty = station.especialidade || station.area || ''
+        let subsectionChips = []
+        let chipColor = 'primary'
+
+        if (isINEP) {
+          const period = getINEPPeriod(station)
+          if (period) {
+            subsectionChips.push(`INEP ${period}`)
+          }
+          if (specialty) {
+            subsectionChips.push(specialty.toUpperCase())
+          }
+          chipColor = 'primary'
+        } else {
+          const specialtyNormalized = getRevalidaFacilSpecialty(station)
+          const specialtyConfig = {
+            'clinica-medica': { label: 'CLÍNICA MÉDICA', color: 'info' },
+            'cirurgia': { label: 'CIRURGIA', color: 'primary' },
+            'pediatria': { label: 'PEDIATRIA', color: 'success' },
+            'ginecologia': { label: 'GINECOLOGIA E OBSTETRÍCIA', color: 'error' },
+            'preventiva': { label: 'PREVENTIVA', color: 'warning' },
+            'procedimentos': { label: 'PROCEDIMENTOS', color: '#A52A2A' },
+            'geral': { label: 'GERAL', color: 'success' }
+          }
+          const config = specialtyConfig[specialtyNormalized] || { label: specialtyNormalized || '', color: 'success' }
+          if (config.label) {
+            subsectionChips.push(config.label)
+            chipColor = config.color
+          }
+        }
+
+        return {
+          id: station.id,
+          title: cleanTitle,
+          subtitle: `${cleanTitle} - ${specialty}`,
+          fullName: `${cleanTitle} - ${specialty}`,
+          subsectionChips: subsectionChips,
+          iconImage: isINEP ? '/inep.png' : '/botaosemfundo.png',
+          isINEP: isINEP,
+          color: chipColor
+        }
+      })
+      .slice(0, 50) // Limitar a 50 resultados
+  })
+
   // --- Return ---
   return {
     // State
@@ -245,7 +422,7 @@ export function useStationFiltering(stations) {
     getRevalidaFacilSpecialty,
     getCleanStationTitle,
 
-    // Computed
+    // Computed - Filtros
     filteredStations,
     filteredINEPStations,
     filteredRevalidaFacilStations,
@@ -255,6 +432,13 @@ export function useStationFiltering(stations) {
     filteredStationsRevalidaFacilPediatria,
     filteredStationsRevalidaFacilGO,
     filteredStationsRevalidaFacilPreventiva,
-    filteredStationsRevalidaFacilProcedimentos
+    filteredStationsRevalidaFacilProcedimentos,
+
+    // Computed - Agrupamento
+    stationsByInepPeriod,
+    filteredStationsByInepPeriod,
+
+    // Computed - Autocomplete
+    globalAutocompleteItems
   }
 }
