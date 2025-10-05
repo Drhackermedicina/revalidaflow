@@ -223,10 +223,6 @@ const {
   clearAllMarkings
 } = useScriptMarking({ userRole });
 
-// Aliases para manter compatibilidade com template (funções já têm debounce interno)
-const debouncedToggleParagraphMark = toggleParagraphMark;
-const debouncedToggleScriptContext = toggleScriptContext;
-
 // Refs para dados da simulação
 const releasedData = ref({});
 const isChecklistVisibleForCandidate = ref(false);
