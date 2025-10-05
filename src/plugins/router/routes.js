@@ -218,11 +218,6 @@ export const routes = [
         name: 'candidato-performance',
         component: () => import('@/pages/candidato/PerformanceView.vue'),
       },
-      {
-        path: 'ranking',
-        name: 'candidato-ranking',
-        component: () => import('@/pages/candidato/RankingView.vue'),
-      },
     ],
   },
 

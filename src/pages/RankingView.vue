@@ -148,264 +148,141 @@
             </v-card-text>
           </v-card>
         </v-col>
-        <!-- Estatísticas por Especialidade -->
-        <v-col cols="12">
-          <v-card elevation="2" class="mb-6 animate-fade-in">
-            <v-card-title class="text-h5">
-              Estatísticas por Especialidade
-            </v-card-title>
-            <v-card-text>
-              <v-row v-if="!loading && especialidades.length > 0">
-                <v-col v-for="especialidade in especialidades" :key="especialidade.nome" cols="12" md="4">
-                  <v-card variant="outlined" class="pa-3">
-                    <div class="text-h6 mb-2">{{ especialidade.nome }}</div>
-                    <div class="d-flex justify-space-between mb-1">
-                      <span class="text-caption">Estações:</span>
-                      <span class="font-weight-medium">{{ especialidade.concluidas }}</span>
-                    </div>
-                    <div class="d-flex justify-space-between mb-1">
-                      <span class="text-caption">Média de notas:</span>
-                      <span class="font-weight-medium">{{ formatarNota(especialidade.mediaNotas) }}</span>
-                    </div>
-                    <v-progress-linear
-                      :model-value="(especialidade.mediaNotas/10)*100"
-                      :color="obterCorNota(especialidade.mediaNotas)"
-                      height="10"
-                      rounded
-                      class="mt-2"
-                    ></v-progress-linear>
-                  </v-card>
-                </v-col>
-              </v-row>
-              <v-alert v-else-if="!loading" type="info" text>
-                Você ainda não completou nenhuma estação.
-              </v-alert>
-            </v-card-text>
-          </v-card>
-        </v-col>
       </v-row>
     </v-container>
   </div>
 </template>
 
 <script setup>
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query } from 'firebase/firestore';
-import { computed, onMounted, ref } from 'vue';
-import { useTheme } from 'vuetify';
+import { getAuth, onAuthStateChanged } from 'firebase/auth'
+import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query } from 'firebase/firestore'
+import { computed, onMounted, ref } from 'vue'
+import { useTheme } from 'vuetify'
 
-// Theme support
-const theme = useTheme();
-
-// Computed para detectar tema escuro
-const isDarkTheme = computed(() => theme.global.name.value === 'dark');
+// Theme
+const theme = useTheme()
+const isDarkTheme = computed(() => theme.global.name.value === 'dark')
 
 // Estado
-const loading = ref(true);
-const error = ref(null);
-const ranking = ref([]);
-const currentUserId = ref(null);
-const meuRanking = ref(null);
-const especialidades = ref([]);
-const filtroAtivo = ref('geral');
-const buscaNome = ref('');
-const hoveredRow = ref(null);
+const loading = ref(true)
+const error = ref(null)
+const ranking = ref([])
+const currentUserId = ref(null)
+const meuRanking = ref(null)
+const buscaNome = ref('')
+const hoveredRow = ref(null)
 
 // Firebase
-const auth = getAuth();
-const db = getFirestore();
+const auth = getAuth()
+const db = getFirestore()
+
 
 const rankingFiltrado = computed(() => {
-  if (!buscaNome.value) return ranking.value;
-  return ranking.value.filter(u => {
-    const nomeCompleto = `${u.nome} ${u.sobrenome}`.toLowerCase();
-    return nomeCompleto.includes(buscaNome.value.toLowerCase());
-  });
-});
+  if (!buscaNome.value) return ranking.value
+  return ranking.value.filter(u =>
+    `${u.nome} ${u.sobrenome}`.toLowerCase().includes(buscaNome.value.toLowerCase())
+  )
+})
 
-const top3 = computed(() => ranking.value.slice(0, 3));
+const top3 = computed(() => ranking.value.slice(0, 3))
 
 // Buscar ranking
 async function buscarRanking() {
-  loading.value = true;
-  error.value = null;
-  
+  loading.value = true
+  error.value = null
+
   try {
-    // Determinar campo para ordenar com base no filtro
-    let campoOrdenacao = 'ranking'; // padrão
-    
-    if (filtroAtivo.value === 'mediaNota') {
-      campoOrdenacao = 'nivelHabilidade';
-    } else if (filtroAtivo.value === 'quantidade') {
-      campoOrdenacao = 'estacoesConcluidas';
-    }
-    
-    // Buscar top 50 usuários
-    const usuariosRef = collection(db, 'usuarios');
-    const q = query(usuariosRef, orderBy(campoOrdenacao, 'desc'), limit(50));
-    const querySnapshot = await getDocs(q);
-    
-    const rankingData = [];
-    querySnapshot.forEach((doc) => {
-      const userData = doc.data();
-      
-      // Calcular estações concluídas
-      const estacoesConcluidas = Array.isArray(userData.estacoesConcluidas) 
-        ? userData.estacoesConcluidas.length 
-        : 0;
-      
-      // Calcular média de notas
-      const mediaNota = userData.nivelHabilidade || 0;
-      
-      // Calcular pontos
-      const pontos = userData.ranking || 0;
-      
-      rankingData.push({
+    const q = query(collection(db, 'usuarios'), orderBy('ranking', 'desc'), limit(50))
+    const querySnapshot = await getDocs(q)
+
+    const rankingData = querySnapshot.docs.map(doc => {
+      const userData = doc.data()
+      return {
         id: doc.id,
         nome: userData.nome || 'Usuário',
         sobrenome: userData.sobrenome || '',
         cidade: userData.cidade || 'Desconhecida',
         paisOrigem: userData.paisOrigem || 'Brasil',
         photoURL: userData.photoURL,
-        estacoesConcluidas,
-        mediaNota,
+        estacoesConcluidas: Array.isArray(userData.estacoesConcluidas) ? userData.estacoesConcluidas.length : 0,
+        mediaNota: userData.nivelHabilidade || 0,
         nivelHabilidade: userData.nivelHabilidade || 0,
-        pontos,
-      });
-    });
-    
-    ranking.value = rankingData;
-    
-    // Encontrar minha posição no ranking
+        pontos: userData.ranking || 0
+      }
+    })
+
+    ranking.value = rankingData
+
+    // Encontrar minha posição
     if (currentUserId.value) {
-      const minhaPos = rankingData.findIndex(u => u.id === currentUserId.value);
+      const minhaPos = rankingData.findIndex(u => u.id === currentUserId.value)
       if (minhaPos !== -1) {
-        meuRanking.value = {
-          ...rankingData[minhaPos],
-          posicao: minhaPos + 1
-        };
+        meuRanking.value = { ...rankingData[minhaPos], posicao: minhaPos + 1 }
       } else {
-        // Se não estiver nos top 50, buscar especificamente meus dados
-        await buscarMeusDados();
+        await buscarMeusDados()
       }
     }
   } catch (err) {
-    console.error('Erro ao buscar ranking:', err);
-    error.value = 'Não foi possível carregar o ranking. Tente novamente mais tarde.';
+    console.error('Erro ao buscar ranking:', err)
+    error.value = 'Não foi possível carregar o ranking. Tente novamente mais tarde.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 // Buscar meus dados quando não estou no top 50
 async function buscarMeusDados() {
-  if (!currentUserId.value) return;
-  
+  if (!currentUserId.value) return
+
   try {
-    const userDoc = await getDoc(doc(db, 'usuarios', currentUserId.value));
-    
+    const userDoc = await getDoc(doc(db, 'usuarios', currentUserId.value))
     if (userDoc.exists()) {
-      const userData = userDoc.data();
-      
-      // Calcular estações concluídas
-      const estacoesConcluidas = Array.isArray(userData.estacoesConcluidas) 
-        ? userData.estacoesConcluidas.length 
-        : 0;
-      
-      // Calcular média de notas
-      const mediaNota = userData.nivelHabilidade || 0;
-      
-      // Calcular pontos
-      const pontos = userData.ranking || 0;
-      
+      const userData = userDoc.data()
       meuRanking.value = {
         id: userDoc.id,
         nome: userData.nome || 'Você',
         sobrenome: userData.sobrenome || '',
-        estacoesConcluidas,
-        mediaNota,
+        estacoesConcluidas: Array.isArray(userData.estacoesConcluidas) ? userData.estacoesConcluidas.length : 0,
+        mediaNota: userData.nivelHabilidade || 0,
         nivelHabilidade: userData.nivelHabilidade || 0,
-        pontos,
-        posicao: 999 // Posição desconhecida fora do top 50
-      };
-      
-      // Processar estatísticas por especialidade
-      processarEstatisticas(userData.statistics || {});
+        pontos: userData.ranking || 0,
+        posicao: 999
+      }
     }
   } catch (err) {
-    console.error('Erro ao buscar meus dados:', err);
+    console.error('Erro ao buscar meus dados:', err)
   }
 }
 
-// Processar estatísticas por especialidade
-function processarEstatisticas(statistics) {
-  const especialidadesData = [];
-  
-  // Remover a estatística geral para processamento separado
-  const { geral, ...especialidadesObj } = statistics;
-  
-  // Processar cada especialidade
-  for (const [nome, dados] of Object.entries(especialidadesObj)) {
-    especialidadesData.push({
-      nome: nome.charAt(0).toUpperCase() + nome.slice(1), // Capitalizar
-      concluidas: dados.concluidas || 0,
-      mediaNotas: dados.mediaNotas || 0,
-      total: dados.total || 0
-    });
-  }
-  
-  // Ordenar por número de estações concluídas
-  especialidadesData.sort((a, b) => b.concluidas - a.concluidas);
-  
-  especialidades.value = especialidadesData;
+// Utilitários
+const formatarNota = (nota) => nota ? (Math.round(nota * 100) / 100).toFixed(2) : '0.00'
+
+const formatarNivel = (nivel) => {
+  if (!nivel) return 'Iniciante'
+  if (nivel >= 9) return 'Expert'
+  if (nivel >= 7.5) return 'Avançado'
+  if (nivel >= 5) return 'Intermediário'
+  return 'Iniciante'
 }
 
-// Filtrar ranking
-function filtrarPor(filtro) {
-  filtroAtivo.value = filtro;
-  buscarRanking();
+const obterCorRanking = (posicao) => {
+  if (posicao === 1) return 'amber-darken-2'
+  if (posicao === 2) return 'grey-lighten-1'
+  if (posicao === 3) return 'amber-darken-4'
+  if (posicao <= 10) return 'blue'
+  if (posicao <= 20) return 'teal'
+  return 'grey'
 }
 
-// Formatar nota para exibição
-function formatarNota(nota) {
-  if (nota === undefined || nota === null) return '0.00';
-  return (Math.round(nota * 100) / 100).toFixed(2);
+const obterCorNota = (nota) => {
+  if (nota >= 9) return 'success'
+  if (nota >= 7) return 'info'
+  if (nota >= 5) return 'warning'
+  return 'error'
 }
 
-// Formatar nível para exibição
-function formatarNivel(nivel) {
-  if (nivel === undefined || nivel === null) return 'Iniciante';
-  
-  if (nivel >= 9) return 'Expert';
-  if (nivel >= 7.5) return 'Avançado';
-  if (nivel >= 5) return 'Intermediário';
-  return 'Iniciante';
-}
-
-// Obter cor com base na posição no ranking
-function obterCorRanking(posicao) {
-  if (posicao === 1) return 'amber-darken-2'; // Ouro
-  if (posicao === 2) return 'grey-lighten-1'; // Prata
-  if (posicao === 3) return 'amber-darken-4'; // Bronze
-  if (posicao <= 10) return 'blue';
-  if (posicao <= 20) return 'teal';
-  return 'grey';
-}
-
-// Obter cor com base na nota
-function obterCorNota(nota) {
-  if (nota >= 9) return 'success';
-  if (nota >= 7) return 'info';
-  if (nota >= 5) return 'warning';
-  return 'error';
-}
-
-// Obter iniciais do nome
-function obterIniciais(nome, sobrenome) {
-  const n = nome ? nome.charAt(0).toUpperCase() : '';
-  const s = sobrenome ? sobrenome.charAt(0).toUpperCase() : '';
-  return n + s;
-}
+const obterIniciais = (nome, sobrenome) =>
+  (nome?.charAt(0).toUpperCase() || '') + (sobrenome?.charAt(0).toUpperCase() || '')
 
 // Monitorar usuário autenticado
 onMounted(() => {
@@ -430,12 +307,7 @@ onMounted(() => {
   transition: background-color 0.3s ease;
 }
 
-/* Estilos específicos para tema claro */
-.ranking-view--light {
-  background: rgb(var(--v-theme-background));
-}
-
-/* Estilos específicos para tema escuro */
+.ranking-view--light,
 .ranking-view--dark {
   background: rgb(var(--v-theme-background));
 }
@@ -446,51 +318,38 @@ onMounted(() => {
 
 .top3-card {
   border-radius: 18px;
-  box-shadow: 0 4px 24px 0 rgba(var(--v-theme-primary), 0.10), 0 1.5px 4px 0 rgba(var(--v-theme-shadow-key-umbra-color), 0.04);
+  box-shadow: 0 4px 24px 0 rgba(var(--v-theme-primary), 0.10);
   padding: 24px 32px;
   margin: 0 8px;
   min-width: 220px;
   max-width: 260px;
   text-align: center;
-  transition: transform 0.18s, box-shadow 0.18s, background-color 0.3s ease;
+  transition: transform 0.18s, box-shadow 0.18s;
   cursor: pointer;
-  position: relative;
-  z-index: 1;
 }
 
-/* Top 3 cards - tema claro */
 .ranking-view--light .top3-card {
   background: linear-gradient(120deg, rgba(var(--v-theme-warning), 0.1) 0%, rgba(var(--v-theme-primary), 0.1) 100%);
 }
 
-/* Top 3 cards - tema escuro */
 .ranking-view--dark .top3-card {
   background: linear-gradient(120deg, rgba(var(--v-theme-warning), 0.2) 0%, rgba(var(--v-theme-primary), 0.2) 100%);
 }
 
 .top3-card:hover {
   transform: scale(1.04) translateY(-4px);
-  box-shadow: 0 8px 32px 0 rgba(var(--v-theme-primary), 0.18), 0 3px 8px 0 rgba(var(--v-theme-info), 0.10);
+  box-shadow: 0 8px 32px 0 rgba(var(--v-theme-primary), 0.18);
 }
+
 .top3-avatar {
   margin-bottom: 8px;
   border: 3px solid;
   box-shadow: 0 2px 8px rgba(var(--v-theme-warning), 0.3);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.top1 .top3-avatar { 
-  border-color: rgb(var(--v-theme-warning));
-  box-shadow: 0 2px 8px rgba(var(--v-theme-warning), 0.4);
-}
-.top2 .top3-avatar { 
-  border-color: rgb(var(--v-theme-grey-400));
-  box-shadow: 0 2px 8px rgba(var(--v-theme-grey-400), 0.4);
-}
-.top3 .top3-avatar { 
-  border-color: rgb(var(--v-theme-info));
-  box-shadow: 0 2px 8px rgba(var(--v-theme-info), 0.4);
-}
+.top1 .top3-avatar { border-color: rgb(var(--v-theme-warning)); }
+.top2 .top3-avatar { border-color: rgb(var(--v-theme-grey-400)); }
+.top3 .top3-avatar { border-color: rgb(var(--v-theme-info)); }
 
 .top3-nome {
   font-size: 1.15rem;
@@ -509,82 +368,62 @@ onMounted(() => {
   font-size: 0.95rem;
   color: rgb(var(--v-theme-on-surface-variant));
 }
-.ranking-card-hero {
-  border-radius: 18px;
-  box-shadow: 0 4px 24px 0 rgba(var(--v-theme-primary), 0.10), 0 1.5px 4px 0 rgba(var(--v-theme-shadow-key-umbra-color), 0.04);
-  background: rgb(var(--v-theme-surface));
-  transition: background-color 0.3s ease;
-}
 
-/* Ranking table - tema claro */
-.ranking-table--light {
+.ranking-table--light,
+.ranking-table--dark {
   border-radius: 12px;
   overflow: hidden;
   background: rgb(var(--v-theme-surface));
   box-shadow: 0 2px 8px 0 rgba(var(--v-theme-primary), 0.06);
 }
 
-/* Ranking table - tema escuro */
-.ranking-table--dark {
-  border-radius: 12px;
-  overflow: hidden;
-  background: rgb(var(--v-theme-surface));
-  box-shadow: 0 2px 8px 0 rgba(var(--v-theme-primary), 0.12);
-}
-
-/* Meu ranking - tema claro */
 .meu-ranking--light {
   background: linear-gradient(90deg, rgba(var(--v-theme-primary), 0.1) 0%, rgba(var(--v-theme-warning), 0.1) 100%);
   border-radius: 12px;
   box-shadow: 0 2px 8px 0 rgba(var(--v-theme-primary), 0.08);
 }
 
-/* Meu ranking - tema escuro */
 .meu-ranking--dark {
   background: linear-gradient(90deg, rgba(var(--v-theme-primary), 0.2) 0%, rgba(var(--v-theme-warning), 0.2) 100%);
   border-radius: 12px;
   box-shadow: 0 2px 8px 0 rgba(var(--v-theme-primary), 0.15);
 }
+
 .minha-linha {
   background-color: rgba(var(--v-theme-info), 0.1) !important;
   transition: background-color 0.3s ease;
 }
 
-.top1 {
-  background: linear-gradient(90deg, rgba(var(--v-theme-warning), 0.15) 0%, rgba(var(--v-theme-warning), 0.08) 100%);
-}
-
-.top2 {
-  background: linear-gradient(90deg, rgba(var(--v-theme-grey-400), 0.15) 0%, rgba(var(--v-theme-grey-400), 0.08) 100%);
-}
-
-.top3 {
-  background: linear-gradient(90deg, rgba(var(--v-theme-info), 0.15) 0%, rgba(var(--v-theme-info), 0.08) 100%);
-}
+.top1 { background: linear-gradient(90deg, rgba(var(--v-theme-warning), 0.15) 0%, rgba(var(--v-theme-warning), 0.08) 100%); }
+.top2 { background: linear-gradient(90deg, rgba(var(--v-theme-grey-400), 0.15) 0%, rgba(var(--v-theme-grey-400), 0.08) 100%); }
+.top3 { background: linear-gradient(90deg, rgba(var(--v-theme-info), 0.15) 0%, rgba(var(--v-theme-info), 0.08) 100%); }
 
 .pulse {
   animation: pulse 0.7s;
 }
+
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0.4); }
   70% { box-shadow: 0 0 0 10px rgba(var(--v-theme-warning), 0.1); }
   100% { box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0); }
 }
+
 .animate-fade-in {
   animation: fadeInUp 0.7s cubic-bezier(.55,0,.1,1);
 }
+
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
 @media (max-width: 900px) {
-  .ranking-card-hero, .meu-ranking, .ranking-table, .top3-card { border-radius: 8px; }
   .top3-row { gap: 12px; }
   .top3-card { padding: 16px 8px; min-width: 140px; max-width: 180px; }
 }
+
 @media (max-width: 600px) {
   .ranking-view { padding: 0 2px; }
-  .ranking-card-hero, .meu-ranking, .ranking-table, .top3-card { border-radius: 4px; }
   .top3-row { flex-direction: column; align-items: center; gap: 8px; }
   .top3-card { margin: 8px 0; }
 }

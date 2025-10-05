@@ -1,8 +1,6 @@
 {
   "include": [
     "./vite.config.*",
-    "./src/pages/AdminView.vue",
-    "./src/pages/ChatView.vue",
     "./src/@core/**/*",
     "./src/@layouts/**/*",
     "./src/components/**/*",
@@ -16,21 +14,22 @@
     "./src/stores/**/*",
     "./src/utils/**/*",
     "./src/views/**/*",
-    "./themeConfig.js",
-    "backend/lixo/useAuth.ts.txtlixo",
-    "backend/lixo/useTextFormatting.js.txt(disable)",
-    "backend/lixo/useWebSocket.js.txt(precisa)"
+    "./themeConfig.js"
   ],
   "exclude": [
     "./dist",
     "./node_modules",
     "./src/pages/ChatView.vue",
     "./src/pages/AdminResetUsers_*.vue",
+    "./src/pages/AgentLogin.vue",
     "./temp_*.vue",
     "./**/*_Backup*.vue",
     "./**/*_Original*.vue",
     "./**/*_backup*.vue",
-    "./**/*_original*.vue"
+    "./**/*_original*.vue",
+    "./src/components/ChatSettings.vue",
+    "./src/components/CorrecaoEditores.vue",
+    "./src/pages/PerformanceView.vue"
   ],
   "compilerOptions": {
     "target": "esnext",

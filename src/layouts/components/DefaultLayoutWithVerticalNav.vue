@@ -42,16 +42,15 @@ function openGeminiIA() {
           Abrir menu
         </VTooltip>
 
-        <!-- Centralizado: Apenas Gemini IA com imagem (ícone circular) -->
+        <!-- Centralizado: Assistente Médico IA otimizado -->
         <div class="d-flex align-center justify-center flex-grow-1">
           <v-btn
-            class="mx-2 gemini-btn circular-gemini-btn"
+            class="mx-2 medical-ai-btn circular-medical-btn"
             @click="openGeminiIA"
-            title="Gemini IA"
-            aria-label="Abrir assistente Gemini IA"
+            title="Assistente Médico IA - Especialista em Medicina e Revalida"
+            aria-label="Abrir assistente médico IA"
           >
-            <!-- Usar emoji de robô simples para compatibilidade e aparência consistente -->
-            <span class="gemini-emoji" aria-hidden="false">🤖</span>
+            <v-icon size="24" color="white">mdi-robot</v-icon>
           </v-btn>
         </div>
 
@@ -125,55 +124,54 @@ function openGeminiIA() {
   width: auto; /* Manter proporção */
 }
 
-.gemini-btn {
-  box-shadow: 0 2px 8px 0 rgba(123, 31, 162, 15%);
-  transition: box-shadow 0.2s, transform 0.2s;
+.medical-ai-btn {
+  box-shadow: 0 3px 12px rgba(var(--v-theme-primary), 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-info)) 100%) !important;
 
   &:hover {
-    background: linear-gradient(90deg, #00bcd4 0%, #7b1fa2 100%);
-    box-shadow: 0 4px 16px 0 rgba(0, 188, 212, 25%);
-    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 6px 20px rgba(var(--v-theme-primary), 0.4);
+    transform: translateY(-3px) scale(1.05);
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(1.02);
   }
 }
 
-/* Mantemos a hit-area circular, mas removemos o fundo/degradê e sombras
-   para deixar apenas o SVG/emoji visível. */
-.circular-gemini-btn {
+.circular-medical-btn {
   padding: 0;
-  height: 66px;
-  width: 66px;
-  min-width: 66px;
+  height: 64px;
+  width: 64px;
+  min-width: 64px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent !important;
-  box-shadow: none !important;
-}
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-info)) 100%) !important;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
 
-.circular-gemini-btn:hover {
-  transform: translateY(-2px) scale(1.02);
-}
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
 
-/* Estilo para o SVG do robô: usamos `currentColor` no SVG e definimos a cor aqui */
-.gemini-robot {
-  width: 28px;
-  height: 28px;
-  display: block;
-  color: #e53935; /* vermelho solicitado */
-}
+  &:hover::before {
+    left: 100%;
+  }
 
-/* Se houver emoji fallback, mantemos simples e sem fundo */
-.gemini-emoji {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-  line-height: 1;
-  height: 42px;
-  width: 42px;
-  border-radius: 50%;
-  background: transparent;
+  &:hover {
+    transform: translateY(-3px) scale(1.08);
+    box-shadow: 0 8px 25px rgba(var(--v-theme-primary), 0.5);
+  }
 }
 
 
