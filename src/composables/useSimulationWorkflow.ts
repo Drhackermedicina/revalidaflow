@@ -275,11 +275,11 @@ export function useSimulationWorkflow({
 
   /**
    * Processa evento de parceiro pronto
-   * @param data - Dados do evento
+   * @param data - Dados do evento (com isReady do servidor)
    */
   function handlePartnerReady(data: any) {
-    if (data?.ready !== undefined) {
-      partnerReadyState.value = data.ready
+    if (data?.isReady !== undefined) {
+      partnerReadyState.value = data.isReady
     }
   }
 
