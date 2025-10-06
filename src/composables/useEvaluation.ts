@@ -156,25 +156,38 @@ export function useEvaluation({
    * Libera PEP para o candidato após fim da simulação
    */
   function releasePepToCandidate() {
+    console.log('[PEP_RELEASE] 📤 Tentando liberar PEP para candidato');
+    console.log('[PEP_RELEASE]   - socket.connected:', socket.value?.connected);
+    console.log('[PEP_RELEASE]   - sessionId:', sessionId.value);
+    console.log('[PEP_RELEASE]   - pepReleasedToCandidate:', pepReleasedToCandidate.value);
+    console.log('[PEP_RELEASE]   - userRole:', userRole.value);
+    console.log('[PEP_RELEASE]   - simulationEnded:', simulationEnded.value);
+
     if (!socket.value?.connected || !sessionId.value) {
+      console.error('[PEP_RELEASE] ❌ Socket não conectado ou sessionId inválido');
       alert('Erro: Não conectado.')
       return
     }
 
     if (pepReleasedToCandidate.value) {
+      console.warn('[PEP_RELEASE] ⚠️ PEP já foi liberado');
       return
     }
 
     if (userRole.value !== 'actor' && userRole.value !== 'evaluator') {
+      console.error('[PEP_RELEASE] ❌ Usuário não autorizado:', userRole.value);
       alert('Não autorizado.')
       return
     }
 
     // Só permite liberar o PEP após o fim da estação
     if (!simulationEnded.value) {
+      console.error('[PEP_RELEASE] ❌ Simulação ainda não terminou');
       alert('O PEP só pode ser liberado após o encerramento da estação.')
       return
     }
+
+    console.log('[PEP_RELEASE] ✅ Todas as verificações passaram - liberando PEP');
 
     // SINCRONIZAÇÃO: Envia avaliações atuais junto com a liberação do PEP
     const currentScores: Record<string, number> = {}
@@ -185,13 +198,18 @@ export function useEvaluation({
 
     const currentTotal = Object.values(currentScores).reduce((sum, v) => sum + (isNaN(v) ? 0 : v), 0)
 
+    console.log('[PEP_RELEASE] 📊 Scores atuais:', currentScores);
+    console.log('[PEP_RELEASE] 🔢 Total:', currentTotal);
+
     // Libera o PEP após verificar todas as condições
     const payload = { sessionId: sessionId.value }
+    console.log('[PEP_RELEASE] 📤 Emitindo ACTOR_RELEASE_PEP:', payload);
     socket.value.emit('ACTOR_RELEASE_PEP', payload)
 
     // SINCRONIZAÇÃO: Força envio das avaliações atuais imediatamente após liberação
     setTimeout(() => {
       if (Object.keys(currentScores).length > 0) {
+        console.log('[PEP_RELEASE] 📤 Enviando scores para candidato');
         socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
           sessionId: sessionId.value,
           scores: currentScores,
@@ -202,6 +220,7 @@ export function useEvaluation({
     }, 100) // Pequeno delay para garantir que o PEP foi liberado primeiro
 
     pepReleasedToCandidate.value = true
+    console.log('[PEP_RELEASE] ✅ PEP liberado com sucesso');
   }
 
   /**

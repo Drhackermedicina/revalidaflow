@@ -1177,6 +1177,12 @@ watch(evaluationScores, (newScores) => {
 
 // Watcher para liberar PEP automaticamente ao final da simulação
 watch(simulationEnded, (newValue) => {
+  console.log('[AUTO_RELEASE] 🔍 Watch simulationEnded disparado:', newValue);
+  console.log('[AUTO_RELEASE]   - userRole:', userRole.value);
+  console.log('[AUTO_RELEASE]   - pepReleasedToCandidate:', pepReleasedToCandidate.value);
+  console.log('[AUTO_RELEASE]   - socketConnected:', socketRef.value?.connected);
+  console.log('[AUTO_RELEASE]   - sessionId:', sessionId.value);
+
   if (
     newValue && // Simulação terminou
     (userRole.value === 'actor' || userRole.value === 'evaluator') && // É ator/avaliador
@@ -1184,8 +1190,15 @@ watch(simulationEnded, (newValue) => {
     socketRef.value?.connected && // Socket conectado
     sessionId.value // Tem sessionId
   ) {
-    console.log('[AUTO_RELEASE] Liberando PEP automaticamente ao final da simulação');
+    console.log('[AUTO_RELEASE] ✅ Liberando PEP automaticamente ao final da simulação');
     releasePepToCandidate();
+  } else {
+    console.log('[AUTO_RELEASE] ❌ Condições não atendidas para liberar PEP automaticamente');
+    if (!newValue) console.log('[AUTO_RELEASE]   ❌ Simulação não terminou');
+    if (userRole.value !== 'actor' && userRole.value !== 'evaluator') console.log('[AUTO_RELEASE]   ❌ Não é ator/avaliador');
+    if (pepReleasedToCandidate.value) console.log('[AUTO_RELEASE]   ❌ PEP já foi liberado');
+    if (!socketRef.value?.connected) console.log('[AUTO_RELEASE]   ❌ Socket não conectado');
+    if (!sessionId.value) console.log('[AUTO_RELEASE]   ❌ Sem sessionId');
   }
 });
 
