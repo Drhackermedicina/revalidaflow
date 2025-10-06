@@ -17,6 +17,7 @@ import { useSimulationMeet } from '@/composables/useSimulationMeet.ts';
 import { useSimulationData } from '@/composables/useSimulationData.ts';
 import { useSimulationPEP } from '@/composables/useSimulationPEP.ts';
 import { useInternalInvites } from '@/composables/useInternalInvites.ts';
+import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.ts';
 import { usePrivateChatNotification } from '@/plugins/privateChatListener.js';
 import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
@@ -294,14 +295,50 @@ const {
   getMeetLinkForInvite
 });
 
+// Simulation workflow management (ready/start/end)
+// Note: partner and inviteLinkToShow are declared below as they're also used elsewhere
+const partner = ref(null);
+const inviteLinkToShow = ref('');
+
+const {
+  myReadyState,
+  partnerReadyState,
+  candidateReadyButtonEnabled,
+  simulationStarted,
+  simulationWasManuallyEndedEarly,
+  backendActivated,
+  bothParticipantsReady,
+  sendReady,
+  activateBackend,
+  handleStartSimulationClick,
+  manuallyEndSimulation,
+  updateTimerDisplayFromSelection,
+  resetWorkflowState,
+  handlePartnerReady,
+  handleSimulationStart,
+  handleTimerUpdate,
+  handleTimerEnd,
+  handleTimerStopped,
+  handlePartnerDisconnect,
+  handleSocketConnect,
+  handleSocketDisconnect
+} = useSimulationWorkflow({
+  socket,
+  sessionId,
+  userRole,
+  partner,
+  stationData,
+  simulationTimeSeconds,
+  timerDisplay,
+  selectedDurationMinutes,
+  inviteLinkToShow,
+  backendUrl
+});
+
 // Variável lastClickTime movida para useScriptMarking composable
 
 // Função para separar texto em sentenças
 
-// Refs para informações do parceiro e da sessão
-const partner = ref(null);
-
-const inviteLinkToShow = ref('');
 const copySuccess = ref(false);
 
 // Candidato selecionado para simulação
@@ -332,19 +369,10 @@ function openEditPage() {
 }
 
 // Refs para estado de prontidão e controle da simulação
-const myReadyState = ref(false);
-const partnerReadyState = ref(false);
-const simulationStarted = ref(false);
-// simulationEnded movido para linha 138 (antes da inicialização dos composables)
-const simulationWasManuallyEndedEarly = ref(false);
-// Ref para controlar delay do botão "Estou pronto" do candidato
-const candidateReadyButtonEnabled = ref(false);
-
-// NOVO: Ref para controlar ativação do backend (delayed activation)
-const backendActivated = ref(false);
-
-
-
+// MOVIDOS PARA useSimulationWorkflow composable (linhas 303-310):
+// - myReadyState, partnerReadyState, simulationStarted
+// - simulationWasManuallyEndedEarly, candidateReadyButtonEnabled, backendActivated
+// simulationEnded permanece na linha 138 (antes da inicialização dos composables)
 
 async function playSoundEffect() {
   try {
@@ -443,34 +471,20 @@ function connectWebSocket() {
   });
   socket.value.on('connect', () => {
     connectionStatus.value = 'Conectado';
-    
+
     console.log("SOCKET: Conectado.");
 
-    // Delay de 1 segundo para habilitar o botão "Estou pronto" do candidato
-    if (userRole.value === 'candidate') {
-      candidateReadyButtonEnabled.value = true; // Habilita o botão após a conexão
-    }
+    // Workflow: habilitar botão "Estou pronto" para candidato
+    handleSocketConnect();
   });
   socket.value.on('disconnect', (reason) => {
     connectionStatus.value = 'Desconectado';
-    
-    // Desabilitar o botão do candidato na desconexão
-    if (userRole.value === 'candidate') {
-      candidateReadyButtonEnabled.value = false;
-    }
-    
-    const wasPartnerConnected = !!partner.value;
-    partner.value = null;
+
+    // Workflow: desabilitar botão e resetar estados
+    handleSocketDisconnect();
+    handlePartnerDisconnect();
 
     const isCandidateReviewing = userRole.value === 'candidate' && stationData.value && simulationStarted.value;
-
-    if (!isCandidateReviewing) {
-      myReadyState.value = false;
-      partnerReadyState.value = false;
-      if (!simulationStarted.value) {
-        timerDisplay.value = formatTime(selectedDurationMinutes.value * 60);
-      }
-    }
 
     if (isCandidateReviewing) {
       if (!errorMessage.value && reason !== 'io client disconnect' && reason !== 'io client disconnect forced close by client') {
@@ -567,49 +581,47 @@ function connectWebSocket() {
       if (partner.value && partner.value.userId === data.userId) {
         partner.value.isReady = data.isReady;
       }
-      partnerReadyState.value = data.isReady;
+      // Workflow: atualizar estado de prontidão do parceiro
+      handlePartnerReady(data);
     }
   });
   socket.value.on('SERVER_START_SIMULATION', (data) => {
-    if (data && typeof data.durationSeconds === 'number') {
-        simulationTimeSeconds.value = data.durationSeconds;
-        timerDisplay.value = formatTime(data.durationSeconds);
-    } else {
-        console.warn('[CLIENT] SERVER_START_SIMULATION não continha durationSeconds. Timer pode estar dessincronizado com o cliente inicial.');
-        timerDisplay.value = formatTime(simulationTimeSeconds.value);
-    }
-    simulationStarted.value = true;
-    simulationEnded.value = false;
-    simulationWasManuallyEndedEarly.value = false;
+    // Workflow: atualizar estados e timer
+    handleSimulationStart(data);
+
     errorMessage.value = '';
     playSoundEffect();
   });
   socket.value.on('TIMER_UPDATE', (data) => {
+    // Workflow: atualizar timer display
+    handleTimerUpdate(data);
+
     if (typeof data.remainingSeconds === 'number') {
-      timerDisplay.value = formatTime(data.remainingSeconds);
       if (data.remainingSeconds <= 0 && !simulationEnded.value) {
         simulationEnded.value = true;
       }
     }
   });
   socket.value.on('TIMER_END', () => {
-    timerDisplay.value = "00:00";
+    // Workflow: atualizar timer e estado
+    handleTimerEnd();
+
     if (!simulationEnded.value) {
       playSoundEffect(); // Som do final da estação
       simulationEnded.value = true; // Marca como encerrada ANTES para evitar som duplicado
     }
-    simulationWasManuallyEndedEarly.value = false; // Garante que é false se terminou por tempo
-    
+
     // Limpar candidato selecionado quando simulação termina
     clearSelectedCandidate();
-    
+
     // Notificação para o candidato
     if (userRole.value === 'candidate') {
       showNotification('Tempo finalizado! Aguardando avaliação do examinador...', 'info');
     }
   });
   socket.value.on('TIMER_STOPPED', (data) => {
-    const previousTimerDisplay = timerDisplay.value;
+    // Workflow: atualizar estados
+    handleTimerStopped(data);
 
     if (!simulationEnded.value) {
         playSoundEffect(); // Som do final da estação
@@ -619,24 +631,21 @@ function connectWebSocket() {
     // Limpar candidato selecionado quando simulação para
     clearSelectedCandidate();
 
-    // A lógica para `simulationWasManuallyEndedEarly` permanece aqui,
-    // pois ela é usada para desabilitar a 'Submissão de Avaliação'.
-    if (data?.reason === 'manual_end') { // Verificando se a razão é 'manual_end'
+    // Atualizar simulationWasManuallyEndedEarly baseado na razão
+    if (data?.reason === 'manual_end') {
       simulationWasManuallyEndedEarly.value = true;
     } else {
-      simulationWasManuallyEndedEarly.value = false; // Garante que é false para outras razões
+      simulationWasManuallyEndedEarly.value = false;
     }
-
 
     if (data?.reason === 'participante desconectou' && !errorMessage.value) {
       errorMessage.value = "Simulação interrompida: parceiro desconectou.";
-    } else if (data?.reason === 'manual_end' && !errorMessage.value && simulationWasManuallyEndedEarly.value) { // Esta condição será TRUE se for 'manual_end'
+    } else if (data?.reason === 'manual_end' && !errorMessage.value && simulationWasManuallyEndedEarly.value) {
       errorMessage.value = "Simulação encerrada manually pelo ator/avaliador antes do tempo.";
-    } else if (data?.reason === 'tempo esgotado' && !errorMessage.value) { // Adicionado para clarity
+    } else if (data?.reason === 'tempo esgotado' && !errorMessage.value) {
       errorMessage.value = "Simulação encerrada: tempo esgotado.";
     } else if (!errorMessage.value) {
       errorMessage.value = "Simulação encerrada.";
-    // Fallback para outras razões ou manual_end que já não era antes
     }
   });
   socket.value.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (payload) => {
@@ -865,23 +874,7 @@ function setupSession() {
 
 // totalScore e allEvaluationsCompleted movidos para useEvaluation composable
 
-const bothParticipantsReady = computed(() => myReadyState.value && partnerReadyState.value && !!partner.value);
-
-watch(bothParticipantsReady, (newValue) => {
-  if (newValue && !backendActivated.value) {
-    activateBackend();
-  } else if (newValue && backendActivated.value && !simulationStarted.value && !simulationEnded.value) {
-    // Backend is activated, proceed with simulation start
-    if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-      const durationToSend = selectedDurationMinutes.value;
-      socket.value.emit('CLIENT_START_SIMULATION', {
-        sessionId: sessionId.value,
-        durationMinutes: durationToSend
-      });
-    } else if (userRole.value === 'candidate' && !simulationStarted.value) {
-    }
-  }
-});
+// bothParticipantsReady computed e watch movidos para useSimulationWorkflow composable
 
 
 onMounted(() => {
@@ -931,29 +924,7 @@ onUnmounted(() => {
 
 // toggleActorImpressoVisibility movido para useSimulationData composable
 
-function updateTimerDisplayFromSelection() {
-  if (selectedDurationMinutes.value) {
-    const newTimeInSeconds = parseInt(selectedDurationMinutes.value) * 60;
-    if (!simulationStarted.value && !inviteLinkToShow.value) {
-          if (simulationTimeSeconds.value !== newTimeInSeconds) {
-            simulationTimeSeconds.value = newTimeInSeconds;
-            timerDisplay.value = formatTime(simulationTimeSeconds.value);
-          }
-    } else if (simulationStarted.value) {
-          console.warn("Não é possível alterar a duração após o início da simulação.");
-    } else if (inviteLinkToShow.value) {
-      // Se o link já foi gerado, a duração está "travada" com a duração do link.
-      // Resetar o dropdown para o valor correto caso o usuário mude e tente iniciar de novo.
-      // O `selectedDurationMinutes` deve ser o que foi usado para gerar o link (que é o que está no timerDisplay)
-      const currentDurationInMinutes = Math.round(simulationTimeSeconds.value / 60);
-      const validOptions = [5,6,7,8,9,10];
-      if (selectedDurationMinutes.value !== currentDurationInMinutes && validOptions.includes(currentDurationInMinutes) ) {
-          selectedDurationMinutes.value = currentDurationInMinutes;
-      }
-      console.warn("Duração travada após geração do link. Use o valor previamente selecionado.");
-    }
-  }
-}
+// updateTimerDisplayFromSelection movido para useSimulationWorkflow composable
 
 async function generateInviteLinkWithDuration() {
   if (isLoading.value) {
@@ -1076,31 +1047,11 @@ watch(() => route.fullPath, (newPath, oldPath) => {
 
 async function copyInviteLink() { if(!inviteLinkToShow.value) return; try {await navigator.clipboard.writeText(inviteLinkToShow.value); copySuccess.value=true; setTimeout(()=>copySuccess.value=false,2000);
   } catch(e){alert('Falha ao copiar.')} }
-function sendReady() {
-  // First click: Set local ready state
-  if (!myReadyState.value) {
-    myReadyState.value = true;
+// sendReady movido para useSimulationWorkflow composable
 
-    // Generate local session ID for view mode if not exists
-    if (!localSessionId.value) {
-      localSessionId.value = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    // Se o socket estiver conectado, emite o estado de prontidão.
-    if (socket.value?.connected) {
-      socket.value.emit('CLIENT_IM_READY');
-    }
-  } else {
-    // Já está pronto - apenas emite o estado de prontidão novamente se conectado
-    if (socket.value?.connected) {
-      socket.value.emit('CLIENT_IM_READY');
-    }
-    alert("Você já está pronto. Aguardando o outro participante.");
-  }
-}
-
-// Function to activate backend when both users are ready
-async function activateBackend() {
+// activateBackend movido para useSimulationWorkflow composable
+// NOTA: A versão abaixo está comentada mas pode ter lógica adicional necessária
+async function activateBackend_OLD_BACKUP() {
   if (backendActivated.value) {
     return;
   }
@@ -1170,20 +1121,7 @@ async function activateBackend() {
   }
 }
 
-// MODIFICAÇÃO 2: Nova função para lidar com o clique do botão "Iniciar Simulação"
-function handleStartSimulationClick() {
-  if (backendActivated.value && socket.value?.connected && sessionId.value && (userRole.value === 'actor' || userRole.value === 'evaluator') && bothParticipantsReady.value && !simulationStarted.value) {
-    const durationToSend = selectedDurationMinutes.value;
-    socket.value.emit('CLIENT_START_SIMULATION', {
-      sessionId: sessionId.value,
-      durationMinutes: durationToSend
-    });
-  } else if (!backendActivated.value) {
-    alert("Aguarde ambos os usuários clicarem em 'Estou Pronto' para ativar o backend.");
-  } else {
-  alert("Não é possível iniciar a simulação neste momento. Verifique se todos estão prontos e a conexão está ativa.");
-  }
-}
+// handleStartSimulationClick movido para useSimulationWorkflow composable
 
 // submitEvaluation(), releasePepToCandidate() e funções de imagens movidas para composables
 
@@ -1200,16 +1138,7 @@ function sendEvaluationScores() {
       });
   }
 }
-function manuallyEndSimulation() {
-    if (!simulationStarted.value || simulationEnded.value) { return;
-    }
-    if (!socket.value?.connected || !sessionId.value) { alert("Erro: Não conectado para encerrar."); return;
-    }
-    if (userRole.value !== 'actor' && userRole.value !== 'evaluator') { alert("Não autorizado."); return;
-    }
-    socket.value.emit('CLIENT_MANUAL_END_SIMULATION', { sessionId: sessionId.value });
-}
-
+// manuallyEndSimulation movido para useSimulationWorkflow composable
 
 watch(evaluationScores, (newScores) => {
   if (
