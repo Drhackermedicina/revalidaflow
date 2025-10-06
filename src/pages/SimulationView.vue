@@ -23,6 +23,10 @@ import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
 import { backendUrl } from '@/utils/backendUrl.js';
 import { loadAudioFile, playAudioSegment } from '@/utils/audioService.js'; // Importar as novas funções de áudio
+import SimulationHeader from '@/components/SimulationHeader.vue';
+import SimulationControls from '@/components/SimulationControls.vue';
+import SimulationSidebar from '@/components/SimulationSidebar.vue';
+import CandidateChecklist from '@/components/CandidateChecklist.vue';
 import {
   formatActorText,
   formatIdentificacaoPaciente,
@@ -231,6 +235,11 @@ const {
 // Aliases para manter compatibilidade com template (funções já têm debounce interno)
 const debouncedToggleParagraphMark = toggleParagraphMark;
 const debouncedToggleScriptContext = toggleScriptContext;
+
+// Função handler para atualização de scores de avaliação
+function handleEvaluationScoreUpdate({ itemId, score }) {
+  updateEvaluationScore(itemId, score);
+}
 
 // Router e Route (necessários para alguns composables)
 const route = useRoute();
@@ -1294,78 +1303,33 @@ function toggleCollapse() {
 </script>
 
 <template>
-  <!-- Barra de Navegação Sequencial -->
-  <v-app-bar
-    v-if="isSequentialMode"
-    color="primary"
-    density="compact"
-    elevation="2"
-    style="position: relative; margin-bottom: 16px;"
-  >
-    <v-container fluid class="d-flex align-center justify-space-between pa-2">
-      <div class="d-flex align-center">
-        <v-icon class="me-2">ri-play-list-line</v-icon>
-        <span class="text-subtitle-2 font-weight-bold">Simulação Sequencial</span>
-        <v-divider vertical class="mx-3" />
-        <span class="text-body-2">
-          Estação {{ sequentialProgress.current }} de {{ sequentialProgress.total }}
-        </span>
-        <v-progress-linear
-          :model-value="sequentialProgress.percentage"
-          color="white"
-          height="4"
-          class="ml-3"
-          style="width: 120px;"
-        />
-      </div>
-
-      <div class="d-flex align-center gap-2">
-        <v-btn
-          v-if="canGoToPrevious"
-          icon
-          size="small"
-          variant="text"
-          @click="goToPreviousSequentialStation"
-          :disabled="!canGoToPrevious"
-        >
-          <v-icon>ri-arrow-left-line</v-icon>
-          <v-tooltip activator="parent" location="bottom">Estação Anterior</v-tooltip>
-        </v-btn>
-
-        <v-chip
-          color="white"
-          variant="elevated"
-          size="small"
-          class="text-primary font-weight-bold"
-        >
-          {{ sequentialProgress.percentage }}%
-        </v-chip>
-
-        <v-btn
-          v-if="canGoToNext"
-          icon
-          size="small"
-          variant="text"
-          @click="goToNextSequentialStation"
-          :disabled="!canGoToNext"
-        >
-          <v-icon>ri-arrow-right-line</v-icon>
-          <v-tooltip activator="parent" location="bottom">Próxima Estação</v-tooltip>
-        </v-btn>
-
-        <v-btn
-          icon
-          size="small"
-          variant="text"
-          @click="exitSequentialMode"
-          color="warning"
-        >
-          <v-icon>ri-close-line</v-icon>
-          <v-tooltip activator="parent" location="bottom">Sair do Modo Sequencial</v-tooltip>
-        </v-btn>
-      </div>
-    </v-container>
-  </v-app-bar>
+  <!-- SimulationHeader Component -->
+  <SimulationHeader
+    :is-sequential-mode="isSequentialMode"
+    :sequential-progress="sequentialProgress"
+    :can-go-to-previous="canGoToPrevious"
+    :can-go-to-next="canGoToNext"
+    :station-data="stationData"
+    :simulation-started="simulationStarted"
+    :simulation-ended="simulationEnded"
+    :selected-candidate-for-simulation="selectedCandidateForSimulation"
+    :timer-display="timerDisplay"
+    :selected-duration-minutes="selectedDurationMinutes"
+    :is-actor-or-evaluator="isActorOrEvaluator"
+    :is-candidate="isCandidate"
+    :is-admin="isAdmin"
+    :station-id="stationId"
+    :error-message="errorMessage"
+    @go-to-previous-sequential-station="goToPreviousSequentialStation"
+    @go-to-next-sequential-station="goToNextSequentialStation"
+    @exit-sequential-mode="exitSequentialMode"
+    @clear-selected-candidate="clearSelectedCandidate"
+    @open-edit-page="openEditPage"
+    @update-timer-display-from-selection="updateTimerDisplayFromSelection"
+    @manually-end-simulation="manuallyEndSimulation"
+    @toggle-collapse="toggleCollapse"
+    @update:selected-duration-minutes="selectedDurationMinutes = $event"
+  />
 
   <div
     :class="[
@@ -1391,7 +1355,7 @@ function toggleCollapse() {
       </template>
     </VSnackbar>
 
-    
+
     <!-- Conteúdo principal -->
     <div v-if="isLoading" class="d-flex justify-center align-center" style="height: 80vh;">
       <VProgressCircular indeterminate size="64" />
@@ -1409,205 +1373,33 @@ function toggleCollapse() {
 
     <!-- Conteúdo Principal da Simulação -->
     <div v-else-if="stationData">
-      <!-- CABEÇALHO E CONTROLES PRINCIPAIS -->
-      <VCard 
-        :class="[
-          'mb-6 main-header-card',
-          isDarkTheme ? 'main-header-card--dark' : 'main-header-card--light'
-        ]"
-      >
-        <VCardText>
-          <!-- Selected Candidate Info -->
-          <div v-if="selectedCandidateForSimulation" class="mb-4">
-            <VCard 
-              color="primary" 
-              variant="tonal"
-              :class="[
-                'candidate-card',
-                isDarkTheme ? 'candidate-card--dark' : 'candidate-card--light'
-              ]"
-            >
-              <VCardText>
-                <div class="d-flex align-center">
-                  <VAvatar size="40" class="me-3">
-                    <VImg 
-                      :src="selectedCandidateForSimulation.photoURL || '/images/avatars/avatar-1.png'"
-                      :alt="selectedCandidateForSimulation.name"
-                    />
-                  </VAvatar>
-                  <div class="flex-grow-1">
-                    <div class="text-subtitle-1 font-weight-medium">
-                      Candidato Selecionado: {{ selectedCandidateForSimulation.name }}
-                    </div>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ selectedCandidateForSimulation.email }}
-                    </div>
-                  </div>
-                  <VBtn
-                    size="small"
-                    variant="text"
-                    color="error"
-                    @click="clearSelectedCandidate"
-                    prepend-icon="mdi-close"
-                  >
-                    Limpar Seleção
-                  </VBtn>
-                </div>
-              </VCardText>
-            </VCard>
-          </div>
 
-          <div class="d-flex flex-wrap justify-space-between align-center gap-4">
-            <!-- Título -->
-            <div class="d-flex align-center gap-3">
-                <VBtn icon variant="text" @click="toggleCollapse">
-                    <VIcon icon="ri-menu-line" />
-                </VBtn>
-                <div>
-                    <h2 class="text-h5">{{
-                      isCandidate
-                        ? stationData.especialidade
-                        : `${stationData.especialidade} - ${stationData.tituloEstacao}`
-                    }}</h2>
-                </div>
-            </div>
-
-            <!-- Timer -->
-            <div class="d-flex align-center gap-3">
-              <!-- Botão de Edição para Admins -->
-              <VBtn
-                v-if="isAdmin && stationId"
-                icon
-                variant="text"
-                size="small"
-                color="warning"
-                title="Editar Estação (abrir em nova aba)"
-                @click="openEditPage"
-                style="background-color: yellow !important; color: black !important;"
-              >
-                <VIcon icon="ri-pencil-line" style="color: black !important;" />
-              </VBtn>
-              <div v-if="isActorOrEvaluator && !simulationStarted && !simulationEnded" style="width: 150px;">
-                <VSelect
-                  v-model="selectedDurationMinutes"
-                  label="Duração"
-                  :items="[5, 6, 7, 8, 9, 10].map(n => ({ title: `${n} min`, value: n }))"
-                  :disabled="!!inviteLinkToShow"
-                  density="compact"
-                  hide-details
-                  @update:model-value="updateTimerDisplayFromSelection"
-                />
-              </div>
-              <div class="timer-display" :class="{ 'ended': simulationEnded }">
-                <VIcon icon="ri-time-line" class="me-1" />
-                {{ timerDisplay }}
-              </div>
-              <VBtn
-                v-if="isActorOrEvaluator && simulationStarted && !simulationEnded"
-                color="error"
-                variant="tonal"
-                @click="manuallyEndSimulation"
-              >
-                Encerrar
-              </VBtn>
-            </div>
-          </div>
-
-           <VAlert v-if="errorMessage && stationData" type="warning" density="compact" class="mt-4">
-              {{ errorMessage }}
-            </VAlert>
-        </VCardText>
-      </VCard>
-
-      <!-- SEÇÃO DE PREPARAÇÃO (ANTES DE INICIAR) -->
-      <VCard 
-        v-if="isActorOrEvaluator && !simulationStarted && !simulationEnded" 
-        :class="[
-          'mb-6 preparation-card',
-          isDarkTheme ? 'preparation-card--dark' : 'preparation-card--light'
-        ]"
-      >
-        <VCardTitle>Preparação da Simulação</VCardTitle>
-        <VCardText>
-            <VRadioGroup v-model="communicationMethod" inline label="Método de Comunicação:">
-              <VRadio label="Voz (Beta)" value="voice" />
-              <VRadio label="Google Meet" value="meet" />
-              <VRadio label="Nenhum" value="none" />
-            </VRadioGroup>
-
-            <div v-if="communicationMethod === 'meet'" class="d-flex flex-column gap-3 mb-4">
-              <VBtn prepend-icon="ri-vidicon-line" @click="openGoogleMeet">Criar Sala no Google Meet</VBtn>
-              <VTextField v-model="meetLink" label="Cole o link do Meet aqui" density="compact" />
-            </div>
-
-            <VBtn v-if="!inviteLinkToShow" block @click="generateInviteLinkWithDuration">
-              Gerar Link de Convite
-            </VBtn>
-
-            <div v-if="inviteLinkToShow" class="mt-4 text-center">
-                <p class="font-weight-bold text-body-2 mb-2">Link de Convite Gerado!</p>
-                <div class="d-flex gap-2 justify-center">
-                  <VBtn
-                      prepend-icon="ri-clipboard-line"
-                      @click="copyInviteLink"
-                      :color="copySuccess ? 'success' : 'primary'"
-                  >
-                      {{ copySuccess ? 'Copiado!' : 'Copiar Link' }}
-                  </VBtn>
-                  <VBtn
-                      prepend-icon="ri-chat-3-line"
-                      @click="sendLinkViaPrivateChat"
-                      color="secondary"
-                      :loading="sendingChat"
-                      :disabled="!selectedCandidateForSimulation"
-                  >
-                      {{ chatSentSuccess ? 'Enviado!' : 'Enviar via Chat' }}
-                  </VBtn>
-                </div>
-                <div v-if="!selectedCandidateForSimulation" class="mt-2">
-                  <VChip color="warning" size="small" variant="outlined">
-                    Selecione um candidato para enviar via chat
-                  </VChip>
-                </div>
-            </div>
-
-          <div v-if="inviteLinkToShow || isCandidate || isActorOrEvaluator" class="text-center mt-4 pt-4 border-t">
-            <VBtn
-              v-if="!myReadyState"
-              size="large"
-              :color="myReadyState ? 'default' : 'success'"
-              :disabled="isCandidate && !candidateReadyButtonEnabled"
-              @click="sendReady"
-            >
-              <VIcon :icon="myReadyState ? 'ri-checkbox-circle-line' : 'ri-checkbox-blank-circle-line'" class="me-2"/>
-              {{ myReadyState ? 'Pronto!' : 'Estou Pronto!' }}
-            </VBtn>
-            <VChip v-else color="success" size="large">
-              <VIcon icon="ri-checkbox-circle-line" class="me-2"/>
-              Pronto! Aguardando parceiro...
-            </VChip>
-            <p v-if="bothParticipantsReady" class="text-success font-weight-bold mt-3">
-              Ambos prontos! Você pode iniciar a simulação.
-            </p>
-          </div>
-
-          <VBtn
-            v-if="isActorOrEvaluator && bothParticipantsReady && backendActivated && !simulationStarted"
-            block size="large" color="success" prepend-icon="ri-play-line" class="mt-4"
-            @click="handleStartSimulationClick"
-          >
-            Iniciar Simulação
-          </VBtn>
-        </VCardText>
-      </VCard>
-
-      <!-- Banners de Status da Simulação -->
-      <VAlert v-if="simulationStarted && !simulationEnded" type="success" variant="tonal" class="mb-6" prominent>
-        <VIcon icon="ri-play-circle-line" class="me-2" /> Simulação em progresso!
-      </VAlert>
-      <VAlert v-if="simulationEnded" type="info" variant="tonal" class="mb-6" prominent>
-        <VIcon icon="ri-stop-circle-line" class="me-2" /> Simulação encerrada.
-      </VAlert>
+      <!-- CONTROLES DA SIMULAÇÃO -->
+      <SimulationControls
+        :simulation-started="simulationStarted"
+        :simulation-ended="simulationEnded"
+        :my-ready-state="myReadyState"
+        :both-participants-ready="bothParticipantsReady"
+        :backend-activated="backendActivated"
+        :candidate-ready-button-enabled="candidateReadyButtonEnabled"
+        :communication-method="communicationMethod"
+        :meet-link="meetLink"
+        :invite-link-to-show="inviteLinkToShow"
+        :copy-success="copySuccess"
+        :chat-sent-success="chatSentSuccess"
+        :sending-chat="sendingChat"
+        :selected-candidate-for-simulation="selectedCandidateForSimulation"
+        :is-actor-or-evaluator="isActorOrEvaluator"
+        :is-candidate="isCandidate"
+        @update:communication-method="communicationMethod = $event"
+        @update:meet-link="meetLink = $event"
+        @open-google-meet="openGoogleMeet"
+        @generate-invite-link-with-duration="generateInviteLinkWithDuration"
+        @copy-invite-link="copyInviteLink"
+        @send-link-via-private-chat="sendLinkViaPrivateChat"
+        @send-ready="sendReady"
+        @handle-start-simulation-click="handleStartSimulationClick"
+      />
 
       <!-- LAYOUT PRINCIPAL: CONTEÚDO + SIDEBAR (CANDIDATO) OU CONTEÚDO (ATOR) -->
       <VRow>
@@ -1921,151 +1713,27 @@ function toggleCollapse() {
                </VCardText>
              </VCard>
  
-             <!-- Card do Checklist de Avaliação (PEP) - ATOR/AVALIADOR -->
-             <VCard 
-               :class="[
-                 'checklist-evaluator-card',
-                 isDarkTheme ? 'checklist-evaluator-card--dark' : 'checklist-evaluator-card--light'
-               ]"
-               v-if="checklistData?.itensAvaliacao?.length > 0"
-             >
-               <VCardItem>
-                 <VCardTitle class="d-flex align-center justify-space-between">
-                   <div class="d-flex align-center">
-                     <VIcon color="black" icon="ri-file-list-3-fill" size="large" class="me-2" />
-                     Checklist de Avaliação (PEP)
-                   </div>
-                 </VCardTitle>
-                 <!-- Botão centralizado e grande -->
-                 <div class="pep-liberado-btn-wrapper">
-                   <VBtn
-                     color="info"
-                     @click="releasePepToCandidate"
-                     :disabled="pepReleasedToCandidate || !simulationEnded"
-                     variant="tonal"
-                     size="large"
-                     class="pep-liberado-btn"
-                   >
-                     {{ pepReleasedToCandidate ? 'PEP Liberado' : 'Liberar PEP' }}
-                   </VBtn>
-                   <!-- Indicador visual quando o botão está desabilitado -->
-                   <div v-if="!simulationEnded && !pepReleasedToCandidate" class="mt-2">
-                     <VChip color="warning" size="small" variant="outlined">
-                       ⏳ Disponível após encerrar a estação
-                     </VChip>
-                   </div>
-                 </div>
-               </VCardItem>
-               <VTable class="pep-table">
-                 <thead>
-                   <tr>
-                     <th class="text-left">Item</th>
-                     <th class="text-center" style="width: 20%;">Avaliação</th>
-                   </tr>
-                 </thead>
-                 <tbody>
-                   <tr v-for="(item, index) in checklistData.itensAvaliacao" :key="item.idItem || `pep-item-${index}`">
-                     <td>
-                       <!-- Conteúdo do Item -->
-                       <p class="font-weight-bold">
-                         <span v-if="item.itemNumeroOficial">{{ item.itemNumeroOficial }}. </span>
-                         {{ item.descricaoItem ? item.descricaoItem.split(':')[0].trim() : 'Item' }}
-                       </p>
-                       <!-- Apenas a descrição formatada, sem duplicar o título -->
-                       <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')">
-                         <span
-                           v-for="(subItem, subIndex) in parseEnumeratedItems(item.descricaoItem)"
-                           :key="`sub-item-${item.idItem}-${subIndex}`"
-                           class="cursor-pointer"
-                           @click="togglePepItemMark(item.idItem, subItem.index)"
-                           :class="{ 'orange-text': markedPepItems?.[item.idItem]?.[subItem.index] }"
-                         >
-                           ({{ subItem.index + 1 }}) <span v-html="formatItemDescriptionForDisplay(subItem.text)"></span>
-                         </span>
-                       </div>
-                       
-                       <!-- Critérios de Avaliação Integrados -->
-                       <div class="criterios-integrados mt-2">
-                         <div v-if="item.pontuacoes?.adequado" class="criterio-item success--text mb-2">
-                           <div class="d-flex align-start">
-                             <VIcon icon="ri-checkbox-circle-fill" color="success" size="small" class="me-2 mt-1" />
-                             <div>
-                               <div class="font-weight-medium">Adequado ({{ item.pontuacoes.adequado.pontos.toFixed(2) }} pts)</div>
-                               <div class="text-caption">{{ item.pontuacoes.adequado.criterio }}</div>
-                             </div>
-                           </div>
-                         </div>
-                         
-                         <div v-if="item.pontuacoes?.parcialmenteAdequado && item.pontuacoes.parcialmenteAdequado.criterio && item.pontuacoes.parcialmenteAdequado.criterio.trim() !== '' && item.pontuacoes.parcialmenteAdequado.pontos > 0" class="criterio-item warning--text mb-2">
-                           <div class="d-flex align-start">
-                             <VIcon icon="ri-checkbox-indeterminate-fill" color="warning" size="small" class="me-2 mt-1" />
-                             <div>
-                               <div class="font-weight-medium">Parcialmente Adequado ({{ item.pontuacoes.parcialmenteAdequado.pontos.toFixed(2) }} pts)</div>
-                               <div class="text-caption">{{ item.pontuacoes.parcialmenteAdequado.criterio }}</div>
-                             </div>
-                           </div>
-                         </div>
-                         
-                         <div v-if="item.pontuacoes?.inadequado" class="criterio-item error--text">
-                           <div class="d-flex align-start">
-                             <VIcon icon="ri-close-circle-fill" color="error" size="small" class="me-2 mt-1" />
-                             <div>
-                               <div class="font-weight-medium">Inadequado ({{ item.pontuacoes.inadequado.pontos.toFixed(2) }} pts)</div>
-                               <div class="text-caption">{{ item.pontuacoes.inadequado.criterio }}</div>
-                             </div>
-                           </div>
-                         </div>
-                       </div>
-                     </td>
-                     <td class="text-center">
-                       <VRadioGroup v-model="evaluationScores[item.idItem]" :disabled="!simulationStarted" :inline="false">
-                         <VRadio v-if="item.pontuacoes?.adequado" :label="`Adequado`" :value="item.pontuacoes.adequado.pontos" density="compact" color="success" />
-                         <VRadio v-if="item.pontuacoes?.parcialmenteAdequado && item.pontuacoes.parcialmenteAdequado.criterio && item.pontuacoes.parcialmenteAdequado.criterio.trim() !== '' && item.pontuacoes.parcialmenteAdequado.pontos > 0" :label="`Parc. Adequado`" :value="item.pontuacoes.parcialmenteAdequado.pontos" density="compact" color="warning" />
-                         <VRadio v-if="item.pontuacoes?.inadequado" :label="`Inadequado`" :value="item.pontuacoes.inadequado.pontos" density="compact" color="error" />
-                       </VRadioGroup>
-                     </td>
-                   </tr>
-                 </tbody>
-               </VTable>
-               <VCardActions class="pa-4">
-                 <VSpacer />
-                 <VChip color="primary" size="large" label class="me-2">
-                   <strong>Nota Total: {{ totalScore.toFixed(2) }}</strong>
-                 </VChip>
-               </VCardActions>
-               <VAlert v-if="simulationEnded && simulationWasManuallyEndedEarly" type="warning" density="compact" class="ma-2">
-                 A estação foi encerrada manualmente. A submissão de nota ainda é permitida, mas o ato fica registrado.
-               </VAlert>
-               
-               <!-- Feedback da Estação (para ator/avaliador - sempre visível) -->
-               <VCardText v-if="checklistData?.feedbackEstacao">
-                 <VExpansionPanels variant="accordion" class="mt-2">
-                   <VExpansionPanel>
-                     <VExpansionPanelTitle>
-                       <div class="d-flex align-center">
-                         <VIcon icon="ri-information-line" color="info" class="me-2" />
-                         Feedback Técnico da Estação
-                       </div>
-                     </VExpansionPanelTitle>
-                     <VExpansionPanelText>
-                       <div v-if="checklistData.feedbackEstacao.resumoTecnico" class="mb-4">
-                         <h5 class="text-subtitle-1 font-weight-bold mb-2">Resumo Técnico:</h5>
-                         <p class="text-body-2" v-html="checklistData.feedbackEstacao.resumoTecnico"></p>
-                       </div>
-                       <div v-if="checklistData.feedbackEstacao.fontes">
-                         <h5 class="text-subtitle-1 font-weight-bold mb-2">Fontes:</h5>
-                         <ul v-if="Array.isArray(checklistData.feedbackEstacao.fontes)" class="text-caption">
-                           <li v-for="(fonte, index) in checklistData.feedbackEstacao.fontes" :key="index" class="mb-1">
-                             {{ fonte }}
-                           </li>
-                         </ul>
-                         <p v-else class="text-caption" v-html="checklistData.feedbackEstacao.fontes"></p>
-                       </div>
-                     </VExpansionPanelText>
-                   </VExpansionPanel>
-                 </VExpansionPanels>
-               </VCardText>
-             </VCard>
+             <!-- CANDIDATE CHECKLIST COMPONENT -->
+             <CandidateChecklist
+               :checklist-data="checklistData"
+               :simulation-started="simulationStarted"
+               :simulation-ended="simulationEnded"
+               :simulation-was-manually-ended-early="simulationWasManuallyEndedEarly"
+               :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
+               :pep-released-to-candidate="pepReleasedToCandidate"
+               :marked-pep-items="markedPepItems"
+               :evaluation-scores="evaluationScores"
+               :candidate-received-scores="candidateReceivedScores"
+               :candidate-received-total-score="candidateReceivedTotalScore"
+               :total-score="totalScore"
+               :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
+               :is-actor-or-evaluator="isActorOrEvaluator"
+               :is-candidate="isCandidate"
+               @release-pep-to-candidate="releasePepToCandidate"
+               @toggle-pep-item-mark="togglePepItemMark"
+               @update:evaluation-scores="handleEvaluationScoreUpdate"
+               @submit-evaluation="submitEvaluation"
+             />
            </div>
 
            <!-- NAVEGAÇÃO SEQUENCIAL - Botão Próxima Estação -->
@@ -2342,208 +2010,26 @@ function toggleCollapse() {
                  </VCard>
  
                  <!-- Card do Checklist de Avaliação (PEP) -->
-                 <VCard 
-                   :class="[
-                     'mb-6 checklist-candidate-card',
-                     isDarkTheme ? 'checklist-candidate-card--dark' : 'checklist-candidate-card--light'
-                   ]"
-                   v-if="checklistData?.itensAvaliacao?.length > 0 && isChecklistVisibleForCandidate"
-                 >
-                   <VCardItem>
-                     <VCardTitle class="d-flex align-center">
-                       <!-- Mesmo ícone colorido para o PEP na visão do candidato -->
-                       <VIcon color="black" icon="ri-file-list-3-fill" size="large" class="me-2" />
-                       Checklist de Avaliação (PEP)
-                     </VCardTitle>
-                   </VCardItem>
-                   
-                   <VTable class="pep-table">
-                       <thead>
-                           <tr>
-                               <th class="text-left">Item</th>
-                               <th class="text-center" style="width: 20%;">Sua Pontuação</th>
-                           </tr>
-                       </thead>
-                       <tbody>
-                           <tr v-for="(item, index) in checklistData.itensAvaliacao" :key="'cand-chk-' + item.idItem">
-                               <td>
-                                 <!-- Conteúdo do Item -->
-                                 <p class="font-weight-bold">
-                                   <span v-if="item.itemNumeroOficial">{{ item.itemNumeroOficial }}. </span>
-                                   {{ item.descricaoItem ? item.descricaoItem.split(':')[0].trim() : 'Item' }}
-                                 </p>
-                                 <!-- Apenas a descrição formatada, sem duplicar o título -->
-                                 <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')" v-html="memoizedFormatItemDescriptionForDisplay(item.descricaoItem, item.descricaoItem.split(':')[0].trim())" />
-                                 
-                                 <!-- Critérios de Avaliação Integrados para o Candidato -->
-                                 <div class="criterios-integrados mt-2">
-                                   <div v-if="item.pontuacoes?.adequado" 
-                                     :class="{'criterio-item': true, 'criterio-selecionado': candidateReceivedScores[item.idItem] === item.pontuacoes.adequado.pontos, 'mb-2': true}">
-                                     <div class="d-flex align-start">
-                                       <VIcon 
-                                         :icon="candidateReceivedScores[item.idItem] === item.pontuacoes.adequado.pontos ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'" 
-                                         color="success" 
-                                         size="small" 
-                                         class="me-2 mt-1"
-                                       />
-                                       <div>
-                                         <div class="font-weight-medium">Adequado ({{ item.pontuacoes.adequado.pontos.toFixed(2) }} pts)</div>
-                                         <div class="text-caption">{{ item.pontuacoes.adequado.criterio }}</div>
-                                       </div>
-                                     </div>
-                                   </div>
-                                   
-                                   <div v-if="item.pontuacoes?.parcialmenteAdequado && item.pontuacoes.parcialmenteAdequado.criterio && item.pontuacoes.parcialmenteAdequado.criterio.trim() !== '' && item.pontuacoes.parcialmenteAdequado.pontos > 0" 
-                                     :class="{'criterio-item': true, 'criterio-selecionado': candidateReceivedScores[item.idItem] === item.pontuacoes.parcialmenteAdequado.pontos, 'mb-2': true}">
-                                     <div class="d-flex align-start">
-                                       <VIcon 
-                                         :icon="candidateReceivedScores[item.idItem] === item.pontuacoes.parcialmenteAdequado.pontos ? 'ri-checkbox-indeterminate-fill' : 'ri-checkbox-blank-circle-line'" 
-                                         color="warning" 
-                                         size="small" 
-                                         class="me-2 mt-1"
-                                       />
-                                       <div>
-                                         <div class="font-weight-medium">Parcialmente Adequado ({{ item.pontuacoes.parcialmenteAdequado.pontos.toFixed(2) }} pts)</div>
-                                         <div class="text-caption">{{ item.pontuacoes.parcialmenteAdequado.criterio }}</div>
-                                       </div>
-                                     </div>
-                                   </div>
-                                   
-                                   <div v-if="item.pontuacoes?.inadequado" 
-                                     :class="{'criterio-item': true, 'criterio-selecionado': candidateReceivedScores[item.idItem] === item.pontuacoes.inadequado.pontos}">
-                                     <div class="d-flex align-start">
-                                       <VIcon 
-                                         :icon="candidateReceivedScores[item.idItem] === item.pontuacoes.inadequado.pontos ? 'ri-close-circle-fill' : 'ri-checkbox-blank-circle-line'" 
-                                         color="error" 
-                                         size="small" 
-                                         class="me-2 mt-1"
-                                       />
-                                       <div>
-                                         <div class="font-weight-medium">Inadequado ({{ item.pontuacoes.inadequado.pontos.toFixed(2) }} pts)</div>
-                                         <div class="text-caption">{{ item.pontuacoes.inadequado.criterio }}</div>
-                                       </div>
-                                     </div>
-                                   </div>
-                                 </div>
-                               </td>
-                               <td class="text-center">
-                                 <!-- Visualização da pontuação do candidato -->
-                                 <div v-if="candidateReceivedScores[item.idItem] !== undefined">
-                                   <VChip 
-                                     :color="getEvaluationColor(item, candidateReceivedScores[item.idItem])" 
-                                     variant="tonal"
-                                     class="mb-1"
-                                   >
-                                     {{ getEvaluationLabel(item, candidateReceivedScores[item.idItem]) }}
-                                   </VChip>
-                                   <div class="text-caption mt-1">{{ parseFloat(candidateReceivedScores[item.idItem]).toFixed(2) }} pts</div>
-                                 </div>
-                                 <VChip v-else color="grey-lighten-1" variant="tonal">Não avaliado</VChip>
-                               </td>
-                           </tr>
-                       </tbody>
-                   </VTable>
-
-                   <!-- Botão de submissão para candidato -->
-                   <VCardActions v-if="simulationEnded && !evaluationSubmittedByCandidate" class="pa-4">
-                     <VSpacer />
-                     <VBtn
-                       color="primary"
-                       @click="submitEvaluation"
-                       :disabled="simulationWasManuallyEndedEarly"
-                     >
-                       Submeter Avaliação Final
-                     </VBtn>
-                   </VCardActions>
-
-                   <!-- Resumo da nota total - movido para o final -->
-                   <VCardText v-if="candidateReceivedTotalScore > 0" class="pt-4">
-                     <VAlert
-                       variant="tonal"
-                       :color="candidateReceivedTotalScore >= 7 ? 'success' : candidateReceivedTotalScore >= 5 ? 'warning' : 'error'"
-                       class="mb-4"
-                     >
-                       <div class="d-flex justify-space-between align-center">
-                         <div>
-                           <div class="text-h6 mb-1">Sua nota final</div>
-                           <div class="text-body-2">
-                             {{ candidateReceivedTotalScore >= 7 ? 'Parabéns!' : candidateReceivedTotalScore >= 5 ? 'Satisfatório' : 'Precisa melhorar' }}
-                           </div>
-                         </div>
-                         <div class="text-h4 font-weight-bold">
-                           {{ candidateReceivedTotalScore.toFixed(2) }}
-                         </div>
-                       </div>
-                     </VAlert>
-                   </VCardText>
-                   
-                   <!-- Feedback da Estação (para o candidato - só após término) -->
-                   <VCardText v-if="checklistData?.feedbackEstacao && simulationEnded">
-                     <VExpansionPanels variant="accordion" class="mt-2">
-                       <VExpansionPanel>
-                         <VExpansionPanelTitle>
-                           <div class="d-flex align-center">
-                             <VIcon icon="ri-information-line" color="info" class="me-2" />
-                             Feedback Técnico da Estação
-                           </div>
-                         </VExpansionPanelTitle>
-                         <VExpansionPanelText>
-                           <div v-if="checklistData.feedbackEstacao.resumoTecnico" class="mb-4">
-                             <h5 class="text-subtitle-1 font-weight-bold mb-2">Resumo Técnico:</h5>
-                             <p class="text-body-2" v-html="checklistData.feedbackEstacao.resumoTecnico"></p>
-                           </div>
-                           <div v-if="checklistData.feedbackEstacao.fontes">
-                             <h5 class="text-subtitle-1 font-weight-bold mb-2">Fontes:</h5>
-                             <ul v-if="Array.isArray(checklistData.feedbackEstacao.fontes)" class="text-caption">
-                               <li v-for="(fonte, index) in checklistData.feedbackEstacao.fontes" :key="index" class="mb-1">
-                                 {{ fonte }}
-                               </li>
-                             </ul>
-                             <p v-else class="text-caption" v-html="checklistData.feedbackEstacao.fontes"></p>
-                           </div>
-                         </VExpansionPanelText>
-                       </VExpansionPanel>
-                     </VExpansionPanels>
-                   </VCardText>
-                 </VCard>
- 
-                 <!-- Card separado para mostrar a nota mesmo sem o checklist visível -->
-                 <VCard 
-                   :class="[
-                     'mb-6 score-card',
-                     isDarkTheme ? 'score-card--dark' : 'score-card--light'
-                   ]"
-                   v-if="simulationEnded && candidateReceivedTotalScore > 0 && !isChecklistVisibleForCandidate"
-                 >
-                   <VCardItem>
-                     <VCardTitle class="d-flex align-center">
-                       <VIcon color="primary" icon="ri-star-fill" size="large" class="me-2" />
-                       Resultado da Avaliação
-                     </VCardTitle>
-                   </VCardItem>
-                   <VCardText>
-                     <VAlert
-                       variant="tonal"
-                       :color="candidateReceivedTotalScore >= 7 ? 'success' : candidateReceivedTotalScore >= 5 ? 'warning' : 'error'"
-                       class="mb-4"
-                     >
-                       <div class="d-flex justify-space-between align-center">
-                         <div>
-                           <div class="text-h6 mb-1">Sua nota final</div>
-                           <div class="text-body-2">
-                             {{ candidateReceivedTotalScore >= 7 ? 'Parabéns!' : candidateReceivedTotalScore >= 5 ? 'Satisfatório' : 'Precisa melhorar' }}
-                           </div>
-                         </div>
-                         <div class="text-h4 font-weight-bold">
-                           {{ candidateReceivedTotalScore.toFixed(2) }}
-                         </div>
-                       </div>
-                     </VAlert>
-                     <p class="text-body-2 mt-2">
-                       O avaliador ainda não liberou o PEP detalhado da sua avaliação. Você receberá mais detalhes em breve.
-                     </p>
-                   </VCardText>
-                 </VCard>
+                 <CandidateChecklist
+                   :checklist-data="checklistData"
+                   :simulation-started="simulationStarted"
+                   :simulation-ended="simulationEnded"
+                   :simulation-was-manually-ended-early="simulationWasManuallyEndedEarly"
+                   :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
+                   :pep-released-to-candidate="pepReleasedToCandidate"
+                   :marked-pep-items="markedPepItems"
+                   :evaluation-scores="evaluationScores"
+                   :candidate-received-scores="candidateReceivedScores"
+                   :candidate-received-total-score="candidateReceivedTotalScore"
+                   :total-score="totalScore"
+                   :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
+                   :is-actor-or-evaluator="isActorOrEvaluator"
+                   :is-candidate="isCandidate"
+                   @release-pep-to-candidate="releasePepToCandidate"
+                   @toggle-pep-item-mark="togglePepItemMark"
+                   @update:evaluation-scores="handleEvaluationScoreUpdate"
+                   @submit-evaluation="submitEvaluation"
+                 />
              </div>
            </div>
          </VCol>
@@ -2599,53 +2085,14 @@ function toggleCollapse() {
            </VCard>
          </VCol>
 
-         <!-- Coluna Direita Fixa (Sidebar do Candidato) -->
-         <VCol v-if="isCandidate" cols="12" md="4">
-             <div class="candidate-sidebar">
-                 <VCard class="mb-6">
-                     <VCardTitle class="text-center">Tempo Restante</VCardTitle>
-                     <VCardText>
-                         <div class="timer-display-candidate" :class="{ 'ended': simulationEnded }">
-                             <VIcon icon="ri-time-line" class="me-1" />
-                             {{ timerDisplay }}
-                         </div>
-                     </VCardText>
-                 </VCard>
-                 <VCard v-if="simulationStarted && stationData?.instrucoesParticipante?.tarefasPrincipais?.length">
-                     <VCardItem>
-                         <template #prepend>
-                             <VIcon icon="ri-task-line" color="success" />
-                         </template>
-                         <VCardTitle>Suas Tarefas</VCardTitle>
-                     </VCardItem>
-                     <VCardText class="text-body-1">
-                         <ul class="tasks-list pl-5">
-                             <li v-for="(tarefa, i) in stationData.instrucoesParticipante.tarefasPrincipais" :key="`cand-task-sidebar-${i}`" v-html="tarefa"></li>
-                         </ul>
-                     </VCardText>
-                 </VCard>
- 
-                 <!-- Orientações do Candidato na Sidebar -->
-                 <VCard v-if="stationData?.roteiroCandidato || stationData?.orientacoesCandidato" class="mb-6">
-                     <VCardItem>
-                         <template #prepend>
-                             <VIcon icon="ri-user-line" color="primary" />
-                         </template>
-                         <VCardTitle>Orientações</VCardTitle>
-                     </VCardItem>
-                     <VCardText class="text-body-1">
-                         <div v-if="stationData.roteiroCandidato" class="mb-4">
-                             <h6 class="text-subtitle-1 font-weight-bold mb-2">Instruções:</h6>
-                             <div v-html="processRoteiro(stationData.roteiroCandidato)"></div>
-                         </div>
-                         <div v-if="stationData.orientacoesCandidato">
-                             <h6 class="text-subtitle-1 font-weight-bold mb-2">Orientações Adicionais:</h6>
-                             <div v-html="stationData.orientacoesCandidato"></div>
-                         </div>
-                     </VCardText>
-                 </VCard>
-             </div>
-         </VCol>
+         <!-- SIDEBAR DO CANDIDATO -->
+         <SimulationSidebar
+           :simulation-started="simulationStarted"
+           :simulation-ended="simulationEnded"
+           :timer-display="timerDisplay"
+           :station-data="stationData"
+           :is-candidate="isCandidate"
+         />
        </VRow>
      </div>
  
