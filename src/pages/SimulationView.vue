@@ -656,13 +656,27 @@ function connectWebSocket() {
     }
   });
   socket.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (payload) => {
+    console.log('[CANDIDATE_PEP] 📥 Recebido CANDIDATE_RECEIVE_PEP_VISIBILITY');
+    console.log('[CANDIDATE_PEP]   - payload:', payload);
+    console.log('[CANDIDATE_PEP]   - userRole:', userRole.value);
+    console.log('[CANDIDATE_PEP]   - payload.shouldBeVisible:', payload?.shouldBeVisible);
+    console.log('[CANDIDATE_PEP]   - isChecklistVisibleForCandidate ANTES:', isChecklistVisibleForCandidate.value);
+
     if (userRole.value === 'candidate' && payload && typeof payload.shouldBeVisible === 'boolean') {
+      console.log('[CANDIDATE_PEP] ✅ Condições atendidas - atualizando visibilidade');
       isChecklistVisibleForCandidate.value = payload.shouldBeVisible;
-      
+      console.log('[CANDIDATE_PEP]   - isChecklistVisibleForCandidate DEPOIS:', isChecklistVisibleForCandidate.value);
+
       // Notificar o candidato quando o PEP é liberado
       if (payload.shouldBeVisible) {
+        console.log('[CANDIDATE_PEP] 🔔 Mostrando notificação de liberação');
         showNotification('O PEP (checklist de avaliação) foi liberado pelo examinador!', 'success');
       }
+    } else {
+      console.log('[CANDIDATE_PEP] ❌ Condições não atendidas');
+      if (userRole.value !== 'candidate') console.log('[CANDIDATE_PEP]   ❌ Não é candidato');
+      if (!payload) console.log('[CANDIDATE_PEP]   ❌ Payload inválido');
+      if (typeof payload?.shouldBeVisible !== 'boolean') console.log('[CANDIDATE_PEP]   ❌ shouldBeVisible não é boolean');
     }
   });
   socket.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
