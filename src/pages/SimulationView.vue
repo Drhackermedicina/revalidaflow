@@ -27,19 +27,12 @@ import SimulationHeader from '@/components/SimulationHeader.vue';
 import SimulationControls from '@/components/SimulationControls.vue';
 import SimulationSidebar from '@/components/SimulationSidebar.vue';
 import CandidateChecklist from '@/components/CandidateChecklist.vue';
-import {
-  formatActorText,
-  formatIdentificacaoPaciente,
-  formatItemDescriptionForDisplay,
-  parseEnumeratedItems,
-  formatTime,
-  getEvaluationColor,
-  getEvaluationLabel,
-  getInfrastructureColor,
-  getInfrastructureIcon,
-  processInfrastructureItems,
-  splitIntoParagraphs
-} from '@/utils/simulationUtils.ts';
+import ActorScriptPanel from '@/components/ActorScriptPanel.vue';
+import CandidateContentPanel from '@/components/CandidateContentPanel.vue';
+import ImageZoomModal from '@/components/ImageZoomModal.vue';
+import ImpressosModal from '@/components/ImpressosModal.vue';
+import { formatActorText, formatIdentificacaoPaciente, formatItemDescriptionForDisplay, splitIntoParagraphs, formatTime, getEvaluationColor, getEvaluationLabel, getInfrastructureColor, getInfrastructureIcon, processInfrastructureItems } from '@/utils/simulationUtils.ts';
+import { parseEnumeratedItems } from '@/utils/simulationUtils.ts';
 import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { io } from 'socket.io-client';
@@ -48,9 +41,16 @@ import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 import PepSideView from '@/components/PepSideView.vue';
-
-// Funções utilitárias importadas
+import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue';
 import { memoize } from '@/utils/memoization.js';
+
+// Handlers para imagem de zoom (evitam warnings Vue)
+function handleZoomImageError(err) {
+  console.error('Erro ao carregar imagem de zoom:', err);
+}
+function handleZoomImageLoad(event) {
+  // Carregamento de imagem completo
+}
 
 // Funções de formatação memoizadas
 const memoizedFormatActorText = memoize(formatActorText);
@@ -151,10 +151,8 @@ let connectionStatus = ref('');
 let connect = () => {};
 let disconnect = () => {};
 
-// Refs necessários para useEvaluation
-const simulationEnded = ref(false);
-
 // Refs para notificações
+// NOTA: simulationEnded agora vem do useSimulationWorkflow (linha 317)
 const showNotificationSnackbar = ref(false);
 const notificationMessage = ref('');
 const notificationColor = ref('info');
@@ -314,6 +312,7 @@ const {
   partnerReadyState,
   candidateReadyButtonEnabled,
   simulationStarted,
+  simulationEnded, // ✅ Gerenciado pelo composable
   simulationWasManuallyEndedEarly,
   backendActivated,
   bothParticipantsReady,
@@ -378,10 +377,10 @@ function openEditPage() {
 }
 
 // Refs para estado de prontidão e controle da simulação
-// MOVIDOS PARA useSimulationWorkflow composable (linhas 303-310):
-// - myReadyState, partnerReadyState, simulationStarted
+// MOVIDOS PARA useSimulationWorkflow composable (linhas 312-334):
+// - myReadyState, partnerReadyState, simulationStarted, simulationEnded
 // - simulationWasManuallyEndedEarly, candidateReadyButtonEnabled, backendActivated
-// simulationEnded permanece na linha 138 (antes da inicialização dos composables)
+// Todos os estados de workflow agora são gerenciados pelo composable
 
 async function playSoundEffect() {
   try {
@@ -610,21 +609,14 @@ function connectWebSocket() {
   socket.on('TIMER_UPDATE', (data) => {
     // Workflow: atualizar timer display
     handleTimerUpdate(data);
-
-    if (typeof data.remainingSeconds === 'number') {
-      if (data.remainingSeconds <= 0 && !simulationEnded.value) {
-        simulationEnded.value = true;
-      }
-    }
+    // NOTA: simulationEnded é gerenciado pelo handleTimerUpdate do composable
   });
   socket.on('TIMER_END', () => {
     // Workflow: atualizar timer e estado
     handleTimerEnd();
+    // NOTA: simulationEnded é gerenciado pelo handleTimerEnd do composable
 
-    if (!simulationEnded.value) {
-      playSoundEffect(); // Som do final da estação
-      simulationEnded.value = true; // Marca como encerrada ANTES para evitar som duplicado
-    }
+    playSoundEffect(); // Som do final da estação
 
     // Limpar candidato selecionado quando simulação termina
     clearSelectedCandidate();
@@ -892,13 +884,13 @@ function setupSession() {
   });
 }
 
-
 // totalScore e allEvaluationsCompleted movidos para useEvaluation composable
 
 // bothParticipantsReady computed e watch movidos para useSimulationWorkflow composable
 
 
 onMounted(() => {
+  console.log('[DEBUG] SimulationView mounted - checking template structure');
   setupSession();
 
   // Verifica link do Meet para candidato
@@ -1407,312 +1399,32 @@ function toggleCollapse() {
         <VCol :cols="isCandidate ? 12 : 12" :md="isCandidate ? 8 : 12">
           <!-- VISÃO DO ATOR/AVALIADOR -->
           <div v-if="isActorOrEvaluator">
-            <!-- Card para Cenário -->
-            <VCard 
-              :class="[
-                'mb-6 scenario-card',
-                isDarkTheme ? 'scenario-card--dark' : 'scenario-card--light'
-              ]" 
-              v-if="stationData.instrucoesParticipante?.cenarioAtendimento"
-            >
-                <VCardItem>
-                    <template #prepend>
-                        <VIcon icon="ri-hospital-line" color="info" />
-                    </template>
-                    <VCardTitle>Cenário do Atendimento</VCardTitle>
-                </VCardItem>
-                <VCardText v-if="stationData.instrucoesParticipante" class="text-body-1">
-                    <p><strong>Nível de Atenção:</strong> {{ stationData.instrucoesParticipante.cenarioAtendimento?.nivelAtencao }}</p>
-                    <p><strong>Tipo de Atendimento:</strong> {{ stationData.instrucoesParticipante.cenarioAtendimento?.tipoAtendimento }}</p>
-                    <div v-if="stationData.instrucoesParticipante.cenarioAtendimento?.infraestruturaUnidade?.length">
-                        <p class="font-weight-bold text-h6 mb-2 d-flex align-center">
-                            <VIcon icon="ri-building-2-line" color="primary" class="me-2" size="24" />
-                            Infraestrutura:
-                        </p>
-                        <VCard 
-                          flat 
-                          :class="[
-                            'pa-2 mb-4 infrastructure-card',
-                            isDarkTheme ? 'infrastructure-card--dark' : 'infrastructure-card--light'
-                          ]"
-                        >
-                            <ul class="tasks-list infra-icons-list pl-2">
-                                <li v-for="(item, index) in processInfrastructureItems(stationData.instrucoesParticipante.cenarioAtendimento.infraestruturaUnidade)" 
-                                    :key="`infra-actor-${index}`"
-                                    :class="{'sub-item': item.startsWith('- ')}">
-                                    <VIcon 
-                                      :icon="getInfrastructureIcon(item)" 
-                                      :color="getInfrastructureColor(item)" 
-                                      class="me-2" 
-                                      size="20"
-                                      :title="item.startsWith('- ') ? item.substring(2) : item"
-                                    />
-                                    <span :data-sub-item="item.startsWith('- ') ? 'true' : 'false'">
-                                      {{ item.startsWith('- ') ? item.substring(2) : item }}
-                                    </span>
-                                </li>
-                            </ul>
-                        </VCard>
-                    </div>
-                </VCardText>
-            </VCard>
+            <!-- ACTOR SCRIPT PANEL COMPONENT -->
+            <ActorScriptPanel
+              :station-data="stationData"
+              :is-dark-theme="isDarkTheme"
+              :is-actor-or-evaluator="isActorOrEvaluator"
+              :checklist-data="checklistData"
+              :pep-view-state="pepViewState"
+              :marked-pep-items="markedPepItems"
+              :marked-script-contexts="markedScriptContexts"
+              :marked-paragraphs="markedParagraphs"
+              :actor-visible-impresso-content="actorVisibleImpressoContent"
+              :actor-released-impresso-ids="actorReleasedImpressoIds"
+              :get-image-source="getImageSource"
+              :get-image-id="getImageId"
+              :handle-image-error="handleImageError"
+              :handle-image-load="handleImageLoad"
+              :is-paragraph-marked="isParagraphMarked"
+              @toggle-script-context="debouncedToggleScriptContext"
+              @toggle-paragraph-mark="debouncedToggleParagraphMark"
+              @toggle-pep-view="pepViewState.isVisible = !pepViewState.isVisible"
+              @toggle-pep-item-mark="togglePepItemMark"
+              @toggle-actor-impresso-visibility="toggleActorImpressoVisibility"
+              @release-data="releaseData"
+              @open-image-zoom="openImageZoom"
+            />
 
-            <!-- Card para Descrição do Caso -->
-            <VCard 
-              :class="[
-                'mb-6 case-description-card',
-                isDarkTheme ? 'case-description-card--dark' : 'case-description-card--light'
-              ]" 
-              v-if="stationData.instrucoesParticipante?.descricaoCasoCompleta"
-            >
-                <VCardItem>
-                    <template #prepend>
-                        <VIcon icon="ri-file-text-line" color="primary" />
-                    </template>
-                    <VCardTitle>Descrição do Caso</VCardTitle>
-                </VCardItem>
-                <VCardText class="text-body-1" v-html="stationData.instrucoesParticipante.descricaoCasoCompleta" />
-            </VCard>
-
-            <!-- Card para Tarefas -->
-            <VCard 
-              :class="[
-                'mb-6 tasks-card',
-                isDarkTheme ? 'tasks-card--dark' : 'tasks-card--light'
-              ]" 
-              v-if="stationData.instrucoesParticipante?.tarefasPrincipais?.length"
-            >
-                <VCardItem>
-                    <template #prepend>
-                        <VIcon icon="ri-task-line" color="success" />
-                    </template>
-                    <VCardTitle>Tarefas do Candidato</VCardTitle>
-                </VCardItem>
-                <VCardText class="text-body-1">
-                    <ul class="tasks-list pl-5">
-                        <li v-for="(tarefa, i) in stationData.instrucoesParticipante.tarefasPrincipais" :key="`actor-task-${i}`" v-html="tarefa"></li>
-                    </ul>
-                </VCardText>
-            </VCard>
-
-            <!-- Card para Avisos Importantes -->
-            <VCard
-              :class="[
-                'mb-6 warnings-card',
-                isDarkTheme ? 'warnings-card--dark' : 'warnings-card--light'
-              ]"
-              v-if="stationData.instrucoesParticipante?.avisosImportantes?.length"
-            >
-                <VCardItem>
-                    <template #prepend>
-                        <VIcon icon="ri-error-warning-line" color="warning" />
-                    </template>
-                    <VCardTitle>Avisos Importantes para o Candidato</VCardTitle>
-                </VCardItem>
-                <VCardText class="text-body-1">
-                    <ul class="warnings-list pl-5">
-                        <li v-for="(aviso, i) in stationData.instrucoesParticipante.avisosImportantes" :key="`actor-warning-${i}`" class="mb-2">
-                            {{ aviso }}
-                        </li>
-                    </ul>
-                </VCardText>
-            </VCard>
-
-            <!-- Card para Roteiro / Informações Verbais do Ator -->
-            <VCard
-              id="roteiro-card"
-              :class="[
-                'mb-6 script-card',
-                isDarkTheme ? 'script-card--dark' : 'script-card--light'
-              ]"
-              v-if="stationData?.materiaisDisponiveis?.informacoesVerbaisSimulado && stationData.materiaisDisponiveis.informacoesVerbaisSimulado.length > 0"
-              style="display: flex; flex-direction: column;"
-            >
-                <VCardItem>
-                    <template #prepend>
-                        <VIcon icon="ri-chat-quote-line" color="warning" />
-                    </template>
-                    <VCardTitle class="d-flex align-center justify-space-between">
-                        <div class="d-flex align-center">
-                            Roteiro / Informações a Fornecer
-                            <VChip size="small" color="warning" variant="outlined" class="ms-2">
-                                Se perguntado pelo candidato
-                            </VChip>
-                            <VBtn
-                              icon
-                              variant="text"
-                              size="large"
-                              class="ms-3 pep-eye-button"
-                              @click="pepViewState.isVisible = !pepViewState.isVisible"
-                              :title="pepViewState.isVisible ? 'Ocultar PEP' : 'Mostrar PEP'"
-                            >
-                              <VIcon 
-                                :icon="pepViewState.isVisible ? 'ri-eye-off-line' : 'ri-eye-line'" 
-                                size="24"
-                              />
-                            </VBtn>
-                        </div>
-                    </VCardTitle>
-                </VCardItem>
-                <div class="d-flex flex-grow-1" :class="{ 'flex-column flex-md-row': pepViewState.isVisible }" style="flex: 1;">
-                  <VCardText
-                    class="text-body-1"
-                    :class="{
-                      'flex-grow-1': true,
-                      'w-100': !pepViewState.isVisible,
-                      'w-50': pepViewState.isVisible,
-                      'pep-split-view-border-right': pepViewState.isVisible
-                    }"
-                  >
-                      <ul class="roteiro-list pa-0" style="list-style: none;">
-                          <li v-for="(info, idx) in stationData.materiaisDisponiveis.informacoesVerbaisSimulado"
-                              :key="'script-' + idx"
-                              class="mb-2 pa-1">
-                            <!-- Título/Contexto (com marcação para todo o bloco) -->
-                            <div class="font-weight-bold pa-1 rounded cursor-pointer">
-                              <span
-                                :data-marked="markedScriptContexts[idx] ? 'true' : 'false'"
-                                :class="{
-                                  'marked-context-primary': markedScriptContexts[idx],
-                                  'uppercase-title': !markedScriptContexts[idx]
-                                }"
-                                @click="(e) => debouncedToggleScriptContext(idx, e)"
-                                v-html="processRoteiroActor(info.contextoOuPerguntaChave)">
-                              </span>
-                            </div>
-                            
-                            <!-- Cada parágrafo do conteúdo com marcação independente -->
-                            <div class="mt-2 pa-1 border-s-2" style="border-left: 3px solid rgba(var(--v-theme-outline), 0.3);">
-                                   <!-- Tratamento especial para IDENTIFICAÇÃO DO PACIENTE -->
-                                   <div v-if="info.contextoOuPerguntaChave.toUpperCase().includes('IDENTIFICAÇÃO DO PACIENTE')"
-                                        class="paragraph-item cursor-pointer">
-                                     <span
-                                       :class="{
-                                         'marked-warning': isParagraphMarked(idx, 0)
-                                       }"
-                                       @click="(e) => debouncedToggleParagraphMark(idx, 0, e)"
-                                       v-html="memoizedFormatIdentificacaoPaciente(info.informacao, info.contextoOuPerguntaChave)">
-                                     </span>
-                                   </div>
-                                   
-                                   <!-- Tratamento padrão para outras informações verbais -->
-                                   <div v-else
-                                        v-for="(paragraph, pIdx) in splitIntoParagraphs(info.informacao)"
-                                        :key="`paragraph-${idx}-${pIdx}`"
-                                        class="paragraph-item cursor-pointer">
-                                     <span
-                                       :class="{
-                                         'marked-warning': isParagraphMarked(idx, pIdx)
-                                       }"
-                                       @click="(e) => debouncedToggleParagraphMark(idx, pIdx, e)"
-                                       v-html="processRoteiroActor(paragraph)">
-                                     </span>
-                                   </div>
-                             </div>
-                           </li>
-                       </ul>
-                   </VCardText>
-                   <PepSideView
-                      v-if="pepViewState.isVisible"
-                      :pep-data="checklistData?.itensAvaliacao"
-                      :marked-pep-items="markedPepItems"
-                      :toggle-pep-item-mark="togglePepItemMark"
-                      :class="{
-                        'w-100': !pepViewState.isVisible,
-                        'w-50': pepViewState.isVisible,
-                        'pep-side-view-card': true
-                      }"
-                   />
-                </div>
-             </VCard>
-
-            <VCard
-              id="impressos-card"
-              :class="[
-                'mb-6 impressos-actor-card',
-                isDarkTheme ? 'impressos-actor-card--dark' : 'impressos-actor-card--light'
-              ]"
-              v-if="isActorOrEvaluator && stationData?.materiaisDisponiveis?.impressos?.length > 0"
-            >
-              <VCardTitle>IMPRESSOS</VCardTitle>
-              <VCardText>
-                <div v-for="impresso in stationData.materiaisDisponiveis.impressos" :key="impresso.idImpresso" class="impresso-control-item">
-                  <div class="d-flex align-center gap-2 flex-wrap">
-                    <VBtn
-                      @click="toggleActorImpressoVisibility(impresso.idImpresso)"
-                      :color="actorVisibleImpressoContent[impresso.idImpresso] ? 'primary' : 'info'"
-                      :prepend-icon="actorVisibleImpressoContent[impresso.idImpresso] ? 'ri-eye-off-line' : 'ri-eye-line'"
-                      class="impresso-btn"
-                    >
-                      {{ impresso.tituloImpresso }}
-                    </VBtn>
-                    <VBtn icon variant="tonal" size="small" @click="releaseData(impresso.idImpresso)" :disabled="!!actorReleasedImpressoIds[impresso.idImpresso]">
-                      <VIcon :icon="!!actorReleasedImpressoIds[impresso.idImpresso] ? 'ri-lock-unlock-line' : 'ri-lock-line'" />
-                    </VBtn>
-                  </div>
-                  <VExpandTransition>
-                    <div v-if="actorVisibleImpressoContent[impresso.idImpresso]" class="mt-2 pa-3 border rounded bg-grey-lighten-4">
-                      <div v-if="impresso.tipoConteudo === 'texto_simples'" v-html="impresso.conteudo.texto" />
-                      <div v-else-if="impresso.tipoConteudo === 'imagem_com_texto'">
-                        <p v-if="impresso.conteudo.textoDescritivo" v-html="impresso.conteudo.textoDescritivo"></p>
-                        <img 
-                          v-if="impresso.conteudo.caminhoImagem" 
-                          :src="getImageSource(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'actor-img-texto'))" 
-                          :alt="impresso.tituloImpresso" 
-                          class="impresso-imagem impresso-imagem-clickable"
-                          @click="openImageZoom(getImageSource(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'actor-img-texto')), impresso.tituloImpresso)"
-                          @error="handleImageError(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'actor-img-texto'))"
-                          @load="handleImageLoad(getImageId(impresso.idImpresso, 'actor-img-texto'))"
-                        />
-                        <p v-if="impresso.conteudo.legendaImagem"><em>{{ impresso.conteudo.legendaImagem }}</em></p>
-                        <div v-if="impresso.conteudo.laudo" class="laudo-impresso"><pre>{{ impresso.conteudo.laudo }}</pre></div>
-                      </div>
-                      <div v-else-if="impresso.tipoConteudo === 'lista_chave_valor_secoes'" class="mt-4">
-                          <div v-for="(secao, idxS) in impresso.conteudo.secoes" :key="`actor-prev-sec-${impresso.idImpresso}-${idxS}`">
-                            <h6 class="text-subtitle-1 font-weight-bold mt-2" v-if="secao.tituloSecao">{{ secao.tituloSecao }}</h6>
-                            <div class="chave-valor-list">
-                                <!-- Filtra itens que não sejam duplicações do título da seção -->
-                                <div v-for="(itemSec, idxI) in (secao.itens || []).filter(item => {
-                                  if (!item.chave || !secao.tituloSecao) return true;
-                                  const tituloNormalizado = secao.tituloSecao.trim().toLowerCase();
-                                  const chaveNormalizada = item.chave.trim().toLowerCase();
-                                  return chaveNormalizada !== tituloNormalizado;
-                                })" :key="`actor-prev-item-${impresso.idImpresso}-${idxS}-${idxI}`" class="chave-valor-item">
-                                    <strong>{{ itemSec.chave }}:</strong> <span v-html="itemSec.valor"></span>
-                                </div>
-                            </div>
-                          </div>
-                      </div>
-                      <div v-else-if="impresso.tipoConteudo === 'tabela_objetos'">
-                          <VTable>
-                               <thead>
-                                   <tr><th v-for="cab in impresso.conteudo.cabecalhos" :key="`actor-prev-th-${cab.key}`">{{ cab.label }}</th></tr>
-                               </thead>
-                               <tbody>
-                                   <tr v-for="(linha, idxL) in impresso.conteudo.linhas" :key="`actor-prev-lin-${impresso.idImpresso}-${idxL}`">
-                                       <td v-for="cab in impresso.conteudo.cabecalhos" :key="`actor-prev-cel-${impresso.idImpresso}-${idxL}-${cab.key}`" v-html="linha[cab.key]"></td>
-                                   </tr>
-                               </tbody>
-                           </VTable>
-                       </div>
-                       <div v-else-if="impresso.tipoConteudo === 'imagem_descritiva'">
-                           <p v-if="impresso.conteudo.descricao" v-html="impresso.conteudo.descricao"></p>
-                           <img 
-                             v-if="impresso.conteudo.caminhoImagem" 
-                             :src="getImageSource(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'actor-img-desc'))" 
-                             :alt="impresso.tituloImpresso" 
-                             class="impresso-imagem"
-                             @error="handleImageError(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'actor-img-desc'))"
-                             @load="handleImageLoad(getImageId(impresso.idImpresso, 'actor-img-desc'))"
-                           />
-                       </div>
-                       <pre v-else>{{ impresso.conteudo }}</pre>
-                     </div>
-                   </VExpandTransition>
-                 </div>
-               </VCardText>
-             </VCard>
- 
              <!-- CANDIDATE CHECKLIST COMPONENT -->
              <CandidateChecklist
                :checklist-data="checklistData"
@@ -1848,191 +1560,27 @@ function toggleCollapse() {
                  </VCard>
              </div>
  
-             <div v-if="simulationStarted">
-                 <!-- Card para Cenário (CANDIDATO) -->
-                 <VCard class="mb-6" v-if="stationData.instrucoesParticipante?.cenarioAtendimento">
-                     <VCardItem>
-                         <template #prepend>
-                             <VIcon icon="ri-hospital-line" color="info" />
-                         </template>
-                         <VCardTitle>Cenário do Atendimento</VCardTitle>
-                     </VCardItem>
-                     <VCardText class="text-body-1">
-                         <p><strong>Nível de Atenção:</strong> {{ stationData.instrucoesParticipante.cenarioAtendimento?.nivelAtencao }}</p>
-                         <p><strong>Tipo de Atendimento:</strong> {{ stationData.instrucoesParticipante.cenarioAtendimento?.tipoAtendimento }}</p>
-                         <div v-if="stationData.instrucoesParticipante.cenarioAtendimento?.infraestruturaUnidade?.length">
-                             <p class="font-weight-bold text-h6 mb-2 d-flex align-center">
-                                 <VIcon icon="ri-building-2-line" color="primary" class="me-2" size="24" />
-                                 Infraestrutura:
-                             </p>
-                             <VCard flat class="bg-primary-lighten-5 pa-2 mb-4">
-                                 <ul class="tasks-list infra-icons-list pl-2">
-                                     <li v-for="(item, index) in processInfrastructureItems(stationData.instrucoesParticipante.cenarioAtendimento.infraestruturaUnidade)" 
-                                         :key="`infra-cand-${index}`"
-                                         :class="{'sub-item': item.startsWith('- ')}">
-                                         <VIcon 
-                                           :icon="getInfrastructureIcon(item)" 
-                                           :color="getInfrastructureColor(item)" 
-                                           class="me-2" 
-                                           size="20"
-                                           :title="item.startsWith('- ') ? item.substring(2) : item"
-                                         />
-                                         <span :data-sub-item="item.startsWith('- ') ? 'true' : 'false'">
-                                           {{ item.startsWith('- ') ? item.substring(2) : item }}
-                                         </span>
-                                     </li>
-                                 </ul>
-                             </VCard>
-                         </div>
-                     </VCardText>
-                 </VCard>
- 
-                 <!-- Card para Descrição do Caso (CANDIDATO) -->
-                 <VCard class="mb-6" v-if="stationData.instrucoesParticipante?.descricaoCasoCompleta">
-                     <VCardItem>
-                         <template #prepend>
-                             <VIcon icon="ri-file-text-line" color="primary" />
-                         </template>
-                         <VCardTitle>Descrição do Caso</VCardTitle>
-                     </VCardItem>
-                     <VCardText class="text-body-1" v-if="stationData.instrucoesParticipante" v-html="stationData.instrucoesParticipante.descricaoCasoCompleta" />
-                 </VCard>
- 
-                 <!-- Card para Tarefas (CANDIDATO - CORPO PRINCIPAL) -->
-                 <VCard class="mb-6" v-if="simulationStarted && stationData.instrucoesParticipante?.tarefasPrincipais?.length">
-                     <VCardItem>
-                         <template #prepend>
-                             <VIcon icon="ri-task-line" color="success" />
-                         </template>
-                         <VCardTitle>Suas Tarefas</VCardTitle>
-                     </VCardItem>
-                     <VCardText class="text-body-1">
-                         <ul class="tasks-list pl-5">
-                             <li v-for="(tarefa, i) in stationData.instrucoesParticipante.tarefasPrincipais" :key="`cand-task-main-${i}`" v-html="tarefa"></li>
-                         </ul>
-                     </VCardText>
-                 </VCard>
+             <!-- CONTEÚDO DO CANDIDATO -->
+             <CandidateContentPanel
+               :station-data="stationData"
+               :simulation-started="simulationStarted"
+               :is-dark-theme="isDarkTheme"
+             />
 
-                 <!-- Card para Avisos Importantes (CANDIDATO) -->
-                 <VCard
-                   class="mb-6"
-                   v-if="simulationStarted && stationData.instrucoesParticipante?.avisosImportantes?.length"
-                 >
-                     <VCardItem>
-                         <template #prepend>
-                             <VIcon icon="ri-error-warning-line" color="warning" />
-                         </template>
-                         <VCardTitle>Avisos Importantes</VCardTitle>
-                     </VCardItem>
-                     <VCardText class="text-body-1">
-                         <ul class="warnings-list pl-5">
-                             <li v-for="(aviso, i) in stationData.instrucoesParticipante.avisosImportantes" :key="`cand-warning-${i}`" class="mb-2">
-                                 {{ aviso }}
-                             </li>
-                         </ul>
-                     </VCardText>
-                 </VCard>
+             <!-- Inserir Impressos do candidato como componente -->
+             <CandidateImpressosPanel
+               v-if="simulationStarted"
+               :released-data="releasedData"
+               :is-dark-theme="isDarkTheme"
+               :get-image-source="getImageSource"
+               :get-image-id="getImageId"
+               :open-image-zoom="openImageZoom"
+               :handle-image-error="handleImageError"
+               :handle-image-load="handleImageLoad"
+             />
 
-                 <VCard
-                   :class="[
-                     'mb-6 impressos-candidate-card',
-                     isDarkTheme ? 'impressos-candidate-card--dark' : 'impressos-candidate-card--light'
-                   ]"
-                 >
-                     <VCardTitle>IMPRESSOS RECEBIDOS</VCardTitle>
-                     <VCardText>
-                         <VAlert v-if="Object.keys(releasedData).length === 0" type="info" variant="tonal">
-                         Nenhum "impresso" recebido ainda.
-                         </VAlert>
-                         <VExpansionPanels v-else variant="inset" class="mt-4">
-                         <VExpansionPanel v-for="impresso in releasedData" :key="'released-'+impresso.idImpresso">
-                             <VExpansionPanelTitle>{{ impresso.tituloImpresso }}</VExpansionPanelTitle>
-                             <VExpansionPanelText class="text-body-1">
-                             <div v-if="impresso.tipoConteudo === 'texto_simples'" v-html="impresso.conteudo.texto" />
-                             <div v-else-if="impresso.tipoConteudo === 'imagem_com_texto'">
-                                 <p v-if="impresso.conteudo.textoDescritivo" v-html="impresso.conteudo.textoDescritivo"></p>
-                                 <img 
-                                   v-if="impresso.conteudo.caminhoImagem" 
-                                   :src="getImageSource(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'candidate-img-texto'))" 
-                                   :alt="impresso.tituloImpresso" 
-                                   class="impresso-imagem impresso-imagem-clickable"
-                                   @click="openImageZoom(getImageSource(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'candidate-img-texto')), impresso.tituloImpresso)"
-                                   @error="handleImageError(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'candidate-img-texto'))"
-                                   @load="handleImageLoad(getImageId(impresso.idImpresso, 'candidate-img-texto'))"
-                                 />
-                                 <p v-if="impresso.conteudo.legendaImagem"><em>{{ impresso.conteudo.legendaImagem }}</em></p>
-                                 <div v-if="impresso.conteudo.laudo" class="laudo-impresso"><pre>{{ impresso.conteudo.laudo }}</pre></div>
-                             </div>
-                             <div v-else-if="impresso.tipoConteudo === 'lista_chave_valor_secoes'" class="mt-4">
-                                 <div v-for="(secao, idxS) in impresso.conteudo.secoes" :key="`cand-sec-${impresso.idImpresso}-${idxS}`">
-                                     <h6 class="text-subtitle-1 font-weight-bold mt-2" v-if="secao.tituloSecao">{{ secao.tituloSecao }}</h6>
-                                     <div class="chave-valor-list">
-                                         <!-- Filtra itens que não sejam duplicações do título da seção -->
-                                         <div v-for="(itemSec, idxI) in (secao.itens || []).filter(item => {
-                                           if (!item.chave || !secao.tituloSecao) return true;
-                                           const tituloNormalizado = secao.tituloSecao.trim().toLowerCase();
-                                           const chaveNormalizada = item.chave.trim().toLowerCase();
-                                           return chaveNormalizada !== tituloNormalizado;
-                                         })" :key="`cand-item-${impresso.idImpresso}-${idxS}-${idxI}`" class="chave-valor-item">
-                                             <strong>{{ itemSec.chave }}:</strong> <span v-html="itemSec.valor"></span>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                             <div v-else-if="impresso.tipoConteudo === 'tabela_objetos'">
-                                 <VTable>
-                                     <thead>
-                                         <tr><th v-for="cab in impresso.conteudo.cabecalhos" :key="`cand-th-${cab.key}`">{{ cab.label }}</th></tr>
-                                     </thead>
-                                     <tbody>
-                                         <tr v-for="(linha, idxL) in impresso.conteudo.linhas" :key="`cand-lin-${impresso.idImpresso}-${idxL}`">
-                                             <td v-for="cab in impresso.conteudo.cabecalhos" :key="`cand-cel-${impresso.idImpresso}-${idxL}-${cab.key}`" v-html="linha[cab.key]"></td>
-                                         </tr>
-                                     </tbody>
-                                 </VTable>
-                             </div>
-                             <div v-else-if="impresso.tipoConteudo === 'imagem_descritiva'">
-                                 <p v-if="impresso.conteudo.descricao" v-html="impresso.conteudo.descricao"></p>
-                                 <img 
-                                   v-if="impresso.conteudo.caminhoImagem" 
-                                   :src="getImageSource(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'candidate-img-desc'))" 
-                                   :alt="impresso.tituloImpresso" 
-                                   class="impresso-imagem"
-                                   @error="handleImageError(impresso.conteudo.caminhoImagem, getImageId(impresso.idImpresso, 'candidate-img-desc'))"
-                                   @load="handleImageLoad(getImageId(impresso.idImpresso, 'candidate-img-desc'))"
-                                 />
-                             </div>
-                             <pre v-else>{{ impresso.conteudo }}</pre>
-                             </VExpansionPanelText>
-                         </VExpansionPanel>
-                         </VExpansionPanels>
-                     </VCardText>
-                 </VCard>
- 
-                 <!-- Card do Checklist de Avaliação (PEP) -->
-                 <CandidateChecklist
-                   :checklist-data="checklistData"
-                   :simulation-started="simulationStarted"
-                   :simulation-ended="simulationEnded"
-                   :simulation-was-manually-ended-early="simulationWasManuallyEndedEarly"
-                   :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
-                   :pep-released-to-candidate="pepReleasedToCandidate"
-                   :marked-pep-items="markedPepItems"
-                   :evaluation-scores="evaluationScores"
-                   :candidate-received-scores="candidateReceivedScores"
-                   :candidate-received-total-score="candidateReceivedTotalScore"
-                   :total-score="totalScore"
-                   :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
-                   :is-actor-or-evaluator="isActorOrEvaluator"
-                   :is-candidate="isCandidate"
-                   @release-pep-to-candidate="releasePepToCandidate"
-                   @toggle-pep-item-mark="togglePepItemMark"
-                   @update:evaluation-scores="handleEvaluationScoreUpdate"
-                   @submit-evaluation="submitEvaluation"
-                 />
-             </div>
            </div>
-         </VCol>
+         </VCol
  
          <!-- Card de Navegação Sequencial (para ator/avaliador após submissão) -->
          <VCol v-if="isSequentialMode && isActorOrEvaluator && simulationEnded && evaluationSubmittedByCandidate" cols="12">
@@ -2132,95 +1680,22 @@ function toggleCollapse() {
        {{ notificationMessage }}
      </VSnackbar>
  
-     <!-- Modal de Zoom para Imagens -->
-     <VDialog v-model="imageZoomDialog" max-width="95vw" max-height="95vh" persistent>
-       <VCard class="image-zoom-card">
-         <VCardTitle class="pa-2 d-flex justify-space-between align-center">
-           <span class="text-h6">{{ selectedImageAlt }}</span>
-           <VBtn icon variant="text" @click="closeImageZoom">
-             <VIcon>mdi-close</VIcon>
-           </VBtn>
-         </VCardTitle>
-         <VCardText class="pa-0 zoom-container-simple">
-           <VImg 
-             :src="selectedImageForZoom" 
-             :alt="selectedImageAlt"
-             :height="600"
-             :max-height="80 + 'vh'"
-             class="zoom-image-simple"
-             @click="closeImageZoom"
-             @error="handleZoomImageError"
-             @load="handleZoomImageLoad"
-           />
-         </VCardText>
-         <VCardActions class="pa-2 justify-center">
-           <VBtn color="primary" variant="outlined" @click="closeImageZoom">
-             <VIcon start>mdi-close</VIcon>
-             Fechar
-           </VBtn>
-         </VCardActions>
-       </VCard>
-     </VDialog>
-   </div>
-
-   <!-- Modal de Impressos (Drawer lateral compacta) -->
-   <VNavigationDrawer
-     v-model="impressosModalOpen"
-     location="right"
-     width="320"
-     temporary
-     overlay
-     class="impressos-drawer"
-     @click:outside="impressosModalOpen = false"
-   >
-     <div class="impressos-drawer-container">
-       <VCard flat class="impressos-card">
-         <VCardTitle class="d-flex align-center pa-4" style="flex-shrink: 0;">
-           <VIcon icon="ri-file-text-line" class="me-2" />
-           Gerenciar Impressos
-         </VCardTitle>
-         <VDivider style="flex-shrink: 0;" />
-         <VCardText class="impressos-content" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
-         <div v-if="!stationData?.materiaisDisponiveis?.impressos?.length" class="text-center py-8">
-           <VIcon icon="ri-file-text-line" size="48" color="grey" class="mb-4" />
-           <p class="text-h6 text-grey">Nenhum impresso disponível</p>
-         </div>
-         <div v-else style="flex: 0 0 auto; width: 100%;">
-           <div v-for="impresso in stationData.materiaisDisponiveis.impressos" :key="impresso.idImpresso" class="impresso-control-item">
-             <div class="d-flex align-center justify-space-between">
-               <div class="d-flex align-center flex-grow-1">
-                 <VIcon icon="ri-file-text-line" size="20" class="me-3 text-info" />
-                 <span class="text-body-1 font-weight-medium">{{ impresso.tituloImpresso }}</span>
-               </div>
-               <div class="d-flex align-center gap-2">
-                 <VBtn
-                   icon
-                   :color="!!actorReleasedImpressoIds[impresso.idImpresso] ? 'success' : 'warning'"
-                   variant="tonal"
-                   size="small"
-                   @click="releaseData(impresso.idImpresso)"
-                   :disabled="!!actorReleasedImpressoIds[impresso.idImpresso]"
-                   :title="!!actorReleasedImpressoIds[impresso.idImpresso] ? 'Impresso já liberado' : 'Liberar impresso para o candidato'"
-                 >
-                   <VIcon :icon="!!actorReleasedImpressoIds[impresso.idImpresso] ? 'ri-lock-unlock-line' : 'ri-lock-line'" />
-                 </VBtn>
-                 <VChip
-                   v-if="!!actorReleasedImpressoIds[impresso.idImpresso]"
-                   color="success"
-                   size="small"
-                   variant="tonal"
-                   class="text-caption"
-                 >
-                   Liberado
-                 </VChip>
-               </div>
-             </div>
-           </div>
-         </div>
-       </VCardText>
-     </VCard>
-     </div>
-   </VNavigationDrawer>
+    <!-- Modal de Zoom para Imagens -->
+    <ImageZoomModal
+      v-model:is-open="imageZoomDialog"
+      :image-url="zoomedImageSrc"
+      :image-alt="zoomedImageAlt"
+      @close="closeImageZoom"
+      @image-error="handleZoomImageError"
+      @image-load="handleZoomImageLoad"
+    />
+  </div>     <!-- Modal de Impressos -->
+    <ImpressosModal
+      v-model:is-open="impressosModalOpen"
+      :station-data="stationData"
+      :actor-released-impresso-ids="actorReleasedImpressoIds"
+      @release-impresso="releaseData"
+    />
 
    <!-- AgentAssistant component removed (legacy agent) -->
  </template>

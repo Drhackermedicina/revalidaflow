@@ -123,29 +123,34 @@ export function useSimulationWorkflow({
     }
   }  /**
    * Ativa o backend quando ambos usuários estão prontos
-   * Faz requisição para /api/activate-backend
+   * NOTA: A sessão já foi criada quando o usuário entrou no SimulationView
+   * Esta função apenas marca o backend como ativado para liberar o início da simulação
    */
   async function activateBackend() {
     if (backendActivated.value) {
+      console.log('[WORKFLOW] Backend já estava ativado')
       return
     }
 
     if (!sessionId.value) {
-      console.error('sessionId não definido')
+      console.error('[WORKFLOW] ❌ Erro: sessionId não definido ao tentar ativar backend')
       return
     }
 
+    console.log('[WORKFLOW] ✅ Ativando backend - ambos participantes prontos')
+    console.log('[WORKFLOW]   - SessionId:', sessionId.value)
+    console.log('[WORKFLOW]   - UserRole:', userRole.value)
+
     try {
-      // CORREÇÃO: Não precisa fazer chamada HTTP para ativar backend
-      // A sessão já foi criada quando o usuário entrou no SimulationView
-      // Apenas marcamos como ativado para liberar o botão de iniciar simulação
+      // Marca backend como ativado
+      // A sessão já foi criada no backend quando o WebSocket conectou
       backendActivated.value = true
 
-      // A emissão de CLIENT_START_SIMULATION será feita pelo watch(bothParticipantsReady)
-      // ou pelo clique no botão "Iniciar Simulação" se for ator/avaliador.
+      console.log('[WORKFLOW] ✅ Backend ativado com sucesso')
+      console.log('[WORKFLOW]   → O watch(backendActivated) irá emitir CLIENT_START_SIMULATION automaticamente')
 
     } catch (error) {
-      console.error('Erro ao ativar backend:', error)
+      console.error('[WORKFLOW] ❌ Erro ao ativar backend:', error)
       alert(`Erro ao ativar o backend: ${error.message}`)
 
       // Reset ready states on error
@@ -377,15 +382,33 @@ export function useSimulationWorkflow({
     ) {
       // Backend is activated, proceed with simulation start
       if (userRole.value === 'actor' || userRole.value === 'evaluator') {
+        console.log('[WORKFLOW] 🚀 Auto-start: Emitindo CLIENT_START_SIMULATION')
+        console.log('[WORKFLOW]   - Duração:', selectedDurationMinutes.value, 'minutos')
+        console.log('[WORKFLOW]   - SessionId:', sessionId.value)
+
+        // Verificar se socket está conectado
+        if (!socketRef.value || !socketRef.value.connected) {
+          console.error('[WORKFLOW] ❌ Socket não conectado! Não é possível iniciar')
+          alert('Erro: Conexão com servidor perdida. Recarregue a página.')
+          return
+        }
+
+        if (!sessionId.value) {
+          console.error('[WORKFLOW] ❌ SessionId não definido! Não é possível iniciar')
+          return
+        }
+
         // Auto-start da simulação para ator/avaliador
         const durationToSend = selectedDurationMinutes.value
 
-        if (socketRef.value && sessionId.value) {
-          socketRef.value.emit('CLIENT_START_SIMULATION', {
-            sessionId: sessionId.value,
-            durationMinutes: durationToSend
-          })
-        }
+        socketRef.value.emit('CLIENT_START_SIMULATION', {
+          sessionId: sessionId.value,
+          durationMinutes: durationToSend
+        })
+
+        console.log('[WORKFLOW] ✅ Evento CLIENT_START_SIMULATION emitido com sucesso')
+      } else {
+        console.log('[WORKFLOW] ⏳ Candidato aguardando início pelo ator/avaliador')
       }
     }
   })
@@ -396,7 +419,7 @@ export function useSimulationWorkflow({
     partnerReadyState,
     candidateReadyButtonEnabled,
     simulationStarted,
-    simulationEnded,
+    simulationEnded, // ✅ EXPOSTO: Gerenciado pelo composable
     simulationWasManuallyEndedEarly,
     backendActivated,
 
