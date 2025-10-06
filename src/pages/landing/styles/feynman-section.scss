@@ -1,0 +1,450 @@
+// src/pages/landing/styles/feynman-section.scss
+.feynman-section {
+    padding: 100px 0;
+    background: white;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+
+    &.feynman-visible {
+        opacity: 1;
+    }
+
+    // Padrão de fundo sutil
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image:
+            radial-gradient(circle at 10% 90%, rgba(102, 126, 234, 0.02) 0%, transparent 50%),
+            radial-gradient(circle at 90% 10%, rgba(118, 75, 162, 0.02) 0%, transparent 50%);
+        pointer-events: none;
+    }
+}
+
+.section-header {
+    position: relative;
+    z-index: 1;
+}
+
+.section-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 50px;
+    padding: 8px 16px;
+    animation: fadeInUp 0.6s ease-out;
+
+    .badge-icon {
+        color: #ffd700;
+    }
+
+    .badge-text {
+        color: #b8860b;
+        font-weight: 600;
+        font-size: 14px;
+    }
+}
+
+.section-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    animation: fadeInUp 0.8s ease-out 0.2s both;
+
+    .title-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+}
+
+.section-subtitle {
+    font-size: 1.1rem;
+    color: #666;
+    line-height: 1.6;
+    max-width: 700px;
+    margin: 0 auto;
+    animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+.feynman-content {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 60px;
+}
+
+.feynman-explanation {
+    display: flex;
+    align-items: center;
+    animation: fadeInLeft 0.8s ease-out 0.6s both;
+}
+
+.explanation-content {
+    max-width: 500px;
+}
+
+.quote-container {
+    position: relative;
+    padding: 24px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 16px;
+    border-left: 4px solid #667eea;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+
+    .quote-icon {
+        position: absolute;
+        top: -10px;
+        left: 16px;
+        color: #667eea;
+        opacity: 0.3;
+    }
+
+    .feynman-quote {
+        font-size: 1.1rem;
+        font-style: italic;
+        color: #333;
+        line-height: 1.6;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .quote-author {
+        display: block;
+        margin-top: 12px;
+        font-size: 0.9rem;
+        color: #667eea;
+        font-weight: 600;
+        text-align: right;
+    }
+}
+
+.method-benefits {
+    .benefits-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 16px;
+    }
+
+    .benefits-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+
+            .benefit-icon {
+                color: #4caf50;
+                flex-shrink: 0;
+            }
+
+            span {
+                font-size: 0.95rem;
+                color: #555;
+                line-height: 1.4;
+            }
+        }
+    }
+}
+
+.ai-enhancement {
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+    border-radius: 12px;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+
+    .enhancement-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+
+        .ai-icon {
+            color: #667eea;
+        }
+
+        .enhancement-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin: 0;
+        }
+    }
+
+    .enhancement-text {
+        font-size: 0.95rem;
+        color: #666;
+        line-height: 1.6;
+        margin: 0;
+    }
+}
+
+.feynman-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeInRight 0.8s ease-out 0.6s both;
+}
+
+.steps-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.steps-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 24px;
+
+    .step-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        opacity: 0.6;
+
+        &:hover,
+        &.active {
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        .nav-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #666;
+            text-align: center;
+            line-height: 1.2;
+        }
+    }
+}
+
+.active-step-card {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+
+    .step-icon-container {
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .step-info {
+        flex: 1;
+
+        .step-number-badge {
+            display: inline-block;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .step-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 0;
+            line-height: 1.3;
+        }
+    }
+}
+
+.step-content {
+    .step-description {
+        font-size: 1rem;
+        color: #555;
+        line-height: 1.6;
+        margin-bottom: 16px;
+    }
+
+    .step-details {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px;
+        background: rgba(102, 126, 234, 0.05);
+        border-radius: 8px;
+        border-left: 3px solid #667eea;
+
+        .details-icon {
+            color: #667eea;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .details-text {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.5;
+            margin: 0;
+        }
+    }
+}
+
+.step-progress {
+    margin-top: 20px;
+
+    .progress-bar {
+        width: 100%;
+        height: 4px;
+        background: #e0e0e0;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-bottom: 8px;
+
+        .progress-fill {
+            height: 100%;
+            border-radius: inherit;
+            transition: width 0.3s ease;
+        }
+    }
+
+    .progress-text {
+        font-size: 0.8rem;
+        color: #999;
+        text-align: center;
+    }
+}
+
+.feynman-cta {
+    position: relative;
+    z-index: 1;
+    animation: fadeInUp 0.8s ease-out 1s both;
+}
+
+.cta-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 24px;
+    padding: 48px 32px;
+    color: white;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+
+    .cta-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+    .cta-subtitle {
+        font-size: 1rem;
+        opacity: 0.9;
+        line-height: 1.6;
+        margin-bottom: 24px;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .cta-button {
+        background: white !important;
+        color: #667eea !important;
+        min-width: 220px;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.9) !important;
+            transform: translateY(-2px);
+        }
+    }
+}
+
+// Responsividade
+@media (max-width: 1024px) {
+    .feynman-content {
+        text-align: center;
+    }
+
+    .feynman-explanation {
+        margin-bottom: 40px;
+    }
+}
+
+@media (max-width: 768px) {
+    .feynman-section {
+        padding: 60px 0;
+    }
+
+    .section-title {
+        font-size: 2rem;
+    }
+
+    .steps-navigation {
+        flex-wrap: wrap;
+        gap: 16px;
+
+        .step-nav-item {
+            flex: 1;
+            min-width: 80px;
+        }
+    }
+
+    .active-step-card {
+        padding: 20px;
+    }
+
+    .step-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+
+        .step-info .step-title {
+            font-size: 1.1rem;
+        }
+    }
+
+    .feynman-cta .cta-card {
+        padding: 32px 24px;
+
+        .cta-title {
+            font-size: 1.5rem;
+        }
+    }
+}

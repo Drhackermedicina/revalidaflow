@@ -56,7 +56,6 @@ if (useSimulatedUser) {
   // Inicialização melhorada do Firestore com tratamento de erros
   try {
     db = getFirestore(firebaseApp);
-    console.log('✅ Firestore inicializado com instância existente');
   } catch (error) {
     console.log('🔧 Inicializando Firestore com cache persistente...');
     try {
@@ -88,7 +87,6 @@ if (import.meta.env.DEV) {
   // Configurar timeouts mais generosos em desenvolvimento
   if (db) {
     // Configurar configurações de rede para lidar melhor com conectividade instável
-    console.log('🔧 Configurações de desenvolvimento aplicadas ao Firestore');
   }
 }
 
@@ -131,10 +129,20 @@ window.addEventListener('offline', () => {
 
 export { isOnline };
 
-// Inicialização do Storage com verificação
+// Inicialização do Storage com verificação e bucket explícito
 let storage;
 try {
-  storage = getStorage(firebaseApp);
+  // Debug: verificar o valor real do storageBucket
+  console.log('🔧 Firebase Config:', {
+    storageBucket: firebaseConfig.storageBucket,
+    projectId: firebaseConfig.projectId
+  });
+
+  // Forçar o uso do bucket correto (firebasestorage.app)
+  // Usar o formato correto: gs://bucket-name
+  const bucketUrl = `gs://${firebaseConfig.storageBucket}`;
+  storage = getStorage(firebaseApp, bucketUrl);
+  console.log('✅ Storage inicializado com bucket:', firebaseConfig.storageBucket);
 } catch (error) {
   console.error('❌ Erro ao inicializar Storage:', error);
   throw error;

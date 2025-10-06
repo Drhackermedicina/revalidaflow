@@ -7,7 +7,7 @@ export const routes = [
       {
         path: '',
         name: 'landing-page',
-        component: () => import('@/pages/landingpage.vue'),
+        component: () => import('@/pages/landing/LandingPage.vue'),
       },
       {
         path: 'login',

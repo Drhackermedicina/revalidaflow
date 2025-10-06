@@ -17,7 +17,7 @@ import { ref, computed, watch, type Ref } from 'vue'
 import { formatTime } from '@/utils/simulationUtils'
 
 interface SimulationWorkflowParams {
-  socket: Ref<any>
+  socketRef: Ref<any>
   sessionId: Ref<string | null>
   userRole: Ref<string | null>
   partner: Ref<any>
@@ -30,7 +30,7 @@ interface SimulationWorkflowParams {
 }
 
 export function useSimulationWorkflow({
-  socket,
+  socketRef,
   sessionId,
   userRole,
   partner,
@@ -87,9 +87,9 @@ export function useSimulationWorkflow({
   /**
    * Verifica se ambos participantes estão prontos
    */
-  const bothParticipantsReady = computed(() =>
-    myReadyState.value && partnerReadyState.value && !!partner.value
-  )
+  const bothParticipantsReady = computed(() => {
+    return myReadyState.value && partnerReadyState.value && !!partner.value
+  })
 
   // --- Métodos ---
 
@@ -99,31 +99,29 @@ export function useSimulationWorkflow({
    * Segundo clique (undo): desmarca estado pronto
    */
   function sendReady() {
+    const socket = socketRef.value
+
+    if (!socket || !socket.connected) {
+      console.error('Socket não disponível ou não conectado')
+      return
+    }
+
     // First click: Set local ready state
     if (!myReadyState.value) {
       myReadyState.value = true
-
-      // Emitir evento via socket
-      if (socket.value?.connected && sessionId.value) {
-        socket.value.emit('CLIENT_READY', {
-          sessionId: sessionId.value,
-          userId: userRole.value
-        })
-      }
+      socket.emit('CLIENT_IM_READY', {
+        sessionId: sessionId.value,
+        userId: userRole.value
+      })
     } else {
-      // Second click: Undo ready state
+      // Second click: Unready and activate backend
       myReadyState.value = false
-
-      if (socket.value?.connected && sessionId.value) {
-        socket.value.emit('CLIENT_NOT_READY', {
-          sessionId: sessionId.value,
-          userId: userRole.value
-        })
-      }
+      socket.emit('CLIENT_IM_NOT_READY', {
+        sessionId: sessionId.value,
+        userId: userRole.value
+      })
     }
-  }
-
-  /**
+  }  /**
    * Ativa o backend quando ambos usuários estão prontos
    * Faz requisição para /api/activate-backend
    */
@@ -133,36 +131,21 @@ export function useSimulationWorkflow({
     }
 
     if (!sessionId.value) {
-      console.error('[BACKEND ACTIVATION] sessionId não definido')
+      console.error('sessionId não definido')
       return
     }
 
     try {
-      const response = await fetch(`${backendUrl}/api/activate-backend`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId: sessionId.value
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      console.log('[BACKEND ACTIVATION] Backend ativado:', data)
-
-      // Mark backend as activated
+      // CORREÇÃO: Não precisa fazer chamada HTTP para ativar backend
+      // A sessão já foi criada quando o usuário entrou no SimulationView
+      // Apenas marcamos como ativado para liberar o botão de iniciar simulação
       backendActivated.value = true
 
       // A emissão de CLIENT_START_SIMULATION será feita pelo watch(bothParticipantsReady)
       // ou pelo clique no botão "Iniciar Simulação" se for ator/avaliador.
 
     } catch (error) {
-      console.error('[BACKEND ACTIVATION] Erro ao ativar backend:', error)
+      console.error('Erro ao ativar backend:', error)
       alert(`Erro ao ativar o backend: ${error.message}`)
 
       // Reset ready states on error
@@ -178,7 +161,7 @@ export function useSimulationWorkflow({
   function handleStartSimulationClick() {
     if (
       backendActivated.value &&
-      socket.value?.connected &&
+      socketRef.value?.connected &&
       sessionId.value &&
       (userRole.value === 'actor' || userRole.value === 'evaluator') &&
       bothParticipantsReady.value &&
@@ -186,7 +169,7 @@ export function useSimulationWorkflow({
     ) {
       const durationToSend = selectedDurationMinutes.value
 
-      socket.value.emit('CLIENT_START_SIMULATION', {
+      socketRef.value.emit('CLIENT_START_SIMULATION', {
         sessionId: sessionId.value,
         durationMinutes: durationToSend
       })
@@ -196,7 +179,7 @@ export function useSimulationWorkflow({
       alert("Aguarde ambos os usuários marcarem 'Estou Pronto' antes de iniciar.")
     } else if (simulationStarted.value) {
       alert("A simulação já foi iniciada.")
-    } else if (!socket.value?.connected) {
+    } else if (!socketRef.value?.connected) {
       alert("Erro: Não conectado ao servidor.")
     } else {
       alert("Erro: Condições não satisfeitas para iniciar a simulação.")
@@ -211,12 +194,12 @@ export function useSimulationWorkflow({
       return
     }
 
-    if (!socket.value?.connected || !sessionId.value) {
+    if (!socketRef.value?.connected || !sessionId.value) {
       alert("Erro: Não conectado para encerrar.")
       return
     }
 
-    socket.value.emit('CLIENT_MANUALLY_END_SIMULATION', {
+    socketRef.value.emit('CLIENT_MANUALLY_END_SIMULATION', {
       sessionId: sessionId.value
     })
 
@@ -326,7 +309,6 @@ export function useSimulationWorkflow({
    * @param data - Dados do evento
    */
   function handleTimerStopped(data: any) {
-    console.log('[CLIENT] TIMER_STOPPED recebido:', data)
     simulationEnded.value = true
     simulationWasManuallyEndedEarly.value = true
   }
@@ -375,14 +357,21 @@ export function useSimulationWorkflow({
 
   /**
    * Watch para ativar backend automaticamente quando ambos prontos
-   * E iniciar simulação automaticamente para ator/avaliador
    */
   watch(bothParticipantsReady, (newValue) => {
     if (newValue && !backendActivated.value) {
       activateBackend()
-    } else if (
+    }
+  })
+
+  /**
+   * Watch para iniciar simulação automaticamente após backend ativado
+   * (somente para ator/avaliador)
+   */
+  watch(backendActivated, (newValue) => {
+    if (
       newValue &&
-      backendActivated.value &&
+      bothParticipantsReady.value &&
       !simulationStarted.value &&
       !simulationEnded.value
     ) {
@@ -391,14 +380,12 @@ export function useSimulationWorkflow({
         // Auto-start da simulação para ator/avaliador
         const durationToSend = selectedDurationMinutes.value
 
-        if (socket.value?.connected && sessionId.value) {
-          socket.value.emit('CLIENT_START_SIMULATION', {
+        if (socketRef.value && sessionId.value) {
+          socketRef.value.emit('CLIENT_START_SIMULATION', {
             sessionId: sessionId.value,
             durationMinutes: durationToSend
           })
         }
-      } else if (userRole.value === 'candidate' && !simulationStarted.value) {
-        // Candidato aguarda ator iniciar
       }
     }
   })

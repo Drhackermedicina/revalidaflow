@@ -1,0 +1,633 @@
+<script setup><script setup>
+
+import { ref, onMounted } from 'vue'import { ref, onMounted } from 'vue'
+
+import { useRouter } from 'vue-router'import { useRouter } from 'vue-router'
+
+
+
+const router = useRouter()const router = useRouter()
+
+
+
+// Estado para animações// Estado para animações
+
+const heroVisible = ref(false)const heroVisible = ref(false)
+
+
+
+// Dados dos médicos aprovados (simulação)// Dados dos médicos aprovados (simulação)
+
+const approvedDoctors = ref([const approvedDoctors = ref([
+
+  { id: 1, name: 'Dra. Ana Silva', avatar: '👩‍⚕️', specialty: 'Aprovada 2024' },  { id: 1, name: 'Dra. Ana Silva', avatar: '👩‍⚕️', specialty: 'Aprovada 2024' },
+
+  { id: 2, name: 'Dr. Carlos Rodriguez', avatar: '👨‍⚕️', specialty: 'Aprovado 2024' },  { id: 2, name: 'Dr. Carlos Rodriguez', avatar: '👨‍⚕️', specialty: 'Aprovado 2024' },
+
+  { id: 3, name: 'Dra. Maria Santos', avatar: '👩‍⚕️', specialty: 'Aprovada 2023' },  { id: 3, name: 'Dra. Maria Santos', avatar: '👩‍⚕️', specialty: 'Aprovada 2023' },
+
+  { id: 4, name: 'Dr. João Silva', avatar: '👨‍⚕️', specialty: 'Aprovado 2024' }  { id: 4, name: 'Dr. João Silva', avatar: '👨‍⚕️', specialty: 'Aprovado 2024' }
+
+])])
+
+
+
+// Estatísticas da plataforma// Estatísticas da plataforma
+
+const stats = ref([const stats = ref([
+
+  { number: '2.500+', label: 'Médicos Aprovados', icon: 'ri-user-heart-line' },  { number: '2.500+', label: 'Médicos Aprovados', icon: 'ri-user-heart-line' },
+
+  { number: '98%', label: 'Taxa de Aprovação', icon: 'ri-trophy-line' },  { number: '98%', label: 'Taxa de Aprovação', icon: 'ri-trophy-line' },
+
+  { number: '50.000+', label: 'Questões', icon: 'ri-book-open-line' },  { number: '50.000+', label: 'Questões', icon: 'ri-book-open-line' },
+
+  { number: '4.9/5', label: 'Avaliação', icon: 'ri-star-fill' }  { number: '4.9/5', label: 'Avaliação', icon: 'ri-star-fill' }
+
+])])
+
+
+
+// Features principais// Features principais
+
+const mainFeatures = ref([const mainFeatures = ref([
+
+  {  {
+
+    icon: 'ri-mic-line',    icon: 'ri-mic-line',
+
+    title: 'IA Feynman',    title: 'IA Feynman',
+
+    description: 'Explique em áudio e receba feedback',    description: 'Explique em áudio e receba feedback',
+
+    color: '#fbbf24',    color: '#fbbf24',
+
+    badge: 'EXCLUSIVO'    badge: 'EXCLUSIVO'
+
+  },  },
+
+  {  {
+
+    icon: 'ri-user-voice-line',    icon: 'ri-user-voice-line',
+
+    title: 'Simulações Reais',    title: 'Simulações Reais',
+
+    description: 'Estações com atores profissionais',    description: 'Estações com atores profissionais',
+
+    color: '#10b981',    color: '#10b981',
+
+    badge: 'AO VIVO'    badge: 'AO VIVO'
+
+  },  },
+
+  {  {
+
+    icon: 'ri-brain-line',    icon: 'ri-brain-line',
+
+    title: 'Banco de Questões',    title: 'Banco de Questões',
+
+    description: '50.000+ questões atualizadas',    description: '50.000+ questões atualizadas',
+
+    color: '#3b82f6',    color: '#3b82f6',
+
+    badge: 'ATUALIZADO'    badge: 'ATUALIZADO'
+
+  }  }
+
+])])
+
+
+
+// Animações ao montar// Animações ao montar
+
+onMounted(() => {onMounted(() => {
+
+  setTimeout(() => {  setTimeout(() => {
+
+    heroVisible.value = true    heroVisible.value = true
+
+  }, 100)  }, 100)
+
+})})
+
+
+
+// Funções de navegação// Funções de navegação
+
+const goToRegister = () => {const goToRegister = () => {
+
+  router.push('/register')  router.push('/register')
+
+}}
+
+
+
+const goToLogin = () => {const goToLogin = () => {
+
+  router.push('/login')  router.push('/login')
+
+}}
+
+
+
+const scrollToSection = (sectionId) => {const scrollToSection = (sectionId) => {
+
+  const element = document.getElementById(sectionId)  const element = document.getElementById(sectionId)
+
+  if (element) {  if (element) {
+
+    element.scrollIntoView({ behavior: 'smooth' })    element.scrollIntoView({ behavior: 'smooth' })
+
+  }  }
+
+}}
+
+</script></script>
+
+
+
+<template><template>
+
+  <section class="hero-section" :class="{ 'hero-visible': heroVisible }">  <section class="hero-section" :class="{ 'hero-visible': heroVisible }">
+
+    <!-- Background moderno -->    <!-- Background moderno -->
+
+    <div class="hero-background">    <div class="hero-background">
+
+      <div class="hero-bg-gradient"></div>      <div class="hero-bg-gradient"></div>
+
+      <div class="hero-bg-pattern"></div>      <div class="hero-bg-pattern"></div>
+
+      <div class="hero-particles"></div>      <div class="hero-particles"></div>
+
+    </div>    </div>
+
+
+
+    <div class="hero-overlay"></div>    <div class="hero-overlay"></div>
+
+
+
+    <v-container fluid class="hero-content">    <v-container fluid class="hero-content">
+
+      <v-row align="center" justify="center" class="hero-row">      <v-row align="center" justify="center" class="hero-row">
+
+        <!-- Coluna do texto principal -->        <!-- Coluna do texto principal -->
+
+        <v-col cols="12" lg="6" class="hero-text-column">        <v-col cols="12" lg="6" class="hero-text-column">
+
+          <div class="hero-text-content">          <div class="hero-text-content">
+
+            <!-- Badge premium animado -->            <!-- Badge premium animado -->
+
+            <div class="premium-badge animate-float">            <div class="premium-badge animate-float">
+
+              <v-icon icon="ri-sparkling-2-fill" class="badge-icon" />              <v-icon icon="ri-sparkling-2-fill" class="badge-icon" />
+
+              <span class="badge-text">Método Feynman com IA</span>              <span class="badge-text">Método Feynman com IA</span>
+
+            </div>            </div>
+
+
+
+            <!-- Título principal impactante -->            <!-- Título principal impactante -->
+
+            <h1 class="hero-main-title animate-fade-in-up">            <h1 class="hero-main-title animate-fade-in-up">
+
+              <span class="title-line">Domine o</span>              <span class="title-line">Domine o</span>
+
+              <span class="title-highlight">REVALIDA</span>              <span class="title-highlight">REVALIDA</span>
+
+              <span class="title-line">com Inteligência</span>              <span class="title-line">com Inteligência</span>
+
+              <span class="title-line">Artificial</span>              <span class="title-line">Artificial</span>
+
+            </h1>            </h1>
+
+
+
+            <!-- Subtítulo persuasivo -->            <!-- Subtítulo persuasivo -->
+
+            <p class="hero-subtitle animate-fade-in-up delay-1">            <p class="hero-subtitle animate-fade-in-up delay-1">
+
+              A única plataforma que une o <strong>Método Feynman</strong> com               A única plataforma que une o <strong>Método Feynman</strong> com 
+
+              <strong>IA avançada</strong> para preparação definitiva do REVALIDA 2025              <strong>IA avançada</strong> para preparação definitiva do REVALIDA 2025
+
+            </p>            </p>
+
+
+
+            <!-- Features rápidas -->            <!-- Features rápidas -->
+
+            <div class="quick-features animate-fade-in-up delay-2">            <div class="quick-features animate-fade-in-up delay-2">
+
+              <div v-for="feature in mainFeatures" :key="feature.title" class="quick-feature">              <div v-for="feature in mainFeatures" :key="feature.title" class="quick-feature">
+
+                <div class="feature-icon-box" :style="{ backgroundColor: feature.color + '20', borderColor: feature.color }">                <div class="feature-icon-box" :style="{ backgroundColor: feature.color + '20', borderColor: feature.color }">
+
+                  <v-icon :icon="feature.icon" :style="{ color: feature.color }" />                  <v-icon :icon="feature.icon" :style="{ color: feature.color }" />
+
+                </div>                </div>
+
+                <div class="feature-content">                <div class="feature-content">
+
+                  <span class="feature-title">{{ feature.title }}</span>                  <span class="feature-title">{{ feature.title }}</span>
+
+                  <span class="feature-desc">{{ feature.description }}</span>                  <span class="feature-desc">{{ feature.description }}</span>
+
+                </div>                </div>
+
+              </div>              </div>
+
+            </div>            </div>
+
+
+
+            <!-- Proposta de valor -->            <!-- Proposta de valor -->
+
+            <div class="value-proposition animate-fade-in-up delay-3">            <div class="value-proposition animate-fade-in-up delay-3">
+
+              <v-icon icon="ri-checkbox-circle-fill" color="#10b981" />              <v-icon icon="ri-checkbox-circle-fill" color="#10b981" />
+
+              <span><strong>50.000+ questões</strong> no novo formato 2025.2</span>              <span><strong>50.000+ questões</strong> no novo formato 2025.2</span>
+
+            </div>            </div>
+
+            <div class="value-proposition animate-fade-in-up delay-3">            <div class="value-proposition animate-fade-in-up delay-3">
+
+              <v-icon icon="ri-checkbox-circle-fill" color="#10b981" />              <v-icon icon="ri-checkbox-circle-fill" color="#10b981" />
+
+              <span><strong>Simulações reais</strong> com atores profissionais</span>              <span><strong>Simulações reais</strong> com atores profissionais</span>
+
+            </div>            </div>
+
+            <div class="value-proposition animate-fade-in-up delay-3">            <div class="value-proposition animate-fade-in-up delay-3">
+
+              <v-icon icon="ri-checkbox-circle-fill" color="#10b981" />              <v-icon icon="ri-checkbox-circle-fill" color="#10b981" />
+
+              <span><strong>2.500+ médicos aprovados</strong> com nossa metodologia</span>              <span><strong>2.500+ médicos aprovados</strong> com nossa metodologia</span>
+
+            </div>            </div>
+
+
+
+            <!-- Botões de ação -->            <!-- Botões de ação -->
+
+            <div class="hero-cta-buttons animate-fade-in-up delay-4">            <div class="hero-cta-buttons animate-fade-in-up delay-4">
+
+              <v-btn              <v-btn
+
+                size="x-large"                size="x-large"
+
+                class="btn-cta-primary"                class="btn-cta-primary"
+
+                @click="goToRegister"                @click="goToRegister"
+
+                elevation="8"                elevation="8"
+
+              >              >
+
+                <v-icon icon="ri-rocket-2-line" class="mr-2" />                <v-icon icon="ri-rocket-2-line" class="mr-2" />
+
+                <span class="cta-text">Começar Teste Grátis</span>                <span class="cta-text">Começar Teste Grátis</span>
+
+                <v-icon icon="ri-arrow-right-line" class="ml-2" />                <v-icon icon="ri-arrow-right-line" class="ml-2" />
+
+              </v-btn>              </v-btn>
+
+
+
+              <v-btn              <v-btn
+
+                size="x-large"                size="x-large"
+
+                variant="outlined"                variant="outlined"
+
+                class="btn-cta-secondary"                class="btn-cta-secondary"
+
+                @click="scrollToSection('features')"                @click="scrollToSection('features')"
+
+              >              >
+
+                <v-icon icon="ri-play-circle-line" class="mr-2" />                <v-icon icon="ri-play-circle-line" class="mr-2" />
+
+                <span>Ver Como Funciona</span>                <span>Ver Como Funciona</span>
+
+              </v-btn>              </v-btn>
+
+            </div>            </div>
+
+
+
+            <!-- Social proof compacto -->            <!-- Social proof compacto -->
+
+            <div class="social-proof animate-fade-in-up delay-5">            <div class="social-proof animate-fade-in-up delay-5">
+
+              <div class="approved-avatars">              <div class="approved-avatars">
+
+                <div v-for="doctor in approvedDoctors.slice(0, 4)" :key="doctor.id" class="avatar-item">                <div v-for="doctor in approvedDoctors.slice(0, 4)" :key="doctor.id" class="avatar-item">
+
+                  {{ doctor.avatar }}                  {{ doctor.avatar }}
+
+                </div>                </div>
+
+                <div class="avatar-more">+2.5k</div>                <div class="avatar-more">+2.5k</div>
+
+              </div>              </div>
+
+              <div class="social-proof-text">              <div class="social-proof-text">
+
+                <div class="proof-highlight">2.500+ médicos aprovados</div>                <div class="proof-highlight">2.500+ médicos aprovados</div>
+
+                <div class="proof-subtitle">Junte-se aos aprovados!</div>                <div class="proof-subtitle">Junte-se aos aprovados!</div>
+
+              </div>              </div>
+
+            </div>            </div>
+
+          </div>          </div>
+
+        </v-col>        </v-col>
+
+
+
+        <!-- Coluna visual moderna -->        <!-- Coluna visual moderna -->
+
+        <v-col cols="12" lg="6" class="hero-visual-column">        <v-col cols="12" lg="6" class="hero-visual-column">
+
+          <div class="hero-visual animate-fade-in-up delay-2">          <div class="hero-visual animate-fade-in-up delay-2">
+
+            <!-- Dashboard Preview Interativo -->            <!-- Dashboard Preview Interativo -->
+
+            <div class="dashboard-preview">            <div class="dashboard-preview">
+
+              <div class="preview-header">              <div class="preview-header">
+
+                <div class="preview-dots">                <div class="preview-dots">
+
+                  <span class="dot red"></span>                  <span class="dot red"></span>
+
+                  <span class="dot yellow"></span>                  <span class="dot yellow"></span>
+
+                  <span class="dot green"></span>                  <span class="dot green"></span>
+
+                </div>                </div>
+
+                <div class="preview-title">                <div class="preview-title">
+
+                  <v-icon icon="ri-pulse-line" size="small" />                  <v-icon icon="ri-pulse-line" size="small" />
+
+                  Dashboard em Tempo Real                  Dashboard em Tempo Real
+
+                </div>                </div>
+
+              </div>              </div>
+
+
+
+              <div class="preview-content">              <div class="preview-content">
+
+                <!-- Card IA Feynman -->                <!-- Card IA Feynman -->
+
+                <div class="feature-preview-card feynman-card">                <div class="feature-preview-card feynman-card">
+
+                  <div class="card-header">                  <div class="card-header">
+
+                    <v-icon icon="ri-mic-line" color="#fbbf24" size="large" />                    <v-icon icon="ri-mic-line" color="#fbbf24" size="large" />
+
+                    <span class="card-badge">IA FEYNMAN</span>                    <span class="card-badge">IA FEYNMAN</span>
+
+                  </div>                  </div>
+
+                  <div class="card-title">Análise em Tempo Real</div>                  <div class="card-title">Análise em Tempo Real</div>
+
+                  <div class="waveform">                  <div class="waveform">
+
+                    <div class="wave-bar" v-for="i in 20" :key="i" :style="{ height: Math.random() * 100 + '%' }"></div>                    <div class="wave-bar" v-for="i in 20" :key="i" :style="{ height: Math.random() * 100 + '%' }"></div>
+
+                  </div>                  </div>
+
+                  <div class="feedback-text">                  <div class="feedback-text">
+
+                    <v-icon icon="ri-double-quotes-l" size="small" />                    <v-icon icon="ri-double-quotes-l" size="small" />
+
+                    "Sua explicação está clara, mas falta profundidade no diagnóstico diferencial..."                    "Sua explicação está clara, mas falta profundidade no diagnóstico diferencial..."
+
+                  </div>                  </div>
+
+                </div>                </div>
+
+
+
+                <!-- Card Estatísticas -->                <!-- Card Estatísticas -->
+
+                <div class="stats-mini-grid">                <div class="stats-mini-grid">
+
+                  <div v-for="stat in stats.slice(0, 3)" :key="stat.label" class="stat-mini-card">                  <div v-for="stat in stats.slice(0, 3)" :key="stat.label" class="stat-mini-card">
+
+                    <v-icon :icon="stat.icon" :color="stat.label === 'Taxa de Aprovação' ? '#10b981' : '#3b82f6'" />                    <v-icon :icon="stat.icon" :color="stat.label === 'Taxa de Aprovação' ? '#10b981' : '#3b82f6'" />
+
+                    <div class="stat-number">{{ stat.number }}</div>                    <div class="stat-number">{{ stat.number }}</div>
+
+                    <div class="stat-label">{{ stat.label }}</div>                    <div class="stat-label">{{ stat.label }}</div>
+
+                  </div>                  </div>
+
+                </div>                </div>
+
+
+
+                <!-- Simulação Badge -->                <!-- Simulação Badge -->
+
+                <div class="simulation-badge">                <div class="simulation-badge">
+
+                  <div class="sim-icon">                  <div class="sim-icon">
+
+                    <v-icon icon="ri-user-voice-line" color="white" />                    <v-icon icon="ri-user-voice-line" color="white" />
+
+                  </div>                  </div>
+
+                  <div class="sim-content">                  <div class="sim-content">
+
+                    <div class="sim-title">Simulação Ao Vivo</div>                    <div class="sim-title">Simulação Ao Vivo</div>
+
+                    <div class="sim-subtitle">50+ estações disponíveis</div>                    <div class="sim-subtitle">50+ estações disponíveis</div>
+
+                  </div>                  </div>
+
+                  <div class="sim-status">                  <div class="sim-status">
+
+                    <span class="status-dot"></span>                    <span class="status-dot"></span>
+
+                    ATIVO                    ATIVO
+
+                  </div>                  </div>
+
+                </div>                </div>
+
+              </div>              </div>
+
+            </div>            </div>
+
+
+
+            <!-- Floating elements decorativos -->            <!-- Floating elements decorativos -->
+
+            <div class="floating-elements">            <div class="floating-elements">
+
+              <div class="float-element element-1">              <div class="float-element element-1">
+
+                <v-icon icon="ri-lightbulb-flash-line" color="#fbbf24" size="large" />                <v-icon icon="ri-lightbulb-flash-line" color="#fbbf24" size="large" />
+
+              </div>              </div>
+
+              <div class="float-element element-2">              <div class="float-element element-2">
+
+                <v-icon icon="ri-trophy-line" color="#10b981" size="large" />                <v-icon icon="ri-trophy-line" color="#10b981" size="large" />
+
+              </div>              </div>
+
+              <div class="float-element element-3">              <div class="float-element element-3">
+
+                <v-icon icon="ri-brain-line" color="#8b5cf6" size="large" />                <v-icon icon="ri-brain-line" color="#8b5cf6" size="large" />
+
+              </div>              </div>
+
+            </div>            </div>
+
+          </div>          </div>
+
+        </v-col>        </v-col>
+
+      </v-row>      </v-row>
+
+
+
+      <!-- Stats bar na parte inferior -->      <!-- Stats bar na parte inferior -->
+
+      <v-row class="stats-bar animate-fade-in-up delay-6">      <v-row class="stats-bar animate-fade-in-up delay-6">
+
+        <v-col cols="12">        <v-col cols="12">
+
+          <div class="stats-container">          <div class="stats-container">
+
+            <div v-for="stat in stats" :key="stat.label" class="stat-item">            <div v-for="stat in stats" :key="stat.label" class="stat-item">
+
+              <v-icon :icon="stat.icon" class="stat-icon" />              <v-icon :icon="stat.icon" class="stat-icon" />
+
+              <div class="stat-content">              <div class="stat-content">
+
+                <div class="stat-value">{{ stat.number }}</div>                <div class="stat-value">{{ stat.number }}</div>
+
+                <div class="stat-text">{{ stat.label }}</div>                <div class="stat-text">{{ stat.label }}</div>
+
+              </div>              </div>
+
+            </div>            </div>
+
+          </div>          </div>
+
+        </v-col>        </v-col>
+
+      </v-row>      </v-row>
+
+    </v-container>    </v-container>
+
+  </section>  </section>
+
+</template></template>
+
+                class="btn-secondary-custom hero-cta-secondary"
+
+<style scoped lang="scss">                @click="scrollToSection('features')"
+
+@import '../styles/hero-section.scss';              >
+
+</style>                <span>Saiba Como Funciona</span>
+
+                <v-icon class="cta-arrow-down">ri-arrow-down-line</v-icon>
+              </v-btn>
+            </div>
+
+            <!-- Link para login -->
+            <div class="login-link">
+              <span class="login-text">Já tem conta?</span>
+              <a @click="goToLogin" class="login-link-text">Fazer login</a>
+            </div>
+
+            <!-- Estatísticas da plataforma -->
+            <div class="hero-stats-grid">
+              <div
+                v-for="stat in platformStats"
+                :key="stat.label"
+                class="stat-item"
+              >
+                <v-icon :icon="stat.icon" size="24" class="stat-icon mb-2" />
+                <span class="stat-number">{{ stat.number }}</span>
+                <span class="stat-label">{{ stat.label }}</span>
+              </div>
+            </div>
+          </div>
+        </v-col>
+
+        <!-- Coluna da demonstração/visual -->
+        <v-col cols="12" lg="5" class="hero-visual-column">
+          <div class="hero-visual-content">
+            <!-- Card de demonstração -->
+            <div class="demo-card">
+              <div class="demo-header">
+                <div class="demo-avatar">
+                  <v-icon icon="ri-mic-line" size="20" />
+                </div>
+                <div class="demo-info">
+                  <span class="demo-title">IA Feynman</span>
+                  <span class="demo-subtitle">Análise em tempo real</span>
+                </div>
+              </div>
+              <div class="demo-content">
+                <div class="demo-waveform">
+                  <div
+                    v-for="i in 20"
+                    :key="i"
+                    class="waveform-bar"
+                    :style="{ animationDelay: `${i * 0.1}s` }"
+                  ></div>
+                </div>
+                <p class="demo-text">
+                  "Sua explicação está clara, mas falta profundidade no diagnóstico diferencial..."
+                </p>
+              </div>
+            </div>
+
+            <!-- Elementos flutuantes -->
+            <div class="floating-elements">
+              <div class="floating-card card-1">
+                <v-icon icon="ri-book-open-line" />
+                <span>50K+ Questões</span>
+              </div>
+              <div class="floating-card card-2">
+                <v-icon icon="ri-user-voice-line" />
+                <span>Simulações Reais</span>
+              </div>
+              <div class="floating-card card-3">
+                <v-icon icon="ri-star-line" />
+                <span>98% Aprovação</span>
+              </div>
+            </div>
+          </div>
+        </v-col>
+      </v-row>
+    </v-container>
+
+    <!-- Scroll indicator -->
+    <div class="scroll-indicator" @click="scrollToSection('features')">
+      <v-icon icon="ri-mouse-line" class="scroll-mouse" />
+      <div class="scroll-text">Role para ver mais</div>
+    </div>
+  </section>
+</template>
+
+<style scoped lang="scss">
+@import '../styles/hero-section.scss';
+</style>

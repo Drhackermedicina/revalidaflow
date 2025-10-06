@@ -142,7 +142,7 @@ const {
 });
 
 // Socket - declarado antes para uso nos composables
-let socket = ref(null);
+const socketRef = ref(null);
 let connectionStatus = ref('');
 let connect = () => {};
 let disconnect = () => {};
@@ -176,7 +176,7 @@ const {
   clearEvaluationScores,
   updateCandidateReceivedScores
 } = useEvaluation({
-  socket,
+  socket: socketRef,
   sessionId,
   stationId,
   userRole,
@@ -263,7 +263,7 @@ const {
   releaseData,
   handleCandidateReceiveData,
   resetSimulationData
-} = useSimulationData({ socket, sessionId, userRole, stationData });
+} = useSimulationData({ socket: socketRef, sessionId, userRole, stationData });
 
 // PEP management
 const {
@@ -287,7 +287,7 @@ const {
   declineInternalInvite,
   requestOnlineUsers
 } = useInternalInvites({
-  socket,
+  socket: socketRef,
   sessionId,
   stationId,
   selectedDurationMinutes,
@@ -323,7 +323,7 @@ const {
   handleSocketConnect,
   handleSocketDisconnect
 } = useSimulationWorkflow({
-  socket,
+  socketRef,
   sessionId,
   userRole,
   partner,
@@ -458,8 +458,9 @@ function connectWebSocket() {
   // const backendUrl = 'http://localhost:3000'; // Removido, agora usa import
   // console.log('SimulationView: backendUrl sendo usada para Socket.IO:', backendUrl); // NOVO LOG
   connectionStatus.value = 'Conectando';
-  if (socket.value && socket.value.connected) { socket.value.disconnect(); }
-  socket.value = io(backendUrl, {
+  if (socketRef.value && socketRef.value.connected) { socketRef.value.disconnect(); }
+  
+  const socket = io(backendUrl, {
     transports: ['websocket'],
     query: {
       sessionId: sessionId.value,
@@ -469,15 +470,20 @@ function connectWebSocket() {
       displayName: currentUser.value?.displayName
     }
   });
-  socket.value.on('connect', () => {
+  
+  socket.on('connect', () => {
     connectionStatus.value = 'Conectado';
+    
+    // ATUALIZAR O REF DO SOCKET APÓS CONEXÃO
+    socketRef.value = socket;
 
-    console.log("SOCKET: Conectado.");
+    console.log('SOCKET: Conectado.');
 
     // Workflow: habilitar botão "Estou pronto" para candidato
     handleSocketConnect();
   });
-  socket.value.on('disconnect', (reason) => {
+  
+  socket.on('disconnect', (reason) => {
     connectionStatus.value = 'Desconectado';
 
     // Workflow: desabilitar botão e resetar estados
@@ -496,20 +502,20 @@ function connectWebSocket() {
       }
     }
   });
-  socket.value.on('connect_error', (err) => {
+  socket.on('connect_error', (err) => {
     connectionStatus.value = 'Erro de Conexão';
     if(!errorMessage.value) errorMessage.value = `Falha ao conectar: ${err.message}`;
     console.error('SOCKET: Erro de conexão', err);
 
     // Captura erro no Sentry
     captureWebSocketError(err, {
-      socketId: socket.value?.id,
+      socketId: socket?.id,
       sessionId: sessionId.value,
       connectionState: 'failed',
       lastEvent: 'connect_error'
     });
   });
-  socket.value.on('SERVER_ERROR', (data) => {
+  socket.on('SERVER_ERROR', (data) => {
     console.error('SOCKET: Erro do Servidor:', data.message);
     errorMessage.value = `Erro do servidor: ${data.message}`;
 
@@ -521,15 +527,15 @@ function connectWebSocket() {
       simulationState: simulationStarted.value ? 'started' : 'preparing'
     });
   });
-  socket.value.on('SERVER_JOIN_CONFIRMED', (data) => { });
-  socket.value.on('SERVER_PARTNER_JOINED', (participantInfo) => {
+  socket.on('SERVER_JOIN_CONFIRMED', (data) => { });
+  socket.on('SERVER_PARTNER_JOINED', (participantInfo) => {
     if (participantInfo && participantInfo.userId !== currentUser.value?.uid) {
       partner.value = participantInfo;
       partnerReadyState.value = participantInfo.isReady || false;
       errorMessage.value = '';
     }
   });
-  socket.value.on('SERVER_PARTNER_UPDATE', (data) => {
+  socket.on('SERVER_PARTNER_UPDATE', (data) => {
     updatePartnerInfo(data.participants);
   });
   function updatePartnerInfo(participants) {
@@ -550,7 +556,7 @@ function connectWebSocket() {
     }
   }
 
-  socket.value.on('SERVER_PARTNER_LEFT', (data) => {
+  socket.on('SERVER_PARTNER_LEFT', (data) => {
     if (partner.value && partner.value.userId === data.userId) {
       partner.value = null;
       partnerReadyState.value = false;
@@ -572,11 +578,11 @@ function connectWebSocket() {
       }
     }
   });
-  socket.value.on('CANDIDATE_RECEIVE_DATA', (payload) => {
+  socket.on('CANDIDATE_RECEIVE_DATA', (payload) => {
     const { dataItemId } = payload;
     handleCandidateReceiveData(dataItemId);
   });
-  socket.value.on('SERVER_PARTNER_READY', (data) => {
+  socket.on('SERVER_PARTNER_READY', (data) => {
     if (data && data.userId !== currentUser.value?.uid) {
       if (partner.value && partner.value.userId === data.userId) {
         partner.value.isReady = data.isReady;
@@ -585,14 +591,14 @@ function connectWebSocket() {
       handlePartnerReady(data);
     }
   });
-  socket.value.on('SERVER_START_SIMULATION', (data) => {
+  socket.on('SERVER_START_SIMULATION', (data) => {
     // Workflow: atualizar estados e timer
     handleSimulationStart(data);
 
     errorMessage.value = '';
     playSoundEffect();
   });
-  socket.value.on('TIMER_UPDATE', (data) => {
+  socket.on('TIMER_UPDATE', (data) => {
     // Workflow: atualizar timer display
     handleTimerUpdate(data);
 
@@ -602,7 +608,7 @@ function connectWebSocket() {
       }
     }
   });
-  socket.value.on('TIMER_END', () => {
+  socket.on('TIMER_END', () => {
     // Workflow: atualizar timer e estado
     handleTimerEnd();
 
@@ -619,7 +625,7 @@ function connectWebSocket() {
       showNotification('Tempo finalizado! Aguardando avaliação do examinador...', 'info');
     }
   });
-  socket.value.on('TIMER_STOPPED', (data) => {
+  socket.on('TIMER_STOPPED', (data) => {
     // Workflow: atualizar estados
     handleTimerStopped(data);
 
@@ -648,7 +654,7 @@ function connectWebSocket() {
       errorMessage.value = "Simulação encerrada.";
     }
   });
-  socket.value.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (payload) => {
+  socket.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (payload) => {
     if (userRole.value === 'candidate' && payload && typeof payload.shouldBeVisible === 'boolean') {
       isChecklistVisibleForCandidate.value = payload.shouldBeVisible;
       
@@ -658,7 +664,7 @@ function connectWebSocket() {
       }
     }
   });
-  socket.value.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
+  socket.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
     if (userRole.value === 'candidate' && data && data.scores) {
       // Converte para number e atualiza scores do candidato
       const numericScores = {};
@@ -685,20 +691,27 @@ function connectWebSocket() {
       }
     }
   });
-  socket.value.on('SERVER_BOTH_PARTICIPANTS_READY', () => {
+  socket.on('SERVER_BOTH_PARTICIPANTS_READY', () => {
     myReadyState.value = true;
     partnerReadyState.value = true;
+    
     // Se partner.value estiver vazio, tenta preencher com papel oposto
     if (!partner.value) {
       partner.value = { role: userRole.value === 'actor' ? 'candidate' : 'actor', isReady: true };
     } else {
+      // Atualiza o estado de isReady do partner se ele já existir
       partner.value.isReady = true;
     }
+    
+    // CRUCIAL: Chama handlePartnerReady para garantir que partnerReadyState seja atualizado
+    // Isso garante que bothParticipantsReady (computed) se torne true
+    handlePartnerReady({ isReady: true });
+    
     errorMessage.value = '';
   });
 
   // Listener específico para sincronização de scores para candidatos
-  socket.value.on('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', (data) => {
+  socket.on('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', (data) => {
     if (userRole.value === 'candidate' && data.sessionId === sessionId.value) {
       
       // Atualiza os scores locais do candidato
@@ -723,10 +736,10 @@ function connectWebSocket() {
   });
 
   // Listener para convites internos de simulação
-  socket.value.on('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
+  socket.on('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
   
   // Listener para confirmação de submissão de avaliação
-  socket.value.on('SUBMISSION_CONFIRMED', (data) => {
+  socket.on('SUBMISSION_CONFIRMED', (data) => {
     if (data.success) {
       console.log('[SUBMIT] Confirmação recebida do servidor:', data);
       // Marcar como submetido se ainda não estiver
@@ -738,7 +751,7 @@ function connectWebSocket() {
   });
   
   // Listener para notificar o avaliador sobre submissão do candidato
-  socket.value.on('CANDIDATE_SUBMITTED_EVALUATION', (data) => {
+  socket.on('CANDIDATE_SUBMITTED_EVALUATION', (data) => {
     if (userRole.value === 'actor' || userRole.value === 'evaluator') {
       console.log('[SUBMIT] Candidato submeteu avaliação:', data);
       showNotification(`Candidato submeteu avaliação final. Nota: ${data.totalScore?.toFixed(2) || 'N/A'}`, 'info');
@@ -755,7 +768,7 @@ function loadSelectedCandidate() {
       const candidate = JSON.parse(candidateData);
       selectedCandidateForSimulation.value = candidate;
     } catch (error) {
-      console.error('[DEBUG] loadSelectedCandidate: Erro ao parsear candidato:', error);
+      console.error('loadSelectedCandidate: Erro ao parsear candidato:', error);
     }
   } else {
   }
@@ -772,8 +785,8 @@ function setupSession() {
   // Reset de estado
   errorMessage.value = '';
   isLoading.value = true;
-  if (socket.value && socket.value.connected) { socket.value.disconnect(); }
-  socket.value = null;
+  if (socketRef.value && socketRef.value.connected) { socketRef.value.disconnect(); }
+  socketRef.value = null;
 
   // Configura IDs e papel do usuário
   stationId.value = route.params.id;
@@ -833,7 +846,6 @@ function setupSession() {
     stationId: stationId.value ?? '',
     displayName: currentUser.value?.displayName ?? '',
   });
-  socket = socketApi.socket;
   connectionStatus = socketApi.connectionStatus;
   connect = socketApi.connect;
   disconnect = socketApi.disconnect;
@@ -862,7 +874,7 @@ function setupSession() {
       if (shouldAutoReady && isActorOrEvaluator.value) {
         console.log('[SEQUENTIAL] Auto-ready ativado para navegação sequencial');
         setTimeout(() => {
-          if (!myReadyState.value && socket.value?.connected) {
+          if (!myReadyState.value && socketRef.value?.connected) {
             sendReady();
           }
         }, 1000);
@@ -963,11 +975,11 @@ async function generateInviteLinkWithDuration() {
 
       let connectionAttempts = 0;
       const maxAttempts = 10; // Tentar por até 5 segundos (10 * 500ms)
-      while (!socket.value?.connected && connectionAttempts < maxAttempts) {
+      while (!socketRef.value?.connected && connectionAttempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 500));
         connectionAttempts++;
       }
-      if (!socket.value?.connected) {
+      if (!socketRef.value?.connected) {
         throw new Error("WebSocket connection failed after multiple attempts during invite link generation.");
       }
 
@@ -1082,16 +1094,16 @@ async function activateBackend_OLD_BACKUP() {
     }
 
     // Conectar WebSocket com o sessionId real (se ainda não estiver conectado)
-    if (!socket.value?.connected) {
+    if (!socketRef.value?.connected) {
       connectWebSocket();
       // Esperar pela conexão do socket
       let connectionAttempts = 0;
       const maxAttempts = 10;
-      while (!socket.value?.connected && connectionAttempts < maxAttempts) {
+      while (!socketRef.value?.connected && connectionAttempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 500));
         connectionAttempts++;
       }
-      if (!socket.value?.connected) {
+      if (!socketRef.value?.connected) {
         throw new Error("WebSocket connection failed after multiple attempts");
       }
     } else {
@@ -1130,8 +1142,8 @@ async function activateBackend_OLD_BACKUP() {
 // Função para manter os callbacks de avaliação
 function sendEvaluationScores() {
   // Envia os scores iniciais ao liberar o PEP (se já houver algum)
-  if (socket.value?.connected) {
-      socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
+  if (socketRef.value?.connected) {
+      socketRef.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
         sessionId: sessionId.value,
         scores: evaluationScores.value,
         totalScore: totalScore.value
@@ -1142,7 +1154,7 @@ function sendEvaluationScores() {
 
 watch(evaluationScores, (newScores) => {
   if (
-    socket.value?.connected &&
+    socketRef.value?.connected &&
     (userRole.value === 'actor' || userRole.value === 'evaluator') &&
     pepReleasedToCandidate.value
   ) {
@@ -1154,7 +1166,7 @@ watch(evaluationScores, (newScores) => {
         : newScores[key];
     });
 
-    socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
+    socketRef.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
       sessionId: sessionId.value,
       scores: numericScores,
       totalScore: Object.values(numericScores).reduce((sum, v) => sum + (isNaN(v) ? 0 : v), 0)
@@ -1168,7 +1180,7 @@ watch(simulationEnded, (newValue) => {
     newValue && // Simulação terminou
     (userRole.value === 'actor' || userRole.value === 'evaluator') && // É ator/avaliador
     !pepReleasedToCandidate.value && // PEP ainda não foi liberado
-    socket.value?.connected && // Socket conectado
+    socketRef.value?.connected && // Socket conectado
     sessionId.value // Tem sessionId
   ) {
     console.log('[AUTO_RELEASE] Liberando PEP automaticamente ao final da simulação');
@@ -1223,13 +1235,13 @@ watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
 // onlineCandidates, sendInternalInvite, handleOnlineUsersList movidos para useInternalInvites
 
 // Atualiza lista de usuários online ao receber do backend
-if (socket.value) {
-  socket.value.on('SERVER_ONLINE_USERS', handleOnlineUsersList);
+if (socketRef.value) {
+  socketRef.value.on('SERVER_ONLINE_USERS', handleOnlineUsersList);
 }
 
 // Solicita lista de usuários online ao conectar
 watch(connectionStatus, (status) => {
-  if (status === 'Conectado' && socket.value?.connected) {
+  if (status === 'Conectado' && socketRef.value?.connected) {
     requestOnlineUsers('candidate');
   }
 });
@@ -1240,8 +1252,8 @@ watch(connectionStatus, (status) => {
 
 onUnmounted(() => {
   // ...existing code...
-  if (socket.value) {
-    socket.value.off('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
+  if (socketRef.value) {
+    socketRef.value.off('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
   }
 });
 

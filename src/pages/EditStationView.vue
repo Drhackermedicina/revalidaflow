@@ -20,8 +20,6 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 // Configuração de Storage carregada
 
 // 🔧 DEBUG: Adicionando logs para diagnosticar erro de carregamento do módulo
-console.log('EditStationView: Iniciando carregamento do módulo')
-console.log('EditStationView: Imports básicos carregados com sucesso')
 
 const route = useRoute();
 const router = useRouter();
@@ -424,6 +422,7 @@ function getInitialFormData() {
   return {
     idEstacao: '',
     tituloEstacao: '',
+    especialidade: '',
     cenarioAtendimento_nivelAtencao: 'atenção primária à saúde',
     cenarioAtendimento_tipoAtendimento: 'ambulatorial',
     cenarioAtendimento_infraestruturaUnidade: '',
@@ -497,7 +496,6 @@ function saveSnapshot(force = false) {
     undoStack.value.shift();
   }
 
-  console.log('📸 Snapshot salvo. Stack size:', undoStack.value.length);
 }
 
 // Função para fazer undo com reatividade profunda
@@ -1051,6 +1049,7 @@ function loadStationIntoForm(stationData) {
   // Dados gerais
   form.idEstacao = stationData.idEstacao || '';
   form.tituloEstacao = stationData.tituloEstacao || '';
+  form.especialidade = stationData.especialidade || '';
   
   // Instruções para participante
   const ip = stationData.instrucoesParticipante || {};
@@ -1217,6 +1216,7 @@ function construirObjetoEstacao() {
   const estacaoAtualizada = {
     idEstacao: idEstacaoBase,
     tituloEstacao: formData.value.tituloEstacao.trim(),
+    especialidade: formData.value.especialidade.trim(),
     origem: 'REVALIDA_FACIL',
     roteiroCandidato: formData.value.roteiroCandidato.trim(),
     orientacoesCandidato: formData.value.orientacoesCandidato.trim(),
@@ -1366,149 +1366,56 @@ async function diagnosticarStorageCompleto() {
 }
 
 // Função para fazer upload de imagem para o Firebase Storage
-async function uploadImageToStorage(file, impressoIndex, retryCount = 0) {
-  const maxRetries = 3;
-  const uploadTimeout = 60000; // 60 segundos
-  
-  try {
-    // Verifica se o usuário está autenticado
-    if (!currentUser.value) {
-      throw new Error('Usuário não autenticado');
-    }
-    
-    // Validação inicial
-    if (!storage) {
-      throw new Error('Firebase Storage não inicializado');
-    }
+// ⛑️ FUNÇÃO DE UPLOAD SIMPLIFICADA PARA DIAGNÓSTICO
+async function uploadImageToStorage(file, impressoIndex) {
+  if (!currentUser.value) {
+    errorMessage.value = 'Usuário não autenticado.';
+    return;
+  }
+  if (!storage) {
+    errorMessage.value = 'Firebase Storage não inicializado.';
+    return;
+  }
 
-    console.log('Upload iniciado:', {
-      fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-      userUID: currentUser.value.uid,
-    });
-    
-    // --- DEBUG: COMPRESSÃO DE IMAGEM TEMPORARIAMENTE DESABILITADA ---
-    let compressedFile = file;
-    // const options = {
-    //   maxSizeMB: 1,
-    //   maxWidthOrHeight: 1920,
-    //   useWebWorker: true,
-    //   fileType: 'image/webp'
-    // };
-    // try {
-    //   compressedFile = await imageCompression(file, options);
-    //   console.log(`Image compressed from ${(file.size / 1024 / 1024).toFixed(2)} MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
-    // } catch (error) {
-    //   console.error('Error compressing image:', error);
-    //   errorMessage.value = 'Erro ao comprimir imagem. Tentando upload sem compressão.';
-    // }
-    // --- FIM DO DEBUG ---
-    
-    // Gera nome único e sanitizado para o arquivo
+  uploadingImages.value[`impresso-${impressoIndex}`] = true;
+  uploadProgress.value[`impresso-${impressoIndex}`] = 0;
+
+  try {
     const timestamp = Date.now();
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `impressos/est_${formData.value.idEstacao || 'temp'}_impresso_${impressoIndex}_${timestamp}_${cleanFileName}`;
     
-    // Cria a referência no Storage
     const imageRef = storageRef(storage, fileName);
-    
-    // --- INÍCIO DA MODIFICAÇÃO: METADADOS COM CACHE-CONTROL ---
-    const metadata = {
-      contentType: compressedFile.type, // Use o tipo do arquivo comprimido
-      cacheControl: 'public, max-age=31536000', // Cache por 1 ano
+
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+      fileType: 'image/webp'
     };
-    // --- FIM DA MODIFICAÇÃO: METADADOS COM CACHE-CONTROL ---
-    
-    // Inicia o upload com indicadores visuais
-    uploadingImages.value[`impresso-${impressoIndex}`] = true;
-    uploadProgress.value[`impresso-${impressoIndex}`] = 0;
-    
-    // Executa o upload diretamente, removendo o Promise.race para timeout
-    const snapshot = await uploadBytes(imageRef, compressedFile, metadata);
-    console.log('Upload concluído:', {
-      bucket: snapshot.ref.bucket,
-      size: snapshot.totalBytes
-    });
-    
-    // Corrigir o bloco do Promise.race
-    const downloadURLPromise = Promise.race([
-      getDownloadURL(snapshot.ref),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao obter URL de download')), 10000))
-    ]);
-    
-    const downloadURL = await downloadURLPromise;
-    
-    // Atualiza o campo automaticamente
+    const compressedFile = await imageCompression(file, options);
+
+    const snapshot = await uploadBytes(imageRef, compressedFile);
+
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
     if (formData.value.impressos[impressoIndex]?.conteudo) {
       formData.value.impressos[impressoIndex].conteudo.caminhoImagem = downloadURL;
     } else {
-      console.warn('⚠️ Estrutura do impresso não encontrada:', formData.value.impressos[impressoIndex]);
-      throw new Error('Estrutura de dados do impresso inválida');
+      throw new Error('Estrutura de dados do impresso inválida no formulário.');
     }
-    
-    // Finaliza o upload
-    uploadingImages.value[`impresso-${impressoIndex}`] = false;
-    uploadProgress.value[`impresso-${impressoIndex}`] = 100;
-    
+
     successMessage.value = '✅ Imagem carregada com sucesso!';
-    setTimeout(() => { successMessage.value = ''; }, 3000);
-    
-    return downloadURL;
-    
+    setTimeout(() => { successMessage.value = ''; }, 4000);
+
   } catch (error) {
-    console.error(`❌ Erro no upload (tentativa ${retryCount + 1}):`, {
-      errorCode: error.code,
-      errorMessage: error.message,
-      fileName: file.name
-    });
-    
-    // Limpa indicadores de upload
+    console.error('❌ Erro durante o upload:', error);
+    errorMessage.value = `Falha no upload: ${error.message}`;
+    setTimeout(() => { errorMessage.value = ''; }, 8000);
+
+  } finally {
     uploadingImages.value[`impresso-${impressoIndex}`] = false;
     uploadProgress.value[`impresso-${impressoIndex}`] = 0;
-    
-    // Retry automático para erros temporários
-    const retryableErrors = [
-      'storage/retry-limit-exceeded',
-      'storage/timeout',
-      'storage/unknown',
-      'network-request-failed'
-    ];
-    
-    if (retryCount < maxRetries && (
-      retryableErrors.includes(error.code) || 
-      error.message.includes('timeout') ||
-      error.message.includes('network')
-    )) {
-      await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 2000));
-      return uploadImageToStorage(file, impressoIndex, retryCount + 1);
-    }
-    
-    // Mensagens de erro específicas e usuário-amigáveis
-    let errorMsg = 'Erro no upload da imagem';
-    
-    if (error.code === 'storage/unauthorized') {
-      errorMsg = '🔒 Sem permissão para fazer upload. Verifique se você está logado como administrador.';
-    } else if (error.code === 'storage/quota-exceeded') {
-      errorMsg = '💾 Cota de armazenamento excedida. Contate o administrador.';
-    } else if (error.code === 'storage/invalid-format') {
-      errorMsg = '📄 Formato de arquivo inválido. Use JPG, PNG, GIF ou WebP.';
-    } else if (error.code === 'storage/object-not-found') {
-      errorMsg = '🔍 Arquivo não encontrado no storage.';
-    } else if (error.code === 'storage/retry-limit-exceeded') {
-      errorMsg = '⏱️ Muitas tentativas. Tente novamente em alguns minutos.';
-    } else if (error.message.includes('timeout')) {
-      errorMsg = '⏰ Upload demorou muito. Verifique sua conexão e tente novamente.';
-    } else if (error.message.includes('network')) {
-      errorMsg = '🌐 Problema de conexão. Verifique sua internet e tente novamente.';
-    } else if (error.message.includes('Estrutura de dados')) {
-      errorMsg = '⚠️ Erro interno: estrutura de dados inválida. Recarregue a página.';
-    } else {
-      errorMsg = `❌ ${error.message || 'Erro desconhecido no upload'}`;
-    }
-    
-    errorMessage.value = errorMsg;
-    setTimeout(() => { errorMessage.value = ''; }, 8000);
-    
-    throw error;
   }
 }
 
@@ -2443,6 +2350,11 @@ function getTipoLabel(tipo) {
           <div class="form-group">
             <label for="manualIdEstacao" style="text-transform: uppercase !important; color: red !important; font-weight: bold !important;">ID da Estação:</label>
             <input type="text" id="manualIdEstacao" v-model="formData.idEstacao" required placeholder="Ex: cardio_iam_001" class="theme-input">
+          </div>
+
+          <div class="form-group">
+            <label for="manualEspecialidade">Especialidade:</label>
+            <input type="text" id="manualEspecialidade" v-model="formData.especialidade" placeholder="Ex: Clínica Médica, Pediatria, etc." class="theme-input">
           </div>
 
           <div class="section-divider"></div>
