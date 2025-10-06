@@ -14,6 +14,7 @@ import { useEvaluation } from '@/composables/useEvaluation.ts';
 import { useImagePreloading } from '@/composables/useImagePreloading.ts';
 import { useScriptMarking } from '@/composables/useScriptMarking.ts';
 import { useSimulationMeet } from '@/composables/useSimulationMeet.ts';
+import { useSimulationData } from '@/composables/useSimulationData.ts';
 import { usePrivateChatNotification } from '@/plugins/privateChatListener.js';
 import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
@@ -248,14 +249,18 @@ const {
   getMeetLinkForInvite
 } = useSimulationMeet({ userRole, route });
 
-// Refs para dados da simulação
-const releasedData = ref({});
-const isChecklistVisibleForCandidate = ref(false);
-const actorVisibleImpressoContent = ref({});
-const actorReleasedImpressoIds = ref({});
-
-// Modal de impressos
-const impressosModalOpen = ref(false);
+// Simulation data management
+const {
+  releasedData,
+  isChecklistVisibleForCandidate,
+  actorVisibleImpressoContent,
+  actorReleasedImpressoIds,
+  impressosModalOpen,
+  toggleActorImpressoVisibility,
+  releaseData,
+  handleCandidateReceiveData,
+  resetSimulationData
+} = useSimulationData({ socket, sessionId, userRole, stationData });
 
 // Refs para controlar itens marcados do roteiro (movidos para useScriptMarking composable)
 
@@ -556,7 +561,10 @@ function connectWebSocket() {
       }
     }
   });
-  socket.value.on('CANDIDATE_RECEIVE_DATA', (payload) => { const { dataItemId } = payload; if (userRole.value === 'candidate' && stationData.value?.materiaisDisponiveis?.impressos) { const impressoParaLiberar = stationData.value.materiaisDisponiveis.impressos.find(item => item.idImpresso === dataItemId); if (impressoParaLiberar) { releasedData.value[dataItemId] = { ...impressoParaLiberar }; releasedData.value = {...releasedData.value}; } } });
+  socket.value.on('CANDIDATE_RECEIVE_DATA', (payload) => {
+    const { dataItemId } = payload;
+    handleCandidateReceiveData(dataItemId);
+  });
   socket.value.on('SERVER_PARTNER_READY', (data) => {
     if (data && data.userId !== currentUser.value?.uid) {
       if (partner.value && partner.value.userId === data.userId) {
@@ -781,14 +789,14 @@ function setupSession() {
   simulationEnded.value = false;
   simulationWasManuallyEndedEarly.value = false;
   partner.value = null;
-  releasedData.value = {};
+
+  // Reset simulation data via composable
+  resetSimulationData();
+
   evaluationScores.value = {};
-  isChecklistVisibleForCandidate.value = false;
   pepReleasedToCandidate.value = false;
-  actorVisibleImpressoContent.value = {};
   candidateReceivedScores.value = {};
   candidateReceivedTotalScore.value = 0;
-  actorReleasedImpressoIds.value = {};
 
   // Limpa cache de imagens ao reiniciar sessão
   clearImageCache();
@@ -929,10 +937,8 @@ onUnmounted(() => {
     console.warn('Erro ao limpar candidato selecionado:', error);
   }
 });
-function toggleActorImpressoVisibility(impressoId) {
-  actorVisibleImpressoContent.value[impressoId] = !actorVisibleImpressoContent.value[impressoId];
-  actorVisibleImpressoContent.value = {...actorVisibleImpressoContent.value};
-}
+
+// toggleActorImpressoVisibility movido para useSimulationData composable
 
 function updateTimerDisplayFromSelection() {
   if (selectedDurationMinutes.value) {
@@ -1075,22 +1081,7 @@ watch(() => route.fullPath, (newPath, oldPath) => {
   }
 });
 // --- Funções de Interação ---
-function releaseData(dataItemId) {
-  // Lógica no frontend para verificar se o item já foi liberado, ou se a simulação terminou/começou
-  // A validação final de estado (ativa/encerrada) é feita no backend
-  if (!socket.value?.connected) { alert("Erro: Não conectado.");
-    return; }
-  if (userRole.value !== 'actor') { alert("Apenas o ator pode liberar dados."); return; }
-  if (!sessionId.value) return;
-  // A validação de `simulationStarted` ou `simulationEnded` será feita no backend.
-  // No frontend, apenas verificamos se já foi liberado para evitar spam de botão.
-  if (actorReleasedImpressoIds.value[dataItemId]) {
-    return;
-  }
-
-  socket.value.emit('ACTOR_RELEASE_DATA', { sessionId: sessionId.value, dataItemId });
-  actorReleasedImpressoIds.value = {...actorReleasedImpressoIds.value, [dataItemId]: true}; // Atualiza localmente
-}
+// releaseData movido para useSimulationData composable
 
 async function copyInviteLink() { if(!inviteLinkToShow.value) return; try {await navigator.clipboard.writeText(inviteLinkToShow.value); copySuccess.value=true; setTimeout(()=>copySuccess.value=false,2000);
   } catch(e){alert('Falha ao copiar.')} }
