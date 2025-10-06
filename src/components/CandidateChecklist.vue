@@ -39,17 +39,35 @@ watch(() => props.isChecklistVisibleForCandidate, (newValue, oldValue) => {
     props.checklistData?.itensAvaliacao?.length > 0 &&
     newValue
   );
-}, { immediate: true })
+}, { immediate: true, flush: 'post' })
 
 watch(() => props.isCandidate, (newValue) => {
   console.log('[CandidateChecklist] 👤 WATCH isCandidate mudou:', newValue);
-})
+}, { immediate: true })
+
+// Watch TODAS as props para debug
+watch(() => props, (newValue) => {
+  console.log('[CandidateChecklist] 📦 PROPS mudaram:', {
+    isCandidate: newValue.isCandidate,
+    isChecklistVisibleForCandidate: newValue.isChecklistVisibleForCandidate,
+    checklistData: newValue.checklistData ? 'presente' : 'ausente',
+    itensLength: newValue.checklistData?.itensAvaliacao?.length
+  });
+}, { deep: true, immediate: true })
 
 onMounted(() => {
   console.log('[CandidateChecklist] 🎬 COMPONENTE MONTADO');
   console.log('[CandidateChecklist]   - isCandidate:', props.isCandidate);
   console.log('[CandidateChecklist]   - isChecklistVisibleForCandidate:', props.isChecklistVisibleForCandidate);
   console.log('[CandidateChecklist]   - checklistData:', props.checklistData);
+
+  // Verificar a cada segundo se as props mudaram
+  const interval = setInterval(() => {
+    console.log('[CandidateChecklist] ⏰ Poll: isChecklistVisibleForCandidate =', props.isChecklistVisibleForCandidate);
+  }, 1000);
+
+  // Limpar após 30 segundos
+  setTimeout(() => clearInterval(interval), 30000);
 })
 
 // Normaliza marcações
