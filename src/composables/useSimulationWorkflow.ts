@@ -375,6 +375,7 @@ export function useSimulationWorkflow({
 
   /**
    * Watch para ativar backend automaticamente quando ambos prontos
+   * E iniciar simulação automaticamente para ator/avaliador
    */
   watch(bothParticipantsReady, (newValue) => {
     if (newValue && !backendActivated.value) {
@@ -387,8 +388,15 @@ export function useSimulationWorkflow({
     ) {
       // Backend is activated, proceed with simulation start
       if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-        // Ator/avaliador deve clicar em "Iniciar Simulação"
-        // Não auto-start aqui
+        // Auto-start da simulação para ator/avaliador
+        const durationToSend = selectedDurationMinutes.value
+
+        if (socket.value?.connected && sessionId.value) {
+          socket.value.emit('CLIENT_START_SIMULATION', {
+            sessionId: sessionId.value,
+            durationMinutes: durationToSend
+          })
+        }
       } else if (userRole.value === 'candidate' && !simulationStarted.value) {
         // Candidato aguarda ator iniciar
       }
