@@ -152,7 +152,7 @@ let connect = () => {};
 let disconnect = () => {};
 
 // Refs para notificações
-// NOTA: simulationEnded agora vem do useSimulationWorkflow (linha 317)
+// NOTA: simulationEnded agora vem do useSimulationWorkflow (linha 176)
 const showNotificationSnackbar = ref(false);
 const notificationMessage = ref('');
 const notificationColor = ref('info');
@@ -162,6 +162,47 @@ const showNotification = (message, color = 'info') => {
   notificationColor.value = color;
   showNotificationSnackbar.value = true;
 };
+
+// Simulation workflow management (ready/start/end)
+// IMPORTANTE: Deve vir ANTES de useEvaluation pois exporta simulationEnded
+const partner = ref(null);
+const inviteLinkToShow = ref('');
+
+const {
+  myReadyState,
+  partnerReadyState,
+  candidateReadyButtonEnabled,
+  simulationStarted,
+  simulationEnded, // ✅ Gerenciado pelo composable - usado por useEvaluation
+  simulationWasManuallyEndedEarly,
+  backendActivated,
+  bothParticipantsReady,
+  sendReady,
+  activateBackend,
+  handleStartSimulationClick,
+  manuallyEndSimulation,
+  updateTimerDisplayFromSelection,
+  resetWorkflowState,
+  handlePartnerReady,
+  handleSimulationStart,
+  handleTimerUpdate,
+  handleTimerEnd,
+  handleTimerStopped,
+  handlePartnerDisconnect,
+  handleSocketConnect,
+  handleSocketDisconnect
+} = useSimulationWorkflow({
+  socketRef,
+  sessionId,
+  userRole,
+  partner,
+  stationData,
+  simulationTimeSeconds,
+  timerDisplay,
+  selectedDurationMinutes,
+  inviteLinkToShow,
+  backendUrl
+});
 
 // Inicializa composable de avaliação
 const {
@@ -302,47 +343,6 @@ const {
   getMeetLinkForInvite
 });
 
-// Simulation workflow management (ready/start/end)
-// Note: partner and inviteLinkToShow are declared below as they're also used elsewhere
-const partner = ref(null);
-const inviteLinkToShow = ref('');
-
-const {
-  myReadyState,
-  partnerReadyState,
-  candidateReadyButtonEnabled,
-  simulationStarted,
-  simulationEnded, // ✅ Gerenciado pelo composable
-  simulationWasManuallyEndedEarly,
-  backendActivated,
-  bothParticipantsReady,
-  sendReady,
-  activateBackend,
-  handleStartSimulationClick,
-  manuallyEndSimulation,
-  updateTimerDisplayFromSelection,
-  resetWorkflowState,
-  handlePartnerReady,
-  handleSimulationStart,
-  handleTimerUpdate,
-  handleTimerEnd,
-  handleTimerStopped,
-  handlePartnerDisconnect,
-  handleSocketConnect,
-  handleSocketDisconnect
-} = useSimulationWorkflow({
-  socketRef,
-  sessionId,
-  userRole,
-  partner,
-  stationData,
-  simulationTimeSeconds,
-  timerDisplay,
-  selectedDurationMinutes,
-  inviteLinkToShow,
-  backendUrl
-});
-
 // Variável lastClickTime movida para useScriptMarking composable
 
 // Função para separar texto em sentenças
@@ -377,7 +377,7 @@ function openEditPage() {
 }
 
 // Refs para estado de prontidão e controle da simulação
-// MOVIDOS PARA useSimulationWorkflow composable (linhas 312-334):
+// MOVIDOS PARA useSimulationWorkflow composable (linhas 166-205):
 // - myReadyState, partnerReadyState, simulationStarted, simulationEnded
 // - simulationWasManuallyEndedEarly, candidateReadyButtonEnabled, backendActivated
 // Todos os estados de workflow agora são gerenciados pelo composable
