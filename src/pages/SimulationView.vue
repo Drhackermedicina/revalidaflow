@@ -37,7 +37,7 @@ import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/fires
 import { getAuth } from 'firebase/auth';
 import { io } from 'socket.io-client';
 import { captureSimulationError, captureWebSocketError, captureFirebaseError } from '@/plugins/sentry';
-import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, nextTick, triggerRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
 import PepSideView from '@/components/PepSideView.vue';
@@ -667,22 +667,31 @@ function connectWebSocket() {
       isChecklistVisibleForCandidate.value = payload.shouldBeVisible;
       console.log('[CANDIDATE_PEP]   - isChecklistVisibleForCandidate DEPOIS:', isChecklistVisibleForCandidate.value);
 
-      // Verificar condições de renderização do componente
-      console.log('[CANDIDATE_PEP] 🔍 Verificando condições de renderização:');
-      console.log('[CANDIDATE_PEP]   - isCandidate:', isCandidate.value);
-      console.log('[CANDIDATE_PEP]   - checklistData:', checklistData.value);
-      console.log('[CANDIDATE_PEP]   - checklistData?.itensAvaliacao?.length:', checklistData.value?.itensAvaliacao?.length);
-      console.log('[CANDIDATE_PEP]   - Todas as condições v-if:',
-        isCandidate.value &&
-        checklistData.value?.itensAvaliacao?.length > 0 &&
-        isChecklistVisibleForCandidate.value
-      );
+      // FORÇAR REATIVIDADE: Usar nextTick() para garantir que Vue processa a mudança
+      nextTick(() => {
+        console.log('[CANDIDATE_PEP] 🔄 nextTick() executado - forçando re-renderização');
 
-      // Notificar o candidato quando o PEP é liberado
-      if (payload.shouldBeVisible) {
-        console.log('[CANDIDATE_PEP] 🔔 Mostrando notificação de liberação');
-        showNotification('O PEP (checklist de avaliação) foi liberado pelo examinador!', 'success');
-      }
+        // Forçar Vue a notificar watchers sobre a mudança
+        triggerRef(isChecklistVisibleForCandidate);
+
+        // Verificar condições de renderização do componente
+        console.log('[CANDIDATE_PEP] 🔍 Verificando condições de renderização:');
+        console.log('[CANDIDATE_PEP]   - isCandidate:', isCandidate.value);
+        console.log('[CANDIDATE_PEP]   - checklistData:', checklistData.value);
+        console.log('[CANDIDATE_PEP]   - checklistData?.itensAvaliacao?.length:', checklistData.value?.itensAvaliacao?.length);
+        console.log('[CANDIDATE_PEP]   - isChecklistVisibleForCandidate:', isChecklistVisibleForCandidate.value);
+        console.log('[CANDIDATE_PEP]   - Todas as condições v-if:',
+          isCandidate.value &&
+          checklistData.value?.itensAvaliacao?.length > 0 &&
+          isChecklistVisibleForCandidate.value
+        );
+
+        // Notificar o candidato quando o PEP é liberado
+        if (payload.shouldBeVisible) {
+          console.log('[CANDIDATE_PEP] 🔔 Mostrando notificação de liberação');
+          showNotification('O PEP (checklist de avaliação) foi liberado pelo examinador!', 'success');
+        }
+      });
     } else {
       console.log('[CANDIDATE_PEP] ❌ Condições não atendidas');
       if (userRole.value !== 'candidate') console.log('[CANDIDATE_PEP]   ❌ Não é candidato');

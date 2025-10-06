@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, watch, onMounted } from 'vue'
 import { parseEnumeratedItems, formatItemDescriptionForDisplay } from '@/utils/simulationUtils.ts'
 import { TITLE_INDEX } from '@/composables/useSimulationPEP.ts'
 
@@ -26,6 +26,31 @@ const emit = defineEmits([
   'update:evaluationScores',
   'submitEvaluation'
 ])
+
+// DEBUG: Watch para diagnosticar problema de renderização
+watch(() => props.isChecklistVisibleForCandidate, (newValue, oldValue) => {
+  console.log('[CandidateChecklist] 👁️ WATCH isChecklistVisibleForCandidate mudou:');
+  console.log('[CandidateChecklist]   - ANTES:', oldValue);
+  console.log('[CandidateChecklist]   - DEPOIS:', newValue);
+  console.log('[CandidateChecklist]   - isCandidate:', props.isCandidate);
+  console.log('[CandidateChecklist]   - checklistData?.itensAvaliacao?.length:', props.checklistData?.itensAvaliacao?.length);
+  console.log('[CandidateChecklist]   - Deveria renderizar?',
+    props.isCandidate &&
+    props.checklistData?.itensAvaliacao?.length > 0 &&
+    newValue
+  );
+}, { immediate: true })
+
+watch(() => props.isCandidate, (newValue) => {
+  console.log('[CandidateChecklist] 👤 WATCH isCandidate mudou:', newValue);
+})
+
+onMounted(() => {
+  console.log('[CandidateChecklist] 🎬 COMPONENTE MONTADO');
+  console.log('[CandidateChecklist]   - isCandidate:', props.isCandidate);
+  console.log('[CandidateChecklist]   - isChecklistVisibleForCandidate:', props.isChecklistVisibleForCandidate);
+  console.log('[CandidateChecklist]   - checklistData:', props.checklistData);
+})
 
 // Normaliza marcações
 const marks = computed(() => props.markedPepItems?.value ?? props.markedPepItems ?? {})
@@ -516,28 +541,33 @@ const getEvaluationLabel = (item, score) => {
 }
 
 .criterio-selecionado {
-  background-color: rgba(var(--v-theme-primary), 0.1);
-  border-color: rgb(var(--v-theme-primary));
-  border-width: 2px;
+  background-color: rgba(var(--v-theme-primary), 0.15) !important;
+  border-color: rgb(var(--v-theme-primary)) !important;
+  border-width: 2px !important;
+  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.25) !important;
+  transform: scale(1.02);
 }
 
 .pep-item-description {
-  margin-top: 12px;
-  margin-bottom: 8px;
-  line-height: 1.6;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  line-height: 1.5;
+  font-size: 1.05rem;
 }
 
 .pep-title-wrapper,
 .pep-sub-item-wrapper {
-  padding: 6px 0;
-  margin-bottom: 6px;
+  padding: 2px 0;
+  margin-bottom: 2px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
+  font-size: 1.05rem;
+  line-height: 1.4;
 }
 
 .pep-sub-item-wrapper {
-  padding: 8px 12px;
-  margin-bottom: 8px;
+  padding: 2px 12px;
+  margin-bottom: 2px;
 }
 
 .pep-title-wrapper:hover,
