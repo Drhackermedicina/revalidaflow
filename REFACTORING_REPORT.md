@@ -1,5 +1,5 @@
 # 📊 RELATÓRIO DE REFATORAÇÃO - SimulationView.vue
-**Data**: $(date +"%Y-%m-%d %H:%M")
+**Data**: 2025-10-05
 **Branch**: restore-a86d04c
 
 ---
@@ -227,6 +227,7 @@ Reduzir SimulationView.vue de ~2900 linhas para < 500 linhas através de:
 
 ## 📦 ESTRUTURA DE COMMITS
 
+### Commits de Refatoração (Fase 1)
 ```
 08f8ed8 feat: extrair fluxo de simulação para composable useSimulationWorkflow
 3c9fea3 feat: extrair sistema de convites internos para composable
@@ -234,6 +235,110 @@ Reduzir SimulationView.vue de ~2900 linhas para < 500 linhas através de:
 b9be29f feat: extrair lógica de dados para composable useSimulationData
 40aba24 feat: extrair lógica Google Meet para composable useSimulationMeet
 ```
+
+### Commits de Correção de Bugs
+```
+c83ad8b fix: corrigir detecção de parceiro pronto (isReady vs ready)
+85353aa fix: restaurar auto-start da simulação após ambos prontos
+```
+
+---
+
+## 🐛 BUGS CORRIGIDOS PÓS-REFATORAÇÃO
+
+### Bug #1: Simulação não iniciava automaticamente
+**Commit**: 85353aa - `fix: restaurar auto-start da simulação após ambos prontos`
+
+**Sintoma**: Após ambos participantes clicarem em "Estou Pronto", a simulação não iniciava automaticamente. O botão "Iniciar Simulação" não aparecia para o ator/avaliador.
+
+**Causa Raiz**: Durante a refatoração para `useSimulationWorkflow.ts`, a lógica de auto-start foi removida do watch `bothParticipantsReady`. O código comentado indicava que ator/avaliador deveria clicar manualmente, mas a funcionalidade original era auto-start.
+
+**Correção**: Restaurada a emissão automática do evento `CLIENT_START_SIMULATION` no watch quando:
+- `bothParticipantsReady` é `true`
+- Backend está ativado (`backendActivated`)
+- Simulação não iniciada ainda
+- Usuário é ator ou avaliador
+
+**Código Corrigido** (useSimulationWorkflow.ts:380-404):
+```typescript
+watch(bothParticipantsReady, (newValue) => {
+  if (newValue && !backendActivated.value) {
+    activateBackend()
+  } else if (
+    newValue &&
+    backendActivated.value &&
+    !simulationStarted.value &&
+    !simulationEnded.value
+  ) {
+    // Auto-start da simulação para ator/avaliador
+    if (userRole.value === 'actor' || userRole.value === 'evaluator') {
+      const durationToSend = selectedDurationMinutes.value
+
+      if (socket.value?.connected && sessionId.value) {
+        socket.value.emit('CLIENT_START_SIMULATION', {
+          sessionId: sessionId.value,
+          durationMinutes: durationToSend
+        })
+      }
+    }
+  }
+})
+```
+
+**Validação**: Build concluído com sucesso (25.11s)
+
+---
+
+### Bug #2: Estado de parceiro pronto não atualizava
+**Commit**: c83ad8b - `fix: corrigir detecção de parceiro pronto (isReady vs ready)`
+
+**Sintoma**: O computed `bothParticipantsReady` nunca se tornava `true` mesmo quando ambos participantes clicavam em "Estou Pronto", porque `partnerReadyState` não atualizava.
+
+**Causa Raiz**: A função `handlePartnerReady()` verificava a propriedade `data.ready`, mas o servidor envia `data.isReady` no evento `SERVER_PARTNER_READY`.
+
+**Correção**: Alterada a verificação de `data.ready` para `data.isReady`.
+
+**Código Corrigido** (useSimulationWorkflow.ts:280-284):
+```typescript
+function handlePartnerReady(data: any) {
+  if (data?.isReady !== undefined) {  // ✅ Correto: isReady
+    partnerReadyState.value = data.isReady
+  }
+}
+```
+
+**Antes (incorreto)**:
+```typescript
+function handlePartnerReady(data: any) {
+  if (data?.ready !== undefined) {  // ❌ Errado: ready
+    partnerReadyState.value = data.ready
+  }
+}
+```
+
+**Evidência**: O evento `SERVER_PARTNER_READY` no SimulationView.vue:582 confirma que o servidor envia `data.isReady`:
+```typescript
+socket.value.on('SERVER_PARTNER_READY', (data) => {
+  if (data && data.userId !== currentUser.value?.uid) {
+    if (partner.value && partner.value.userId === data.userId) {
+      partner.value.isReady = data.isReady  // Servidor usa isReady
+    }
+    handlePartnerReady(data)
+  }
+})
+```
+
+**Validação**: Build concluído com sucesso (32.90s)
+
+---
+
+### Resumo das Correções
+- ✅ **2 bugs críticos corrigidos**
+- ✅ **Funcionalidade de auto-start restaurada**
+- ✅ **Detecção de estado pronto corrigida**
+- ✅ **Fluxo completo de inicialização funcionando**
+- ✅ **2 commits de correção adicionados**
+- ✅ **Builds validados (25.11s + 32.90s)**
 
 ---
 
@@ -309,7 +414,7 @@ b9be29f feat: extrair lógica de dados para composable useSimulationData
 
 ### Git Status
 ✅ **Working tree limpo**
-✅ **5 commits bem documentados**
+✅ **7 commits bem documentados** (5 features + 2 bug fixes)
 
 ### Tamanho dos Arquivos
 - SimulationView.vue: **~104 kB** (5% menor que o inicial)
@@ -332,6 +437,9 @@ b9be29f feat: extrair lógica de dados para composable useSimulationData
 - ✅ Build funcionando perfeitamente (22.07s)
 - ✅ **Workflow completo de simulação isolado**
 - ✅ **Event handlers organizados por responsabilidade**
+- ✅ **2 bugs críticos identificados e corrigidos**
+- ✅ **Funcionalidade de auto-start restaurada**
+- ✅ **Fluxo de inicialização validado e funcionando**
 
 ### Próxima Sessão - Fase 2 Componentização
 Iniciar componentização do template:
