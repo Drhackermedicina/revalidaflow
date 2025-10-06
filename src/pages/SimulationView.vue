@@ -16,6 +16,7 @@ import { useScriptMarking } from '@/composables/useScriptMarking.ts';
 import { useSimulationMeet } from '@/composables/useSimulationMeet.ts';
 import { useSimulationData } from '@/composables/useSimulationData.ts';
 import { useSimulationPEP } from '@/composables/useSimulationPEP.ts';
+import { useInternalInvites } from '@/composables/useInternalInvites.ts';
 import { usePrivateChatNotification } from '@/plugins/privateChatListener.js';
 import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
@@ -271,7 +272,27 @@ const {
   initializePepItems
 } = useSimulationPEP({ userRole, checklistData });
 
-
+// Internal invites management
+const {
+  onlineCandidates,
+  isSendingInternalInvite,
+  internalInviteSentTo,
+  internalInviteDialog,
+  internalInviteData,
+  handleOnlineUsersList,
+  sendInternalInvite,
+  handleInternalInviteReceived,
+  acceptInternalInvite,
+  declineInternalInvite,
+  requestOnlineUsers
+} = useInternalInvites({
+  socket,
+  sessionId,
+  stationId,
+  selectedDurationMinutes,
+  currentUser,
+  getMeetLinkForInvite
+});
 
 // Variável lastClickTime movida para useScriptMarking composable
 
@@ -1270,31 +1291,7 @@ watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
 // openGoogleMeet e copyMeetLink movidos para useSimulationMeet composable
 
 // --- CONTROLE DE USUÁRIOS ONLINE E CONVITE INTERNO ---
-const onlineCandidates = ref([]); // Lista de candidatos online
-const isSendingInternalInvite = ref(false);
-const internalInviteSentTo = ref(null);
-
-// Recebe lista de usuários online do backend
-function handleOnlineUsersList(users) {
-  // Filtra apenas candidatos
-  onlineCandidates.value = Array.isArray(users)
-    ? users.filter(u => u.role === 'candidate' && u.userId !== currentUser.value?.uid)
-    : [];
-}
-
-// Envia convite interno para um candidato online
-function sendInternalInvite(candidate) {
-  if (!socket.value?.connected || !candidate?.userId) return;
-  isSendingInternalInvite.value = true;
-  internalInviteSentTo.value = candidate.userId;
-  socket.value.emit('SERVER_SEND_INTERNAL_INVITE', {
-    toUserId: candidate.userId,
-    sessionId: sessionId.value,
-    stationId: stationId.value,
-    meetLink: getMeetLinkForInvite() || '',
-    duration: selectedDurationMinutes.value
-  });
-}
+// onlineCandidates, sendInternalInvite, handleOnlineUsersList movidos para useInternalInvites
 
 // Atualiza lista de usuários online ao receber do backend
 if (socket.value) {
@@ -1304,33 +1301,13 @@ if (socket.value) {
 // Solicita lista de usuários online ao conectar
 watch(connectionStatus, (status) => {
   if (status === 'Conectado' && socket.value?.connected) {
-    socket.value.emit('CLIENT_REQUEST_ONLINE_USERS', { role: 'candidate' });
+    requestOnlineUsers('candidate');
   }
 });
 
 // --- CONTROLE DE CONVITE INTERNO (CANDIDATO ONLINE) ---
-const internalInviteDialog = ref(false);
-const internalInviteData = ref({ from: '', link: '', stationId: '', sessionId: '', role: '', meet: '' });
-
-// Recebe convite interno via socket
-function handleInternalInviteReceived(payload) {
-  // payload: { from, link, stationTitle, sessionId, role, meet }
-  if (!payload || !payload.link) return;
-  internalInviteData.value = { ...payload };
-  internalInviteDialog.value = true;
-}
-
-function acceptInternalInvite() {
-  if (internalInviteData.value.link) {
-    // Redireciona para o link da estação (abre na mesma aba)
-    window.location.href = internalInviteData.value.link;
-    internalInviteDialog.value = false;
-  }
-}
-
-function declineInternalInvite() {
-  internalInviteDialog.value = false;
-}
+// internalInviteDialog, internalInviteData, handleInternalInviteReceived, acceptInternalInvite, declineInternalInvite
+// movidos para useInternalInvites
 
 onUnmounted(() => {
   // ...existing code...
