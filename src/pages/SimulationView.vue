@@ -15,6 +15,7 @@ import { useImagePreloading } from '@/composables/useImagePreloading.ts';
 import { useScriptMarking } from '@/composables/useScriptMarking.ts';
 import { useSimulationMeet } from '@/composables/useSimulationMeet.ts';
 import { useSimulationData } from '@/composables/useSimulationData.ts';
+import { useSimulationPEP } from '@/composables/useSimulationPEP.ts';
 import { usePrivateChatNotification } from '@/plugins/privateChatListener.js';
 import { currentUser } from '@/plugins/auth.js';
 import { db } from '@/plugins/firebase.js';
@@ -262,38 +263,13 @@ const {
   resetSimulationData
 } = useSimulationData({ socket, sessionId, userRole, stationData });
 
-// Refs para controlar itens marcados do roteiro (movidos para useScriptMarking composable)
-
-// NOVO: Ref para controlar a visibilidade da split view
-const pepViewState = ref({
-  isVisible: false,
-});
-const markedPepItems = ref({}); // Cada chave é um itemId, valor é um array de booleanos para pontos de verificação
-
-// NOVO: Função para alternar a marcação de um item do PEP
-function togglePepItemMark(itemId, pointIndex) {
-  if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-    if (!markedPepItems.value[itemId]) {
-      markedPepItems.value[itemId] = [];
-    }
-
-    // Garante que o array tenha o tamanho necessário, preenchendo com 'false' se for expandido
-    while (markedPepItems.value[itemId].length <= pointIndex) {
-      markedPepItems.value[itemId].push(false);
-    }
-
-  // Cria uma cópia do array interno para garantir a reatividade
-  const currentItemMarks = [...markedPepItems.value[itemId]];
-  currentItemMarks[pointIndex] = !currentItemMarks[pointIndex];
-
-  // Atribui a cópia de volta apenas para o item específico
-  markedPepItems.value[itemId] = currentItemMarks;
-
-  // Garante reatividade do objeto raiz (forçando nova referência)
-  markedPepItems.value = { ...markedPepItems.value };
-
-  }
-}
+// PEP management
+const {
+  pepViewState,
+  markedPepItems,
+  togglePepItemMark,
+  initializePepItems
+} = useSimulationPEP({ userRole, checklistData });
 
 
 
@@ -835,13 +811,7 @@ function setupSession() {
   // Busca dados da estação e configura pós-carregamento
   fetchSimulationData(stationId.value).then(() => {
     // Inicializa markedPepItems para cada item do checklist
-    if (checklistData.value?.itensAvaliacao) {
-      checklistData.value.itensAvaliacao.forEach(item => {
-        if (item.idItem && !markedPepItems.value[item.idItem]) {
-          markedPepItems.value[item.idItem] = [];
-        }
-      });
-    }
+    initializePepItems();
 
     // Pré-carrega imagens dos impressos
     setTimeout(() => {
