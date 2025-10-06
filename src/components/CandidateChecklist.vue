@@ -1,4 +1,5 @@
 <script setup>
+console.log('[CandidateChecklist] 🔥 SCRIPT SETUP INICIANDO!') // DEBUG CRÍTICO
 import { computed, watch, onMounted } from 'vue'
 import { parseEnumeratedItems, formatItemDescriptionForDisplay } from '@/utils/simulationUtils.ts'
 import { TITLE_INDEX } from '@/composables/useSimulationPEP.ts'
@@ -104,6 +105,10 @@ const getEvaluationLabel = (item, score) => {
 </script>
 
 <template>
+  <div v-if="true" style="display: none;">
+    {{ console.log('[CandidateChecklist] 🔥 TEMPLATE RENDERIZADO!') }}
+  </div>
+
   <!-- VISÃO DO AVALIADOR/ATOR -->
   <VCard
     v-if="isActorOrEvaluator && checklistData?.itensAvaliacao?.length > 0"
