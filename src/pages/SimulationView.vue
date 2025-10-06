@@ -667,6 +667,17 @@ function connectWebSocket() {
       isChecklistVisibleForCandidate.value = payload.shouldBeVisible;
       console.log('[CANDIDATE_PEP]   - isChecklistVisibleForCandidate DEPOIS:', isChecklistVisibleForCandidate.value);
 
+      // Verificar condições de renderização do componente
+      console.log('[CANDIDATE_PEP] 🔍 Verificando condições de renderização:');
+      console.log('[CANDIDATE_PEP]   - isCandidate:', isCandidate.value);
+      console.log('[CANDIDATE_PEP]   - checklistData:', checklistData.value);
+      console.log('[CANDIDATE_PEP]   - checklistData?.itensAvaliacao?.length:', checklistData.value?.itensAvaliacao?.length);
+      console.log('[CANDIDATE_PEP]   - Todas as condições v-if:',
+        isCandidate.value &&
+        checklistData.value?.itensAvaliacao?.length > 0 &&
+        isChecklistVisibleForCandidate.value
+      );
+
       // Notificar o candidato quando o PEP é liberado
       if (payload.shouldBeVisible) {
         console.log('[CANDIDATE_PEP] 🔔 Mostrando notificação de liberação');
