@@ -1471,29 +1471,30 @@ function toggleCollapse() {
               @release-data="releaseData"
               @open-image-zoom="openImageZoom"
             />
-
-             <!-- CANDIDATE CHECKLIST COMPONENT -->
-             <CandidateChecklist
-               :checklist-data="checklistData"
-               :simulation-started="simulationStarted"
-               :simulation-ended="simulationEnded"
-               :simulation-was-manually-ended-early="simulationWasManuallyEndedEarly"
-               :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
-               :pep-released-to-candidate="pepReleasedToCandidate"
-               :marked-pep-items="markedPepItems"
-               :evaluation-scores="evaluationScores"
-               :candidate-received-scores="candidateReceivedScores"
-               :candidate-received-total-score="candidateReceivedTotalScore"
-               :total-score="totalScore"
-               :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
-               :is-actor-or-evaluator="isActorOrEvaluator"
-               :is-candidate="isCandidate"
-               @release-pep-to-candidate="releasePepToCandidate"
-               @toggle-pep-item-mark="togglePepItemMark"
-               @update:evaluation-scores="handleEvaluationScoreUpdate"
-               @submit-evaluation="submitEvaluation"
-             />
            </div>
+
+          <!-- CANDIDATE CHECKLIST COMPONENT - FORA DO CONDICIONAL DO ATOR -->
+          <!-- O componente tem seus próprios v-if internos para cada papel -->
+          <CandidateChecklist
+            :checklist-data="checklistData"
+            :simulation-started="simulationStarted"
+            :simulation-ended="simulationEnded"
+            :simulation-was-manually-ended-early="simulationWasManuallyEndedEarly"
+            :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
+            :pep-released-to-candidate="pepReleasedToCandidate"
+            :marked-pep-items="markedPepItems"
+            :evaluation-scores="evaluationScores"
+            :candidate-received-scores="candidateReceivedScores"
+            :candidate-received-total-score="candidateReceivedTotalScore"
+            :total-score="totalScore"
+            :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
+            :is-actor-or-evaluator="isActorOrEvaluator"
+            :is-candidate="isCandidate"
+            @release-pep-to-candidate="releasePepToCandidate"
+            @toggle-pep-item-mark="togglePepItemMark"
+            @update:evaluation-scores="handleEvaluationScoreUpdate"
+            @submit-evaluation="submitEvaluation"
+          />
 
            <!-- NAVEGAÇÃO SEQUENCIAL - Botão Próxima Estação -->
            <VCard
