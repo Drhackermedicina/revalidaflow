@@ -56,6 +56,7 @@
     "lodash-es": "^4.17.21",
     "lottie-web": "^5.13.0",
     "marked": "^16.2.1",
+    "node-fetch": "^3.3.2",
     "pinia": "^2.3.0",
     "playwright": "^1.55.0",
     "prismjs": "^1.29.0",
@@ -70,7 +71,8 @@
     "vue3-apexcharts": "1.5.2",
     "vue3-perfect-scrollbar": "^2.0.0",
     "vuetify": "3.7.5",
-    "webfontloader": "^1.6.28"
+    "webfontloader": "^1.6.28",
+    "zhipuai": "^2.0.0"
   },
   "devDependencies": {
     "@antfu/utils": "^9.2.0",

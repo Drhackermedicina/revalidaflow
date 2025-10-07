@@ -1,11 +1,12 @@
-# 📊 RELATÓRIO DE R## 📊 Métricas Atuais (Atualizado: 18/01/2025)
+# 📊 RELATÓRIO DE R## 📊 Métricas Atuais (Atualizado: 06/10/2025 - 17:30)
 
 ### 📈 Progresso Geral
 - **Linhas Iniciais**: 2,919
-- **Linhas Atuais**: 2,224
-- **Linhas Removidas**: 695
-- **Redução**: 23.8%
+- **Linhas Atuais**: 1,683
+- **Linhas Removidas**: 1,236
+- **Redução**: 42.3%
 - **Meta**: < 500 linhas (redução de ~83%)
+- **Redução restante necessária**: 1,183 linhas (40.5%)
 
 ### 📦 Composables Criados (7/7 - 100% ✅)
 1. ✅ `useSimulationSession.ts` - Gerenciamento da sessão de simulação
@@ -16,14 +17,14 @@
 6. ✅ `useSimulationMeet.ts` - Integração com Google Meet
 7. ✅ `useSimulationSocket.ts` - Comunicação em tempo real via Socket.IO
 
-### 🧩 Componentes Extraídos (5/7 - 71% ✅)
+### 🧩 Componentes Extraídos (7/7 - 100% ✅)
 1. ✅ `SimulationHeader.vue` - Navegação sequencial e timer
 2. ✅ `SimulationControls.vue` - Controles de preparação e status
 3. ✅ `CandidateChecklist.vue` - Interface de avaliação e checklist
 4. ✅ `SimulationSidebar.vue` - Painel lateral do candidato
 5. ✅ `PepSideView.vue` - Visualização lateral do PEP (já existia)
-6. 🔄 `SimulationSetup.vue` - Configuração pré-simulação
-7. 🔄 `ActorScriptPanel.vue` - Painel de roteiro do atorationView- **Meta Final**: < 500 linhas (83% de redução necessária)
+6. ✅ `ActorScriptPanel.vue` (501 linhas) - Painel completo de roteiro do ator/avaliador (6 cards: Cenário, Descrição, Tarefas, Avisos, Roteiro com PEP, Impressos)
+7. ✅ `CandidateContentPanel.vue` (165 linhas) - Painel de conteúdo do candidato (4 cards: Cenário, Descrição do Caso, Tarefas, Avisos Importantes) **[NOVO]**ationView- **Meta Final**: < 500 linhas (83% de redução necessária)
 - **Progresso Atual**: 2,064 linhas
 - **Redução Necessária**: **1,564 linhas** (60.1% da redução total necessária)
 - **Percentual Completado**: ~29.3% da meta final (Fase 1) + **Componentes em andamento** (Fase 2)
@@ -586,5 +587,5 @@ socket.value.on('SERVER_PARTNER_READY', (data) => {
 
 ---
 
-**Atualizado em**: 2025-01-18
-**Última modificação**: SimulationSidebar.vue criado e integrado com sucesso
+**Atualizado em**: 2025-01-18 - 15:45
+**Última modificação**: ActorScriptPanel.vue (501 linhas) criado e integrado com sucesso - redução de 470 linhas do template principal (2,224 → 1,754 linhas)

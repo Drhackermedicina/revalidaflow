@@ -150,18 +150,12 @@ export function useSimulationSession() {
     totalSequentialStations.value = parseInt(routeQuery.totalStations) || 0
 
     if (isSequentialMode.value) {
-      console.log('[SEQUENTIAL] Modo sequencial detectado:', {
-        sequenceId: sequenceId.value,
-        currentIndex: sequenceIndex.value,
-        totalStations: totalSequentialStations.value
-      })
-
+      
       // Carregar dados da sessão sequencial do sessionStorage
       const savedSequentialData = sessionStorage.getItem('sequentialSession')
       if (savedSequentialData) {
         try {
           sequentialData.value = JSON.parse(savedSequentialData)
-          console.log('[SEQUENTIAL] Dados da sessão sequencial carregados:', sequentialData.value)
         } catch (error) {
           console.error('[SEQUENTIAL] Erro ao carregar dados da sessão sequencial:', error)
           sequentialData.value = null

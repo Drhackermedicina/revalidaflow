@@ -4,45 +4,79 @@ defineProps({
   id: String
 })
 
-// Imports
-/* AgentAssistant legacy component import removed during agent cleanup */
-import { useSimulationSession } from '@/composables/useSimulationSession.ts';
-import { useSimulationSocket } from '@/composables/useSimulationSocket.ts';
-import { useSimulationInvites } from '@/composables/useSimulationInvites.js';
-import { useSequentialNavigation } from '@/composables/useSequentialNavigation.ts';
-import { useEvaluation } from '@/composables/useEvaluation.ts';
-import { useImagePreloading } from '@/composables/useImagePreloading.ts';
-import { useScriptMarking } from '@/composables/useScriptMarking.ts';
-import { useSimulationMeet } from '@/composables/useSimulationMeet.ts';
-import { useSimulationData } from '@/composables/useSimulationData.ts';
-import { useSimulationPEP } from '@/composables/useSimulationPEP.ts';
-import { useInternalInvites } from '@/composables/useInternalInvites.ts';
-import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.ts';
-import { usePrivateChatNotification } from '@/plugins/privateChatListener.js';
-import { currentUser } from '@/plugins/auth.js';
-import { db } from '@/plugins/firebase.js';
-import { backendUrl } from '@/utils/backendUrl.js';
-import { loadAudioFile, playAudioSegment } from '@/utils/audioService.js'; // Importar as novas funções de áudio
-import SimulationHeader from '@/components/SimulationHeader.vue';
-import SimulationControls from '@/components/SimulationControls.vue';
-import SimulationSidebar from '@/components/SimulationSidebar.vue';
-import CandidateChecklist from '@/components/CandidateChecklist.vue';
-import ActorScriptPanel from '@/components/ActorScriptPanel.vue';
-import CandidateContentPanel from '@/components/CandidateContentPanel.vue';
-import ImageZoomModal from '@/components/ImageZoomModal.vue';
-import ImpressosModal from '@/components/ImpressosModal.vue';
-import { formatActorText, formatIdentificacaoPaciente, formatItemDescriptionForDisplay, splitIntoParagraphs, formatTime, getEvaluationColor, getEvaluationLabel, getInfrastructureColor, getInfrastructureIcon, processInfrastructureItems } from '@/utils/simulationUtils.ts';
-import { parseEnumeratedItems } from '@/utils/simulationUtils.ts';
-import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { io } from 'socket.io-client';
-import { captureSimulationError, captureWebSocketError, captureFirebaseError } from '@/plugins/sentry';
-import { computed, onMounted, onUnmounted, ref, watch, nextTick, triggerRef } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useTheme } from 'vuetify';
-import PepSideView from '@/components/PepSideView.vue';
-import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue';
-import { memoize } from '@/utils/memoization.js';
+// ============================================================================
+// IMPORTS ORGANIZADOS POR CATEGORIA
+// ============================================================================
+
+// Vue Core
+import { computed, onMounted, onUnmounted, ref, watch, nextTick, triggerRef } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
+// Vuetify
+import { useTheme } from 'vuetify'
+
+// Firebase
+import { db } from '@/plugins/firebase.js'
+import { currentUser } from '@/plugins/auth.js'
+import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
+
+// Plugins & Utils
+import { backendUrl } from '@/utils/backendUrl.js'
+import { loadAudioFile, playAudioSegment, playSoundEffect } from '@/utils/audioService.js'
+import { memoize } from '@/utils/memoization.js'
+import { captureSimulationError, captureWebSocketError, captureFirebaseError } from '@/plugins/sentry'
+import { usePrivateChatNotification } from '@/plugins/privateChatListener.js'
+
+// Componentes
+import SimulationHeader from '@/components/SimulationHeader.vue'
+import SimulationControls from '@/components/SimulationControls.vue'
+import SimulationSidebar from '@/components/SimulationSidebar.vue'
+import CandidateChecklist from '@/components/CandidateChecklist.vue'
+import ActorScriptPanel from '@/components/ActorScriptPanel.vue'
+import CandidateContentPanel from '@/components/CandidateContentPanel.vue'
+import ImageZoomModal from '@/components/ImageZoomModal.vue'
+import ImpressosModal from '@/components/ImpressosModal.vue'
+import PepSideView from '@/components/PepSideView.vue'
+import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue'
+
+// Composables Principais
+import { useSimulationSession } from '@/composables/useSimulationSession.ts'
+import { useSimulationSocket } from '@/composables/useSimulationSocket.ts'
+import { useSimulationInvites } from '@/composables/useSimulationInvites.js'
+import { useSequentialNavigation } from '@/composables/useSequentialNavigation.ts'
+import { useEvaluation } from '@/composables/useEvaluation.ts'
+import { useImagePreloading } from '@/composables/useImagePreloading.ts'
+import { useScriptMarking } from '@/composables/useScriptMarking.ts'
+import { useSimulationMeet } from '@/composables/useSimulationMeet.ts'
+import { useSimulationData } from '@/composables/useSimulationData.ts'
+import { useSimulationPEP } from '@/composables/useSimulationPEP.ts'
+import { useInternalInvites } from '@/composables/useInternalInvites.ts'
+import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.ts'
+
+// Novos Composables Refatorados
+import { useSimulationHelpers } from '@/composables/useSimulationHelpers.ts'
+import { useSimulationDebug } from '@/composables/useSimulationDebug.ts'
+import { useSimulationNavigation } from '@/composables/useSimulationNavigation.ts'
+import { useSimulationNotifications } from '@/composables/useSimulationNotifications.ts'
+
+// Utils de Formatação
+import {
+  formatActorText,
+  formatIdentificacaoPaciente,
+  formatItemDescriptionForDisplay,
+  splitIntoParagraphs,
+  formatTime,
+  getEvaluationColor,
+  getEvaluationLabel,
+  getInfrastructureColor,
+  getInfrastructureIcon,
+  processInfrastructureItems,
+  parseEnumeratedItems
+} from '@/utils/simulationUtils.ts'
+
+// Bibliotecas Externas
+import { io } from 'socket.io-client'
 
 // Handlers para imagem de zoom (evitam warnings Vue)
 function handleZoomImageError(err) {
@@ -313,6 +347,11 @@ const {
   resetSimulationData
 } = useSimulationData({ socket: socketRef, sessionId, userRole, stationData });
 
+// Convert releasedData object to array for CandidateImpressosPanel
+const releasedDataArray = computed(() => {
+  return Object.values(releasedData.value);
+});
+
 // PEP management
 const {
   pepViewState,
@@ -381,15 +420,7 @@ function openEditPage() {
 // - myReadyState, partnerReadyState, simulationStarted, simulationEnded
 // - simulationWasManuallyEndedEarly, candidateReadyButtonEnabled, backendActivated
 // Todos os estados de workflow agora são gerenciados pelo composable
-
-async function playSoundEffect() {
-  try {
-    const audioBuffer = await loadAudioFile('/src/assets/myinstants.mp3');
-    playAudioSegment(audioBuffer, 1, 1); // Reproduz do segundo 1 ao segundo 2 (duração de 1 segundo)
-  } catch (e) {
-    console.warn("Não foi possível tocar o som:", e);
-  }
-}
+// Função playSoundEffect movida para audioService.js (exportada)
 
 
 
@@ -485,7 +516,6 @@ function connectWebSocket() {
     // ATUALIZAR O REF DO SOCKET APÓS CONEXÃO
     socketRef.value = socket;
 
-    console.log('SOCKET: Conectado.');
 
     // Workflow: habilitar botão "Estou pronto" para candidato
     handleSocketConnect();
@@ -748,8 +778,7 @@ function connectWebSocket() {
   // Listener para confirmação de submissão de avaliação
   socket.on('SUBMISSION_CONFIRMED', (data) => {
     if (data.success) {
-      console.log('[SUBMIT] Confirmação recebida do servidor:', data);
-      // Marcar como submetido se ainda não estiver
+        // Marcar como submetido se ainda não estiver
       if (!evaluationSubmittedByCandidate.value) {
         evaluationSubmittedByCandidate.value = true;
         showNotification('Avaliação confirmada pelo servidor!', 'success');
@@ -760,8 +789,7 @@ function connectWebSocket() {
   // Listener para notificar o avaliador sobre submissão do candidato
   socket.on('CANDIDATE_SUBMITTED_EVALUATION', (data) => {
     if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-      console.log('[SUBMIT] Candidato submeteu avaliação:', data);
-      showNotification(`Candidato submeteu avaliação final. Nota: ${data.totalScore?.toFixed(2) || 'N/A'}`, 'info');
+        showNotification(`Candidato submeteu avaliação final. Nota: ${data.totalScore?.toFixed(2) || 'N/A'}`, 'info');
     }
   });
 }
@@ -879,8 +907,7 @@ function setupSession() {
 
       // Auto-ready para navegação sequencial
       if (shouldAutoReady && isActorOrEvaluator.value) {
-        console.log('[SEQUENTIAL] Auto-ready ativado para navegação sequencial');
-        setTimeout(() => {
+          setTimeout(() => {
           if (!myReadyState.value && socketRef.value?.connected) {
             sendReady();
           }
@@ -1217,19 +1244,7 @@ setupDebugFunction({
 // Watcher para debugging de variáveis sequenciais (movido para após definições)
 watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
   ([sequential, ended, completed, canNext]) => {
-    if (sequential) {
-      console.log('[SEQUENTIAL] State change:');
-      console.log('  simulationEnded:', ended);
-      console.log('  allEvaluationsCompleted:', completed);
-      console.log('  canGoToNext:', canNext);
-      console.log('  isActorOrEvaluator:', isActorOrEvaluator.value);
-
-      if (ended && completed && canNext && isActorOrEvaluator.value) {
-        console.log('[SEQUENTIAL] ✅ All conditions met for navigation button!');
-      } else {
-        console.log('[SEQUENTIAL] ❌ Navigation button conditions not met');
-      }
-    }
+    // Sequential navigation logic
   },
   { immediate: true }
 );
@@ -1552,7 +1567,7 @@ function toggleCollapse() {
              <!-- Inserir Impressos do candidato como componente -->
              <CandidateImpressosPanel
                v-if="simulationStarted"
-               :released-data="releasedData"
+               :released-data="releasedDataArray"
                :is-dark-theme="isDarkTheme"
                :get-image-source="getImageSource"
                :get-image-id="getImageId"

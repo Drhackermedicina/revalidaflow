@@ -997,7 +997,9 @@
  /* Tecla ESC para fechar modal */
  .image-zoom-card .v-card-title {
    background-color: rgba(var(--v-theme-surface), 0.95);
-   /* backdrop-filter removido - não essencial, causava warnings */
+   -webkit-backdrop-filter: blur(10px);
+   /* Chrome 47+, Safari 9+ */
+   backdrop-filter: blur(10px);
  }
 
  .orange-text {

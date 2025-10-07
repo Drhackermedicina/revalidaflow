@@ -7,12 +7,15 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActorScriptPanel: typeof import('./src/components/ActorScriptPanel.vue')['default']
     AdminAgentAssistant: typeof import('./src/components/AdminAgentAssistant.vue')['default']
     AdminUploadCard: typeof import('./src/components/admin/AdminUploadCard.vue')['default']
     AIFieldAssistant: typeof import('./src/components/AIFieldAssistant.vue')['default']
     AppBreadcrumbs: typeof import('./src/components/AppBreadcrumbs.vue')['default']
     AuthDebugDashboard: typeof import('./src/components/AuthDebugDashboard.vue')['default']
     CandidateChecklist: typeof import('./src/components/CandidateChecklist.vue')['default']
+    CandidateContentPanel: typeof import('./src/components/CandidateContentPanel.vue')['default']
+    CandidateImpressosPanel: typeof import('./src/components/CandidateImpressosPanel.vue')['default']
     CandidateSearchBar: typeof import('./src/components/search/CandidateSearchBar.vue')['default']
     CardStatisticsHorizontal: typeof import('./src/@core/components/cards/CardStatisticsHorizontal.vue')['default']
     CardStatisticsVertical: typeof import('./src/@core/components/cards/CardStatisticsVertical.vue')['default']
@@ -21,6 +24,8 @@ declare module 'vue' {
     ErrorHeader: typeof import('./src/components/ErrorHeader.vue')['default']
     GeminiChat: typeof import('./src/components/GeminiChat.vue')['default']
     GlobalLoader: typeof import('./src/components/GlobalLoader.vue')['default']
+    ImageZoomModal: typeof import('./src/components/ImageZoomModal.vue')['default']
+    ImpressosModal: typeof import('./src/components/ImpressosModal.vue')['default']
     INEPPeriodSection: typeof import('./src/components/specialty/INEPPeriodSection.vue')['default']
     LottieAnimation: typeof import('./src/components/LottieAnimation.vue')['default']
     MoreBtn: typeof import('./src/@core/components/MoreBtn.vue')['default']
