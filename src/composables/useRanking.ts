@@ -1,37 +1,54 @@
-import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query } from 'firebase/firestore';
 import { ref } from 'vue';
+import { collection, doc, getDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
+import { currentUser } from '@/plugins/auth';
 import { formatarAproveitamento } from '@/@core/utils/format';
 
-interface RankingData {
-  id: string;
+// Interface para os dados do ranking
+export interface UserRankingData {
+  posicao: string;
+  aproveitamento: string;
   nome: string;
-  ranking: number;
-  nivelHabilidade: number;
+  titulo: string;
 }
+
+// Cache simples em memória
+let cacheTimeout: NodeJS.Timeout | null = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
 export function useRanking() {
   const db = getFirestore();
-  const rankingTitle = ref<string>('Você está no topo! 🏆');
-  const rankingSubtitle = ref<string>('Ranking Geral dos Usuários');
-  const rankingValue = ref<string>('-');
-  const rankingMeta = ref<string>('-');
-  const loadingRanking = ref<boolean>(true);
-  const errorRanking = ref<string>('');
+  const rankingData = ref<UserRankingData | null>(null);
+  const loading = ref<boolean>(false);
+  const error = ref<string>('');
 
-  async function buscarRankingUsuario(userId?: string): Promise<void> {
-    loadingRanking.value = true;
-    errorRanking.value = '';
-    
+  async function fetchRanking(): Promise<void> {
+    // Verificar se temos cache válido
+    if (rankingData.value && !error.value) {
+      return;
+    }
+
+    loading.value = true;
+    error.value = '';
+
     try {
+      // Obter o ID do usuário logado
+      const userId = currentUser.value?.uid;
+      
+      if (!userId) {
+        error.value = 'Usuário não autenticado.';
+        return;
+      }
+
       // Buscar top 50 do ranking geral
       const usuariosRef = collection(db, 'usuarios');
       const q = query(usuariosRef, orderBy('ranking', 'desc'), limit(50));
       const querySnapshot = await getDocs(q);
-      const rankingData: RankingData[] = [];
+      const rankingList: any[] = [];
       
       querySnapshot.forEach((docSnap) => {
         const userData = docSnap.data();
-        rankingData.push({
+        rankingList.push({
           id: docSnap.id,
           nome: userData.nome || 'Usuário',
           ranking: userData.ranking || 0,
@@ -43,54 +60,55 @@ export function useRanking() {
       let posicao = '-';
       let aproveitamento = '-';
       let nome = 'Candidato';
+      let titulo = 'Você está no topo! 🏆';
       
-      if (userId) {
-        const minhaPos = rankingData.findIndex(u => u.id === userId);
-        if (minhaPos !== -1) {
-          posicao = `${minhaPos + 1}º Lugar`;
-          aproveitamento = formatarAproveitamento(rankingData[minhaPos].nivelHabilidade * 10);
-          nome = rankingData[minhaPos].nome;
-          rankingTitle.value = `Parabéns, ${nome}!`;
-        } else {
-          // Se não está no top 50, buscar dados individuais
-          const userDoc = await getDoc(doc(db, 'usuarios', userId));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            posicao = '50+';
-            aproveitamento = formatarAproveitamento((userData.nivelHabilidade || 0) * 10);
-            nome = userData.nome || nome;
-            rankingTitle.value = `Continue avançando, ${nome}!`;
-          }
+      const minhaPos = rankingList.findIndex(u => u.id === userId);
+      if (minhaPos !== -1) {
+        // Usuário está no top 50
+        posicao = `${minhaPos + 1}º Lugar`;
+        aproveitamento = formatarAproveitamento(rankingList[minhaPos].nivelHabilidade * 10);
+        nome = rankingList[minhaPos].nome;
+        titulo = `Parabéns, ${nome}!`;
+      } else {
+        // Se não está no top 50, buscar dados individuais
+        const userDoc = await getDoc(doc(db, 'usuarios', userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          posicao = '50+';
+          aproveitamento = formatarAproveitamento((userData.nivelHabilidade || 0) * 10);
+          nome = userData.nome || nome;
+          titulo = `Continue avançando, ${nome}!`;
         }
       }
       
-      rankingValue.value = posicao;
-      rankingMeta.value = aproveitamento;
-    } catch (e) {
-      errorRanking.value = 'Erro ao carregar ranking.';
-      rankingValue.value = '-';
-      rankingMeta.value = '-';
+      // Atualizar dados do ranking
+      rankingData.value = {
+        posicao,
+        aproveitamento,
+        nome,
+        titulo
+      };
+
+      // Configurar cache
+      if (cacheTimeout) {
+        clearTimeout(cacheTimeout);
+      }
+      cacheTimeout = setTimeout(() => {
+        rankingData.value = null;
+      }, CACHE_DURATION);
+      
+    } catch (e: any) {
+      error.value = 'Erro ao carregar ranking.';
+      console.error('Erro ao buscar ranking:', e);
     } finally {
-      loadingRanking.value = false;
+      loading.value = false;
     }
   }
 
-  function resetRanking(): void {
-    rankingTitle.value = 'Você está no topo! 🏆';
-    rankingValue.value = '-';
-    rankingMeta.value = '-';
-    loadingRanking.value = true;
-    errorRanking.value = '';
-  }
-
   return {
-    rankingTitle,
-    rankingSubtitle,
-    rankingValue,
-    rankingMeta,
-    loadingRanking,
-    errorRanking,
-    buscarRankingUsuario,
-    resetRanking
+    rankingData,
+    loading,
+    error,
+    fetchRanking
   };
 }

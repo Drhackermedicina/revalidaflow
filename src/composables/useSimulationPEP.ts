@@ -20,8 +20,9 @@ interface SimulationPEPParams {
 }
 
 export function useSimulationPEP({ userRole, checklistData }: SimulationPEPParams) {
-  // Estado do PEP
-  const pepViewState = ref({ isVisible: false })
+  // Estado do PEP - SEMPRE visível para ator/avaliador
+  const isActorOrEvaluator = userRole.value === 'actor' || userRole.value === 'evaluator'
+  const pepViewState = ref({ isVisible: isActorOrEvaluator })
   const markedPepItems = ref<Record<string, boolean[]>>({})
 
   /**

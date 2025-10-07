@@ -29,7 +29,14 @@
     "./**/*_original*.vue",
     "./src/components/ChatSettings.vue",
     "./src/components/CorrecaoEditores.vue",
-    "./src/pages/PerformanceView.vue"
+    "./src/pages/PerformanceView.vue",
+    "./src/components/PerformanceChart.vue",
+    "./src/components/RankingCard.vue",
+    "./src/components/WelcomeCard.vue",
+    "./src/pages/candidato/Estatisticas.vue",
+    "./src/pages/candidato/Historico.vue",
+    "./src/pages/candidato/PerformanceView.vue",
+    "./src/pages/candidato/Progresso.vue"
   ],
   "compilerOptions": {
     "target": "esnext",
