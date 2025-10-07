@@ -2,6 +2,7 @@
 console.log('[CandidateChecklist] 🔥 SCRIPT SETUP INICIANDO!') // DEBUG CRÍTICO
 import { computed, watch, onMounted } from 'vue'
 import { parseEnumeratedItems, formatItemDescriptionForDisplay } from '@/utils/simulationUtils.ts'
+import { memoize } from '@/utils/memoization.js'
 import { TITLE_INDEX } from '@/composables/useSimulationPEP.ts'
 
 const props = defineProps({
@@ -102,12 +103,16 @@ const getEvaluationLabel = (item, score) => {
   if (item.pontuacoes?.inadequado?.pontos === score) return 'Inadequado'
   return 'Não avaliado'
 }
+
+// Criar função memoizada para performance
+const memoizedFormatItemDescriptionForDisplay = memoize(formatItemDescriptionForDisplay);
 </script>
 
 <template>
-  <div v-if="true" style="display: none;">
-    {{ console.log('[CandidateChecklist] 🔥 TEMPLATE RENDERIZADO!') }}
-  </div>
+  <!-- DEBUG: Template está renderizando -->
+  <VCard v-if="false" style="display: none;">
+    DEBUG: CandidateChecklist renderizou!
+  </VCard>
 
   <!-- VISÃO DO AVALIADOR/ATOR -->
   <VCard
