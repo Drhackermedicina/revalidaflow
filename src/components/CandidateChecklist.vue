@@ -1,5 +1,4 @@
 <script setup>
-console.log('[CandidateChecklist] 🔥 SCRIPT SETUP INICIANDO!') // DEBUG CRÍTICO
 import { computed, watch, onMounted } from 'vue'
 import { parseEnumeratedItems, formatItemDescriptionForDisplay } from '@/utils/simulationUtils.ts'
 import { memoize } from '@/utils/memoization.js'
@@ -29,48 +28,6 @@ const emit = defineEmits([
   'submitEvaluation'
 ])
 
-// DEBUG: Watch para diagnosticar problema de renderização
-watch(() => props.isChecklistVisibleForCandidate, (newValue, oldValue) => {
-  console.log('[CandidateChecklist] 👁️ WATCH isChecklistVisibleForCandidate mudou:');
-  console.log('[CandidateChecklist]   - ANTES:', oldValue);
-  console.log('[CandidateChecklist]   - DEPOIS:', newValue);
-  console.log('[CandidateChecklist]   - isCandidate:', props.isCandidate);
-  console.log('[CandidateChecklist]   - checklistData?.itensAvaliacao?.length:', props.checklistData?.itensAvaliacao?.length);
-  console.log('[CandidateChecklist]   - Deveria renderizar?',
-    props.isCandidate &&
-    props.checklistData?.itensAvaliacao?.length > 0 &&
-    newValue
-  );
-}, { immediate: true, flush: 'post' })
-
-watch(() => props.isCandidate, (newValue) => {
-  console.log('[CandidateChecklist] 👤 WATCH isCandidate mudou:', newValue);
-}, { immediate: true })
-
-// Watch TODAS as props para debug
-watch(() => props, (newValue) => {
-  console.log('[CandidateChecklist] 📦 PROPS mudaram:', {
-    isCandidate: newValue.isCandidate,
-    isChecklistVisibleForCandidate: newValue.isChecklistVisibleForCandidate,
-    checklistData: newValue.checklistData ? 'presente' : 'ausente',
-    itensLength: newValue.checklistData?.itensAvaliacao?.length
-  });
-}, { deep: true, immediate: true })
-
-onMounted(() => {
-  console.log('[CandidateChecklist] 🎬 COMPONENTE MONTADO');
-  console.log('[CandidateChecklist]   - isCandidate:', props.isCandidate);
-  console.log('[CandidateChecklist]   - isChecklistVisibleForCandidate:', props.isChecklistVisibleForCandidate);
-  console.log('[CandidateChecklist]   - checklistData:', props.checklistData);
-
-  // Verificar a cada segundo se as props mudaram
-  const interval = setInterval(() => {
-    console.log('[CandidateChecklist] ⏰ Poll: isChecklistVisibleForCandidate =', props.isChecklistVisibleForCandidate);
-  }, 1000);
-
-  // Limpar após 30 segundos
-  setTimeout(() => clearInterval(interval), 30000);
-})
 
 // Normaliza marcações
 const marks = computed(() => props.markedPepItems?.value ?? props.markedPepItems ?? {})

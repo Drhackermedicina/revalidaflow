@@ -656,47 +656,19 @@ function connectWebSocket() {
     }
   });
   socket.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (payload) => {
-    console.log('[CANDIDATE_PEP] 📥 Recebido CANDIDATE_RECEIVE_PEP_VISIBILITY');
-    console.log('[CANDIDATE_PEP]   - payload:', payload);
-    console.log('[CANDIDATE_PEP]   - userRole:', userRole.value);
-    console.log('[CANDIDATE_PEP]   - payload.shouldBeVisible:', payload?.shouldBeVisible);
-    console.log('[CANDIDATE_PEP]   - isChecklistVisibleForCandidate ANTES:', isChecklistVisibleForCandidate.value);
-
     if (userRole.value === 'candidate' && payload && typeof payload.shouldBeVisible === 'boolean') {
-      console.log('[CANDIDATE_PEP] ✅ Condições atendidas - atualizando visibilidade');
       isChecklistVisibleForCandidate.value = payload.shouldBeVisible;
-      console.log('[CANDIDATE_PEP]   - isChecklistVisibleForCandidate DEPOIS:', isChecklistVisibleForCandidate.value);
 
       // FORÇAR REATIVIDADE: Usar nextTick() para garantir que Vue processa a mudança
       nextTick(() => {
-        console.log('[CANDIDATE_PEP] 🔄 nextTick() executado - forçando re-renderização');
-
         // Forçar Vue a notificar watchers sobre a mudança
         triggerRef(isChecklistVisibleForCandidate);
 
-        // Verificar condições de renderização do componente
-        console.log('[CANDIDATE_PEP] 🔍 Verificando condições de renderização:');
-        console.log('[CANDIDATE_PEP]   - isCandidate:', isCandidate.value);
-        console.log('[CANDIDATE_PEP]   - checklistData:', checklistData.value);
-        console.log('[CANDIDATE_PEP]   - checklistData?.itensAvaliacao?.length:', checklistData.value?.itensAvaliacao?.length);
-        console.log('[CANDIDATE_PEP]   - isChecklistVisibleForCandidate:', isChecklistVisibleForCandidate.value);
-        console.log('[CANDIDATE_PEP]   - Todas as condições v-if:',
-          isCandidate.value &&
-          checklistData.value?.itensAvaliacao?.length > 0 &&
-          isChecklistVisibleForCandidate.value
-        );
-
         // Notificar o candidato quando o PEP é liberado
         if (payload.shouldBeVisible) {
-          console.log('[CANDIDATE_PEP] 🔔 Mostrando notificação de liberação');
           showNotification('O PEP (checklist de avaliação) foi liberado pelo examinador!', 'success');
         }
       });
-    } else {
-      console.log('[CANDIDATE_PEP] ❌ Condições não atendidas');
-      if (userRole.value !== 'candidate') console.log('[CANDIDATE_PEP]   ❌ Não é candidato');
-      if (!payload) console.log('[CANDIDATE_PEP]   ❌ Payload inválido');
-      if (typeof payload?.shouldBeVisible !== 'boolean') console.log('[CANDIDATE_PEP]   ❌ shouldBeVisible não é boolean');
     }
   });
   socket.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
@@ -924,7 +896,6 @@ function setupSession() {
 
 
 onMounted(() => {
-  console.log('[DEBUG] SimulationView mounted - checking template structure');
   setupSession();
 
   // Verifica link do Meet para candidato
@@ -1211,12 +1182,6 @@ watch(evaluationScores, (newScores) => {
 
 // Watcher para liberar PEP automaticamente ao final da simulação
 watch(simulationEnded, (newValue) => {
-  console.log('[AUTO_RELEASE] 🔍 Watch simulationEnded disparado:', newValue);
-  console.log('[AUTO_RELEASE]   - userRole:', userRole.value);
-  console.log('[AUTO_RELEASE]   - pepReleasedToCandidate:', pepReleasedToCandidate.value);
-  console.log('[AUTO_RELEASE]   - socketConnected:', socketRef.value?.connected);
-  console.log('[AUTO_RELEASE]   - sessionId:', sessionId.value);
-
   if (
     newValue && // Simulação terminou
     (userRole.value === 'actor' || userRole.value === 'evaluator') && // É ator/avaliador
@@ -1224,15 +1189,7 @@ watch(simulationEnded, (newValue) => {
     socketRef.value?.connected && // Socket conectado
     sessionId.value // Tem sessionId
   ) {
-    console.log('[AUTO_RELEASE] ✅ Liberando PEP automaticamente ao final da simulação');
     releasePepToCandidate();
-  } else {
-    console.log('[AUTO_RELEASE] ❌ Condições não atendidas para liberar PEP automaticamente');
-    if (!newValue) console.log('[AUTO_RELEASE]   ❌ Simulação não terminou');
-    if (userRole.value !== 'actor' && userRole.value !== 'evaluator') console.log('[AUTO_RELEASE]   ❌ Não é ator/avaliador');
-    if (pepReleasedToCandidate.value) console.log('[AUTO_RELEASE]   ❌ PEP já foi liberado');
-    if (!socketRef.value?.connected) console.log('[AUTO_RELEASE]   ❌ Socket não conectado');
-    if (!sessionId.value) console.log('[AUTO_RELEASE]   ❌ Sem sessionId');
   }
 });
 
