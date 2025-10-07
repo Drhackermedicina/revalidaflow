@@ -60,68 +60,87 @@ onUnmounted((): void => {
 
 <template>
   <VRow class="match-height dashboard-row">
-    <!-- Linha 1: WelcomeCard e StatsSummaryCard -->
-    <VCol cols="12" md="5">
-      <transition name="fade-slide" appear>
+    <TransitionGroup name="staggered-fade" appear>
+      <!-- Linha 1: WelcomeCard e StatsSummaryCard -->
+      <VCol key="welcome" cols="12" md="5">
         <WelcomeCard :user-name="userName" />
-      </transition>
-    </VCol>
+      </VCol>
 
-    <VCol cols="12" md="7">
-      <transition name="fade-slide" appear>
+      <VCol key="stats" cols="12" md="7">
         <StatsSummaryCard
           :stats="stats"
           :loading="loadingStats"
         />
-      </transition>
-    </VCol>
+      </VCol>
 
-    <!-- Linha 2: RankingCard, OverallProgressCard e OnlineUsersCard -->
-    <VCol cols="12" md="4">
-      <transition name="fade-slide" appear>
+      <!-- Linha 2: RankingCard, OverallProgressCard e OnlineUsersCard -->
+      <VCol key="ranking" cols="12" md="4">
         <RankingCard
           :ranking-data="rankingData"
           :loading="loadingRanking"
           @view-details="handleViewDetails"
         />
-      </transition>
-    </VCol>
+      </VCol>
 
-    <VCol cols="12" md="4">
-      <transition name="fade-slide" appear>
+      <VCol key="progress" cols="12" md="4">
         <OverallProgressCard
           :stats="stats"
           :loading="loadingStats"
         />
-      </transition>
-    </VCol>
+      </VCol>
 
-    <VCol cols="12" md="4">
-      <transition name="fade-slide" appear>
+      <VCol key="online-users" cols="12" md="4">
         <OnlineUsersCard
           :user-count="5"
           :loading="false"
         />
-      </transition>
-    </VCol>
+      </VCol>
 
-    <!-- Linha 3: RecentStationsCard -->
-    <VCol cols="12">
-      <transition name="fade-slide" appear>
+      <!-- Linha 3: RecentStationsCard -->
+      <VCol key="recent-stations" cols="12">
         <RecentStationsCard
           :stations="recentStations"
           :loading="loadingStations"
           @start-station="handleStartStation"
         />
-      </transition>
-    </VCol>
+      </VCol>
+    </TransitionGroup>
   </VRow>
 </template>
 
 <style scoped>
 @import '@/styles/dashboard.css';
+@import '@/styles/dashboard-variables.css';
 
 .dashboard-row {
-  row-gap: 18px;
+  row-gap: var(--dashboard-spacing-lg);
+}
+
+/* Staggered Fade Animation */
+.staggered-fade-enter-active {
+  transition: all 0.5s ease-out;
+}
+
+.staggered-fade-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Apply stagger delay to each card */
+.v-col:nth-child(1) { transition-delay: 0.1s; }
+.v-col:nth-child(2) { transition-delay: 0.2s; }
+.v-col:nth-child(3) { transition-delay: 0.3s; }
+.v-col:nth-child(4) { transition-delay: 0.4s; }
+.v-col:nth-child(5) { transition-delay: 0.5s; }
+.v-col:nth-child(6) { transition-delay: 0.6s; }
+
+/* Dashboard Cards Hover Effect */
+.v-col > .v-card {
+  transition: all var(--dashboard-transition-normal) ease-in-out;
+}
+
+.v-col > .v-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--dashboard-shadow-lg);
 }
 </style>

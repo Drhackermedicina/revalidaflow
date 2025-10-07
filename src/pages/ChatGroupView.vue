@@ -162,7 +162,7 @@
       </v-col>
     </v-row>
     <!-- Snackbar para nova mensagem -->
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000">{{ snackbar.text }}</v-snackbar>
+    <v-snackbar v-if="snackbar" v-model="snackbar.show" :color="snackbar.color" timeout="4000">{{ snackbar.text }}</v-snackbar>
   </v-container>
 </template>
 
@@ -180,10 +180,16 @@ import { useMessageCleanup } from '@/composables/useMessageCleanup'
 
 const router = useRouter()
 const theme = useTheme()
-const snackbar = ref<{ show: boolean; text: string; color: string }>({ show: false, text: '', color: 'primary' })
 
 // Computed para detectar tema escuro
 const isDarkTheme = computed(() => theme.global.name.value === 'dark')
+
+// Snackbar deve ser definido antes dos composables
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'primary'
+})
 
 // Usar composables
 const { users, loading: loadingUsers, error: errorUsers, getUserAvatar } = useChatUsers()

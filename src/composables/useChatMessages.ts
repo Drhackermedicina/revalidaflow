@@ -119,6 +119,16 @@ export const useChatMessages = (currentUser: any) => {
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(message.senderName || 'User')}`
     }
 
+    const formatTime = (timestamp: any): string => {
+        if (!timestamp) return ''
+        try {
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        } catch {
+            return ''
+        }
+    }
+
     // Computed para verificar se deve mostrar botão de carregar mais
     const shouldShowLoadMore = computed(() => {
         return hasMoreMessages.value && !isLoadingMore.value && messages.value.length >= pageSize

@@ -21,78 +21,63 @@ const irParaRankingGeral = () => {
 </script>
 
 <template>
-  <VCard 
+  <VCard
     :class="[
       'dashboard-card hoverable-card elevation-4 ranking-card-model',
       isDarkTheme ? 'dashboard-card--dark' : 'dashboard-card--light'
     ]"
     color="surface"
   >
-    <VCardText class="d-flex flex-row align-center justify-space-between">
+    <VCardItem class="pb-2">
+      <VCardTitle class="text-subtitle-1 font-weight-medium text-medium-emphasis">
+        Sua Posição
+      </VCardTitle>
+    </VCardItem>
+    
+    <VCardText class="text-center py-4">
+      <!-- Estado de loading -->
       <div v-if="loading">
-        <h5 class="text-h5 font-weight-bold mb-1">Carregando ranking...</h5>
-        <div class="text-body-1 mb-1">Ranking Geral dos Usuários</div>
-        <h4 class="text-h4" style="color: #7b1fa2; font-weight: bold;">
-          <VProgressCircular indeterminate color="primary" size="24" />
-        </h4>
-        <div class="text-body-1 mb-2">
-          <VProgressCircular indeterminate color="primary" size="18" />
-        </div>
-        <VBtn 
-          color="primary" 
-          class="ranking-btn" 
-          size="large" 
-          prepend-icon="ri-bar-chart-fill" 
-          disabled
-          aria-label="Ver Detalhes do Ranking"
-        >
-          Ver Detalhes do Ranking
-        </VBtn>
+        <VProgressCircular indeterminate color="primary" size="32" />
+        <div class="text-body-2 mt-2">Carregando...</div>
       </div>
       
+      <!-- Conteúdo quando carregado -->
       <div v-else-if="rankingData">
-        <h5 class="text-h5 font-weight-bold mb-1">{{ rankingData.titulo }}</h5>
-        <div class="text-body-1 mb-1">Ranking Geral dos Usuários</div>
-        <h4 class="text-h4" style="color: #7b1fa2; font-weight: bold;">
-          {{ rankingData.posicao }}
-        </h4>
-        <div class="text-body-1 mb-2">
-          {{ rankingData.aproveitamento }}% de aproveitamento <span>🚀</span>
+        <div class="ranking-position">
+          #{{ rankingData.posicao }}
         </div>
-        <VBtn 
-          color="primary" 
-          class="ranking-btn" 
-          size="large" 
-          prepend-icon="ri-bar-chart-fill" 
-          @click="irParaRankingGeral" 
+        <div class="text-body-2 text-medium-emphasis mb-3">
+          {{ rankingData.aproveitamento }}% de aproveitamento
+        </div>
+        <VBtn
+          variant="text"
+          color="primary"
+          size="small"
+          @click="irParaRankingGeral"
           aria-label="Ver Detalhes do Ranking"
         >
-          Ver Detalhes do Ranking
+          Ver ranking completo
         </VBtn>
       </div>
       
+      <!-- Estado vazio -->
       <div v-else>
-        <h5 class="text-h5 font-weight-bold mb-1">Ranking indisponível</h5>
-        <div class="text-body-1 mb-1">Ranking Geral dos Usuários</div>
-        <h4 class="text-h4" style="color: #7b1fa2; font-weight: bold;">
+        <div class="ranking-position">
           -
-        </h4>
-        <div class="text-body-1 mb-2">
-          -% de aproveitamento <span>🚀</span>
         </div>
-        <VBtn 
-          color="primary" 
-          class="ranking-btn" 
-          size="large" 
-          prepend-icon="ri-bar-chart-fill" 
+        <div class="text-body-2 text-medium-emphasis mb-3">
+          Ranking indisponível
+        </div>
+        <VBtn
+          variant="text"
+          color="primary"
+          size="small"
           disabled
           aria-label="Ver Detalhes do Ranking"
         >
-          Ver Detalhes do Ranking
+          Ver ranking completo
         </VBtn>
       </div>
-      
-      <VImg :src="trophy" width="60" alt="Troféu" class="ranking-trophy" />
     </VCardText>
   </VCard>
 </template>
@@ -101,21 +86,15 @@ const irParaRankingGeral = () => {
 @import '@/styles/dashboard.css';
 
 .ranking-card-model {
-  border-radius: 18px;
-  padding: 18px 24px;
+  border-radius: 16px;
+  padding: 16px;
 }
 
-.ranking-trophy {
-  position: relative;
-  right: 0;
-  bottom: 0;
-  filter: drop-shadow(0 2px 8px #ffd600);
-}
-
-.ranking-btn {
-  font-weight: bold;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px 0 rgba(123, 31, 162, 0.10);
-  margin-top: 8px;
+.ranking-position {
+  font-size: 3rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary));
+  line-height: 1;
+  margin-bottom: 8px;
 }
 </style>

@@ -49,7 +49,9 @@ export const useChatUsers = () => {
         }
         // Último recurso: gerar avatar com iniciais
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome || user.displayName || 'User')}`
-    }    onMounted(() => {
+    }
+
+    onMounted(() => {
         loadUsers()
     })
 

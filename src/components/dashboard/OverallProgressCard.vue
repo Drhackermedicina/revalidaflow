@@ -52,8 +52,8 @@ const getProgressColor = (value: number): string => {
       <!-- Conteúdo quando carregado -->
       <div v-else-if="stats">
         <!-- Progresso Geral -->
-        <div class="mb-6">
-          <div class="d-flex justify-space-between align-center mb-2">
+        <div class="mb-8">
+          <div class="d-flex justify-space-between align-center mb-3">
             <span class="text-h6 font-weight-medium">Progresso Total</span>
             <span class="text-h6 font-weight-bold" :style="{ color: `rgb(var(--v-theme-${getProgressColor(stats.overallProgress)}))` }">
               {{ formatProgress(stats.overallProgress) }}
@@ -62,7 +62,7 @@ const getProgressColor = (value: number): string => {
           <VProgressLinear
             :model-value="stats.overallProgress"
             :color="getProgressColor(stats.overallProgress)"
-            height="12"
+            height="14"
             rounded
             striped
           >
@@ -74,7 +74,7 @@ const getProgressColor = (value: number): string => {
 
         <!-- Progresso por Módulo -->
         <div>
-          <VCardTitle class="text-subtitle-1 font-weight-medium pa-0 mb-3">
+          <VCardTitle class="text-subtitle-1 font-weight-medium pa-0 mb-4">
             Progresso por Módulo
           </VCardTitle>
           
@@ -82,12 +82,12 @@ const getProgressColor = (value: number): string => {
             <VListItem
               v-for="(area, index) in stats.performanceByArea"
               :key="index"
-              class="pa-0 mb-3"
+              class="pa-0 mb-4"
             >
               <template #prepend>
-                <VIcon 
-                  :icon="getProgressColor(area.score) === 'success' ? 'ri-checkbox-circle-line' : 
-                         getProgressColor(area.score) === 'warning' ? 'ri-alert-line' : 
+                <VIcon
+                  :icon="getProgressColor(area.score) === 'success' ? 'ri-checkbox-circle-line' :
+                         getProgressColor(area.score) === 'warning' ? 'ri-alert-line' :
                          'ri-close-circle-line'"
                   :color="getProgressColor(area.score)"
                   size="20"
@@ -97,7 +97,7 @@ const getProgressColor = (value: number): string => {
               
               <VListItemTitle class="d-flex justify-space-between align-center">
                 <span class="text-body-2">{{ area.name }}</span>
-                <span 
+                <span
                   class="text-body-2 font-weight-medium"
                   :style="{ color: `rgb(var(--v-theme-${getProgressColor(area.score)}))` }"
                 >

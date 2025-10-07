@@ -85,16 +85,16 @@ const cardClasses = [
             {{ station.titulo }}
           </VListItemTitle>
           
-          <VListItemSubtitle class="d-flex align-center mt-1">
+          <VListItemSubtitle class="d-flex align-center flex-wrap mt-1">
             <VChip
               :color="isDarkTheme ? 'primary-darken-1' : 'primary-lighten-1'"
               size="small"
               variant="flat"
-              class="me-2"
+              class="me-2 mb-1"
             >
               {{ station.especialidade }}
             </VChip>
-            <span class="text-caption text-medium-emphasis">
+            <span class="text-caption text-medium-emphasis mb-1">
               {{ formatRelativeDate(station.createdAt) }}
             </span>
           </VListItemSubtitle>
@@ -118,4 +118,14 @@ const cardClasses = [
 
 <style scoped>
 @import '@/styles/dashboard.css';
+
+.station-item {
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.station-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 </style>

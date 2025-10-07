@@ -116,7 +116,7 @@ const bestScoreChartOptions = computed(() => ({
         <VRow>
           <!-- Pontuação Média -->
           <VCol cols="12" sm="4" class="text-center">
-            <VCard class="stat-card pa-3" elevation="1">
+            <VCard class="stat-card pa-3 hoverable-stat" elevation="1">
               <VCardTitle class="d-flex flex-column align-center pa-0">
                 <VIcon icon="ri-line-chart-line" color="success" size="24" class="mb-2" />
                 <span class="text-subtitle-1 font-weight-medium">Pontuação Média</span>
@@ -135,7 +135,7 @@ const bestScoreChartOptions = computed(() => ({
 
           <!-- Melhor Pontuação -->
           <VCol cols="12" sm="4" class="text-center">
-            <VCard class="stat-card pa-3" elevation="1">
+            <VCard class="stat-card pa-3 hoverable-stat" elevation="1">
               <VCardTitle class="d-flex flex-column align-center pa-0">
                 <VIcon icon="ri-medal-line" color="warning" size="24" class="mb-2" />
                 <span class="text-subtitle-1 font-weight-medium">Melhor Pontuação</span>
@@ -154,7 +154,7 @@ const bestScoreChartOptions = computed(() => ({
 
           <!-- Streak -->
           <VCol cols="12" sm="4" class="text-center">
-            <VCard class="stat-card pa-3" elevation="1">
+            <VCard class="stat-card pa-3 hoverable-stat" elevation="1">
               <VCardTitle class="d-flex flex-column align-center pa-0">
                 <VIcon icon="ri-fire-line" color="error" size="24" class="mb-2" />
                 <span class="text-subtitle-1 font-weight-medium">Streak</span>
@@ -187,4 +187,14 @@ const bestScoreChartOptions = computed(() => ({
 
 <style scoped>
 @import '@/styles/dashboard.css';
+
+.stat-card {
+  height: 100%;
+  transition: all 0.2s ease-in-out;
+}
+
+.hoverable-stat:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
 </style>
