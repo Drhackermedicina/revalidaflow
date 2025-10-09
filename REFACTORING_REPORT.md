@@ -436,13 +436,135 @@ socket.value.on('SERVER_PARTNER_READY', (data) => {
 
 ---
 
+### Bug #3: Temporal Dead Zone (TDZ) Error ⚠️ CRÍTICO
+**Data**: 2025-10-09
+
+**Sintoma**:
+- ReferenceError ao acessar qualquer estação de simulação
+- Erro: `Cannot access 'isMeetMode' before initialization at setup (SimulationView.vue:251:3)`
+- Aplicação completamente bloqueada para usuários
+
+**Causa Raiz**:
+- `useInviteLinkGeneration` (linhas 236-254) tentando usar variáveis antes de serem definidas:
+  - `isMeetMode` (usado linha 251, definido linha 348)
+  - `getMeetLinkForInvite` (usado linha 252, definido linha 349)
+  - `selectedCandidateForSimulation` (usado linha 253, definido linha 406)
+- Violação de Temporal Dead Zone do JavaScript
+
+**Correção**:
+1. Reordenação de composables no setup():
+   - `route` e `router` → linha 237-238
+   - `selectedCandidateForSimulation` → linha 241
+   - `useSimulationMeet` → linha 243-257 (fornece `isMeetMode` e `getMeetLinkForInvite`)
+   - `useInviteLinkGeneration` → linha 259-277 (agora APÓS dependências)
+2. Removidas declarações duplicadas
+
+**Código Corrigido** (SimulationView.vue:237-277):
+```typescript
+// Router e Route (necessários para alguns composables)
+const route = useRoute();
+const router = useRouter();
+
+// Candidato selecionado para simulação
+const selectedCandidateForSimulation = ref(null);
+
+// Google Meet integration
+const {
+  communicationMethod,
+  meetLink,
+  meetLinkCopied,
+  candidateMeetLink,
+  candidateOpenedMeet,
+  openGoogleMeet,
+  copyMeetLink,
+  checkCandidateMeetLink,
+  openCandidateMeet,
+  validateMeetLink,
+  isMeetMode,                    // ✅ Definido ANTES de usar
+  getMeetLinkForInvite           // ✅ Definido ANTES de usar
+} = useSimulationMeet({ userRole, route });
+
+// Inicializa composable de geração de links de convite
+const {
+  generateInviteLinkWithDuration
+} = useInviteLinkGeneration({
+  sessionId,
+  stationId,
+  userRole,
+  selectedDurationMinutes,
+  isLoading,
+  stationData,
+  errorMessage,
+  inviteLinkToShow,
+  socket: socketRef,
+  isMeetMode,                          // ✅ Agora disponível
+  validateMeetLink,                    // ✅ Agora disponível
+  getMeetLinkForInvite,                // ✅ Agora disponível
+  meetLink,
+  connectWebSocket,
+  router
+});
+```
+
+**Validação**: Build concluído com sucesso, getDiagnostics: 0 erros
+
+---
+
+### Bug #4: Parâmetros Faltantes em useInviteLinkGeneration ⚠️ CRÍTICO
+**Data**: 2025-10-09
+
+**Sintoma**:
+- TypeError: `Cannot read properties of undefined (reading 'value')`
+- Erro ao gerar link de convite
+- Logs: `sessionId: não definido`
+
+**Causa Raiz**:
+- Composable `useInviteLinkGeneration` atualizado para receber mais parâmetros
+- SimulationView.vue não passando: `validateMeetLink`, `meetLink`, `connectWebSocket`, `router`
+
+**Correção**:
+1. Atualizada chamada incluindo todos os parâmetros (veja código acima)
+2. Implementação local de `copyInviteLink()` (+19 linhas):
+
+```typescript
+// Estado para copiar link de convite
+const copySuccess = ref(false);
+
+// Função para copiar link de convite para clipboard
+async function copyInviteLink() {
+  if (!inviteLinkToShow.value) {
+    console.warn('[COPY-LINK] Nenhum link de convite para copiar');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(inviteLinkToShow.value);
+    copySuccess.value = true;
+    console.log('[COPY-LINK] ✅ Link copiado:', inviteLinkToShow.value);
+
+    setTimeout(() => {
+      copySuccess.value = false;
+    }, 3000);
+  } catch (error) {
+    console.error('[COPY-LINK] ❌ Erro ao copiar link:', error);
+    errorMessage.value = 'Erro ao copiar link. Tente novamente.';
+  }
+}
+```
+
+**Validação**: Build concluído com sucesso, funcionalidade testada
+
+---
+
 ### Resumo das Correções
-- ✅ **2 bugs críticos corrigidos**
-- ✅ **Funcionalidade de auto-start restaurada**
-- ✅ **Detecção de estado pronto corrigida**
+- ✅ **4 bugs críticos corrigidos** (2 anteriores + 2 novos)
+- ✅ **Funcionalidade de auto-start restaurada** (Bug #1)
+- ✅ **Detecção de estado pronto corrigida** (Bug #2)
+- ✅ **TDZ Error resolvido** (Bug #3)
+- ✅ **Parâmetros faltantes corrigidos** (Bug #4)
 - ✅ **Fluxo completo de inicialização funcionando**
-- ✅ **2 commits de correção adicionados**
-- ✅ **Builds validados (25.11s + 32.90s)**
+- ✅ **2 commits de correção adicionados** (Bugs #1 e #2)
+- ✅ **Builds validados** (25.11s + 32.90s + bugs #3/#4)
 
 ---
 

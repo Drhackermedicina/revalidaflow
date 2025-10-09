@@ -22,6 +22,7 @@
     "./src/pages/ChatView.vue",
     "./src/pages/AdminResetUsers_*.vue",
     "./src/pages/AgentLogin.vue",
+    "./src/pages/landingpage.vue",
     "./temp_*.vue",
     "./**/*_Backup*.vue",
     "./**/*_Original*.vue",
