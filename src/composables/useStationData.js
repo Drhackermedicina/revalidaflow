@@ -7,7 +7,7 @@
 
 import { ref } from 'vue'
 import { db } from '@/plugins/firebase.js'
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, limit, startAfter, orderBy } from 'firebase/firestore'
 import { currentUser } from '@/plugins/auth.js'
 
 export function useStationData() {
@@ -17,19 +17,36 @@ export function useStationData() {
   const errorMessage = ref('')
   const userScores = ref({}) // Armazena pontuações do usuário por estação
 
+  // Lazy loading state
+  const hasMoreStations = ref(false)
+  const isLoadingMoreStations = ref(false)
+  const lastVisibleDoc = ref(null)
+  const stationsPerPage = 1000 // Carregar muitas estações inicialmente
+
   // Cache de estações completas (lazy loading)
   const fullStationsCache = ref(new Map())
   const isLoadingFullStation = ref(false)
 
   /**
-   * Busca lista de estações (apenas metadados)
-   * Carrega apenas campos essenciais para performance
+   * Busca todas as estações (carregamento completo inicial)
+   * Carrega todas as estações para manter compatibilidade com filtros existentes
    */
-  async function fetchStations() {
-    isLoadingStations.value = true
-    errorMessage.value = ''
+  async function fetchStations(loadMore = false) {
+    // Se não é carregamento adicional, reset state
+    if (!loadMore) {
+      isLoadingStations.value = true
+      errorMessage.value = ''
+      stations.value = []
+      hasMoreStations.value = false
+      lastVisibleDoc.value = null
+    } else {
+      // Se já está carregando mais ou não há mais, retorna
+      if (isLoadingMoreStations.value || !hasMoreStations.value) return
+      isLoadingMoreStations.value = true
+    }
 
     try {
+      // Carregar TODAS as estações inicialmente (sem limit)
       const stationsColRef = collection(db, 'estacoes_clinicas')
       const querySnapshot = await getDocs(stationsColRef)
       const stationsList = []
@@ -57,12 +74,18 @@ export function useStationData() {
         return numA - numB
       })
 
-      stations.value = stationsList
-
-      // Buscar pontuações do usuário se logado
-      if (currentUser.value) {
-        await fetchUserScores()
+      // Atualizar estado
+      if (loadMore) {
+        stations.value = [...stations.value, ...stationsList]
+      } else {
+        stations.value = stationsList
       }
+
+      // Não há mais estações para carregar (carregamos tudo de uma vez)
+      hasMoreStations.value = false
+
+      // Buscar pontuações do usuário (sempre haverá usuário autenticado)
+      await fetchUserScores()
 
       if (stations.value.length === 0) {
         errorMessage.value = "Nenhuma estação encontrada no Firestore na coleção 'estacoes_clinicas'"
@@ -79,6 +102,7 @@ export function useStationData() {
       }
     } finally {
       isLoadingStations.value = false
+      isLoadingMoreStations.value = false
     }
   }
 
@@ -172,6 +196,10 @@ export function useStationData() {
     userScores,
     fullStationsCache,
     isLoadingFullStation,
+
+    // Lazy loading state
+    hasMoreStations,
+    isLoadingMoreStations,
 
     // Methods
     fetchStations,

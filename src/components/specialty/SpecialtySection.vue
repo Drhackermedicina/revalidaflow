@@ -3,9 +3,11 @@
  * SpecialtySection.vue
  *
  * Componente reutilizável para seções de especialidade
- * Elimina duplicação de 6 seções no StationList.vue
+ * OTIMIZADO: Usa virtual scrolling avançado para melhor performance
  */
 import StationListItem from '@/components/StationListItem.vue'
+import { useVirtualizer } from '@tanstack/vue-virtual'
+import { computed, ref } from 'vue'
 
 // Props
 const props = defineProps({
@@ -63,6 +65,18 @@ const emit = defineEmits([
   'edit-station',
   'start-ai-training'
 ])
+
+// Virtual scrolling setup
+const parentRef = ref(null)
+const ITEM_HEIGHT = 160
+const CONTAINER_HEIGHT = 600 // Altura máxima do container
+
+const virtualizer = useVirtualizer({
+  count: computed(() => props.stations.length),
+  getScrollElement: () => parentRef.value,
+  estimateSize: () => ITEM_HEIGHT,
+  overscan: 5 // Renderizar 5 itens extras fora da viewport
+})
 </script>
 
 <template>
@@ -82,31 +96,52 @@ const emit = defineEmits([
     </v-expansion-panel-title>
 
     <v-expansion-panel-text>
-      <v-virtual-scroll
-        :items="stations"
-        :item-height="160"
-        :height="Math.min(stations.length * 160, 1600)"
-        style="overflow-y: auto;"
+      <div
+        ref="parentRef"
+        :style="{
+          height: Math.min(stations.length * ITEM_HEIGHT, CONTAINER_HEIGHT) + 'px',
+          overflow: 'auto'
+        }"
+        class="virtual-scroll-container"
       >
-        <template #default="{ item: station }">
-          <StationListItem
-            :station="station"
-            :user-score="getUserStationScore(station.id)"
-            :specialty="specialty"
-            :background-color="getStationBackgroundColor(station)"
-            :show-sequential-config="showSequentialConfig"
-            :is-admin="isAdmin"
-            :is-in-sequence="isStationInSequence(station.id)"
-            :is-creating-session="creatingSessionForStationId === station.id"
-            :show-detailed-dates="true"
-            @click="emit('station-click', $event)"
-            @add-to-sequence="emit('add-to-sequence', $event)"
-            @remove-from-sequence="emit('remove-from-sequence', $event)"
-            @edit-station="emit('edit-station', $event)"
-            @start-ai-training="emit('start-ai-training', $event)"
-          />
-        </template>
-      </v-virtual-scroll>
+        <div
+          :style="{
+            height: virtualizer.getTotalSize() + 'px',
+            width: '100%',
+            position: 'relative'
+          }"
+        >
+          <div
+            v-for="virtualItem in virtualizer.getVirtualItems()"
+            :key="virtualItem.key"
+            :style="{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: virtualItem.size + 'px',
+              transform: `translateY(${virtualItem.start}px)`
+            }"
+          >
+            <StationListItem
+              :station="stations[virtualItem.index]"
+              :user-score="getUserStationScore(stations[virtualItem.index].id)"
+              :specialty="specialty"
+              :background-color="getStationBackgroundColor(stations[virtualItem.index])"
+              :show-sequential-config="showSequentialConfig"
+              :is-admin="isAdmin"
+              :is-in-sequence="isStationInSequence(stations[virtualItem.index].id)"
+              :is-creating-session="creatingSessionForStationId === stations[virtualItem.index].id"
+              :show-detailed-dates="true"
+              @click="emit('station-click', $event)"
+              @add-to-sequence="emit('add-to-sequence', $event)"
+              @remove-from-sequence="emit('remove-from-sequence', $event)"
+              @edit-station="emit('edit-station', $event)"
+              @start-ai-training="emit('start-ai-training', $event)"
+            />
+          </div>
+        </div>
+      </div>
     </v-expansion-panel-text>
   </v-expansion-panel>
 </template>

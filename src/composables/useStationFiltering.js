@@ -1,15 +1,19 @@
 import { ref, computed } from 'vue'
 import { useStationCache } from './useStationCache'
+import { useDebounce } from '@vueuse/core'
 
 /**
  * Composable para filtros e busca de estações
- * Consolida toda lógica de filtragem, normalização e limpeza de títulos
+ * Versão otimizada com debounce inteligente e memoização avançada
  */
 export function useStationFiltering(stations) {
   const { memoize } = useStationCache()
 
   // --- State ---
   const globalSearchQuery = ref('')
+
+  // Debounce inteligente para busca (300ms)
+  const debouncedSearchQuery = useDebounce(globalSearchQuery, 300)
 
   // --- Helpers ---
 
@@ -157,24 +161,32 @@ export function useStationFiltering(stations) {
   // --- Computed: Filtros principais ---
 
   /**
-   * Estações filtradas pela busca global
+   * Estações filtradas pela busca global (OTIMIZADO)
+   * Usa debounce para reduzir re-execuções e processamento
    */
   const filteredStations = computed(() => {
     if (!stations.value || !Array.isArray(stations.value)) return []
 
-    const query = globalSearchQuery.value
-    if (!query || query.trim() === '') return stations.value
+    const query = debouncedSearchQuery.value.trim()
+    if (!query) return stations.value
 
     const normalizedQuery = normalizeText(query)
 
+    // Filtrar estações de forma mais eficiente
     return stations.value.filter(station => {
-      const title = normalizeText(getCleanStationTitle(station.tituloEstacao))
+      // Cache de títulos normalizados para performance
+      const titleCache = memoize(
+        (title) => normalizeText(getCleanStationTitle(title)),
+        (title) => `title_${title || 'EMPTY'}`
+      )
+
+      const title = titleCache(station.tituloEstacao)
       const specialty = normalizeText(station.especialidade || '')
       const idEstacao = normalizeText(station.idEstacao || '')
 
       return title.includes(normalizedQuery) ||
-             specialty.includes(normalizedQuery) ||
-             idEstacao.includes(normalizedQuery)
+        specialty.includes(normalizedQuery) ||
+        idEstacao.includes(normalizedQuery)
     })
   })
 
@@ -343,14 +355,31 @@ export function useStationFiltering(stations) {
   // --- Computed: Autocomplete global ---
 
   /**
-   * Items para autocomplete de busca global
-   * Retorna lista formatada com ícones, chips e metadados
+   * Items para autocomplete de busca global (OTIMIZADO)
+   * Só processa quando há busca ativa e usa cache inteligente
    */
   const globalAutocompleteItems = computed(() => {
     if (!stations.value) return []
 
-    const searchQuery = globalSearchQuery.value?.trim().toLowerCase() || ''
+    const searchQuery = debouncedSearchQuery.value?.trim().toLowerCase() || ''
     if (searchQuery.length < 2) return []
+
+    // Cache de configuração de especialidades
+    const specialtyConfigCache = memoize(
+      (specialtyNormalized) => {
+        const config = {
+          'clinica-medica': { label: 'CLÍNICA MÉDICA', color: 'info' },
+          'cirurgia': { label: 'CIRURGIA', color: 'primary' },
+          'pediatria': { label: 'PEDIATRIA', color: 'success' },
+          'ginecologia': { label: 'GINECOLOGIA E OBSTETRÍCIA', color: 'error' },
+          'preventiva': { label: 'PREVENTIVA', color: 'warning' },
+          'procedimentos': { label: 'PROCEDIMENTOS', color: '#A52A2A' },
+          'geral': { label: 'GERAL', color: 'success' }
+        }
+        return config[specialtyNormalized] || { label: specialtyNormalized || '', color: 'success' }
+      },
+      (specialty) => `specialty_config_${specialty || 'EMPTY'}`
+    )
 
     return stations.value
       .filter(station => {
@@ -378,16 +407,7 @@ export function useStationFiltering(stations) {
           chipColor = 'primary'
         } else {
           const specialtyNormalized = getRevalidaFacilSpecialty(station)
-          const specialtyConfig = {
-            'clinica-medica': { label: 'CLÍNICA MÉDICA', color: 'info' },
-            'cirurgia': { label: 'CIRURGIA', color: 'primary' },
-            'pediatria': { label: 'PEDIATRIA', color: 'success' },
-            'ginecologia': { label: 'GINECOLOGIA E OBSTETRÍCIA', color: 'error' },
-            'preventiva': { label: 'PREVENTIVA', color: 'warning' },
-            'procedimentos': { label: 'PROCEDIMENTOS', color: '#A52A2A' },
-            'geral': { label: 'GERAL', color: 'success' }
-          }
-          const config = specialtyConfig[specialtyNormalized] || { label: specialtyNormalized || '', color: 'success' }
+          const config = specialtyConfigCache(specialtyNormalized)
           if (config.label) {
             subsectionChips.push(config.label)
             chipColor = config.color
@@ -406,9 +426,7 @@ export function useStationFiltering(stations) {
         }
       })
       .slice(0, 50) // Limitar a 50 resultados
-  })
-
-  // --- Return ---
+  })  // --- Return ---
   return {
     // State
     globalSearchQuery,

@@ -2,18 +2,97 @@
  * useStationCache.js
  *
  * Composable para gerenciar cache de operações custosas em estações
- * Substitui os caches manuais (titleCache, areaCache, colorCache) por um sistema unificado
+ * Cache inteligente com TTL e LRU para melhor performance
  */
 
 import { shallowRef } from 'vue'
 
-const CACHE_SIZE_LIMIT = 1000
+const CACHE_SIZE_LIMIT = 500 // Reduzido para melhor performance
+const CACHE_TTL = 10 * 60 * 1000 // 10 minutos TTL
+
+/**
+ * Classe de cache inteligente com TTL e LRU
+ */
+class SmartCache {
+  constructor(maxSize = CACHE_SIZE_LIMIT, ttl = CACHE_TTL) {
+    this.cache = new Map()
+    this.maxSize = maxSize
+    this.ttl = ttl
+    this.accessOrder = new Map() // Para LRU
+  }
+
+  set(key, value) {
+    const now = Date.now()
+
+    // Remover entrada antiga se existir
+    if (this.cache.has(key)) {
+      this.accessOrder.delete(key)
+    }
+
+    // Implementar LRU: se atingir limite, remove a menos recentemente usada
+    if (this.cache.size >= this.maxSize) {
+      this.evictLRU()
+    }
+
+    // Adicionar nova entrada
+    this.cache.set(key, { value, timestamp: now })
+    this.accessOrder.set(key, now)
+  }
+
+  get(key) {
+    const item = this.cache.get(key)
+    if (!item) return null
+
+    const now = Date.now()
+
+    // Verificar TTL
+    if (now - item.timestamp > this.ttl) {
+      this.cache.delete(key)
+      this.accessOrder.delete(key)
+      return null
+    }
+
+    // Atualizar ordem de acesso para LRU
+    this.accessOrder.set(key, now)
+
+    return item.value
+  }
+
+  evictLRU() {
+    if (this.accessOrder.size === 0) return
+
+    // Encontrar entrada menos recentemente usada
+    let oldestKey = null
+    let oldestTime = Date.now()
+
+    for (const [key, time] of this.accessOrder) {
+      if (time < oldestTime) {
+        oldestTime = time
+        oldestKey = key
+      }
+    }
+
+    if (oldestKey) {
+      this.cache.delete(oldestKey)
+      this.accessOrder.delete(oldestKey)
+    }
+  }
+
+  clear() {
+    this.cache.clear()
+    this.accessOrder.clear()
+  }
+
+  size() {
+    return this.cache.size
+  }
+}
 
 /**
  * Cria um sistema de cache com memoização e limite de tamanho
  */
 export function useStationCache() {
-  const cache = shallowRef(new Map())
+  const cache = shallowRef(new SmartCache())
 
   /**
    * Memoiza uma função com base em uma chave
@@ -25,18 +104,14 @@ export function useStationCache() {
     return (...args) => {
       const key = keyFn(...args)
 
-      if (cache.value.has(key)) {
-        return cache.value.get(key)
+      // Tentar obter do cache
+      const cached = cache.value.get(key)
+      if (cached !== null) {
+        return cached
       }
 
+      // Calcular e armazenar no cache
       const result = fn(...args)
-
-      // Implementar LRU simples: se atingir limite, remove a primeira entrada
-      if (cache.value.size >= CACHE_SIZE_LIMIT) {
-        const firstKey = cache.value.keys().next().value
-        cache.value.delete(firstKey)
-      }
-
       cache.value.set(key, result)
       return result
     }
@@ -50,31 +125,19 @@ export function useStationCache() {
   }
 
   /**
-   * Retorna o tamanho atual do cache
+   * Obtém estatísticas do cache
    */
-  const getCacheSize = () => {
-    return cache.value.size
-  }
-
-  /**
-   * Remove uma entrada específica do cache
-   */
-  const removeFromCache = (key) => {
-    cache.value.delete(key)
-  }
-
-  /**
-   * Verifica se uma chave existe no cache
-   */
-  const hasInCache = (key) => {
-    return cache.value.has(key)
+  const getCacheStats = () => {
+    return {
+      size: cache.value.size(),
+      maxSize: cache.value.maxSize,
+      ttl: cache.value.ttl
+    }
   }
 
   return {
     memoize,
     clearCache,
-    getCacheSize,
-    removeFromCache,
-    hasInCache
+    getCacheStats
   }
 }

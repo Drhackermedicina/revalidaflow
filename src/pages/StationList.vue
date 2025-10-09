@@ -45,7 +45,9 @@ const {
   userScores,
   fetchStations,
   loadFullStation,
-  getUserStationScore
+  getUserStationScore,
+  hasMoreStations,
+  isLoadingMoreStations
 } = useStationData()
 
 // 🔹 Filtering & Search
@@ -466,6 +468,14 @@ watch(currentUser, (newUser) => {
             </v-expansion-panel-text>
           </v-expansion-panel>
         </v-expansion-panels>
+
+        <!-- Loading mais estações -->
+        <v-row v-if="isLoadingMoreStations" class="mt-4">
+          <v-col cols="12" class="text-center">
+            <v-progress-circular indeterminate color="primary" />
+            <div class="mt-2">Carregando mais estações...</div>
+          </v-col>
+        </v-row>
       </v-col>
     </v-row>
 

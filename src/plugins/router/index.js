@@ -30,7 +30,30 @@ const router = createRouter({
   ],
 })
 
-// Guarda de Navegação Global (Async)
+// Cache de verificações de autenticação para performance
+const authCheckCache = {
+  data: null,
+  timestamp: 0,
+  ttl: 30000 // 30 segundos
+}
+
+/**
+ * Verifica se a autenticação ainda é válida no cache
+ */
+function isAuthCheckValid() {
+  const now = Date.now()
+  return authCheckCache.data && (now - authCheckCache.timestamp) < authCheckCache.ttl
+}
+
+/**
+ * Atualiza o cache de verificação de autenticação
+ */
+function updateAuthCheck(result) {
+  authCheckCache.data = result
+  authCheckCache.timestamp = Date.now()
+}
+
+// Guarda de Navegação Global (Async) - OTIMIZADO
 router.beforeEach(async (to, from, next) => {
   const urlParams = new URLSearchParams(window.location.search);
   const useSimulatedUser = urlParams.get('sim_user') === 'true';
@@ -42,21 +65,49 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  // Lógica original para produção ou para você (usuário real) em DEV
-  console.log('[beforeEach] Verificando rota:', to.name, 'requiresAuth:', to.matched.some(record => record.meta.requiresAuth), 'currentUser:', !!currentUser.value);
+  // Verificar cache de autenticação primeiro
+  if (isAuthCheckValid()) {
+    console.log('[beforeEach] Usando cache de autenticação válido');
+    const cachedResult = authCheckCache.data
+
+    // Para rotas que NÃO requerem autenticação, permite acesso direto
+    if (!to.matched.some(record => record.meta.requiresAuth)) {
+      console.log('[beforeEach] Rota não requer autenticação, permitindo acesso direto');
+      next();
+      return;
+    }
+
+    // Usar resultado do cache
+    if (!cachedResult.isAuthenticated) {
+      console.log('[beforeEach] Cache: Usuário não autenticado, redirecionando para login');
+      next('/login')
+      return;
+    }
+
+    if (!cachedResult.isProfileComplete) {
+      console.log('[beforeEach] Cache: Cadastro incompleto, redirecionando para register');
+      next('/register')
+      return;
+    }
+
+    console.log('[beforeEach] Cache: Verificação concluída com sucesso');
+    next()
+    return;
+  }
+
+  // Lógica completa para produção ou para usuário real em DEV
   await waitForAuth();
 
   // Para rotas que NÃO requerem autenticação, permite acesso direto
   if (!to.matched.some(record => record.meta.requiresAuth)) {
-    console.log('[beforeEach] Rota não requer autenticação, permitindo acesso direto');
+    updateAuthCheck({ isAuthenticated: !!currentUser.value, isProfileComplete: true })
     next();
     return;
   }
 
   // Só para rotas que REQUEREM autenticação, faz as verificações
-  console.log('[beforeEach] Rota requer autenticação, verificando usuário...');
   if (!currentUser.value) {
-    console.log('[beforeEach] Usuário não autenticado, redirecionando para login');
+    updateAuthCheck({ isAuthenticated: false, isProfileComplete: false })
     next('/login')
     return
   }
@@ -64,7 +115,6 @@ router.beforeEach(async (to, from, next) => {
   // Só verifica dados do usuário se ele estiver realmente autenticado E a rota requer autenticação
   // Evita tentar acessar Firestore quando o usuário acabou de fazer logout
   try {
-    console.log('[beforeEach] Verificando dados do usuário no Firestore...');
     const userDoc = await getDocumentWithRetry(doc(db, 'usuarios', currentUser.value.uid), 'verificação de usuário')
     const user = userDoc.data()
     // Checagem de cadastro completo: documento existe e campos obrigatórios preenchidos
@@ -78,36 +128,19 @@ router.beforeEach(async (to, from, next) => {
       !user?.paisOrigem
     ) {
       // Redirecione para /register se cadastro incompleto
-      console.log('[beforeEach] Cadastro incompleto, redirecionando para register');
+      updateAuthCheck({ isAuthenticated: true, isProfileComplete: false })
       next('/register')
       return
     }
-    console.log('[beforeEach] Verificação de usuário concluída com sucesso');
+    updateAuthCheck({ isAuthenticated: true, isProfileComplete: true })
   } catch (error) {
     // Se não conseguir acessar dados do usuário, redireciona para login
     // Isso acontece quando o usuário fez logout mas ainda tem currentUser definido
     console.warn('[beforeEach] Não foi possível verificar dados do usuário, redirecionando para login:', error.message)
+    updateAuthCheck({ isAuthenticated: false, isProfileComplete: false })
     next('/login')
     return
   }
-  /*
-  const agora = new Date()
-  if (
-    user.plano === 'trial' &&
-    new Date(user.trialExpiraEm) < agora
-  ) {
-    next('/pagamento')
-    return
-  }
-  if (
-    user.plano !== 'trial' &&
-    user.planoExpiraEm &&
-    new Date(user.planoExpiraEm) < agora
-  ) {
-    next('/pagamento')
-    return
-  }
-  */
   next()
 })
 
