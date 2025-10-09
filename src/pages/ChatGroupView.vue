@@ -42,14 +42,24 @@
             <v-list class="py-0" v-else>
               <v-list-item v-for="user in users" :key="user.uid" class="py-2 user-list-item">
                 <template #prepend>
-                  <v-avatar :image="getUserAvatar(user)" size="40" class="user-avatar elevation-2" />
+                  <v-badge
+                    :color="user.status === 'disponivel' ? 'success' : user.status === 'ausente' ? 'warning' : 'info'"
+                    dot
+                    location="bottom right"
+                    offset-x="4"
+                    offset-y="4"
+                  >
+                    <v-avatar :image="getUserAvatar(user)" size="40" class="user-avatar elevation-2" />
+                  </v-badge>
                 </template>
                 <v-list-item-title class="font-weight-medium">
                   <span class="user-name-link" @click="openPrivateChat(user)" style="cursor:pointer; color:#7b1fa2; text-decoration:underline;">
                     {{ (user.nome && user.sobrenome) ? user.nome + ' ' + user.sobrenome : user.displayName || 'Usuário sem nome' }}
                   </span>
                 </v-list-item-title>
-                <v-list-item-subtitle class="text-caption text-medium-emphasis">{{ user.status }}</v-list-item-subtitle>
+                <v-list-item-subtitle class="text-caption text-medium-emphasis">
+                  {{ user.status === 'disponivel' ? 'Disponível' : user.status === 'ausente' ? 'Ausente' : 'Treinando' }}
+                </v-list-item-subtitle>
               </v-list-item>
             </v-list>
           </v-card-text>
@@ -174,7 +184,7 @@ import { useTheme } from 'vuetify'
 
 // Importar composables criados
 import { useChatUsers } from '@/composables/useChatUsers'
-import { useChatMessages } from '@/composables/useChatMessages'
+import { useChatMessages, formatTime } from '@/composables/useChatMessages'
 import { useChatInput } from '@/composables/useChatInput'
 import { useMessageCleanup } from '@/composables/useMessageCleanup'
 
@@ -200,7 +210,6 @@ const {
   shouldShowLoadMore,
   sendMessage: sendMessageToDB,
   loadMoreMessages,
-  formatTime,
   getMessageUserPhoto
 } = useChatMessages(currentUser)
 

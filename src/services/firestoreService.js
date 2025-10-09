@@ -16,7 +16,6 @@ export async function updateDocumentWithRetry(docRef, data, operationName = 'upd
   while (attempts < maxAttempts) {
     try {
       await updateDoc(docRef, data);
-      console.log(`✅ ${operationName} realizado com sucesso`);
       return true;
     } catch (error) {
       attempts++;
@@ -57,7 +56,6 @@ export async function getDocumentWithRetry(docRef, operationName = 'leitura') {
   while (attempts < maxAttempts) {
     try {
       const docSnap = await getDoc(docRef);
-      console.log(`✅ ${operationName} realizada com sucesso`);
       return docSnap;
     } catch (error) {
       attempts++;

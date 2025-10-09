@@ -192,9 +192,34 @@ export const routes = [
     ],
   },
 
-  // Rotas da Área do Candidato (REMOVIDAS - componentes obsoletos após refatoração do dashboard)
-  // Os componentes Progresso.vue, Estatisticas.vue, Historico.vue e PerformanceView.vue foram removidos
-  // pois sua lógica foi centralizada no useDashboardStats.ts e seus layouts foram incorporados nos novos cards
+  // Rotas da Área do Candidato
+  {
+    path: '/candidato',
+    component: () => import('@/layouts/default.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'progresso',
+        name: 'candidato-progresso',
+        component: () => import('@/pages/candidato/Progresso.vue'),
+      },
+      {
+        path: 'estatisticas',
+        name: 'candidato-estatisticas',
+        component: () => import('@/pages/candidato/Estatisticas.vue'),
+      },
+      {
+        path: 'historico',
+        name: 'candidato-historico',
+        component: () => import('@/pages/candidato/Historico.vue'),
+      },
+      {
+        path: 'performance',
+        name: 'candidato-performance',
+        component: () => import('@/pages/candidato/PerformanceView.vue'),
+      },
+    ],
+  },
 
   // Rotas absolutas para acesso direto às estações e simulação (REMOVIDAS para garantir layout global)
   // {

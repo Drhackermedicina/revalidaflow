@@ -211,10 +211,10 @@
   }
 }
 
-// Scroll suave
-html {
-  scroll-behavior: smooth;
-}
+// Scroll suave removido temporariamente para compatibilidade com navegadores antigos
+// html {
+//   scroll-behavior: smooth;
+// }
 
 // Seleção de texto
 ::selection {

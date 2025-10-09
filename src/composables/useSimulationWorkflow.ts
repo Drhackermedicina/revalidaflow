@@ -128,7 +128,8 @@ export function useSimulationWorkflow({
    */
   async function activateBackend() {
     if (backendActivated.value) {
-        return
+      console.log('[WORKFLOW] Backend já estava ativado')
+      return
     }
 
     if (!sessionId.value) {
@@ -136,13 +137,18 @@ export function useSimulationWorkflow({
       return
     }
 
-  
+    console.log('[WORKFLOW] ✅ Ativando backend - ambos participantes prontos')
+    console.log('[WORKFLOW]   - SessionId:', sessionId.value)
+    console.log('[WORKFLOW]   - UserRole:', userRole.value)
+
     try {
       // Marca backend como ativado
       // A sessão já foi criada no backend quando o WebSocket conectou
       backendActivated.value = true
 
-      
+      console.log('[WORKFLOW] ✅ Backend ativado com sucesso')
+      console.log('[WORKFLOW]   → O watch(backendActivated) irá emitir CLIENT_START_SIMULATION automaticamente')
+
     } catch (error) {
       console.error('[WORKFLOW] ❌ Erro ao ativar backend:', error)
       alert(`Erro ao ativar o backend: ${error.message}`)
@@ -189,7 +195,11 @@ export function useSimulationWorkflow({
    * Encerra simulação manualmente antes do tempo
    */
   function manuallyEndSimulation() {
-    
+    console.log('[WORKFLOW] 🛑 Tentando encerrar simulação manualmente')
+    console.log('[WORKFLOW]   - simulationStarted:', simulationStarted.value)
+    console.log('[WORKFLOW]   - simulationEnded:', simulationEnded.value)
+    console.log('[WORKFLOW]   - sessionId:', sessionId.value)
+
     if (!simulationStarted.value || simulationEnded.value) {
       console.warn('[WORKFLOW] ⚠️ Não é possível encerrar - simulação não iniciada ou já encerrada')
       return
@@ -201,7 +211,8 @@ export function useSimulationWorkflow({
       return
     }
 
-  
+    console.log('[WORKFLOW] 📤 Emitindo CLIENT_MANUAL_END_SIMULATION')
+
     socketRef.value.emit('CLIENT_MANUAL_END_SIMULATION', {
       sessionId: sessionId.value
     })
@@ -210,6 +221,8 @@ export function useSimulationWorkflow({
     simulationEnded.value = true
     simulationWasManuallyEndedEarly.value = true
     timerDisplay.value = "00:00"
+
+    console.log('[WORKFLOW] ✅ Simulação encerrada manualmente - aguardando confirmação do servidor')
   }
 
   /**
@@ -275,7 +288,9 @@ export function useSimulationWorkflow({
    * @param data - Dados do evento com durationSeconds
    */
   function handleSimulationStart(data: any) {
-    
+    console.log('[WORKFLOW] 🎬 Recebido SERVER_START_SIMULATION')
+    console.log('[WORKFLOW]   - durationSeconds:', data?.durationSeconds)
+
     if (data && typeof data.durationSeconds === 'number') {
       simulationTimeSeconds.value = data.durationSeconds
       timerDisplay.value = formatTime(data.durationSeconds)
@@ -289,6 +304,8 @@ export function useSimulationWorkflow({
     simulationStarted.value = true
     simulationEnded.value = false
     simulationWasManuallyEndedEarly.value = false
+
+    console.log('[WORKFLOW] ✅ Simulação iniciada - timer começando')
   }
 
   /**
@@ -298,7 +315,8 @@ export function useSimulationWorkflow({
   function handleTimerUpdate(data: any) {
     // Ignorar atualizações se a simulação já terminou
     if (simulationEnded.value) {
-            return
+      console.log('[WORKFLOW] ⏭️ Ignorando TIMER_UPDATE - simulação já encerrada')
+      return
     }
 
     if (data?.remainingSeconds !== undefined) {
@@ -310,9 +328,12 @@ export function useSimulationWorkflow({
    * Processa evento de fim do timer
    */
   function handleTimerEnd() {
-    
+    console.log('[WORKFLOW] ⏰ Recebido TIMER_END - tempo esgotado')
+
     timerDisplay.value = "00:00"
     simulationEnded.value = true
+
+    console.log('[WORKFLOW] ✅ Timer finalizado naturalmente')
   }
 
   /**
@@ -320,9 +341,13 @@ export function useSimulationWorkflow({
    * @param data - Dados do evento
    */
   function handleTimerStopped(data: any) {
-    
+    console.log('[WORKFLOW] 📥 Recebido TIMER_STOPPED do servidor')
+    console.log('[WORKFLOW]   - reason:', data?.reason)
+
     simulationEnded.value = true
     simulationWasManuallyEndedEarly.value = true
+
+    console.log('[WORKFLOW] ✅ Timer parado - simulação encerrada')
   }
 
   /**
@@ -389,7 +414,10 @@ export function useSimulationWorkflow({
     ) {
       // Backend is activated, proceed with simulation start
       if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-        
+        console.log('[WORKFLOW] 🚀 Auto-start: Emitindo CLIENT_START_SIMULATION')
+        console.log('[WORKFLOW]   - Duração:', selectedDurationMinutes.value, 'minutos')
+        console.log('[WORKFLOW]   - SessionId:', sessionId.value)
+
         // Verificar se socket está conectado
         if (!socketRef.value || !socketRef.value.connected) {
           console.error('[WORKFLOW] ❌ Socket não conectado! Não é possível iniciar')
@@ -409,8 +437,10 @@ export function useSimulationWorkflow({
           sessionId: sessionId.value,
           durationMinutes: durationToSend
         })
-      } else {
 
+        console.log('[WORKFLOW] ✅ Evento CLIENT_START_SIMULATION emitido com sucesso')
+      } else {
+        console.log('[WORKFLOW] ⏳ Candidato aguardando início pelo ator/avaliador')
       }
     }
   })

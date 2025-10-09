@@ -1,9 +1,10 @@
 <script setup>
 import { currentUser } from '@/plugins/auth'
 import { firebaseAuth } from '@/plugins/firebase'
-import { signOut } from 'firebase/auth'
+import { signOut, onAuthStateChanged } from 'firebase/auth'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { setLoggingOutFlag } from '@/plugins/firebase'
 
 import avatar1 from '@images/avatars/avatar-1.png'
 
@@ -16,12 +17,33 @@ const userEmail = computed(() => currentUser.value?.email || 'Nenhum e-mail')
 
 const logout = async () => {
   try {
+    console.log('[UserProfile] Iniciando logout...')
+
+    // Marcar que estamos fazendo logout para silenciar erros esperados
+    setLoggingOutFlag(true)
+
     await signOut(firebaseAuth)
-    // Redireciona para a landing page após o logout
-    router.push({ name: 'landing-page' })
+
+    // Aguardar a confirmação do logout através do onAuthStateChanged
+    return new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+        if (!user) {
+          console.log('[UserProfile] Logout confirmado, redirecionando para landing page')
+          unsubscribe() // Remove o listener
+
+          // Limpar flag de logout após confirmação
+          setLoggingOutFlag(false)
+
+          router.push({ name: 'landing-page' })
+          resolve()
+        }
+      })
+    })
   }
   catch (error) {
-    console.error("Erro ao fazer logout:", error)
+    console.error("[UserProfile] Erro ao fazer logout:", error)
+    // Em caso de erro, garantir que a flag seja limpa
+    setLoggingOutFlag(false)
   }
 }
 </script>

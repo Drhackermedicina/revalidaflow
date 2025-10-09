@@ -95,8 +95,27 @@ let isOnline = navigator.onLine;
 let connectionRetries = 0;
 const MAX_RETRIES = 3;
 
+// Flag para indicar se estamos em processo de logout
+let isLoggingOut = false;
+
+// Função para marcar início do logout
+export function setLoggingOutFlag(value) {
+  isLoggingOut = value;
+  if (value) {
+    console.log('🚪 Iniciando processo de logout - erros de permissão serão silenciados');
+  } else {
+    console.log('✅ Processo de logout concluído');
+  }
+}
+
 // Função para lidar com erros de conectividade
 export function handleFirestoreError(error, operation = 'operação') {
+  // Durante logout, silenciar erros de permissão que são esperados
+  if (isLoggingOut && error.code === 'permission-denied') {
+    console.log(`🔇 Erro de permissão silenciado durante logout: ${operation}`);
+    return { shouldRetry: false, retryCount: 0, silenced: true };
+  }
+
   console.warn(`⚠️ Erro Firestore durante ${operation}:`, error);
 
   if (error.code === 'unavailable' || error.message?.includes('transport errored')) {
@@ -132,17 +151,10 @@ export { isOnline };
 // Inicialização do Storage com verificação e bucket explícito
 let storage;
 try {
-  // Debug: verificar o valor real do storageBucket
-  console.log('🔧 Firebase Config:', {
-    storageBucket: firebaseConfig.storageBucket,
-    projectId: firebaseConfig.projectId
-  });
-
   // Forçar o uso do bucket correto (firebasestorage.app)
   // Usar o formato correto: gs://bucket-name
   const bucketUrl = `gs://${firebaseConfig.storageBucket}`;
   storage = getStorage(firebaseApp, bucketUrl);
-  console.log('✅ Storage inicializado com bucket:', firebaseConfig.storageBucket);
 } catch (error) {
   console.error('❌ Erro ao inicializar Storage:', error);
   throw error;

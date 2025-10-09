@@ -73,19 +73,6 @@ export function playAudioSegment(buffer, offset, duration) {
 }
 
 /**
- * Reproduz um efeito sonoro padrão (som de notificação)
- * Usa o arquivo de áudio myinstants.mp3 com duração de 1 segundo
- */
-export async function playSoundEffect() {
-  try {
-    const audioBuffer = await loadAudioFile('/src/assets/myinstants.mp3');
-    playAudioSegment(audioBuffer, 1, 1); // Reproduz do segundo 1 ao segundo 2 (duração de 1 segundo)
-  } catch (e) {
-    console.warn("Não foi possível tocar o som:", e);
-  }
-}
-
-/**
  * Fecha o AudioContext. Deve ser chamado quando o áudio não for mais necessário.
  */
 export function closeAudioContext() {
@@ -97,6 +84,19 @@ export function closeAudioContext() {
     }).catch(error => {
       console.error("Erro ao fechar AudioContext:", error);
     });
+  }
+}
+
+/**
+ * Reproduz um efeito sonoro (notificação de início/fim de simulação).
+ * Toca o arquivo de áudio myinstants.mp3 do segundo 1 ao 2.
+ */
+export async function playSoundEffect() {
+  try {
+    const audioBuffer = await loadAudioFile('/src/assets/myinstants.mp3');
+    playAudioSegment(audioBuffer, 1, 1); // Reproduz do segundo 1 ao segundo 2 (duração de 1 segundo)
+  } catch (e) {
+    console.warn("Não foi possível tocar o som:", e);
   }
 }
 

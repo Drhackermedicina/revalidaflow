@@ -2,58 +2,34 @@
 
 ### 📈 Progresso Geral
 - **Linhas Iniciais**: 2,919
-- **Linhas Atuais**: 1,725
-- **Linhas Removidas**: 1,194
-- **Redução**: 40.9%
+- **Linhas Atuais**: 1,683
+- **Linhas Removidas**: 1,236
+- **Redução**: 42.3%
 - **Meta**: < 500 linhas (redução de ~83%)
-- **Redução restante necessária**: 1,225 linhas (41.9%)
+- **Redução restante necessária**: 1,183 linhas (40.5%)
 
-### 📦 Composables Criados (16/16 - 100% ✅)
-**Composables Principais (7)**:
-1. ✅ `useSimulationSession.ts` (288 linhas) - Gerenciamento da sessão de simulação
-2. ✅ `useSimulationWorkflow.ts` (449 linhas) - Fluxo de trabalho da simulação
-3. ✅ `useSimulationData.ts` (204 linhas) - Gerenciamento de dados da simulação
-4. ✅ `useSimulationPEP.ts` (79 linhas) - Lógica específica do PEP
-5. ✅ `useInternalInvites.ts` (208 linhas) - Gerenciamento de convites internos
-6. ✅ `useSimulationMeet.ts` (171 linhas) - Integração com Google Meet
-7. ✅ `useSimulationSocket.ts` (64 linhas) - Comunicação em tempo real via Socket.IO
+### 📦 Composables Criados (7/7 - 100% ✅)
+1. ✅ `useSimulationSession.ts` - Gerenciamento da sessão de simulação
+2. ✅ `useSimulationWorkflow.ts` - Fluxo de trabalho da simulação
+3. ✅ `useSimulationData.ts` - Gerenciamento de dados da simulação
+4. ✅ `useSimulationPEP.ts` - Lógica específica do PEP
+5. ✅ `useInternalInvites.ts` - Gerenciamento de convites internos
+6. ✅ `useSimulationMeet.ts` - Integração com Google Meet
+7. ✅ `useSimulationSocket.ts` - Comunicação em tempo real via Socket.IO
 
-**Composables de Suporte (5)**:
-8. ✅ `useEvaluation.ts` (262 linhas) - Sistema de avaliação e PEP
-9. ✅ `useSequentialNavigation.ts` (268 linhas) - Navegação entre estações
-10. ✅ `useImagePreloading.ts` (340 linhas) - Pré-carregamento de imagens
-11. ✅ `useScriptMarking.ts` (222 linhas) - Marcação de roteiros
-12. ✅ `useSimulationInvites.js` - Convites via múltiplos canais
-
-**Composables de Infraestrutura (4)**:
-13. ✅ `useSimulationHelpers.ts` (192 linhas) - Funções utilitárias
-14. ✅ `useSimulationDebug.ts` (159 linhas) - Sistema de debug
-15. ✅ `useSimulationNavigation.ts` (195 linhas) - Gestão de rotas
-16. ✅ `useSimulationNotifications.ts` (262 linhas) - Sistema de notificações
-
-**Total**: 2,735 linhas em composables
-
-### 🧩 Componentes Extraídos (8/8 - 100% ✅)
-**Componentes Principais (5)**:
-1. ✅ `SimulationHeader.vue` (317 linhas) - Navegação sequencial e timer
-2. ✅ `SimulationControls.vue` (252 linhas) - Controles de preparação e status
-3. ✅ `CandidateChecklist.vue` (587 linhas) - Interface de avaliação e checklist
-4. ✅ `SimulationSidebar.vue` (131 linhas) - Painel lateral do candidato
+### 🧩 Componentes Extraídos (7/7 - 100% ✅)
+1. ✅ `SimulationHeader.vue` - Navegação sequencial e timer
+2. ✅ `SimulationControls.vue` - Controles de preparação e status
+3. ✅ `CandidateChecklist.vue` - Interface de avaliação e checklist
+4. ✅ `SimulationSidebar.vue` - Painel lateral do candidato
 5. ✅ `PepSideView.vue` - Visualização lateral do PEP (já existia)
-
-**Componentes de Conteúdo (3)**:
-6. ✅ `ActorScriptPanel.vue` (594 linhas) - Painel completo de roteiro do ator/avaliador (6 cards: Cenário, Descrição, Tarefas, Avisos, Roteiro com PEP, Impressos)
-7. ✅ `CandidateContentPanel.vue` (224 linhas) - Painel de conteúdo do candidato (4 cards: Cenário, Descrição do Caso, Tarefas, Avisos Importantes)
-8. ✅ `CandidateImpressosPanel.vue` (225 linhas) - Painel de impressos do candidato
-
-**Total**: 2,330 linhas em componentes
-
-### 📊 Resumo das Métricas
-- **Data**: 2025-10-07
-- **Branch**: restore-a86d04c
-- **Total de linhas extraídas**: 5,065 (2,735 composables + 2,330 componentes)
-- **Linhas removidas do SimulationView.vue**: 1,194 (40.9%)
-- **Código organizado e modular**: 5,065 linhas distribuídas em 24 arquivos especializados
+6. ✅ `ActorScriptPanel.vue` (501 linhas) - Painel completo de roteiro do ator/avaliador (6 cards: Cenário, Descrição, Tarefas, Avisos, Roteiro com PEP, Impressos)
+7. ✅ `CandidateContentPanel.vue` (165 linhas) - Painel de conteúdo do candidato (4 cards: Cenário, Descrição do Caso, Tarefas, Avisos Importantes) **[NOVO]**ationView- **Meta Final**: < 500 linhas (83% de redução necessária)
+- **Progresso Atual**: 2,064 linhas
+- **Redução Necessária**: **1,564 linhas** (60.1% da redução total necessária)
+- **Percentual Completado**: ~29.3% da meta final (Fase 1) + **Componentes em andamento** (Fase 2)
+**Data**: 2025-10-05
+**Branch**: restore-a86d04c
 
 ---
 
@@ -460,80 +436,13 @@ socket.value.on('SERVER_PARTNER_READY', (data) => {
 
 ---
 
-### Bug #3: PEP (Checklist) não aparecia para candidato
-**Commit**: 978cb13 - `fix: reposicionar PEP para aparecer ABAIXO dos outros campos`
-
-**Sintoma**: Após o fim da simulação, o PEP não aparecia para o candidato mesmo sendo liberado pelo ator/avaliador.
-
-**Causa Raiz**: O componente `CandidateChecklist` estava posicionado dentro de um `v-if="isActorOrEvaluator"`, o que impedia sua renderização para candidatos.
-
-**Correção**:
-1. Movido `CandidateChecklist` para fora do `v-if` do ator
-2. Adicionado `v-if="isCandidate"` específico para o candidato
-3. Reposicionado o componente para aparecer abaixo dos outros campos
-
-**Código Corrigido** (SimulationView.vue:1575-1585):
-```vue
-<!-- Para Candidato -->
-<CandidateChecklist
-  v-if="isCandidate && simulationEnded && pepReleasedToCandidate && checklistData"
-  :checklist-data="checklistData"
-  :evaluation-scores="evaluationScores"
-  :is-dark-theme="isDarkTheme"
-  :update-evaluation-score="updateEvaluationScore"
-  :mark-item-as-doubtful="markItemAsDoubtful"
-/>
-```
-
----
-
-### Bug #4: Função memoizedFormatItemDescriptionForDisplay não encontrada
-**Commit**: e1e5614 - `fix: corrigir função memoizedFormatItemDescriptionForDisplay faltante`
-
-**Sintoma**: Erro ao tentar acessar função `memoizedFormatItemDescriptionForDisplay` que não estava definida.
-
-**Causa Raiz**: A função foi movida/renomada durante a refatoração mas não foi exportada corretamente.
-
-**Correção**: Adicionada a função faltante no CandidateChecklist.vue:
-```javascript
-const memoizedFormatItemDescriptionForDisplay = memoize(formatItemDescriptionForDisplay);
-```
-
----
-
-### Bug #5: Problemas de reatividade do PEP
-**Commit**: 5eff907 - `fix: forçar reatividade do PEP com nextTick() e triggerRef()`
-
-**Sintoma**: PEP não atualizava visualmente mesmo quando os dados mudavam.
-
-**Causa Raiz**: Vue reactivity não detectava mudanças profundas nos dados do PEP.
-
-**Correção**: Adicionado `nextTick()` e `triggerRef()` para forçar atualização reativa.
-
----
-
-### Bug #6: Ordem de inicialização dos composables
-**Commit**: 5e832c2 - `fix: corrigir ordem de inicialização dos composables`
-
-**Sintoma**: Erro de inicialização devido a dependências entre composables.
-
-**Causa Raiz**: `useSimulationWorkflow` dependia de refs que ainda não estavam inicializadas.
-
-**Correção**: Reordenada a inicialização dos composables no SimulationView.vue.
-
----
-
 ### Resumo das Correções
-- ✅ **6 bugs críticos corrigidos**
+- ✅ **2 bugs críticos corrigidos**
 - ✅ **Funcionalidade de auto-start restaurada**
 - ✅ **Detecção de estado pronto corrigida**
-- ✅ **PEP funcionando para candidatos**
-- ✅ **Funções de memoização corrigidas**
-- ✅ **Reatividade do PEP garantida**
-- ✅ **Ordem de inicialização corrigida**
-- ✅ **Fluxo completo funcionando**
-- ✅ **10 commits de correção adicionados**
-- ✅ **Builds validados múltiplas vezes**
+- ✅ **Fluxo completo de inicialização funcionando**
+- ✅ **2 commits de correção adicionados**
+- ✅ **Builds validados (25.11s + 32.90s)**
 
 ---
 
@@ -641,34 +550,28 @@ const memoizedFormatItemDescriptionForDisplay = memoize(formatItemDescriptionFor
 ## 🎉 CONCLUSÃO
 
 ### Conquistas - Fase 1 Composables (COMPLETA ✅)
-- ✅ **16 composables especializados criados** (7 principais + 5 de suporte + 4 de infraestrutura)
-- ✅ **1,194 linhas removidas** de SimulationView.vue (-40.9%)
-- ✅ **2,735 linhas** de código organizado em composables
-- ✅ **~50 funções** extraídas e centralizadas
-- ✅ **~40 refs** de estado movidos para composables apropriados
+- ✅ **7 composables especializados criados**
+- ✅ **550 linhas removidas** de SimulationView.vue (-18.8%)
+- ✅ **1,357 linhas** de código organizado em composables
+- ✅ **28 funções** extraídas e centralizadas
+- ✅ **27 refs** de estado movidos para composables apropriados
 - ✅ Separação de responsabilidades melhorada
 - ✅ Código mais testável e manutenível
 - ✅ TypeScript completo em todos os composables
 - ✅ Build funcionando perfeitamente (23.04s)
 - ✅ **Workflow completo de simulação isolado**
 - ✅ **Event handlers organizados por responsabilidade**
-- ✅ **6 bugs críticos identificados e corrigidos**
+- ✅ **2 bugs críticos identificados e corrigidos**
 - ✅ **Funcionalidade de auto-start restaurada**
-- ✅ **PEP funcionando corretamente para candidatos**
-- ✅ **Problemas de reatividade resolvidos**
-- ✅ **Fluxo completo de inicialização validado e funcionando**
+- ✅ **Fluxo de inicialização validado e funcionando**
 
-### Conquistas - Fase 2 Componentização (100% CONCLUÍDA ✅)
-- ✅ **SimulationHeader.vue criado e testado** (317 linhas - navegação + timer)
-- ✅ **SimulationControls.vue criado e testado** (252 linhas - controles + comunicação)
-- ✅ **CandidateChecklist.vue validado e integrado** (587 linhas - avaliação PEP)
-- ✅ **SimulationSidebar.vue criado e testado** (131 linhas - painel lateral candidato)
-- ✅ **ActorScriptPanel.vue criado e testado** (594 linhas - roteiro completo)
-- ✅ **CandidateContentPanel.vue criado e testado** (224 linhas - conteúdo candidato)
-- ✅ **CandidateImpressosPanel.vue criado e testado** (225 linhas - impressos)
-- ✅ **8 componentes especializados criados/integrados**
-- ✅ **Componentes NÃO planejados criados**: 3 (ActorScriptPanel, CandidateContentPanel, CandidateImpressosPanel)
-- ✅ **2,330 linhas** extraídas em componentes
+### Conquistas - Fase 2 Componentização (71% CONCLUÍDO ✅)
+- ✅ **SimulationHeader.vue criado e testado** (navegação + timer)
+- ✅ **SimulationControls.vue criado e testado** (controles + comunicação)
+- ✅ **CandidateChecklist.vue validado e integrado** (avaliação PEP)
+- ✅ **SimulationSidebar.vue criado e testado** (painel lateral candidato)
+- ✅ **5 componentes especializados criados/integrados**
+- ✅ **695 linhas removidas** do template principal (-23.8%)
 - ✅ **Build validado** após cada integração (22.56s)
 - ✅ **Comunicação props/events** funcionando corretamente
 - ✅ **Funcionalidade preservada** em todos os componentes
@@ -676,24 +579,13 @@ const memoizedFormatItemDescriptionForDisplay = memoize(formatItemDescriptionFor
 
 ### Meta de Redução Atual
 - **Inicial**: 2,919 linhas
-- **Atual**: 1,725 linhas
-- **Redução**: 1,194 linhas (40.9%)
+- **Atual**: 2,224 linhas
+- **Redução**: 695 linhas (23.8%)
 - **Meta**: < 500 linhas
-- **Faltam**: ~1,225 linhas (41.9% da jornada restante)
-- **Progresso Total**: 40.9% completado
-- **Status**: **Fase 1 e Fase 2 CONCLUÍDAS!** ✅
-
-### Resumo Final da Refatoração
-- **Total de arquivos criados**: 24 (16 composables + 8 componentes)
-- **Total de linhas organizadas**: 5,065 (2,735 composables + 2,330 componentes)
-- **Código modular e reutilizável**: 100%
-- **TypeScript implementado**: 100%
-- **Builds validados**: Múltiplos
-- **Bugs corrigidos**: 6
-- **Commits de refatoração**: 16+
+- **Faltam**: ~1,724 linhas (74.2% da jornada restante)
+- **Progresso Total**: 23.8% completado (Fase 1: 18.8% + Fase 2: 5%)
 
 ---
 
-**Atualizado em**: 2025-10-07 - 18:30
-**Status**: Refatoração Fase 1 e 2 CONCLUÍDAS com sucesso!
-**Próximo passo**: Decidir sobre Fase 3 (Otimização de template para < 500 linhas) ou iniciar novo ciclo de refatoração em outros módulos.
+**Atualizado em**: 2025-01-18 - 15:45
+**Última modificação**: ActorScriptPanel.vue (501 linhas) criado e integrado com sucesso - redução de 470 linhas do template principal (2,224 → 1,754 linhas)

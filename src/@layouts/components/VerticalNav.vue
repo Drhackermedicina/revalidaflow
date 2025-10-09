@@ -1,5 +1,4 @@
 <script setup>
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useDisplay } from 'vuetify'
 
 const props = defineProps({
@@ -70,22 +69,12 @@ const handleNavScroll = evt => {
       name="nav-items"
       :update-is-vertical-nav-scrolled="updateIsVerticalNavScrolled"
     >
-      <PerfectScrollbar
-        tag="ul"
+      <ul
         class="nav-items"
-        :options="{ 
-          wheelPropagation: false,
-          suppressScrollX: true,
-          wheelSpeed: 1,
-          swipeEasing: true,
-          minScrollbarLength: 20,
-          useBothWheelAxes: false,
-          scrollingThreshold: 1000
-        }"
-        @ps-scroll-y="handleNavScroll"
+        @scroll="handleNavScroll"
       >
         <slot />
-      </PerfectScrollbar>
+      </ul>
     </slot>
     <slot name="after-nav-items" />
   </Component>
@@ -147,12 +136,35 @@ const handleNavScroll = evt => {
 
   .nav-items {
     block-size: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-behavior: smooth;
 
-    // ℹ️ We no loner needs this overflow styles as perfect scrollbar applies it
-    // overflow-x: hidden;
+    // Performance optimizations for scrolling
+    will-change: scroll-position;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 
-    // // ℹ️ We used `overflow-y` instead of `overflow` to mitigate overflow x. Revert back if any issue found.
-    // overflow-y: auto;
+    // Hide scrollbar but keep functionality
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
   }
 
   .nav-item-title {

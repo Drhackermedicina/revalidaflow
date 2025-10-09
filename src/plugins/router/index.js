@@ -1,6 +1,7 @@
 import { currentUser, waitForAuth } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 import { createRouter, createWebHistory } from 'vue-router'
 import { routes } from './routes'
 import { updateDocumentWithRetry, getDocumentWithRetry, checkFirestoreConnectivity } from '@/services/firestoreService'
@@ -42,12 +43,28 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // Lógica original para produção ou para você (usuário real) em DEV
+  console.log('[beforeEach] Verificando rota:', to.name, 'requiresAuth:', to.matched.some(record => record.meta.requiresAuth), 'currentUser:', !!currentUser.value);
   await waitForAuth();
-  if (to.matched.some(record => record.meta.requiresAuth)) {
-    if (!currentUser.value) {
-      next('/login')
-      return
-    }
+
+  // Para rotas que NÃO requerem autenticação, permite acesso direto
+  if (!to.matched.some(record => record.meta.requiresAuth)) {
+    console.log('[beforeEach] Rota não requer autenticação, permitindo acesso direto');
+    next();
+    return;
+  }
+
+  // Só para rotas que REQUEREM autenticação, faz as verificações
+  console.log('[beforeEach] Rota requer autenticação, verificando usuário...');
+  if (!currentUser.value) {
+    console.log('[beforeEach] Usuário não autenticado, redirecionando para login');
+    next('/login')
+    return
+  }
+
+  // Só verifica dados do usuário se ele estiver realmente autenticado E a rota requer autenticação
+  // Evita tentar acessar Firestore quando o usuário acabou de fazer logout
+  try {
+    console.log('[beforeEach] Verificando dados do usuário no Firestore...');
     const userDoc = await getDocumentWithRetry(doc(db, 'usuarios', currentUser.value.uid), 'verificação de usuário')
     const user = userDoc.data()
     // Checagem de cadastro completo: documento existe e campos obrigatórios preenchidos
@@ -61,30 +78,36 @@ router.beforeEach(async (to, from, next) => {
       !user?.paisOrigem
     ) {
       // Redirecione para /register se cadastro incompleto
+      console.log('[beforeEach] Cadastro incompleto, redirecionando para register');
       next('/register')
       return
     }
-    // Bloqueio de acesso se trial expirou ou plano vencido
-    // TEMPORARIAMENTE DESABILITADO - rota /pagamento não existe ainda
-    /*
-    const agora = new Date()
-    if (
-      user.plano === 'trial' &&
-      new Date(user.trialExpiraEm) < agora
-    ) {
-      next('/pagamento')
-      return
-    }
-    if (
-      user.plano !== 'trial' &&
-      user.planoExpiraEm &&
-      new Date(user.planoExpiraEm) < agora
-    ) {
-      next('/pagamento')
-      return
-    }
-    */
+    console.log('[beforeEach] Verificação de usuário concluída com sucesso');
+  } catch (error) {
+    // Se não conseguir acessar dados do usuário, redireciona para login
+    // Isso acontece quando o usuário fez logout mas ainda tem currentUser definido
+    console.warn('[beforeEach] Não foi possível verificar dados do usuário, redirecionando para login:', error.message)
+    next('/login')
+    return
   }
+  /*
+  const agora = new Date()
+  if (
+    user.plano === 'trial' &&
+    new Date(user.trialExpiraEm) < agora
+  ) {
+    next('/pagamento')
+    return
+  }
+  if (
+    user.plano !== 'trial' &&
+    user.planoExpiraEm &&
+    new Date(user.planoExpiraEm) < agora
+  ) {
+    next('/pagamento')
+    return
+  }
+  */
   next()
 })
 
@@ -102,8 +125,10 @@ router.afterEach(async (to, from) => {
   // Lógica original para produção ou para você (usuário real) em DEV
   await waitForAuth();
 
-  // Verificações adicionais para garantir que não tentemos operar em um DB nulo ou sem usuário.
-  if (!db || !currentUser.value?.uid) {
+  // Verificações adicionais para garantir que não tentemos operar em um DB nulo ou sem usuário autenticado.
+  // IMPORTANTE: Não tentar acessar Firestore se o usuário não estiver autenticado
+  if (!db || !currentUser.value?.uid || !getAuth().currentUser) {
+    console.log('[afterEach] Usuário não autenticado ou DB indisponível, pulando atualização');
     return;
   }
 
@@ -127,7 +152,7 @@ router.afterEach(async (to, from) => {
 })
 
 window.addEventListener('beforeunload', () => {
-  if (currentUser.value?.uid && db) {
+  if (currentUser.value?.uid && db && getAuth().currentUser) {
     const connectivity = checkFirestoreConnectivity();
     if (connectivity.available) {
       const ref = doc(db, 'usuarios', currentUser.value.uid);

@@ -84,8 +84,19 @@ const props = defineProps({
   }
 })
 
+// 🔧 LOG: Validação de props no SimulationHeader
+console.log('[HEADER] 🎯 Inicializando SimulationHeader com validação de props');
+console.log('[HEADER] simulationStarted:', props.simulationStarted);
+console.log('[HEADER] simulationEnded:', props.simulationEnded);
+
 // Valor local para o seletor de duração (sincronizado com prop)
 const localSelectedDurationMinutes = ref(props.selectedDurationMinutes)
+
+// 🔧 LOG: Computeds seguros para evitar undefined
+const safeSimulationStarted = computed(() => props.simulationStarted ?? false);
+const safeSimulationEnded = computed(() => props.simulationEnded ?? false);
+
+console.log('[HEADER] ✅ Props validados - safeSimulationStarted:', safeSimulationStarted.value);
 
 // Sincronizar valor local quando prop muda
 watch(() => props.selectedDurationMinutes, (newValue) => {

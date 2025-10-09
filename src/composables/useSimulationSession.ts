@@ -106,14 +106,15 @@ export function useSimulationSession() {
       if (stationData.value?.padraoEsperadoProcedimento) {
         checklistData.value = stationData.value.padraoEsperadoProcedimento
 
+
         // Verifica feedbackEstacao em diferentes locais
         if (stationData.value.feedbackEstacao && !checklistData.value.feedbackEstacao) {
           checklistData.value.feedbackEstacao = stationData.value.feedbackEstacao
         }
 
         if (!checklistData.value.itensAvaliacao ||
-            !Array.isArray(checklistData.value.itensAvaliacao) ||
-            checklistData.value.itensAvaliacao.length === 0) {
+          !Array.isArray(checklistData.value.itensAvaliacao) ||
+          checklistData.value.itensAvaliacao.length === 0) {
           console.warn("[DIAGNOSTIC] PEP não contém 'itensAvaliacao' válidos.")
         }
       } else {
@@ -150,29 +151,24 @@ export function useSimulationSession() {
     totalSequentialStations.value = parseInt(routeQuery.totalStations) || 0
 
     if (isSequentialMode.value) {
-      
+      // Modo sequencial detectado
+
       // Carregar dados da sessão sequencial do sessionStorage
       const savedSequentialData = sessionStorage.getItem('sequentialSession')
       if (savedSequentialData) {
         try {
           sequentialData.value = JSON.parse(savedSequentialData)
         } catch (error) {
-          console.error('[SEQUENTIAL] Erro ao carregar dados da sessão sequencial:', error)
           sequentialData.value = null
         }
       } else {
-        console.warn('[SEQUENTIAL] Nenhum dado de sessão sequencial encontrado no sessionStorage')
         sequentialData.value = null
       }
 
       // Validar se sequentialData está correto
       if (sequentialData.value) {
         if (!sequentialData.value.sequence || !Array.isArray(sequentialData.value.sequence)) {
-          console.error('[SEQUENTIAL] sequentialData.sequence é inválido:', sequentialData.value.sequence)
           sequentialData.value = null
-        } else if (sequentialData.value.sequence.length !== totalSequentialStations.value) {
-          console.warn('[SEQUENTIAL] Mismatch entre sequentialData.sequence.length e totalSequentialStations:',
-            sequentialData.value.sequence.length, 'vs', totalSequentialStations.value)
         }
       }
     }
@@ -190,7 +186,6 @@ export function useSimulationSession() {
     } else {
       selectedDurationMinutes.value = 10
       if (durationFromQuery) {
-        console.warn(`Duração inválida (${durationFromQuery}) na URL, usando padrão ${selectedDurationMinutes.value} min.`)
       }
     }
 
@@ -250,7 +245,6 @@ export function useSimulationSession() {
   }
 
   return {
-    // Estado
     stationId,
     sessionId,
     userRole,
@@ -260,24 +254,16 @@ export function useSimulationSession() {
     isLoading,
     errorMessage,
     isSettingUpSession,
-
-    // Modo sequencial
     isSequentialMode,
     sequenceId,
     sequenceIndex,
     totalSequentialStations,
     sequentialData,
-
-    // Timer
     simulationTimeSeconds,
     timerDisplay,
     selectedDurationMinutes,
-
-    // Computeds
     isActorOrEvaluator,
     isCandidate,
-
-    // Métodos
     fetchSimulationData,
     setupSequentialMode,
     setupDuration,

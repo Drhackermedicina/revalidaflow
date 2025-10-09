@@ -12,6 +12,31 @@ export interface ChatMessage {
     timestamp?: any
 }
 
+// Função utilitária para formatar tempo
+export const formatTime = (timestamp: any): string => {
+    if (!timestamp) return ''
+    try {
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+        return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    } catch {
+        return ''
+    }
+}
+
+import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
+import { db } from '@/plugins/firebase'
+import { collection, onSnapshot, query, orderBy, limit, addDoc, startAfter, Unsubscribe, QueryDocumentSnapshot, getDocs } from 'firebase/firestore'
+import type { ChatUser } from './useChatUsers'
+
+export interface ChatMessage {
+    id: string
+    senderId?: string
+    senderName?: string
+    senderPhotoURL?: string
+    text?: string
+    timestamp?: any
+}
+
 export const useChatMessages = (currentUser: any) => {
     const messages = ref<ChatMessage[]>([])
     const messagesEnd = ref<HTMLElement | null>(null)
@@ -117,16 +142,6 @@ export const useChatMessages = (currentUser: any) => {
         }
         // Fallback: gerar avatar com iniciais do nome
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(message.senderName || 'User')}`
-    }
-
-    const formatTime = (timestamp: any): string => {
-        if (!timestamp) return ''
-        try {
-            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        } catch {
-            return ''
-        }
     }
 
     // Computed para verificar se deve mostrar botão de carregar mais

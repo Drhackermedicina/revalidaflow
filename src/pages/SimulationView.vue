@@ -53,12 +53,7 @@ import { useSimulationData } from '@/composables/useSimulationData.ts'
 import { useSimulationPEP } from '@/composables/useSimulationPEP.ts'
 import { useInternalInvites } from '@/composables/useInternalInvites.ts'
 import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.ts'
-
-// Novos Composables Refatorados
-import { useSimulationHelpers } from '@/composables/useSimulationHelpers.ts'
-import { useSimulationDebug } from '@/composables/useSimulationDebug.ts'
-import { useSimulationNavigation } from '@/composables/useSimulationNavigation.ts'
-import { useSimulationNotifications } from '@/composables/useSimulationNotifications.ts'
+import { useInviteLinkGeneration } from '@/composables/useInviteLinkGeneration.ts'
 
 // Utils de Formatação
 import {
@@ -80,7 +75,7 @@ import { io } from 'socket.io-client'
 
 // Handlers para imagem de zoom (evitam warnings Vue)
 function handleZoomImageError(err) {
-  console.error('Erro ao carregar imagem de zoom:', err);
+  // Silently handle zoom image errors
 }
 function handleZoomImageLoad(event) {
   // Carregamento de imagem completo
@@ -238,6 +233,75 @@ const {
   backendUrl
 });
 
+// Router e Route (necessários para alguns composables)
+const route = useRoute();
+const router = useRouter();
+
+// Candidato selecionado para simulação
+const selectedCandidateForSimulation = ref(null);
+
+// Google Meet integration
+const {
+  communicationMethod,
+  meetLink,
+  meetLinkCopied,
+  candidateMeetLink,
+  candidateOpenedMeet,
+  openGoogleMeet,
+  copyMeetLink,
+  checkCandidateMeetLink,
+  openCandidateMeet,
+  validateMeetLink,
+  isMeetMode,
+  getMeetLinkForInvite
+} = useSimulationMeet({ userRole, route });
+
+// Inicializa composable de geração de links de convite
+const {
+  generateInviteLinkWithDuration
+} = useInviteLinkGeneration({
+  sessionId,
+  stationId,
+  userRole,
+  selectedDurationMinutes,
+  isLoading,
+  stationData,
+  errorMessage,
+  inviteLinkToShow,
+  socket: socketRef,
+  isMeetMode,
+  validateMeetLink,
+  getMeetLinkForInvite,
+  meetLink,
+  connectWebSocket,
+  router
+});
+
+// Estado para copiar link de convite
+const copySuccess = ref(false);
+
+// Função para copiar link de convite para clipboard
+async function copyInviteLink() {
+  if (!inviteLinkToShow.value) {
+    console.warn('[COPY-LINK] Nenhum link de convite para copiar');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(inviteLinkToShow.value);
+    copySuccess.value = true;
+    console.log('[COPY-LINK] ✅ Link copiado:', inviteLinkToShow.value);
+
+    // Reset após 3 segundos
+    setTimeout(() => {
+      copySuccess.value = false;
+    }, 3000);
+  } catch (error) {
+    console.error('[COPY-LINK] ❌ Erro ao copiar link:', error);
+    errorMessage.value = 'Erro ao copiar link. Tente novamente.';
+  }
+}
+
 // Inicializa composable de avaliação
 const {
   evaluationScores,
@@ -314,26 +378,6 @@ function handleEvaluationScoreUpdate({ itemId, score }) {
   updateEvaluationScore(itemId, score);
 }
 
-// Router e Route (necessários para alguns composables)
-const route = useRoute();
-const router = useRouter();
-
-// Google Meet integration
-const {
-  communicationMethod,
-  meetLink,
-  meetLinkCopied,
-  candidateMeetLink,
-  candidateOpenedMeet,
-  openGoogleMeet,
-  copyMeetLink,
-  checkCandidateMeetLink,
-  openCandidateMeet,
-  validateMeetLink,
-  isMeetMode,
-  getMeetLinkForInvite
-} = useSimulationMeet({ userRole, route });
-
 // Simulation data management
 const {
   releasedData,
@@ -386,10 +430,6 @@ const {
 
 // Função para separar texto em sentenças
 
-const copySuccess = ref(false);
-
-// Candidato selecionado para simulação
-const selectedCandidateForSimulation = ref(null);
 
 // Chat integration refs
 const sendingChat = ref(false);
@@ -484,19 +524,15 @@ async function sendLinkViaPrivateChat() {
     }
     
   } catch (error) {
-    console.error('Erro ao enviar convite:', error);
-  } finally {
+      } finally {
     sendingChat.value = false;
   }
 }
 
 
 function connectWebSocket() {
-  if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) { console.error("SOCKET: Dados essenciais faltando para conexão.");
-    return; }
-  // const backendUrl = 'http://localhost:3000'; // Removido, agora usa import
-  // console.log('SimulationView: backendUrl sendo usada para Socket.IO:', backendUrl); // NOVO LOG
-  connectionStatus.value = 'Conectando';
+  if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) {     return; }
+      connectionStatus.value = 'Conectando';
   if (socketRef.value && socketRef.value.connected) { socketRef.value.disconnect(); }
   
   const socket = io(backendUrl, {
@@ -543,8 +579,7 @@ function connectWebSocket() {
   socket.on('connect_error', (err) => {
     connectionStatus.value = 'Erro de Conexão';
     if(!errorMessage.value) errorMessage.value = `Falha ao conectar: ${err.message}`;
-    console.error('SOCKET: Erro de conexão', err);
-
+    
     // Captura erro no Sentry
     captureWebSocketError(err, {
       socketId: socket?.id,
@@ -554,8 +589,7 @@ function connectWebSocket() {
     });
   });
   socket.on('SERVER_ERROR', (data) => {
-    console.error('SOCKET: Erro do Servidor:', data.message);
-    errorMessage.value = `Erro do servidor: ${data.message}`;
+        errorMessage.value = `Erro do servidor: ${data.message}`;
 
     // Captura erro no Sentry
     captureSimulationError(new Error(data.message), {
@@ -803,8 +837,7 @@ function loadSelectedCandidate() {
       const candidate = JSON.parse(candidateData);
       selectedCandidateForSimulation.value = candidate;
     } catch (error) {
-      console.error('loadSelectedCandidate: Erro ao parsear candidato:', error);
-    }
+          }
   } else {
   }
 }
@@ -897,12 +930,9 @@ function setupSession() {
   }).finally(() => {
     isSettingUpSession.value = false;
 
-    // Se já temos um sessionId, conecta o WebSocket usando o composable
+    // Se já temos um sessionId, conecta o WebSocket
     if (sessionId.value) {
-      // Usa o método connect() do composable ao invés de connectWebSocket()
-      connect();
-
-      // Configura os event listeners após a conexão
+      // Configura o WebSocket com todos os event listeners
       connectWebSocket();
 
       // Auto-ready para navegação sequencial
@@ -971,200 +1001,21 @@ onUnmounted(() => {
 
 // updateTimerDisplayFromSelection movido para useSimulationWorkflow composable
 
-async function generateInviteLinkWithDuration() {
-  if (isLoading.value) {
-    errorMessage.value = "Aguarde o carregamento dos dados da estação.";
-    return;
-  }
-  if (!stationData.value) {
-    errorMessage.value = "Dados da estação ainda não carregados. Tente novamente em instantes.";
-    return;
-  }
-
-  // Se não houver sessionId, ativamos o backend para criar um
-  if (!sessionId.value) {
-    try {
-      
-      const response = await fetch(`${backendUrl}/api/create-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          stationId: stationId.value,
-          durationMinutes: selectedDurationMinutes.value,
-          localSessionId: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` // Gerar um localSessionId temporário
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const sessionData = await response.json();
-      sessionId.value = sessionData.sessionId; // Define o sessionId real
-      // Conectar WebSocket imediatamente após obter o sessionId e aguardar a conexão
-      connectWebSocket(); // Inicia a tentativa de conexão
-
-      let connectionAttempts = 0;
-      const maxAttempts = 10; // Tentar por até 5 segundos (10 * 500ms)
-      while (!socketRef.value?.connected && connectionAttempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        connectionAttempts++;
-      }
-      if (!socketRef.value?.connected) {
-        throw new Error("WebSocket connection failed after multiple attempts during invite link generation.");
-      }
-
-    } catch (error) {
-      errorMessage.value = `Não foi possível gerar link de convite: ${error.message}`;
-      return;
-    }
-  }
-
-  if ((userRole.value === 'actor' || userRole.value === 'evaluator') && stationId.value && sessionId.value) {
-    if (isMeetMode()) {
-      const validation = validateMeetLink(meetLink.value);
-      if (!validation.valid) {
-        errorMessage.value = validation.error;
-        return;
-      }
-    }
-    const partnerRoleToInvite = userRole.value === 'actor' ?
-      'candidate' : (userRole.value === 'evaluator' ? 'actor' : null);
-    if (partnerRoleToInvite) {
-      try {
-        const inviteQuery = {
-          sessionId: sessionId.value,
-          role: partnerRoleToInvite,
-          duration: selectedDurationMinutes.value
-        };
-        
-        // Adicionar dados do candidato selecionado se disponível
-        const selectedCandidate = JSON.parse(sessionStorage.getItem('selectedCandidate') || '{}');
-        if (selectedCandidate.uid) {
-          inviteQuery.candidateUid = selectedCandidate.uid;
-          inviteQuery.candidateName = selectedCandidate.name;
-        }
-
-        const meetLinkForInvite = getMeetLinkForInvite();
-        if (meetLinkForInvite) {
-          inviteQuery.meet = meetLinkForInvite;
-        }
-        // Busca recursiva da rota protegida
-        const routeDef = findRouteByName(router.options.routes, 'station-simulation');
-        if (!routeDef) {
-          errorMessage.value = "Rota 'station-simulation' não encontrada. Verifique a configuração do roteador.";
-          return;
-        }
-        const inviteRoute = router.resolve({
-          name: 'station-simulation',
-          params: { id: stationId.value },
-          query: inviteQuery
-        });
-        if (!inviteRoute || !inviteRoute.href) {
-          errorMessage.value = "Falha ao resolver a rota de convite. Verifique as configurações.";
-          return;
-        }
-        inviteLinkToShow.value = window.location.origin + inviteRoute.href;
-        errorMessage.value = '';
-      } catch (e) {
-        errorMessage.value = `Erro ao gerar link de convite: ${e.message}`;
-      }
-    }
-  } else {
-    errorMessage.value = "Não foi possível gerar link de convite neste momento. Verifique se todos os dados necessários estão disponíveis.";
-  }
-}
 
 // candidateMeetLink, candidateOpenedMeet, checkCandidateMeetLink e openCandidateMeet
 // movidos para useSimulationMeet composable
 
 watch(() => route.fullPath, (newPath, oldPath) => {
   if (newPath !== oldPath && route.name === 'SimulationView') {
-    // console.log("MUDANÇA DE ROTA (SimulationView fullPath):", newPath, "Reconfigurando sessão...");
-    setupSession();
+        setupSession();
     checkCandidateMeetLink();
   }
 });
 // --- Funções de Interação ---
 // releaseData movido para useSimulationData composable
 
-async function copyInviteLink() { if(!inviteLinkToShow.value) return; try {await navigator.clipboard.writeText(inviteLinkToShow.value); copySuccess.value=true; setTimeout(()=>copySuccess.value=false,2000);
-  } catch(e){alert('Falha ao copiar.')} }
 // sendReady movido para useSimulationWorkflow composable
 
-// activateBackend movido para useSimulationWorkflow composable
-// NOTA: A versão abaixo está comentada mas pode ter lógica adicional necessária
-async function activateBackend_OLD_BACKUP() {
-  if (backendActivated.value) {
-    return;
-  }
-
-  try {
-
-    // Se o sessionId já foi definido (ex: pela geração do link de convite), não recriar
-    if (!sessionId.value) {
-      const response = await fetch(`${backendUrl}/api/create-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          stationId: stationId.value,
-          durationMinutes: selectedDurationMinutes.value,
-          localSessionId: localSessionId.value
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const sessionData = await response.json();
-      sessionId.value = sessionData.sessionId; // Define o sessionId real
-    } else {
-    }
-
-    // Conectar WebSocket com o sessionId real (se ainda não estiver conectado)
-    if (!socketRef.value?.connected) {
-      connectWebSocket();
-      // Esperar pela conexão do socket
-      let connectionAttempts = 0;
-      const maxAttempts = 10;
-      while (!socketRef.value?.connected && connectionAttempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        connectionAttempts++;
-      }
-      if (!socketRef.value?.connected) {
-        throw new Error("WebSocket connection failed after multiple attempts");
-      }
-    } else {
-    }
-
-    // Mark backend as activated
-    backendActivated.value = true;
-
-    // A emissão de CLIENT_START_SIMULATION será feita pelo watch(bothParticipantsReady)
-    // ou pelo clique no botão "Iniciar Simulação" se for ator/avaliador.
-
-  } catch (error) {
-    errorMessage.value = `Erro ao ativar backend: ${error.message}`;
-
-    // Captura erro no Sentry
-    captureSimulationError(error, {
-      sessionId: sessionId.value,
-      userRole: userRole.value,
-      stationId: stationId.value,
-      simulationState: 'backend_activation_failed'
-    });
-
-    // Reset states on error
-    myReadyState.value = false;
-    partnerReadyState.value = false;
-    backendActivated.value = false;
-  }
-}
 
 // handleStartSimulationClick movido para useSimulationWorkflow composable
 
@@ -1443,6 +1294,43 @@ function toggleCollapse() {
               @release-data="releaseData"
               @open-image-zoom="openImageZoom"
             />
+
+            <!-- IMPRESSOS DO ATOR/AVALIADOR -->
+            <template v-if="releasedDataArray.length > 0">
+              <CandidateImpressosPanel
+                :released-data="releasedDataArray"
+                :is-dark-theme="isDarkTheme"
+                :get-image-source="getImageSource"
+                :get-image-id="getImageId"
+                :open-image-zoom="openImageZoom"
+                :handle-image-error="handleImageError"
+                :handle-image-load="handleImageLoad"
+              />
+            </template>
+
+  
+            <!-- PEP CHECKLIST PARA ATOR/AVALIADOR -->
+            <template v-if="checklistData?.itensAvaliacao?.length > 0">
+              <CandidateChecklist
+                :checklist-data="checklistData"
+                :simulation-started="simulationStarted"
+                :simulation-ended="simulationEnded"
+                :simulation-was-manually-ended-early="simulationWasManuallyEndedEarly"
+                :is-checklist-visible-for-candidate="true"
+                :marked-pep-items="markedPepItems"
+                :evaluation-scores="evaluationScores"
+                :candidate-received-scores="candidateReceivedScores"
+                :candidate-received-total-score="candidateReceivedTotalScore"
+                :total-score="totalScore"
+                :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
+                :is-actor-or-evaluator="isActorOrEvaluator"
+                :is-candidate="isCandidate"
+                @release-pep-to-candidate="releasePepToCandidate"
+                @toggle-pep-item-mark="togglePepItemMark"
+                @update:evaluation-scores="handleEvaluationScoreUpdate"
+                @submit-evaluation="submitEvaluation"
+              />
+            </template>
            </div>
 
            <!-- NAVEGAÇÃO SEQUENCIAL - Botão Próxima Estação -->
@@ -1452,21 +1340,7 @@ function toggleCollapse() {
              :class="isDarkTheme ? 'sequential-next-card--dark' : 'sequential-next-card--light'"
            >
              <VCardText class="text-center pa-6">
-               <!-- DEBUG: Mostrar estado das variáveis -->
-               <VAlert type="warning" variant="outlined" class="mb-4">
-                 <div class="text-left">
-                   <div><strong>DEBUG SEQUENCIAL:</strong></div>
-                   <div>isSequentialMode: {{ isSequentialMode }}</div>
-                   <div>isActorOrEvaluator: {{ isActorOrEvaluator }}</div>
-                   <div>simulationEnded: {{ simulationEnded }}</div>
-                   <div>allEvaluationsCompleted: {{ allEvaluationsCompleted }}</div>
-                   <div>canGoToNext: {{ canGoToNext }}</div>
-                   <div>sequenceIndex: {{ sequenceIndex }}</div>
-                   <div>totalSequentialStations: {{ totalSequentialStations }}</div>
-                   <div>sequentialData existe: {{ !!sequentialData }}</div>
-                 </div>
-               </VAlert>
-
+         
                <VAlert
                  v-if="!allEvaluationsCompleted"
                  type="info"
@@ -1576,31 +1450,11 @@ function toggleCollapse() {
                :handle-image-load="handleImageLoad"
              />
 
-             <!-- CANDIDATE CHECKLIST COMPONENT - POSICIONADO CORRETAMENTE -->
-             <!-- Aparece abaixo dos outros campos do candidato -->
-             <CandidateChecklist
-               :checklist-data="checklistData"
-               :simulation-started="simulationStarted"
-               :simulation-ended="simulationEnded"
-               :simulation-was-manually-ended-early="simulationWasManuallyEndedEarly"
-               :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
-               :pep-released-to-candidate="pepReleasedToCandidate"
-               :marked-pep-items="markedPepItems"
-               :evaluation-scores="evaluationScores"
-               :candidate-received-scores="candidateReceivedScores"
-               :candidate-received-total-score="candidateReceivedTotalScore"
-               :total-score="totalScore"
-               :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
-               :is-actor-or-evaluator="isActorOrEvaluator"
-               :is-candidate="isCandidate"
-               @release-pep-to-candidate="releasePepToCandidate"
-               @toggle-pep-item-mark="togglePepItemMark"
-               @update:evaluation-scores="handleEvaluationScoreUpdate"
-               @submit-evaluation="submitEvaluation"
-             />
-
+     
+     
+    
            </div>
-         </VCol
+         </VCol>
  
          <!-- Card de Navegação Sequencial (para ator/avaliador após submissão) -->
          <VCol v-if="isSequentialMode && isActorOrEvaluator && simulationEnded && evaluationSubmittedByCandidate" cols="12">

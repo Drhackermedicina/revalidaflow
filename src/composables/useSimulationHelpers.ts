@@ -1,193 +1,138 @@
-import { ref } from 'vue'
+// src/composables/useSimulationHelpers.ts
 
-export function useSimulationHelpers() {
+import { ref, type Ref } from 'vue'
+import { useSimulationInvites } from '@/composables/useSimulationInvites.js'
+
+/**
+ * Opções para o composable de helpers de simulação
+ */
+export interface SimulationHelpersOptions {
+  selectedCandidateForSimulation: Ref<any>
+  inviteLinkToShow: Ref<string>
+  selectedDurationMinutes: Ref<number>
+  stationData: Ref<any>
+  currentUser: Ref<any>
+  getMeetLinkForInvite: () => string | null
+  reloadListeners: () => void
+}
+
+/**
+ * Composable para funções auxiliares de simulação
+ * Gerencia operações simples como limpeza de candidato e envio de chat
+ */
+export function useSimulationHelpers(options: SimulationHelpersOptions) {
+  const {
+    selectedCandidateForSimulation,
+    inviteLinkToShow,
+    selectedDurationMinutes,
+    stationData,
+    currentUser,
+    getMeetLinkForInvite,
+    reloadListeners
+  } = options
+
+  const sendingChat = ref(false)
+  const chatSentSuccess = ref(false)
   const copySuccess = ref(false)
 
   /**
-   * Copia texto para a área de transferência
+   * Limpa o candidato selecionado do sessionStorage
    */
-  async function copyToClipboard(text: string): Promise<boolean> {
-    if (!text) return false
+  function clearSelectedCandidate() {
+    try {
+      sessionStorage.removeItem('selectedCandidate')
+    } catch (error) {
+      console.warn('Erro ao limpar candidato selecionado:', error)
+    }
+  }
+
+  /**
+   * Carrega candidato selecionado do sessionStorage
+   */
+  function loadSelectedCandidate() {
+    try {
+      const storedCandidate = sessionStorage.getItem('selectedCandidate')
+      if (storedCandidate) {
+        selectedCandidateForSimulation.value = JSON.parse(storedCandidate)
+      }
+    } catch (error) {
+      console.warn('Erro ao carregar candidato selecionado:', error)
+    }
+  }
+
+  /**
+   * Envia link de convite via chat privado para o candidato selecionado
+   */
+  async function sendLinkViaPrivateChat() {
+    if (!selectedCandidateForSimulation.value || !inviteLinkToShow.value) {
+      loadSelectedCandidate()
+
+      if (!selectedCandidateForSimulation.value) {
+        alert('❌ ERRO: Nenhum candidato selecionado! Por favor, volte à lista de estações e selecione um candidato antes de iniciar a simulação.')
+        return
+      }
+
+      if (!inviteLinkToShow.value) {
+        alert('❌ ERRO: Link de convite não gerado! Clique em "Gerar Link" primeiro.')
+        return
+      }
+    }
+
+    sendingChat.value = true
+    chatSentSuccess.value = false
 
     try {
-      await navigator.clipboard.writeText(text)
+      const { sendSimulationInvite } = useSimulationInvites(reloadListeners)
+
+      const result = await sendSimulationInvite({
+        candidateUid: selectedCandidateForSimulation.value.uid,
+        candidateName: selectedCandidateForSimulation.value.name,
+        inviteLink: inviteLinkToShow.value,
+        stationTitle: stationData.value?.tituloEstacao || 'Estação',
+        duration: selectedDurationMinutes.value || 10,
+        meetLink: getMeetLinkForInvite(),
+        senderName: currentUser.value?.displayName || 'Avaliador',
+        senderUid: currentUser.value?.uid
+      })
+
+      if (result.success) {
+        chatSentSuccess.value = true
+        setTimeout(() => {
+          chatSentSuccess.value = false
+        }, 3000)
+      } else {
+        throw new Error(result.error?.message || 'Falha ao enviar convite')
+      }
+
+    } catch (error) {
+      console.error('Erro ao enviar convite:', error)
+    } finally {
+      sendingChat.value = false
+    }
+  }
+
+  /**
+   * Copia link de convite para clipboard
+   */
+  async function copyInviteLink() {
+    if (!inviteLinkToShow.value) return
+
+    try {
+      await navigator.clipboard.writeText(inviteLinkToShow.value)
       copySuccess.value = true
       setTimeout(() => copySuccess.value = false, 2000)
-      return true
-    } catch (error) {
-      console.error('Erro ao copiar para área de transferência:', error)
+    } catch (e) {
       alert('Falha ao copiar.')
-      return false
     }
-  }
-
-  /**
-   * Busca rota aninhada por nome
-   */
-  function findRouteByName(routes: any[], name: string): any {
-    for (const route of routes) {
-      if (route.name === name) return route
-      if (route.children) {
-        const found = findRouteByName(route.children, name)
-        if (found) return found
-      }
-    }
-    return null
-  }
-
-  /**
-   * Valida se uma URL é válida
-   */
-  function isValidUrl(url: string): boolean {
-    try {
-      new URL(url)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * Formata tempo em minutos para string MM:SS
-   */
-  function formatTime(minutes: number): string {
-    const mins = Math.floor(minutes)
-    const secs = Math.round((minutes - mins) * 60)
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  /**
-   * Gera ID único para sessão
-   */
-  function generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  }
-
-  /**
-   * Converte scores para números
-   */
-  function normalizeScores(scores: Record<string, any>): Record<string, number> {
-    const numericScores: Record<string, number> = {}
-
-    Object.keys(scores).forEach(key => {
-      numericScores[key] = typeof scores[key] === 'string'
-        ? parseFloat(scores[key])
-        : scores[key]
-    })
-
-    return numericScores
-  }
-
-  /**
-   * Calcula soma total dos scores
-   */
-  function calculateTotalScore(scores: Record<string, number>): number {
-    return Object.values(scores).reduce((sum, value) => sum + (isNaN(value) ? 0 : value), 0)
-  }
-
-  /**
-   * Formata nome para exibição
-   */
-  function formatDisplayName(name?: string): string {
-    if (!name) return 'Usuário'
-    return name.trim().split(' ')[0]
-  }
-
-  /**
-   * Verifica se um objeto está vazio
-   */
-  function isEmpty(obj: any): boolean {
-    return !obj || Object.keys(obj).length === 0
-  }
-
-  /**
-   * Debounce function para limitar execuções
-   */
-  function debounce<T extends (...args: any[]) => any>(
-    func: T,
-    wait: number
-  ): (...args: Parameters<T>) => void {
-    let timeout: NodeJS.Timeout
-
-    return function executedFunction(...args: Parameters<T>) {
-      const later = () => {
-        clearTimeout(timeout)
-        func(...args)
-      }
-
-      clearTimeout(timeout)
-      timeout = setTimeout(later, wait)
-    }
-  }
-
-  /**
-   * Throttle function para limitar frequência
-   */
-  function throttle<T extends (...args: any[]) => any>(
-    func: T,
-    limit: number
-  ): (...args: Parameters<T>) => void {
-    let inThrottle: boolean
-
-    return function executedFunction(...args: Parameters<T>) {
-      if (!inThrottle) {
-        func.apply(this, args)
-        inThrottle = true
-        setTimeout(() => inThrottle = false, limit)
-      }
-    }
-  }
-
-  /**
-   * Gera cor baseada em string
-   */
-  function generateColorFromString(str: string): string {
-    let hash = 0
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash)
-    }
-
-    const hue = hash % 360
-    return `hsl(${hue}, 70%, 50%)`
-  }
-
-  /**
-   * Valida email
-   */
-  function isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
-
-  /**
-   * Formata data para exibição
-   */
-  function formatDate(date: Date | string): string {
-    const d = typeof date === 'string' ? new Date(date) : date
-    return d.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
   }
 
   return {
+    sendingChat,
+    chatSentSuccess,
     copySuccess,
-    copyToClipboard,
-    findRouteByName,
-    isValidUrl,
-    formatTime,
-    generateSessionId,
-    normalizeScores,
-    calculateTotalScore,
-    formatDisplayName,
-    isEmpty,
-    debounce,
-    throttle,
-    generateColorFromString,
-    isValidEmail,
-    formatDate
+    clearSelectedCandidate,
+    loadSelectedCandidate,
+    sendLinkViaPrivateChat,
+    copyInviteLink
   }
 }

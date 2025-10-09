@@ -46,7 +46,6 @@ export async function preloadIcons() {
       });
     }
 
-    console.log('Preloaded', frequentIcons.length, 'frequently used icons');
   } catch (error) {
     console.warn('Failed to preload icons:', error);
   }

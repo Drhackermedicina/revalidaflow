@@ -1,34 +1,14 @@
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import revalidaFlowLogo from '@images/revalidaflow.png'
 import { useTheme } from 'vuetify'
 import { currentUser } from '@/plugins/auth'
-import { useRouter } from 'vue-router'
 
 const vuetifyTheme = useTheme()
 const isDark = computed(() => vuetifyTheme.global.name.value === 'dark')
 
-// Lógica de redirecionamento para usuários logados
-const router = useRouter()
-
-// Função para redirecionar se logado
-const checkAndRedirectIfLoggedIn = () => {
-  if (currentUser.value) {
-    router.push('/app/dashboard')
-  }
-}
-
-// Verificar ao montar a página
-onMounted(() => {
-  checkAndRedirectIfLoggedIn()
-})
-
-// Monitorar mudanças no estado de autenticação
-watch(currentUser, (newUser) => {
-  if (newUser) {
-    router.push('/app/dashboard')
-  }
-})
+// A landing page agora é neutra - não redireciona automaticamente
+// O router guard cuida da navegação baseada na autenticação
 
 // Animação Lottie avançada com efeito de brilho pulsante
 const pulseAnimation = ref({

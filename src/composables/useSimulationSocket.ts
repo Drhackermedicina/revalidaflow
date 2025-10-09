@@ -1,64 +1,304 @@
 // src/composables/useSimulationSocket.ts
 import { io, Socket } from 'socket.io-client';
-import { ref, onBeforeUnmount } from 'vue';
+import { ref, onBeforeUnmount, type Ref } from 'vue';
+import { backendUrl } from '@/utils/backendUrl.js';
+import { captureWebSocketError, captureSimulationError } from '@/plugins/sentry';
 
 interface SimulationSocketOptions {
-  backendUrl: string
-  sessionId: string
-  userId: string
-  role: string
-  stationId: string
-  displayName?: string
+  sessionId: Ref<string>
+  userRole: Ref<string>
+  stationId: Ref<string>
+  currentUser: Ref<any>
+  stationData: Ref<any>
+  simulationStarted: Ref<boolean>
+  errorMessage: Ref<string>
+  partner: Ref<any>
+  partnerReadyState: Ref<boolean>
+  myReadyState: Ref<boolean> // 🔧 NOVO: Estado ready do usuário atual
+  backendActivated: Ref<boolean> // 🔧 NOVO: Estado de ativação do backend
+  handleSocketConnect: () => void
+  handleSocketDisconnect: () => void
+  handlePartnerDisconnect: () => void
+  showNotification: (message: string, color?: string) => void
+  socketRef?: Ref<any> // 🔧 NOVO: Referência externa para sincronização
 }
 
 export function useSimulationSocket(options: SimulationSocketOptions) {
+  const {
+    sessionId,
+    userRole,
+    stationId,
+    currentUser,
+    stationData,
+    simulationStarted,
+    errorMessage,
+    partner,
+    partnerReadyState,
+    myReadyState, // 🔧 NOVO: Estado ready do usuário atual
+    backendActivated, // 🔧 NOVO: Estado de ativação do backend
+    handleSocketConnect,
+    handleSocketDisconnect,
+    handlePartnerDisconnect,
+    showNotification,
+    socketRef // 🔧 NOVO: Referência externa opcional
+  } = options;
+
   const socket = ref<Socket | null>(null)
   const connectionStatus = ref('Desconectado')
 
-  function connect() {
-    if (socket.value && socket.value.connected) {
-      socket.value.disconnect()
+  function connectWebSocket() {
+    if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) {
+      return;
     }
-    socket.value = io(options.backendUrl, {
+
+    connectionStatus.value = 'Conectando';
+    if (socket.value && socket.value.connected) {
+      socket.value.disconnect();
+    }
+
+    const socketInstance = io(backendUrl, {
       transports: ['websocket'],
       query: {
-        sessionId: options.sessionId,
-        userId: options.userId,
-        role: options.role,
-        stationId: options.stationId,
-        displayName: options.displayName,
-      },
-    })
-    connectionStatus.value = 'Conectando'
+        sessionId: sessionId.value,
+        userId: currentUser.value?.uid,
+        role: userRole.value,
+        stationId: stationId.value,
+        displayName: currentUser.value?.displayName
+      }
+    });
 
-    socket.value.on('connect', () => {
-      connectionStatus.value = 'Conectado'
-    })
-    socket.value.on('disconnect', () => {
-      connectionStatus.value = 'Desconectado'
-    })
-    socket.value.on('connect_error', () => {
-      connectionStatus.value = 'Erro de Conexão'
-    })
+    socketInstance.on('connect', () => {
+      connectionStatus.value = 'Conectado';
+      socket.value = socketInstance;
+
+      // 🔧 NOVO: Sincronizar referência externa se fornecida
+      if (socketRef) {
+        socketRef.value = socketInstance;
+        console.log('[SOCKET] ✅ Referência externa sincronizada:', socketInstance.id);
+      }
+
+      handleSocketConnect();
+      console.log('[SOCKET] 🟢 Conectado com sucesso - ID:', socketInstance.id);
+    });
+
+    socketInstance.on('disconnect', (reason) => {
+      connectionStatus.value = 'Desconectado';
+      handleSocketDisconnect();
+      handlePartnerDisconnect();
+
+      const isCandidateReviewing = userRole.value === 'candidate' && stationData.value && simulationStarted.value;
+
+      if (isCandidateReviewing) {
+        if (!errorMessage.value && reason !== 'io client disconnect' && reason !== 'io client disconnect forced close by client') {
+          errorMessage.value = "Conexão perdida. Você pode continuar revisando os dados da estação.";
+        }
+      } else {
+        if (!errorMessage.value && reason !== 'io client disconnect' && reason !== 'io client disconnect forced close by client') {
+          errorMessage.value = "Conexão com o servidor de simulação perdida.";
+        }
+      }
+    });
+
+    socketInstance.on('connect_error', (err) => {
+      connectionStatus.value = 'Erro de Conexão';
+      if (!errorMessage.value) errorMessage.value = `Falha ao conectar: ${err.message}`;
+
+      captureWebSocketError(err, {
+        socketId: socketInstance?.id,
+        sessionId: sessionId.value,
+        connectionState: 'failed',
+        lastEvent: 'connect_error'
+      });
+    });
+
+    socketInstance.on('SERVER_ERROR', (data) => {
+      errorMessage.value = `Erro do servidor: ${data.message}`;
+
+      captureSimulationError(new Error(data.message), {
+        sessionId: sessionId.value,
+        userRole: userRole.value,
+        stationId: stationId.value,
+        simulationState: simulationStarted.value ? 'started' : 'preparing'
+      });
+    });
+
+    socketInstance.on('SERVER_JOIN_CONFIRMED', (data) => { });
+
+    socketInstance.on('SERVER_PARTNER_JOINED', (participantInfo) => {
+      console.log('[SOCKET] 📥 SERVER_PARTNER_JOINED recebido:', participantInfo);
+      if (participantInfo && participantInfo.userId !== currentUser.value?.uid) {
+        partner.value = participantInfo;
+        partnerReadyState.value = participantInfo.isReady || false;
+        errorMessage.value = '';
+        console.log('[SOCKET] ✅ Partner atualizado - Ready:', partnerReadyState.value);
+      }
+    });
+
+    socketInstance.on('SERVER_PARTNER_UPDATE', (data) => {
+      console.log('[SOCKET] 📥 SERVER_PARTNER_UPDATE recebido:', data);
+      updatePartnerInfo(data.participants);
+
+      // 🔧 FIX: Verificar se ambos estão prontos após atualização do parceiro
+      console.log('[SOCKET] 🔍 Verificando estado após SERVER_PARTNER_UPDATE:', {
+        myReadyState: myReadyState.value,
+        partnerReadyState: partnerReadyState.value,
+        backendActivated: backendActivated.value,
+        bothReady: (myReadyState.value && partnerReadyState.value),
+        partner: partner.value
+      });
+
+      // 🚀 ATIVAÇÃO DO BACKEND BASEADA EM SERVER_PARTNER_UPDATE
+      if (myReadyState.value && partnerReadyState.value && partner.value && !backendActivated.value) {
+        console.log('[SOCKET] 🎯 Ambos prontos detectado via SERVER_PARTNER_UPDATE! Ativando backend...')
+        console.log('[SOCKET] 🔍 Estado antes da ativação:', {
+          myReadyState: myReadyState.value,
+          partnerReadyState: partnerReadyState.value,
+          partner: partner.value,
+          backendActivated: backendActivated.value,
+          timestamp: new Date().toISOString()
+        });
+
+        backendActivated.value = true
+
+        console.log('[SOCKET] ✅ Backend ativado via SERVER_PARTNER_UPDATE - Botão "Iniciar Simulação" deve aparecer agora!')
+        console.log('[SOCKET] 🔍 Estado após ativação:', {
+          backendActivated: backendActivated.value,
+          timestamp: new Date().toISOString()
+        });
+
+        // 🔧 DIAGNÓSTICO: Verificar se a mudança foi aplicada imediatamente
+        setTimeout(() => {
+          console.log('[SOCKET] 🔍 Verificação pós-ativação (100ms):', {
+            backendActivated: backendActivated.value,
+            aindaIgual: backendActivated.value === true
+          });
+        }, 100);
+      } else {
+        console.log('[SOCKET] ⏳ Condições não satisfeitas para ativação:', {
+          myReadyState: myReadyState.value,
+          partnerReadyState: partnerReadyState.value,
+          partnerExists: !!partner.value,
+          backendAlreadyActivated: backendActivated.value,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // 🔧 DIAGNÓSTICO: Log específico para partnerReadyState
+      console.log('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState após SERVER_PARTNER_UPDATE:', {
+        partnerReadyState: partnerReadyState.value,
+        tipo: 'tempPartnerReadyState (passado como parâmetro)',
+        fonte: 'SERVER_PARTNER_UPDATE',
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    function updatePartnerInfo(participants) {
+      console.log('[SOCKET] 🔧 updatePartnerInfo chamado com:', participants);
+      const currentUserId = currentUser.value?.uid;
+      if (participants && Array.isArray(participants) && currentUserId) {
+        const otherParticipant = participants.find(p => p.userId !== currentUserId);
+        if (otherParticipant) {
+          console.log('[SOCKET] 🔄 Partner encontrado:', otherParticipant);
+          const oldPartnerReadyState = partnerReadyState.value;
+          partner.value = otherParticipant;
+          partnerReadyState.value = partner.value.isReady || false;
+          errorMessage.value = '';
+          console.log('[SOCKET] ✅ Partner atualizado - Ready:', partnerReadyState.value);
+          console.log('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState em updatePartnerInfo:', {
+            partnerReadyState: partnerReadyState.value,
+            oldPartnerReadyState: oldPartnerReadyState,
+            mudou: oldPartnerReadyState !== partnerReadyState.value,
+            partnerIsReady: partner.value?.isReady,
+            tipo: 'tempPartnerReadyState (passado como parâmetro)',
+            fonte: 'updatePartnerInfo',
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          console.log('[SOCKET] ⚠️ Nenhum partner encontrado');
+          const oldPartnerReadyState = partnerReadyState.value;
+          partner.value = null;
+          partnerReadyState.value = false;
+          console.log('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState resetado em updatePartnerInfo:', {
+            partnerReadyState: partnerReadyState.value,
+            oldPartnerReadyState: oldPartnerReadyState,
+            mudou: oldPartnerReadyState !== partnerReadyState.value,
+            tipo: 'tempPartnerReadyState (passado como parâmetro)',
+            fonte: 'updatePartnerInfo (reset)',
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+    }
+
+    // 🔧 DEBUG: Listener para SERVER_PARTNER_READY (evento específico quando parceiro fica pronto)
+    socketInstance.on('SERVER_PARTNER_READY', (data) => {
+      console.log('[SOCKET] 📥 SERVER_PARTNER_READY recebido:', data);
+      if (data && data.userId !== currentUser.value?.uid) {
+        const oldPartnerReadyState = partnerReadyState.value;
+        partnerReadyState.value = data.isReady || false;
+        console.log('[SOCKET] ✅ Partner ready state atualizado:', partnerReadyState.value);
+        console.log('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState após SERVER_PARTNER_READY:', {
+          partnerReadyState: partnerReadyState.value,
+          oldPartnerReadyState: oldPartnerReadyState,
+          mudou: oldPartnerReadyState !== partnerReadyState.value,
+          tipo: 'tempPartnerReadyState (passado como parâmetro)',
+          fonte: 'SERVER_PARTNER_READY',
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    socketInstance.on('SIMULATION_TIMER_UPDATE', (data) => {
+      // Timer updates handled by workflow composable
+    });
+
+    socketInstance.on('SIMULATION_TIMER_END', () => {
+      showNotification('Tempo esgotado!', 'warning');
+    });
+
+    socketInstance.on('SIMULATION_FORCE_STOP', () => {
+      showNotification('Simulação finalizada pelo avaliador.', 'info');
+    });
+
+    socketInstance.on('EVALUATION_SCORES', (data) => {
+      // Evaluation scores handled by evaluation composable
+    });
+
+    socketInstance.on('PEP_RELEASED_TO_CANDIDATE', () => {
+      showNotification('PEP liberado para você estudar!', 'success');
+    });
+
+    socketInstance.on('CANDIDATE_SUBMITTED_EVALUATION', (data) => {
+      if (userRole.value === 'actor' || userRole.value === 'evaluator') {
+        showNotification(`Candidato submeteu avaliação final. Nota: ${data.totalScore?.toFixed(2) || 'N/A'}`, 'info');
+      }
+    });
   }
 
   function disconnect() {
     if (socket.value) {
-      socket.value.disconnect()
-      socket.value = null
-      connectionStatus.value = 'Desconectado'
+      console.log('[SOCKET] 🔴 Desconectando socket:', socket.value.id);
+      socket.value.disconnect();
+      socket.value = null;
+      connectionStatus.value = 'Desconectado';
+
+      // 🔧 NOVO: Limpar referência externa se fornecida
+      if (socketRef) {
+        socketRef.value = null;
+        console.log('[SOCKET] ✅ Referência externa limpa');
+      }
     }
   }
 
   // Cleanup automático quando componente é desmontado
   onBeforeUnmount(() => {
-    disconnect()
-  })
+    disconnect();
+  });
 
   return {
     socket,
     connectionStatus,
-    connect,
+    connectWebSocket,
     disconnect,
   }
 }

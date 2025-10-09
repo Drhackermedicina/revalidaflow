@@ -1,7 +1,6 @@
 <script setup>
 import { computed, watch, onMounted } from 'vue'
 import { parseEnumeratedItems, formatItemDescriptionForDisplay } from '@/utils/simulationUtils.ts'
-import { memoize } from '@/utils/memoization.js'
 import { TITLE_INDEX } from '@/composables/useSimulationPEP.ts'
 
 const props = defineProps({
@@ -27,7 +26,6 @@ const emit = defineEmits([
   'update:evaluationScores',
   'submitEvaluation'
 ])
-
 
 // Normaliza marcações
 const marks = computed(() => props.markedPepItems?.value ?? props.markedPepItems ?? {})
@@ -60,17 +58,10 @@ const getEvaluationLabel = (item, score) => {
   if (item.pontuacoes?.inadequado?.pontos === score) return 'Inadequado'
   return 'Não avaliado'
 }
-
-// Criar função memoizada para performance
-const memoizedFormatItemDescriptionForDisplay = memoize(formatItemDescriptionForDisplay);
 </script>
 
 <template>
-  <!-- DEBUG: Template está renderizando -->
-  <VCard v-if="false" style="display: none;">
-    DEBUG: CandidateChecklist renderizou!
-  </VCard>
-
+  
   <!-- VISÃO DO AVALIADOR/ATOR -->
   <VCard
     v-if="isActorOrEvaluator && checklistData?.itensAvaliacao?.length > 0"

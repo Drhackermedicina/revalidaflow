@@ -36,9 +36,12 @@ export function useSequentialNavigation({
    * Configura navegação sequencial (logs e debug)
    */
   function setupSequentialNavigation() {
-    
+    console.log('[SEQUENTIAL] Configurando navegação sequencial')
+
     if (sequentialData.value && sequentialData.value.sequence) {
       const currentStation = sequentialData.value.sequence[sequenceIndex.value]
+      console.log('[SEQUENTIAL] Estação atual:', currentStation)
+      console.log('[SEQUENTIAL] Progresso:', `${sequenceIndex.value + 1}/${totalSequentialStations.value}`)
     }
   }
 
@@ -52,6 +55,7 @@ export function useSequentialNavigation({
     if (savedData) {
       try {
         sequentialData.value = JSON.parse(savedData)
+        console.log('[SEQUENTIAL] Reconstructed sequentialData from sessionStorage:', sequentialData.value)
         return true
       } catch (error) {
         console.error('[SEQUENTIAL] Failed to parse sessionStorage:', error)
@@ -66,7 +70,10 @@ export function useSequentialNavigation({
    * Avança para a próxima estação na sequência
    */
   function goToNextSequentialStation() {
-    
+    console.log('[SEQUENTIAL] goToNextSequentialStation called')
+    console.log('[SEQUENTIAL] isSequentialMode:', isSequentialMode.value)
+    console.log('[SEQUENTIAL] sequentialData:', sequentialData.value)
+
     if (!isSequentialMode.value) {
       console.error('[SEQUENTIAL] Not in sequential mode, aborting navigation')
       return
@@ -107,16 +114,19 @@ export function useSequentialNavigation({
     }
 
     const nextIndex = sequenceIndex.value + 1
-    
+    console.log('[SEQUENTIAL] Next index:', nextIndex, 'Total stations:', totalSequentialStations.value)
+
     if (nextIndex < totalSequentialStations.value) {
       // Atualizar sessionStorage
       const updatedData = { ...sequentialData.value }
       updatedData.currentIndex = nextIndex
       sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData))
-      
+      console.log('[SEQUENTIAL] Updated sessionStorage with new index:', nextIndex)
+
       // Navegar para próxima estação
       const nextStation = sequentialData.value.sequence[nextIndex]
-      
+      console.log('[SEQUENTIAL] Next station:', nextStation)
+
       if (nextStation) {
         const routeData = router.resolve({
           path: `/app/simulation/${nextStation.id}`,
@@ -228,7 +238,7 @@ export function useSequentialNavigation({
    * Função de debug global para diagnosticar problemas sequenciais
    */
   function setupDebugFunction(additionalData: any = {}) {
-    (window as any).debugSequentialNavigation = function() {
+    (window as any).debugSequentialNavigation = function () {
       console.log('=== SEQUENTIAL NAVIGATION DEBUG ===')
       console.log('isSequentialMode:', isSequentialMode.value)
       console.log('sequenceIndex:', sequenceIndex.value)

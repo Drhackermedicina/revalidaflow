@@ -16,23 +16,18 @@ import LandingFooter from './components/LandingFooter.vue'
 
 const router = useRouter()
 
-// Lógica de redirecionamento para usuários logados
-const checkAndRedirectIfLoggedIn = () => {
-  if (currentUser.value) {
-    router.push('/app/dashboard')
-  }
-}
+// A landing page agora é acessível tanto para usuários logados quanto não logados
+// Não há mais redirecionamento automático
 
-// Verificar ao montar a página
+// Verificar ao montar a página (apenas para logging)
 onMounted(() => {
-  checkAndRedirectIfLoggedIn()
+  console.log('[LandingPage] onMounted - currentUser:', !!currentUser.value)
 })
 
-// Monitorar mudanças no estado de autenticação
-watch(currentUser, (newUser) => {
-  if (newUser) {
-    router.push('/app/dashboard')
-  }
+// Monitorar mudanças no estado de autenticação (apenas para logging)
+watch(currentUser, (newUser, oldUser) => {
+  console.log('[LandingPage] currentUser changed:', !!newUser, 'from:', !!oldUser)
+  // Não faz redirecionamento automático
 })
 </script>
 

@@ -32,6 +32,7 @@ import { RouterView } from 'vue-router'
 
 import { currentUser, waitForAuth } from '@/plugins/auth'
 import { usePrivateChatNotification } from '@/plugins/privateChatListener'
+import { useUserPresence } from '@/composables/useUserPresence'
 
 // ----------------------
 // Imports de stores
@@ -61,7 +62,10 @@ const snackbar = computed(() => notificationStore.snackbar)
 // Instâncias de composables
 // ----------------------
 
-usePrivateChatNotification() // Apenas chamar para inicializar o composable
+usePrivateChatNotification() // Inicializar notificações
+
+// ✅ NOVO: Gerenciamento automático de presença do usuário
+useUserPresence(currentUser)
 
 // ----------------------
 // Lifecycle hooks
