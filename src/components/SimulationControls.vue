@@ -28,6 +28,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  actorReadyButtonEnabled: {
+    type: Boolean,
+    default: true
+  },
   // Método de comunicação
   communicationMethod: {
     type: String,
@@ -203,7 +207,10 @@ function handleStartSimulation() {
           v-if="!myReadyState"
           size="large"
           :color="myReadyState ? 'default' : 'success'"
-          :disabled="isCandidate && !candidateReadyButtonEnabled"
+          :disabled="
+            (isCandidate && !candidateReadyButtonEnabled) ||
+            (isActorOrEvaluator && !actorReadyButtonEnabled)
+          "
           @click="handleSendReady"
         >
           <VIcon :icon="myReadyState ? 'ri-checkbox-circle-line' : 'ri-checkbox-blank-circle-line'" class="me-2"/>
@@ -213,6 +220,9 @@ function handleStartSimulation() {
           <VIcon icon="ri-checkbox-circle-line" class="me-2"/>
           Pronto! Aguardando parceiro...
         </VChip>
+        <p v-if="isActorOrEvaluator && !actorReadyButtonEnabled" class="text-caption text-warning mt-2">
+          ⏳ Aguardando candidato ficar pronto primeiro...
+        </p>
         <p v-if="bothParticipantsReady" class="text-success font-weight-bold mt-3">
           Ambos prontos! Você pode iniciar a simulação.
         </p>

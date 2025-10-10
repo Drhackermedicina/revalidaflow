@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed, shallowRef } from 'vue'
 import { db } from '@/plugins/firebase'
 import { collection, onSnapshot, query, where, limit, Unsubscribe } from 'firebase/firestore'
 
@@ -9,88 +9,98 @@ export interface ChatUser {
   displayName?: string
   photoURL?: string
   avatar?: string
-  status?: 'disponivel' | 'treinando' | 'ausente'
-  lastActive?: any
+  status?: string
 }
 
 export const useChatUsers = () => {
-  const users = ref<ChatUser[]>([])
+  const users = shallowRef<ChatUser[]>([])
   const loading = ref(true)
   const error = ref('')
-  const hasMoreUsers = ref(true)
   let unsubscribe: Unsubscribe | null = null
-  const pageSize = 50
 
-  const loadUsers = (loadMore = false) => {
+  // Cache para avatares carregados (economiza requisições repetidas)
+  const avatarCache = new Map<string, string>()
+  const failedImages = new Set<string>() // Cache de imagens que falharam
+
+  const loadUsers = () => {
     const usersCollectionRef = collection(db, 'usuarios')
-
-    // Buscar usuários com qualquer status ativo
     const q = query(
       usersCollectionRef,
-      where('status', 'in', ['disponivel', 'treinando', 'ausente']),
-      limit(pageSize)
+      where('status', 'in', ['disponivel', 'treinando']),
+      limit(100)
     )
 
     unsubscribe = onSnapshot(q, (snapshot) => {
-      const allUsers = snapshot.docs.map(doc => ({
+      const newUsers = snapshot.docs.map(doc => ({
         uid: doc.id,
         ...doc.data()
       } as ChatUser))
-
-      // Filtra por status e atualiza status baseado no tempo de inatividade
-      const now = Date.now()
-      const twoMinutesAgo = now - 2 * 60 * 1000
-
-      users.value = allUsers
-        .filter(user => user.status !== 'offline') // Remove usuários offline
-        .map(user => {
-          const lastActive = user.lastActive ? new Date(user.lastActive).getTime() : 0
-          let updatedStatus = user.status
-
-          if (lastActive < twoMinutesAgo && user.status !== 'offline') {
-            updatedStatus = 'ausente'
-          }
-
-          return {
-            ...user,
-            status: updatedStatus,
-            displayName: user.displayName || 'Usuário sem nome'
-          }
-        })
-
+      
+      // Apenas atualiza se houver mudanças reais (economiza renders)
+      if (JSON.stringify(users.value) !== JSON.stringify(newUsers)) {
+        users.value = newUsers
+      }
       loading.value = false
     }, (err) => {
-      console.error('Erro ao carregar usuários do chat:', err)
-      error.value = 'Erro ao carregar usuários. Tente novamente mais tarde.'
+      error.value = 'Erro ao buscar usuários: ' + err.message
       loading.value = false
     })
   }
 
-  const getUserAvatar = (user: ChatUser) => {
-    try {
-      // Usar photoURL se disponível
-      if (user.photoURL) {
-        return user.photoURL
-      }
-
-      // Fallback para avatar customizado
-      if (user.avatar) {
-        return user.avatar
-      }
-
-      // Padronizar nome para avatar
-      const displayName = user.nome && user.sobrenome 
-        ? `${user.nome} ${user.sobrenome}`
-        : user.displayName || 'User'
-
-      // Último recurso: gerar avatar com iniciais
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`
-    } catch (error) {
-      console.error('Erro ao gerar avatar:', error)
-      // Avatar padrão em caso de erro
-      return 'https://ui-avatars.com/api/?name=User&background=6c757d&color=fff'
+  const getUserAvatar = (user: ChatUser, currentUserPhotoURL?: string) => {
+    // Chave única para cache baseada no usuário
+    const cacheKey = user.uid
+    
+    // Verificar cache primeiro (economiza requisições)
+    if (avatarCache.has(cacheKey)) {
+      return avatarCache.get(cacheKey)
     }
+    
+    // Se imagem já falhou antes, usar fallback imediatamente
+    if (failedImages.has(cacheKey)) {
+      const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome || user.displayName || 'User')}&background=7b1fa2&color=fff`
+      avatarCache.set(cacheKey, fallbackUrl)
+      return fallbackUrl
+    }
+    
+    let avatarUrl: string
+    
+    // Prioriza photoURL do Firestore/Google para todos os usuários
+    if (user.photoURL) {
+      avatarUrl = user.photoURL
+    }
+    // Fallback para avatar customizado
+    else if (user.avatar) {
+      avatarUrl = user.avatar
+    }
+    // Último recurso: gerar avatar com iniciais
+    else {
+      avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome || user.displayName || 'User')}&background=7b1fa2&color=fff`
+    }
+    
+    // Pré-carregar imagem para detectar falhas
+    const img = new Image()
+    img.onload = () => {
+      avatarCache.set(cacheKey, avatarUrl)
+    }
+    img.onerror = () => {
+      failedImages.add(cacheKey)
+      const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome || user.displayName || 'User')}&background=7b1fa2&color=fff`
+      avatarCache.set(cacheKey, fallbackUrl)
+    }
+    img.src = avatarUrl
+    
+    return avatarUrl
   }
+
+  // Computed memoizado para otimizar renders
+const usersCount = computed(() => users.value.length)
+const availableUsers = computed(() => 
+  users.value.filter(user => user.status === 'disponivel')
+)
+const trainingUsers = computed(() => 
+  users.value.filter(user => user.status === 'treinando')
+)
 
   onMounted(() => {
     loadUsers()
@@ -100,28 +110,18 @@ export const useChatUsers = () => {
     if (unsubscribe) {
       unsubscribe()
     }
+    // Limpar caches para liberar memória
+    avatarCache.clear()
+    failedImages.clear()
   })
-
-  // Função de busca de usuários
-  const searchUsers = (searchTerm: string) => {
-    if (!searchTerm.trim()) return users.value
-    
-    const term = searchTerm.toLowerCase().trim()
-    return users.value.filter(user => {
-      const fullName = user.nome && user.sobrenome 
-        ? `${user.nome} ${user.sobrenome}`.toLowerCase()
-        : (user.displayName || '').toLowerCase()
-      
-      return fullName.includes(term)
-    })
-  }
 
   return {
     users,
     loading,
     error,
-    hasMoreUsers,
     getUserAvatar,
-    searchUsers
+    usersCount,
+    availableUsers,
+    trainingUsers
   }
 }

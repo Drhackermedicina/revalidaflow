@@ -23,7 +23,9 @@
     "firebase:deploy:staging": "firebase deploy --project staging",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
     "test": "vitest",
-    "launch-opera": "node scripts/launch-opera.js"
+    "launch-opera": "node scripts/launch-opera.js",
+    "mcp:start": "genkit start",
+    "mcp:serve": "npx genkit start --port 3100"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",

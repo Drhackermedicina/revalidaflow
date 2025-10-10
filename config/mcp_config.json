@@ -1,0 +1,20 @@
+{
+  "projectId": "your-google-cloud-project-id",
+  "location": "us-central1",
+  "tools": [
+    {
+      "name": "code_search",
+      "description": "Search across the codebase."
+    },
+    {
+      "name": "performance_analyzer",
+      "description": "Analyze performance metrics from DevTools."
+    }
+  ],
+  "flows": [
+    {
+      "name": "sampleFlow",
+      "path": "src/genkit/flows/sampleFlow.js"
+    }
+  ]
+}

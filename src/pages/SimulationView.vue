@@ -201,6 +201,7 @@ const {
   myReadyState,
   partnerReadyState,
   candidateReadyButtonEnabled,
+  actorReadyButtonEnabled,
   simulationStarted,
   simulationEnded, // ✅ Gerenciado pelo composable - usado por useEvaluation
   simulationWasManuallyEndedEarly,
@@ -634,12 +635,32 @@ function connectWebSocket() {
     handleCandidateReceiveData(dataItemId);
   });
   socket.on('SERVER_PARTNER_READY', (data) => {
+    console.log('[SOCKET] ✅ SERVER_PARTNER_READY recebido')
+    console.log('[SOCKET]   - data:', data)
+    console.log('[SOCKET]   - data.userId:', data?.userId)
+    console.log('[SOCKET]   - currentUser.uid:', currentUser.value?.uid)
+    console.log('[SOCKET]   - partner.value:', partner.value)
+
     if (data && data.userId !== currentUser.value?.uid) {
+      console.log('[SOCKET]   ✅ Evento válido - processando...')
+
       if (partner.value && partner.value.userId === data.userId) {
+        console.log('[SOCKET]   ✅ Atualizando partner.value.isReady')
         partner.value.isReady = data.isReady;
+      } else {
+        console.log('[SOCKET]   ⚠️ Partner não encontrado ou userId não corresponde')
+        console.log('[SOCKET]     - partner.value:', partner.value)
+        console.log('[SOCKET]     - partner.value.userId:', partner.value?.userId)
+        console.log('[SOCKET]     - data.userId:', data.userId)
       }
+
       // Workflow: atualizar estado de prontidão do parceiro
+      console.log('[SOCKET]   📤 Chamando handlePartnerReady...')
       handlePartnerReady(data);
+    } else {
+      console.log('[SOCKET]   ❌ Evento ignorado')
+      if (!data) console.log('[SOCKET]     - Razão: data é null/undefined')
+      if (data?.userId === currentUser.value?.uid) console.log('[SOCKET]     - Razão: é o próprio usuário')
     }
   });
   socket.on('SERVER_START_SIMULATION', (data) => {
@@ -1218,6 +1239,7 @@ function toggleCollapse() {
         :both-participants-ready="bothParticipantsReady"
         :backend-activated="backendActivated"
         :candidate-ready-button-enabled="candidateReadyButtonEnabled"
+        :actor-ready-button-enabled="actorReadyButtonEnabled"
         :communication-method="communicationMethod"
         :meet-link="meetLink"
         :invite-link-to-show="inviteLinkToShow"

@@ -1,12 +1,9 @@
 import { currentUser, waitForAuth } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
-import { doc, getDoc, updateDoc } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
+import { doc } from 'firebase/firestore'
 import { createRouter, createWebHistory } from 'vue-router'
 import { routes } from './routes'
-import { updateDocumentWithRetry, getDocumentWithRetry, checkFirestoreConnectivity } from '@/services/firestoreService'
-
-let isAuthInitialized = false // Flag para garantir que a espera ocorra apenas uma vez
+import { getDocumentWithRetry } from '@/services/firestoreService'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -141,62 +138,26 @@ router.beforeEach(async (to, from, next) => {
     next('/login')
     return
   }
+
+  // ✅ Inicializar sistema de presença após autenticação bem-sucedida
+  if (!presenceInitialized && currentUser.value) {
+    presenceInitialized = true
+    import('@/composables/useUserPresence').then(({ initUserPresence }) => {
+      initUserPresence()
+      console.log('[Router] Sistema de presença inicializado')
+    }).catch(error => {
+      console.warn('[Router] Erro ao inicializar sistema de presença:', error)
+    })
+  }
+
   next()
 })
 
-// Atualiza status do usuário conforme a rota
-router.afterEach(async (to, from) => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const useSimulatedUser = urlParams.get('sim_user') === 'true';
+// REMOVIDO: afterEach antigo - agora o useUserPresence cuida da presença do usuário
+// REMOVIDO: beforeunload antigo - agora o useUserPresence cuida disso
 
-  // Se estivermos em modo DEV e usando o usuário simulado, não fazemos a atualização no DB.
-  if (import.meta.env.DEV && useSimulatedUser) {
-    console.log('[afterEach] Atualização de status pulada para usuário simulado.');
-    return;
-  }
-
-  // Lógica original para produção ou para você (usuário real) em DEV
-  await waitForAuth();
-
-  // Verificações adicionais para garantir que não tentemos operar em um DB nulo ou sem usuário autenticado.
-  // IMPORTANTE: Não tentar acessar Firestore se o usuário não estiver autenticado
-  if (!db || !currentUser.value?.uid || !getAuth().currentUser) {
-    console.log('[afterEach] Usuário não autenticado ou DB indisponível, pulando atualização');
-    return;
-  }
-
-  // Verificar conectividade antes de tentar atualizar
-  const connectivity = checkFirestoreConnectivity();
-  if (!connectivity.available) {
-    console.warn(`⚠️ Pulando atualização de status: ${connectivity.reason}`);
-    return;
-  }
-
-  try {
-    const ref = doc(db, 'usuarios', currentUser.value.uid);
-    const statusData = to.name === 'simulation-view' || to.name === 'station-simulation' || to.path.includes('/simulate')
-      ? { status: 'treinando' }
-      : { status: 'disponivel' };
-
-    await updateDocumentWithRetry(ref, statusData, 'atualização de status do usuário');
-  } catch (error) {
-    console.error(`❌ Falha definitiva ao atualizar status do usuário ${currentUser.value?.uid}:`, error);
-  }
-})
-
-window.addEventListener('beforeunload', () => {
-  if (currentUser.value?.uid && db && getAuth().currentUser) {
-    const connectivity = checkFirestoreConnectivity();
-    if (connectivity.available) {
-      const ref = doc(db, 'usuarios', currentUser.value.uid);
-      // Não pode usar await aqui, pois beforeunload não espera Promises
-      // Usar método direto para operação síncrona de finalização
-      updateDoc(ref, { status: 'offline' }).catch(error => {
-        console.warn('⚠️ Erro ao definir status offline no beforeunload:', error);
-      });
-    }
-  }
-})
+// Sistema de presença do usuário - inicializado dinamicamente após autenticação
+let presenceInitialized = false
 
 export default function (app) {
   app.use(router)
