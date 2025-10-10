@@ -184,10 +184,8 @@ export default defineConfig({
                             return 'app-stores';
                         }
 
-                        // Outros componentes
-                        if (id.includes('components/')) {
-                            return 'ui-components';
-                        }
+                        // Outros componentes serão gerenciados pelo Vite automaticamente
+                        // Removido o chunk ui-components para evitar problemas de ordem de inicialização
                     }
                 }
             }

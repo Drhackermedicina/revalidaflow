@@ -28,17 +28,12 @@
     "mcp:serve": "npx genkit start --port 3100"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.65.0",
     "@floating-ui/dom": "1.6.8",
-    "@genkit-ai/googleai": "^1.19.2",
-    "@genkit-ai/mcp": "^1.19.2",
-    "@google/genai": "^1.19.0",
     "@iconify-json/bxl": "^1.1.10",
     "@playwright/test": "^1.55.0",
     "@sentry/vite-plugin": "^4.3.0",
     "@sentry/vue": "^10.12.0",
     "@tanstack/vue-virtual": "^3.13.12",
-    "@tensorflow/tfjs": "^4.22.0",
     "@tiptap/extension-text-align": "^2.23.0",
     "@tiptap/extension-underline": "^2.23.0",
     "@tiptap/starter-kit": "^2.23.0",
@@ -54,7 +49,6 @@
     "firebase": "^11.10.0",
     "firebase-admin": "^13.4.0",
     "gapi-script": "^1.2.0",
-    "genkit": "^1.19.2",
     "gsap": "^3.13.0",
     "lodash-es": "^4.17.21",
     "lottie-web": "^5.13.0",
@@ -74,8 +68,7 @@
     "vue3-apexcharts": "1.5.2",
     "vue3-perfect-scrollbar": "^2.0.0",
     "vuetify": "3.7.5",
-    "webfontloader": "^1.6.28",
-    "zhipuai": "^2.0.0"
+    "webfontloader": "^1.6.28"
   },
   "devDependencies": {
     "@antfu/utils": "^9.2.0",
