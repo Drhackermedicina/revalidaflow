@@ -70,11 +70,11 @@ const emit = defineEmits([
       </template>
     </v-expansion-panel-title>
 
-    <v-expansion-panel-text>
+    <v-expansion-panel-text class="virtual-scroll-panel-text">
       <v-virtual-scroll
         :items="stations"
         :item-height="140"
-        :height="Math.min(stations.length * 140, 1400)"
+        :height="Math.min(stations.length * 140, 700)"
         style="overflow-y: auto;"
       >
         <template #default="{ item: station }">
@@ -98,3 +98,9 @@ const emit = defineEmits([
     </v-expansion-panel-text>
   </v-expansion-panel>
 </template>
+
+<style scoped>
+.virtual-scroll-panel-text {
+  padding: 0 !important;
+}
+</style>

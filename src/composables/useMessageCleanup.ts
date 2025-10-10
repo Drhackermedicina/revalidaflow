@@ -37,6 +37,7 @@ export const useMessageCleanup = () => {
         } catch (error) {
             console.error('Erro na limpeza automática de mensagens:', error)
             // Não lança erro para não interromper a aplicação
+            // Em produção, poderia enviar para serviço de monitoring
         }
     }
 

@@ -292,7 +292,7 @@ const getEvaluationLabel = (item, score) => {
                     </p>
                   </div>
                   <!-- Apenas a descrição formatada, sem duplicar o título -->
-                  <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')" v-html="memoizedFormatItemDescriptionForDisplay(item.descricaoItem, item.descricaoItem.split(':')[0].trim())" />
+                  <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')" v-html="formatItemDescriptionForDisplay(item.descricaoItem, item.descricaoItem.split(':')[0].trim())" />
 
                   <!-- Critérios de Avaliação Integrados para o Candidato -->
                   <div class="criterios-integrados mt-3 mb-4">

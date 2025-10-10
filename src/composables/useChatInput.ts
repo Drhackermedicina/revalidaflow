@@ -50,27 +50,34 @@ export const useChatInput = () => {
     const copyMessageLinks = async (text?: string) => {
         if (!text) return
 
-        const urlRegex = /(https?:\/\/[^\s]+)/g
-        const links = text.match(urlRegex)
+        try {
+            const urlRegex = /(https?:\/\/[^\s]+)/g
+            const links = text.match(urlRegex)
 
-        if (links && links.length > 0) {
-            try {
+            if (links && links.length > 0) {
                 // Usa a Clipboard API moderna
                 const textToCopy = links.length === 1 ? links[0] : links.join('\n')
                 await navigator.clipboard.writeText(textToCopy)
-            } catch (error) {
-                console.error('Erro ao copiar link:', error)
-                // Fallback para navegadores mais antigos (ainda que deprecated)
-                try {
+                console.log('Links copiados com sucesso:', links.length)
+            }
+        } catch (error) {
+            console.error('Erro ao copiar links:', error)
+            // Fallback para navegadores mais antigos (ainda que deprecated)
+            try {
+                const urlRegex = /(https?:\/\/[^\s]+)/g
+                const links = text.match(urlRegex)
+                if (links && links.length > 0) {
                     const textArea = document.createElement('textarea')
                     textArea.value = links.length === 1 ? links[0] : links.join('\n')
                     document.body.appendChild(textArea)
                     textArea.select()
                     document.execCommand('copy')
                     document.body.removeChild(textArea)
-                } catch (fallbackError) {
-                    console.error('Fallback copy também falhou:', fallbackError)
+                    console.log('Links copiados via fallback')
                 }
+            } catch (fallbackError) {
+                console.error('Fallback copy também falhou:', fallbackError)
+                throw new Error('Não foi possível copiar os links')
             }
         }
     }
@@ -102,9 +109,15 @@ export const useChatInput = () => {
 
     // Função para sanitizar entrada do usuário
     const sanitizeInput = (text: string): string => {
-        return text
-            .replace(/[<>'"&]/g, '') // Remove caracteres HTML perigosos
-            .trim()
+        try {
+            return text
+                .replace(/[<>"'&]/g, '') // Remove caracteres HTML perigosos
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove caracteres de controle
+                .trim()
+        } catch (error) {
+            console.error('Erro ao sanitizar input:', error)
+            return '' // Retorna string vazia em caso de erro
+        }
     }
 
     return {

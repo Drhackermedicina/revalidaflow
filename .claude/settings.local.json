@@ -34,7 +34,10 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(for file in src/composables/*.ts)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(cat:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": [],
     "ask": []

@@ -87,7 +87,7 @@
     "autoprefixer": "^10.4.21",
     "css-tree": "^3.1.0",
     "eslint": "^8.57.0",
-    "eslint-plugin-vue": "^10.4.0",
+    "eslint-plugin-vue": "^10.5.0",
     "jsdom": "^26.1.0",
     "minimatch": "^10.0.3",
     "postcss-html": "^1.7.0",

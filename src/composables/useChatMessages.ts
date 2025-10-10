@@ -18,23 +18,10 @@ export const formatTime = (timestamp: any): string => {
     try {
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
         return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    } catch {
+    } catch (error) {
+        console.error('Erro ao formatar timestamp:', error)
         return ''
     }
-}
-
-import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
-import { db } from '@/plugins/firebase'
-import { collection, onSnapshot, query, orderBy, limit, addDoc, startAfter, Unsubscribe, QueryDocumentSnapshot, getDocs } from 'firebase/firestore'
-import type { ChatUser } from './useChatUsers'
-
-export interface ChatMessage {
-    id: string
-    senderId?: string
-    senderName?: string
-    senderPhotoURL?: string
-    text?: string
-    timestamp?: any
 }
 
 export const useChatMessages = (currentUser: any) => {
@@ -62,6 +49,12 @@ export const useChatMessages = (currentUser: any) => {
             // Se estiver carregando mais, começar após o último documento
             if (loadMore && lastDoc) {
                 q = query(q, startAfter(lastDoc))
+            }
+
+            // Limpar listener anterior se existir
+            if (unsubscribe) {
+                unsubscribe()
+                unsubscribe = null
             }
 
             // Para primeira carga, usar snapshot listener
@@ -97,6 +90,7 @@ export const useChatMessages = (currentUser: any) => {
             }
         } catch (error) {
             console.error('Erro ao carregar mensagens:', error)
+            // Implementar fallback ou notificação de erro
         } finally {
             isLoadingMore.value = false
         }
@@ -125,13 +119,23 @@ export const useChatMessages = (currentUser: any) => {
             return true
         } catch (error) {
             console.error('Erro ao enviar mensagem:', error)
+            // Aqui poderia implementar retry ou notificação
             return false
         }
     }
 
     const scrollToEnd = () => {
-        if (messagesEnd.value?.scrollIntoView) {
-            messagesEnd.value.scrollIntoView({ behavior: 'smooth' })
+        try {
+            if (messagesEnd.value?.scrollIntoView) {
+                messagesEnd.value.scrollIntoView({ behavior: 'smooth' })
+            }
+        } catch (error) {
+            console.error('Erro ao fazer scroll para final:', error)
+            // Fallback: scroll manual
+            const container = messagesEnd.value?.parentElement
+            if (container) {
+                container.scrollTop = container.scrollHeight
+            }
         }
     }
 

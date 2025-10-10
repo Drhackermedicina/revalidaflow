@@ -283,21 +283,18 @@ const copySuccess = ref(false);
 // Função para copiar link de convite para clipboard
 async function copyInviteLink() {
   if (!inviteLinkToShow.value) {
-    console.warn('[COPY-LINK] Nenhum link de convite para copiar');
     return;
   }
 
   try {
     await navigator.clipboard.writeText(inviteLinkToShow.value);
     copySuccess.value = true;
-    console.log('[COPY-LINK] ✅ Link copiado:', inviteLinkToShow.value);
 
     // Reset após 3 segundos
     setTimeout(() => {
       copySuccess.value = false;
     }, 3000);
   } catch (error) {
-    console.error('[COPY-LINK] ❌ Erro ao copiar link:', error);
     errorMessage.value = 'Erro ao copiar link. Tente novamente.';
   }
 }
@@ -426,11 +423,6 @@ const {
   getMeetLinkForInvite
 });
 
-// Variável lastClickTime movida para useScriptMarking composable
-
-// Função para separar texto em sentenças
-
-
 // Chat integration refs
 const sendingChat = ref(false);
 const chatSentSuccess = ref(false);
@@ -456,28 +448,15 @@ function openEditPage() {
 }
 
 // Refs para estado de prontidão e controle da simulação
-// MOVIDOS PARA useSimulationWorkflow composable (linhas 166-205):
-// - myReadyState, partnerReadyState, simulationStarted, simulationEnded
-// - simulationWasManuallyEndedEarly, candidateReadyButtonEnabled, backendActivated
 // Todos os estados de workflow agora são gerenciados pelo composable
-// Função playSoundEffect movida para audioService.js (exportada)
-
-
-
-
-
-
-
-
 
 // fetchSimulationData agora está no composable useSimulationSession
-
 
 function clearSelectedCandidate() {
   try {
     sessionStorage.removeItem('selectedCandidate');
   } catch (error) {
-    console.warn('Erro ao limpar candidato selecionado:', error);
+    // Silently handle error
   }
 }
 
@@ -720,19 +699,51 @@ function connectWebSocket() {
     }
   });
   socket.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (payload) => {
+    console.log('[PEP_VISIBILITY] 📥 Evento CANDIDATE_RECEIVE_PEP_VISIBILITY recebido');
+    console.log('[PEP_VISIBILITY]    - userRole:', userRole.value);
+    console.log('[PEP_VISIBILITY]    - sessionId atual:', sessionId.value);
+    console.log('[PEP_VISIBILITY]    - payload:', payload);
+    console.log('[PEP_VISIBILITY]    - isChecklistVisibleForCandidate (antes):', isChecklistVisibleForCandidate.value);
+
     if (userRole.value === 'candidate' && payload && typeof payload.shouldBeVisible === 'boolean') {
+      console.log('[PEP_VISIBILITY] ✅ Validações iniciais passaram - processando...');
+
+      // Validar sessionId se disponível no payload (segurança extra)
+      if (payload.sessionId && payload.sessionId !== sessionId.value) {
+        console.warn('[PEP_VISIBILITY] ⚠️ SessionId não corresponde!', {
+          payloadSessionId: payload.sessionId,
+          currentSessionId: sessionId.value
+        });
+        return;
+      }
+
+      console.log('[PEP_VISIBILITY] ✅ SessionId validado - atualizando visibilidade');
       isChecklistVisibleForCandidate.value = payload.shouldBeVisible;
+      console.log('[PEP_VISIBILITY]    - isChecklistVisibleForCandidate (depois):', isChecklistVisibleForCandidate.value);
 
       // FORÇAR REATIVIDADE: Usar nextTick() para garantir que Vue processa a mudança
       nextTick(() => {
         // Forçar Vue a notificar watchers sobre a mudança
         triggerRef(isChecklistVisibleForCandidate);
+        console.log('[PEP_VISIBILITY] 🔄 Reatividade forçada com triggerRef()');
 
         // Notificar o candidato quando o PEP é liberado
         if (payload.shouldBeVisible) {
+          console.log('[PEP_VISIBILITY] 🔔 Exibindo notificação para candidato');
           showNotification('O PEP (checklist de avaliação) foi liberado pelo examinador!', 'success');
         }
       });
+    } else {
+      console.warn('[PEP_VISIBILITY] ❌ Validações falharam');
+      if (userRole.value !== 'candidate') {
+        console.warn('[PEP_VISIBILITY]    - Motivo: Não é candidato (role:', userRole.value, ')');
+      }
+      if (!payload) {
+        console.warn('[PEP_VISIBILITY]    - Motivo: Payload vazio ou undefined');
+      }
+      if (payload && typeof payload.shouldBeVisible !== 'boolean') {
+        console.warn('[PEP_VISIBILITY]    - Motivo: shouldBeVisible não é boolean:', typeof payload.shouldBeVisible);
+      }
     }
   });
   socket.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
@@ -947,11 +958,6 @@ function setupSession() {
   });
 }
 
-// totalScore e allEvaluationsCompleted movidos para useEvaluation composable
-
-// bothParticipantsReady computed e watch movidos para useSimulationWorkflow composable
-
-
 onMounted(() => {
   setupSession();
 
@@ -993,17 +999,9 @@ onUnmounted(() => {
   try {
     sessionStorage.removeItem('selectedCandidate');
   } catch (error) {
-    console.warn('Erro ao limpar candidato selecionado:', error);
+    // Silently handle error
   }
 });
-
-// toggleActorImpressoVisibility movido para useSimulationData composable
-
-// updateTimerDisplayFromSelection movido para useSimulationWorkflow composable
-
-
-// candidateMeetLink, candidateOpenedMeet, checkCandidateMeetLink e openCandidateMeet
-// movidos para useSimulationMeet composable
 
 watch(() => route.fullPath, (newPath, oldPath) => {
   if (newPath !== oldPath && route.name === 'SimulationView') {
@@ -1011,17 +1009,8 @@ watch(() => route.fullPath, (newPath, oldPath) => {
     checkCandidateMeetLink();
   }
 });
+
 // --- Funções de Interação ---
-// releaseData movido para useSimulationData composable
-
-// sendReady movido para useSimulationWorkflow composable
-
-
-// handleStartSimulationClick movido para useSimulationWorkflow composable
-
-// submitEvaluation(), releasePepToCandidate() e funções de imagens movidas para composables
-
-
 
 // Função para manter os callbacks de avaliação
 function sendEvaluationScores() {
@@ -1034,7 +1023,6 @@ function sendEvaluationScores() {
       });
   }
 }
-// manuallyEndSimulation movido para useSimulationWorkflow composable
 
 watch(evaluationScores, (newScores) => {
   if (
@@ -1071,16 +1059,13 @@ watch(simulationEnded, (newValue) => {
   }
 });
 
-// Funções de marcação movidas para useScriptMarking composable
-
 onUnmounted(() => {
   document.removeEventListener('toggleMark', (e) => toggleMark(e.detail));
 });
 
 // --- FUNÇÕES PARA SIMULAÇÃO SEQUENCIAL ---
-// setupSequentialNavigation(), goToNextSequentialStation() movidos para useSequentialNavigation composable
 
-// Função de debug para diagnóstico - agora usa composable
+// Função de debug para diagnóstico
 setupDebugFunction({
   isActorOrEvaluator,
   simulationEnded,
@@ -1090,9 +1075,8 @@ setupDebugFunction({
 });
 
 // --- NOVO: Comunicação Google Meet ---
-// communicationMethod, meetLink, meetLinkCopied movidos para useSimulationMeet composable
 
-// Watcher para debugging de variáveis sequenciais (movido para após definições)
+// Watcher para debugging de variáveis sequenciais
 watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
   ([sequential, ended, completed, canNext]) => {
     // Sequential navigation logic
@@ -1100,10 +1084,7 @@ watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
   { immediate: true }
 );
 
-// openGoogleMeet e copyMeetLink movidos para useSimulationMeet composable
-
 // --- CONTROLE DE USUÁRIOS ONLINE E CONVITE INTERNO ---
-// onlineCandidates, sendInternalInvite, handleOnlineUsersList movidos para useInternalInvites
 
 // Atualiza lista de usuários online ao receber do backend
 if (socketRef.value) {
@@ -1118,8 +1099,6 @@ watch(connectionStatus, (status) => {
 });
 
 // --- CONTROLE DE CONVITE INTERNO (CANDIDATO ONLINE) ---
-// internalInviteDialog, internalInviteData, handleInternalInviteReceived, acceptInternalInvite, declineInternalInvite
-// movidos para useInternalInvites
 
 onUnmounted(() => {
   // ...existing code...
@@ -1152,14 +1131,9 @@ function toggleCollapse() {
 
 // Função para determinar a cor da avaliação com base na pontuação
 
-
 // Função para determinar a cor do ícone com base no item
 
 // Função Adicionada: divide o texto em parágrafos para exibição
-
-// Notificações movidas para linha 141-149 (antes da inicialização dos composables)
-
-// Funções de marcação de parágrafos movidas para useScriptMarking composable
 
 // --- NOVO: Função para processar e padronizar os itens de infraestrutura ---
 </script>
@@ -1347,7 +1321,7 @@ function toggleCollapse() {
                  variant="tonal"
                  class="mb-4"
                >
-                 <VIcon icon="ri-information-line" class="me-2" />
+                 <VIcon icon="ri-information-line" class="me-2" :tabindex="undefined" />
                  Complete todas as avaliações do PEP para prosseguir
                </VAlert>
 
@@ -1416,11 +1390,11 @@ function toggleCollapse() {
                                  @click="sendReady"
                                  :disabled="!!candidateMeetLink && !candidateOpenedMeet"
                                  >
-                                 <VIcon :icon="myReadyState ? 'ri-checkbox-circle-line' : 'ri-checkbox-blank-circle-line'" class="me-2"/>
+                                 <VIcon :icon="myReadyState ? 'ri-checkbox-circle-line' : 'ri-checkbox-blank-circle-line'" class="me-2" :tabindex="undefined"/>
                                  {{ myReadyState ? 'Pronto!' : 'Estou Pronto!' }}
                              </VBtn>
                              <VChip v-else color="success" size="large">
-                                 <VIcon icon="ri-checkbox-circle-line" class="me-2"/>
+                                 <VIcon icon="ri-checkbox-circle-line" class="me-2" :tabindex="undefined"/>
                                  Pronto! Aguardando início...
                              </VChip>
                              <p v-if="!!candidateMeetLink && !candidateOpenedMeet" class="text-caption text-error mt-2">
@@ -1450,9 +1424,28 @@ function toggleCollapse() {
                :handle-image-load="handleImageLoad"
              />
 
-     
-     
-    
+             <!-- PEP CHECKLIST PARA CANDIDATO -->
+             <template v-if="checklistData?.itensAvaliacao?.length > 0">
+               <CandidateChecklist
+                 :checklist-data="checklistData"
+                 :simulation-started="simulationStarted"
+                 :simulation-ended="simulationEnded"
+                 :simulation-was-manually-ended-early="simulationWasManuallyEndedEarly"
+                 :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
+                 :marked-pep-items="markedPepItems"
+                 :evaluation-scores="evaluationScores"
+                 :candidate-received-scores="candidateReceivedScores"
+                 :candidate-received-total-score="candidateReceivedTotalScore"
+                 :total-score="totalScore"
+                 :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
+                 :is-actor-or-evaluator="false"
+                 :is-candidate="true"
+                 @release-pep-to-candidate="releasePepToCandidate"
+                 @toggle-pep-item-mark="togglePepItemMark"
+                 @update:evaluation-scores="handleEvaluationScoreUpdate"
+                 @submit-evaluation="submitEvaluation"
+               />
+             </template>
            </div>
          </VCol>
  
@@ -1466,14 +1459,14 @@ function toggleCollapse() {
            >
              <VCardItem>
                <VCardTitle class="d-flex align-center">
-                 <VIcon color="primary" icon="ri-route-line" size="large" class="me-2" />
+                 <VIcon color="primary" icon="ri-route-line" size="large" class="me-2" :tabindex="undefined" />
                  Navegação Sequencial
                </VCardTitle>
              </VCardItem>
              <VCardText>
                <VAlert variant="tonal" color="success" class="mb-4">
                  <div class="d-flex align-center">
-                   <VIcon icon="ri-checkbox-circle-line" class="me-2" />
+                   <VIcon icon="ri-checkbox-circle-line" class="me-2" :tabindex="undefined" />
                    <div>
                      <div class="font-weight-bold">Estação Concluída</div>
                      <div class="text-body-2">O candidato submeteu a avaliação. Você pode prosseguir para a próxima estação.</div>
@@ -1546,7 +1539,7 @@ function toggleCollapse() {
        @click="impressosModalOpen = true"
        title="Gerenciar Impressos"
      >
-       <VIcon icon="ri-file-text-line" />
+       <VIcon icon="ri-file-text-line" :tabindex="undefined" />
      </VBtn>
  
      <!-- Snackbar de Notificação -->

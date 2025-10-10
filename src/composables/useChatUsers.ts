@@ -17,16 +17,18 @@ export const useChatUsers = () => {
   const users = ref<ChatUser[]>([])
   const loading = ref(true)
   const error = ref('')
+  const hasMoreUsers = ref(true)
   let unsubscribe: Unsubscribe | null = null
+  const pageSize = 50
 
-  const loadUsers = () => {
+  const loadUsers = (loadMore = false) => {
     const usersCollectionRef = collection(db, 'usuarios')
 
     // Buscar usuários com qualquer status ativo
     const q = query(
       usersCollectionRef,
       where('status', 'in', ['disponivel', 'treinando', 'ausente']),
-      limit(100)
+      limit(pageSize)
     )
 
     unsubscribe = onSnapshot(q, (snapshot) => {
@@ -58,24 +60,36 @@ export const useChatUsers = () => {
 
       loading.value = false
     }, (err) => {
-      error.value = 'Erro ao buscar usuários: ' + err.message
+      console.error('Erro ao carregar usuários do chat:', err)
+      error.value = 'Erro ao carregar usuários. Tente novamente mais tarde.'
       loading.value = false
     })
   }
 
   const getUserAvatar = (user: ChatUser) => {
-    // Usar photoURL se disponível
-    if (user.photoURL) {
-      return user.photoURL
-    }
+    try {
+      // Usar photoURL se disponível
+      if (user.photoURL) {
+        return user.photoURL
+      }
 
-    // Fallback para avatar customizado
-    if (user.avatar) {
-      return user.avatar
-    }
+      // Fallback para avatar customizado
+      if (user.avatar) {
+        return user.avatar
+      }
 
-    // Último recurso: gerar avatar com iniciais
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome || user.displayName || 'User')}`
+      // Padronizar nome para avatar
+      const displayName = user.nome && user.sobrenome 
+        ? `${user.nome} ${user.sobrenome}`
+        : user.displayName || 'User'
+
+      // Último recurso: gerar avatar com iniciais
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`
+    } catch (error) {
+      console.error('Erro ao gerar avatar:', error)
+      // Avatar padrão em caso de erro
+      return 'https://ui-avatars.com/api/?name=User&background=6c757d&color=fff'
+    }
   }
 
   onMounted(() => {
@@ -88,10 +102,26 @@ export const useChatUsers = () => {
     }
   })
 
+  // Função de busca de usuários
+  const searchUsers = (searchTerm: string) => {
+    if (!searchTerm.trim()) return users.value
+    
+    const term = searchTerm.toLowerCase().trim()
+    return users.value.filter(user => {
+      const fullName = user.nome && user.sobrenome 
+        ? `${user.nome} ${user.sobrenome}`.toLowerCase()
+        : (user.displayName || '').toLowerCase()
+      
+      return fullName.includes(term)
+    })
+  }
+
   return {
     users,
     loading,
     error,
-    getUserAvatar
+    hasMoreUsers,
+    getUserAvatar,
+    searchUsers
   }
 }

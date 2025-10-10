@@ -18,7 +18,27 @@
           <v-card-title class="d-flex align-center gap-2">
             <v-icon icon="ri-group-line" color="primary" size="24" />
             <span class="text-h6 font-weight-bold">Usuários Online</span>
+            <v-chip 
+              :color="isDarkTheme ? 'grey-darken-2' : 'grey-lighten-2'" 
+              size="small" 
+              class="ml-2"
+            >
+              {{ filteredUsers.length }}
+            </v-chip>
           </v-card-title>
+          <v-divider />
+          <v-card-text class="pa-3">
+            <v-text-field
+              v-model="userSearchTerm"
+              label="Buscar usuários..."
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              prepend-inner-icon="ri-search-line"
+              class="mb-2"
+            />
+          </v-card-text>
           <v-divider />
           <v-card-text class="pa-0">
             <template v-if="loadingUsers">
@@ -33,14 +53,16 @@
                 <span class="text-error">{{ errorUsers }}</span>
               </div>
             </template>
-            <template v-else-if="users.length === 0">
+            <template v-else-if="filteredUsers.length === 0">
               <div class="d-flex justify-center align-center py-6">
                 <v-icon icon="ri-user-off-line" color="grey" size="28" class="me-2" />
-                <span class="text-medium-emphasis">Nenhum usuário online.</span>
+                <span class="text-medium-emphasis">
+                  {{ users.length === 0 ? 'Nenhum usuário online.' : 'Nenhum usuário encontrado.' }}
+                </span>
               </div>
             </template>
             <v-list class="py-0" v-else>
-              <v-list-item v-for="user in users" :key="user.uid" class="py-2 user-list-item">
+              <v-list-item v-for="user in filteredUsers" :key="user.uid" class="py-2 user-list-item">
                 <template #prepend>
                   <v-badge
                     :color="user.status === 'disponivel' ? 'success' : user.status === 'ausente' ? 'warning' : 'info'"
@@ -80,13 +102,13 @@
             <!-- Botão de teste para limpeza (apenas para admins) -->
             <v-spacer />
             <v-btn 
-              v-if="(currentUser?.uid || '').trim() === 'KiSITAxXMAY5uU3bOPW5JMQPent2'"
+              v-if="canDeleteMessages"
               icon
               variant="text"
               color="warning"
               size="small"
               @click="cleanOldMessages"
-              title="Testar limpeza de mensagens antigas"
+              title="Limpar mensagens antigas"
             >
               <v-icon icon="ri-delete-bin-line" />
             </v-btn>
@@ -178,7 +200,7 @@
 
 <script setup lang="ts">
 import { currentUser } from '@/plugins/auth'
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 
@@ -187,6 +209,7 @@ import { useChatUsers } from '@/composables/useChatUsers'
 import { useChatMessages, formatTime } from '@/composables/useChatMessages'
 import { useChatInput } from '@/composables/useChatInput'
 import { useMessageCleanup } from '@/composables/useMessageCleanup'
+import { useAuthPermissions } from '@/composables/useAuthPermissions'
 
 const router = useRouter()
 const theme = useTheme()
@@ -202,7 +225,15 @@ const snackbar = ref({
 })
 
 // Usar composables
-const { users, loading: loadingUsers, error: errorUsers, getUserAvatar } = useChatUsers()
+const { users, loading: loadingUsers, error: errorUsers, getUserAvatar, searchUsers } = useChatUsers()
+
+// Termo de busca para usuários
+const userSearchTerm = ref('')
+
+// Computed para usuários filtrados
+const filteredUsers = computed(() => {
+  return searchUsers(userSearchTerm.value)
+})
 const {
   messages,
   messagesEnd,
@@ -212,6 +243,8 @@ const {
   loadMoreMessages,
   getMessageUserPhoto
 } = useChatMessages(currentUser)
+
+const { canDeleteMessages, checkUserPermissions } = useAuthPermissions()
 
 const {
   newMessage,
@@ -258,13 +291,39 @@ const sendMessage = async () => {
   }
 }
 
-// Botão de limpeza apenas para admin (remover UID hardcoded em produção)
+// Carregar permissões do usuário ao montar o componente
+onMounted(async () => {
+  await checkUserPermissions()
+})
+
+// Botão de limpeza para usuários com permissão
 const cleanOldMessages = async () => {
-  // TODO: Implementar verificação de permissões adequada
-  snackbar.value = {
-    show: true,
-    text: 'Limpeza automática em execução',
-    color: 'info'
+  if (!canDeleteMessages.value) {
+    snackbar.value = {
+      show: true,
+      text: 'Você não tem permissão para limpar mensagens',
+      color: 'error'
+    }
+    return
+  }
+
+  try {
+    // Importar função de limpeza do composable
+    const { cleanOldMessages: cleanup } = useMessageCleanup()
+    await cleanup()
+    
+    snackbar.value = {
+      show: true,
+      text: 'Limpeza de mensagens antigas concluída',
+      color: 'success'
+    }
+  } catch (error) {
+    console.error('Erro ao limpar mensagens:', error)
+    snackbar.value = {
+      show: true,
+      text: 'Erro ao limpar mensagens antigas',
+      color: 'error'
+    }
   }
 }
 </script>

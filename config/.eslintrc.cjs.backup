@@ -2,17 +2,12 @@ module.exports = {
   env: {
     browser: true,
     es2021: true,
+    node: true,
   },
   extends: [
-    '.eslintrc-auto-import.json',
+    '../.eslintrc-auto-import.json',
     'plugin:vue/vue3-recommended',
-    'plugin:import/recommended',
-    'plugin:promise/recommended',
-    'plugin:sonarjs/recommended',
-    'plugin:case-police/recommended',
-    'plugin:regexp/recommended',
-
-    // 'plugin:unicorn/recommended',
+    'eslint:recommended',
   ],
   parser: 'vue-eslint-parser',
   parserOptions: {
@@ -21,8 +16,6 @@ module.exports = {
   },
   plugins: [
     'vue',
-    'regex',
-    'regexp',
   ],
   ignorePatterns: ['src/plugins/iconify/*.js', 'node_modules', 'dist', '*.d.ts', 'vendor', '*.json'],
   rules: {
@@ -96,46 +89,9 @@ module.exports = {
       { blankLine: 'always', prev: '*', next: 'multiline-const' },
     ],
 
-    // Plugin: eslint-plugin-import
-    'import/prefer-default-export': 'off',
-    'import/newline-after-import': ['error', { count: 1 }],
-    'no-restricted-imports': ['error', 'vuetify/components', {
-      name: 'vue3-apexcharts',
-      message: 'apexcharts are auto imported',
-    }],
-
-    // For omitting extension for ts files
-    'import/extensions': [
-      'error',
-      'ignorePackages',
-      {
-        js: 'never',
-        jsx: 'never',
-        ts: 'never',
-        tsx: 'never',
-      },
-    ],
-
-    // ignore virtual files
-    'import/no-unresolved': [2, {
-      ignore: [
-        '~pages$',
-        'virtual:generated-layouts',
-        '#auth$',
-        '#components$',
-
-        // Ignore vite's ?raw imports
-        '.*\?raw',
-      ],
-    }],
-
     // Thanks: https://stackoverflow.com/a/63961972/10796681
     'no-shadow': 'off',
-
-
-    // Plugin: eslint-plugin-promise
-    'promise/always-return': 'off',
-    'promise/catch-or-return': 'off',
+    'no-undef': 'off', // Handled by auto-imports
 
     // ESLint plugin vue
     'vue/block-tag-newline': 'error',
@@ -173,66 +129,5 @@ module.exports = {
     // -- Extension Rules
     'vue/no-irregular-whitespace': 'error',
     'vue/template-curly-spacing': 'error',
-
-    // -- Sonarlint
-    'sonarjs/no-duplicate-string': 'off',
-    'sonarjs/no-nested-template-literals': 'off',
-
-    // -- Unicorn
-    // 'unicorn/filename-case': 'off',
-    // 'unicorn/prevent-abbreviations': ['error', {
-    //   replacements: {
-    //     props: false,
-    //   },
-    // }],
-
-    // Internal Rules
-
-    // https://github.com/gmullerb/eslint-plugin-regex
-    'regex/invalid': [
-      'error',
-      [
-        {
-          regex: '@/assets/images',
-          replacement: '@images',
-          message: 'Use \'@images\' path alias for image imports',
-        },
-        {
-          regex: '@/assets/styles',
-          replacement: '@styles',
-          message: 'Use \'@styles\' path alias for importing styles from \'src/assets/styles\'',
-        },
-
-        {
-          id: 'Disallow icon of icon library',
-          regex: 'mdi-\\w',
-          message: 'Only \'remix\' icons are allowed',
-        },
-
-        {
-          regex: '@core/\\w',
-          message: 'You can\'t use @core when you are in @layouts module',
-          files: {
-            inspect: '@layouts/.*',
-          },
-        },
-        {
-          regex: 'useLayouts\\(',
-          message: '`useLayouts` composable is only allowed in @layouts & @core directory. Please use `useThemeConfig` composable instead.',
-          files: {
-            inspect: '^(?!.*(@core|@layouts)).*',
-          },
-        },
-      ],
-
-      // Ignore files
-      '\.eslintrc\.cjs',
-    ],
-  },
-  settings: {
-    'import/resolver': {
-      node: true,
-      typescript: { project: './jsconfig.json' },
-    },
   },
 }
