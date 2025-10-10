@@ -1,11 +1,10 @@
-import { computed, type Ref } from 'vue'
-import type { UserStats } from '@/types/dashboard'
+import { computed } from 'vue'
 
 /**
  * Composable para calcular estatísticas derivadas do dashboard
  * Recebe userData como parâmetro para calcular métricas complexas
  */
-export const useDashboardStats = (userData: Ref<UserStats | null>) => {
+export const useDashboardStats = (userData) => {
     /**
      * Taxa de acerto geral (%)
      */
@@ -79,7 +78,7 @@ export const useDashboardStats = (userData: Ref<UserStats | null>) => {
         if (current === 0) return [0, 0, 0, 0, 0, 0, 0]
 
         // Simular dados dos últimos 7 dias com pequenas variações
-        const history: number[] = []
+        const history = []
         let base = Math.max(0, current - 50)
 
         for (let i = 0; i < 7; i++) {

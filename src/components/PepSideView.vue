@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
-import { parseEnumeratedItems, formatItemDescriptionForDisplay } from '@/utils/simulationUtils.ts'
-import { TITLE_INDEX } from '@/composables/useSimulationPEP.ts'
+import { parseEnumeratedItems, formatItemDescriptionForDisplay } from '@/utils/simulationUtils.js'
+import { TITLE_INDEX } from '@/composables/useSimulationPEP.js'
 
 const props = defineProps({
   pepData: { type: Array, required: true },

@@ -1,29 +1,33 @@
 // src/composables/useSimulationSocket.ts
-import { io, Socket } from 'socket.io-client';
-import { ref, onBeforeUnmount, type Ref } from 'vue';
+import { io } from 'socket.io-client';
+import { ref, onBeforeUnmount } from 'vue';
 import { backendUrl } from '@/utils/backendUrl.js';
 import { captureWebSocketError, captureSimulationError } from '@/plugins/sentry';
 
-interface SimulationSocketOptions {
-  sessionId: Ref<string>
-  userRole: Ref<string>
-  stationId: Ref<string>
-  currentUser: Ref<any>
-  stationData: Ref<any>
-  simulationStarted: Ref<boolean>
-  errorMessage: Ref<string>
-  partner: Ref<any>
-  partnerReadyState: Ref<boolean>
-  myReadyState: Ref<boolean> // 🔧 NOVO: Estado ready do usuário atual
-  backendActivated: Ref<boolean> // 🔧 NOVO: Estado de ativação do backend
-  handleSocketConnect: () => void
-  handleSocketDisconnect: () => void
-  handlePartnerDisconnect: () => void
-  showNotification: (message: string, color?: string) => void
-  socketRef?: Ref<any> // 🔧 NOVO: Referência externa para sincronização
-}
+/**
+ * @typedef {Object} SimulationSocketOptions
+ * @property {import('vue').Ref<string>} sessionId
+ * @property {import('vue').Ref<string>} userRole
+ * @property {import('vue').Ref<string>} stationId
+ * @property {import('vue').Ref<any>} currentUser
+ * @property {import('vue').Ref<any>} stationData
+ * @property {import('vue').Ref<boolean>} simulationStarted
+ * @property {import('vue').Ref<string>} errorMessage
+ * @property {import('vue').Ref<any>} partner
+ * @property {import('vue').Ref<boolean>} partnerReadyState
+ * @property {import('vue').Ref<boolean>} myReadyState - 🔧 NOVO: Estado ready do usuário atual
+ * @property {import('vue').Ref<boolean>} backendActivated - 🔧 NOVO: Estado de ativação do backend
+ * @property {() => void} handleSocketConnect
+ * @property {() => void} handleSocketDisconnect
+ * @property {() => void} handlePartnerDisconnect
+ * @property {(message: string, color?: string) => void} showNotification
+ * @property {import('vue').Ref<any>} [socketRef] - 🔧 NOVO: Referência externa para sincronização
+ */
 
-export function useSimulationSocket(options: SimulationSocketOptions) {
+/**
+ * @param {SimulationSocketOptions} options
+ */
+export function useSimulationSocket(options) {
   const {
     sessionId,
     userRole,
@@ -43,7 +47,7 @@ export function useSimulationSocket(options: SimulationSocketOptions) {
     socketRef // 🔧 NOVO: Referência externa opcional
   } = options;
 
-  const socket = ref<Socket | null>(null)
+  const socket = ref(null)
   const connectionStatus = ref('Desconectado')
 
   function connectWebSocket() {

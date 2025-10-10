@@ -1,5 +1,5 @@
 /**
- * useInternalInvites.ts
+ * useInternalInvites.js
  *
  * Composable para gerenciar sistema de convites internos
  * Permite que atores/avaliadores convidem candidatos online diretamente
@@ -11,16 +11,17 @@
  * - Controlar dialog de aceitação de convites
  */
 
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 
-interface InternalInvitesParams {
-  socket: Ref<any>
-  sessionId: Ref<string | null>
-  stationId: Ref<string | null>
-  selectedDurationMinutes: Ref<number>
-  currentUser: Ref<any>
-  getMeetLinkForInvite: () => string | null
-}
+/**
+ * @typedef {Object} InternalInvitesParams
+ * @property {Ref<any>} socket
+ * @property {Ref<string|null>} sessionId
+ * @property {Ref<string|null>} stationId
+ * @property {Ref<number>} selectedDurationMinutes
+ * @property {Ref<any>} currentUser
+ * @property {function(): string|null} getMeetLinkForInvite
+ */
 
 export function useInternalInvites({
   socket,
@@ -29,46 +30,39 @@ export function useInternalInvites({
   selectedDurationMinutes,
   currentUser,
   getMeetLinkForInvite
-}: InternalInvitesParams) {
+}) {
 
   // --- Estado ---
 
   /**
    * Lista de candidatos online disponíveis para convite
    */
-  const onlineCandidates = ref<any[]>([])
+  const onlineCandidates = ref([])
 
   /**
    * Controla se está enviando convite
    */
-  const isSendingInternalInvite = ref<boolean>(false)
+  const isSendingInternalInvite = ref(false)
 
   /**
    * ID do usuário para quem foi enviado o convite
    */
-  const internalInviteSentTo = ref<string | null>(null)
+  const internalInviteSentTo = ref(null)
 
   /**
    * Controla visibilidade do dialog de convite recebido
    */
-  const internalInviteDialog = ref<boolean>(false)
+  const internalInviteDialog = ref(false)
 
   /**
    * Dados do convite recebido
    */
-  const internalInviteData = ref<{
-    from: string
-    link: string
-    stationId: string
-    sessionId: string
-    stationTitle?: string
-    role: string
-    meet: string
-  }>({
+  const internalInviteData = ref({
     from: '',
     link: '',
     stationId: '',
     sessionId: '',
+    stationTitle: '',
     role: '',
     meet: ''
   })
@@ -77,20 +71,20 @@ export function useInternalInvites({
 
   /**
    * Processa lista de usuários online recebida do backend
-   * @param users - Array de usuários online
+   * @param {any[]} users - Array de usuários online
    */
-  function handleOnlineUsersList(users: any[]) {
+  function handleOnlineUsersList(users) {
     // Filtra apenas candidatos (excluindo o usuário atual)
     onlineCandidates.value = Array.isArray(users)
-      ? users.filter((u: any) => u.role === 'candidate' && u.userId !== currentUser.value?.uid)
+      ? users.filter((u) => u.role === 'candidate' && u.userId !== currentUser.value?.uid)
       : []
   }
 
   /**
    * Envia convite interno para um candidato online
-   * @param candidate - Objeto do candidato
+   * @param {any} candidate - Objeto do candidato
    */
-  function sendInternalInvite(candidate: any) {
+  function sendInternalInvite(candidate) {
     if (!socket.value?.connected || !candidate?.userId) {
       return
     }
@@ -115,9 +109,9 @@ export function useInternalInvites({
 
   /**
    * Processa convite interno recebido via socket
-   * @param payload - Dados do convite
+   * @param {any} payload - Dados do convite
    */
-  function handleInternalInviteReceived(payload: any) {
+  function handleInternalInviteReceived(payload) {
     if (!payload || !payload.link) {
       return
     }
@@ -156,9 +150,9 @@ export function useInternalInvites({
   /**
    * Solicita lista de usuários online do backend
    * Deve ser chamado quando conectar ao socket
-   * @param role - Filtrar por role específico (opcional)
+   * @param {string} [role] - Filtrar por role específico (opcional)
    */
-  function requestOnlineUsers(role?: string) {
+  function requestOnlineUsers(role) {
     if (!socket.value?.connected) {
       return
     }
@@ -170,10 +164,10 @@ export function useInternalInvites({
 
   /**
    * Verifica se um candidato foi convidado
-   * @param userId - ID do usuário
-   * @returns true se foi o último convidado
+   * @param {string} userId - ID do usuário
+   * @returns {boolean} true se foi o último convidado
    */
-  function wasInvited(userId: string): boolean {
+  function wasInvited(userId) {
     return internalInviteSentTo.value === userId
   }
 

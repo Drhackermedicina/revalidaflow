@@ -1,19 +1,19 @@
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { db } from '@/plugins/firebase'
-import { collection, onSnapshot, query, orderBy, limit, addDoc, startAfter, Unsubscribe, QueryDocumentSnapshot, getDocs } from 'firebase/firestore'
-import type { ChatUser } from './useChatUsers'
+import { collection, onSnapshot, query, orderBy, limit, addDoc, startAfter, getDocs } from 'firebase/firestore'
 
-export interface ChatMessage {
-    id: string
-    senderId?: string
-    senderName?: string
-    senderPhotoURL?: string
-    text?: string
-    timestamp?: any
-}
+/**
+ * @typedef {Object} ChatMessage
+ * @property {string} id
+ * @property {string} [senderId]
+ * @property {string} [senderName]
+ * @property {string} [senderPhotoURL]
+ * @property {string} [text]
+ * @property {any} [timestamp]
+ */
 
 // Função utilitária para formatar tempo
-export const formatTime = (timestamp: any): string => {
+export const formatTime = (timestamp) => {
     if (!timestamp) return ''
     try {
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
@@ -24,14 +24,14 @@ export const formatTime = (timestamp: any): string => {
     }
 }
 
-export const useChatMessages = (currentUser: any) => {
-    const messages = ref<ChatMessage[]>([])
-    const messagesEnd = ref<HTMLElement | null>(null)
+export const useChatMessages = (currentUser) => {
+    const messages = ref([])
+    const messagesEnd = ref(null)
     const isLoadingMore = ref(false)
     const hasMoreMessages = ref(true)
     const pageSize = 50 // Carregar 50 mensagens por vez
-    let lastDoc: QueryDocumentSnapshot | null = null
-    let unsubscribe: Unsubscribe | null = null
+    let lastDoc = null
+    let unsubscribe = null
 
     const loadMessages = async (loadMore = false) => {
         if (isLoadingMore.value) return
@@ -61,7 +61,7 @@ export const useChatMessages = (currentUser: any) => {
             if (!loadMore) {
                 unsubscribe = onSnapshot(q, (snapshot) => {
                     const newMessages = snapshot.docs
-                        .map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage))
+                        .map(doc => ({ id: doc.id, ...doc.data() }))
                         .reverse()
 
                     messages.value = newMessages
@@ -77,7 +77,7 @@ export const useChatMessages = (currentUser: any) => {
                 const snapshot = await getDocs(q)
                 if (!snapshot.empty) {
                     const newMessages = snapshot.docs
-                        .map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage))
+                        .map(doc => ({ id: doc.id, ...doc.data() }))
                         .reverse()
 
                     // Adicionar no início (mensagens mais antigas)
@@ -102,7 +102,7 @@ export const useChatMessages = (currentUser: any) => {
         }
     }
 
-    const sendMessage = async (text: string) => {
+    const sendMessage = async (text) => {
         if (!text.trim() || !currentUser?.value) return false
 
         try {
@@ -139,7 +139,7 @@ export const useChatMessages = (currentUser: any) => {
         }
     }
 
-    const getMessageUserPhoto = (message: ChatMessage) => {
+    const getMessageUserPhoto = (message) => {
         // Prioriza a foto salva na mensagem
         if (message.senderPhotoURL) {
             return message.senderPhotoURL

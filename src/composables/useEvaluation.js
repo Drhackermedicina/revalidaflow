@@ -1,5 +1,5 @@
 /**
- * useEvaluation.ts
+ * useEvaluation.js
  *
  * Composable para gerenciar avaliações de simulações
  * Extrai lógica de avaliação do SimulationView.vue
@@ -13,20 +13,21 @@
  * - Registro de conclusão no Firestore
  */
 
-import { ref, computed, type Ref } from 'vue'
+import { ref, computed } from 'vue'
 import { registrarConclusaoEstacao } from '@/services/stationEvaluationService.js'
 
-interface EvaluationParams {
-  socket: Ref<any>
-  sessionId: Ref<string | null>
-  stationId: Ref<string | null>
-  userRole: Ref<string | null>
-  currentUser: Ref<any>
-  stationData: Ref<any>
-  checklistData: Ref<any>
-  simulationEnded: Ref<boolean>
-  showNotification: (message: string, type: string) => void
-}
+/**
+ * @typedef {Object} EvaluationParams
+ * @property {Ref<any>} socket
+ * @property {Ref<string|null>} sessionId
+ * @property {Ref<string|null>} stationId
+ * @property {Ref<string|null>} userRole
+ * @property {Ref<any>} currentUser
+ * @property {Ref<any>} stationData
+ * @property {Ref<any>} checklistData
+ * @property {Ref<boolean>} simulationEnded
+ * @property {function(string, string): void} showNotification
+ */
 
 export function useEvaluation({
   socket,
@@ -38,11 +39,11 @@ export function useEvaluation({
   checklistData,
   simulationEnded,
   showNotification
-}: EvaluationParams) {
+}) {
 
   // --- Estado de avaliação ---
-  const evaluationScores = ref<Record<string, number>>({})
-  const candidateReceivedScores = ref<Record<string, number>>({})
+  const evaluationScores = ref({})
+  const candidateReceivedScores = ref({})
   const candidateReceivedTotalScore = ref(0)
   const evaluationSubmittedByCandidate = ref(false)
   const pepReleasedToCandidate = ref(false)
@@ -52,7 +53,7 @@ export function useEvaluation({
    */
   const totalScore = computed(() => {
     return Object.values(evaluationScores.value).reduce((sum, score) => {
-      const numScore = parseFloat(score as any)
+      const numScore = parseFloat(score)
       return sum + (isNaN(numScore) ? 0 : numScore)
     }, 0)
   })
@@ -63,7 +64,7 @@ export function useEvaluation({
   const allEvaluationsCompleted = computed(() => {
     if (!checklistData.value?.itensAvaliacao?.length) return false
 
-    return checklistData.value.itensAvaliacao.every((item: any) => {
+    return checklistData.value.itensAvaliacao.every((item) => {
       const score = evaluationScores.value[item.idItem]
       return score !== undefined && score !== null && score !== ''
     })
@@ -190,10 +191,10 @@ export function useEvaluation({
     console.log('[PEP_RELEASE] ✅ Todas as verificações passaram - liberando PEP');
 
     // SINCRONIZAÇÃO: Envia avaliações atuais junto com a liberação do PEP
-    const currentScores: Record<string, number> = {}
+    const currentScores = {}
     Object.keys(evaluationScores.value).forEach(key => {
       const score = evaluationScores.value[key]
-      currentScores[key] = typeof score === 'string' ? parseFloat(score as any) : score
+      currentScores[key] = typeof score === 'string' ? parseFloat(score) : score
     })
 
     const currentTotal = Object.values(currentScores).reduce((sum, v) => sum + (isNaN(v) ? 0 : v), 0)
@@ -226,7 +227,7 @@ export function useEvaluation({
   /**
    * Atualiza pontuação de um item específico
    */
-  function updateEvaluationScore(itemId: string, score: number) {
+  function updateEvaluationScore(itemId, score) {
     evaluationScores.value = {
       ...evaluationScores.value,
       [itemId]: score
@@ -247,7 +248,7 @@ export function useEvaluation({
   /**
    * Atualiza scores recebidos pelo candidato (via WebSocket)
    */
-  function updateCandidateReceivedScores(scores: Record<string, number>, total: number) {
+  function updateCandidateReceivedScores(scores, total) {
     candidateReceivedScores.value = scores
     candidateReceivedTotalScore.value = total
   }

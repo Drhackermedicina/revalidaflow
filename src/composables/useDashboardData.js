@@ -2,7 +2,6 @@ import { ref, computed } from 'vue'
 import { currentUser } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
-import type { UserStats, RankingUser } from '@/types/dashboard'
 
 /**
  * Composable para gerenciar dados centralizados do Dashboard
@@ -10,9 +9,9 @@ import type { UserStats, RankingUser } from '@/types/dashboard'
  */
 export const useDashboardData = () => {
     const loading = ref(true)
-    const error = ref<string>('')
-    const userData = ref<UserStats | null>(null)
-    const rankingData = ref<RankingUser[]>([])
+    const error = ref('')
+    const userData = ref(null)
+    const rankingData = ref([])
 
     /**
      * Carrega todos os dados do dashboard em paralelo
@@ -35,7 +34,7 @@ export const useDashboardData = () => {
             ])
 
             if (userDoc.exists()) {
-                userData.value = userDoc.data() as UserStats
+                userData.value = userDoc.data()
             } else {
                 error.value = 'Dados do usuário não encontrados'
             }
@@ -43,7 +42,7 @@ export const useDashboardData = () => {
             // Processar ranking
             rankingData.value = rankingSnapshot.docs.map((doc) => ({
                 uid: doc.id,
-                ...(doc.data() as Omit<RankingUser, 'uid'>)
+                ...(doc.data())
             }))
 
             // Calcular posição do usuário no ranking

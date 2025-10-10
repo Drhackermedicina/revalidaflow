@@ -1,26 +1,30 @@
 // src/composables/useSimulationHelpers.ts
 
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 import { useSimulationInvites } from '@/composables/useSimulationInvites.js'
 
 /**
  * Opções para o composable de helpers de simulação
  */
-export interface SimulationHelpersOptions {
-  selectedCandidateForSimulation: Ref<any>
-  inviteLinkToShow: Ref<string>
-  selectedDurationMinutes: Ref<number>
-  stationData: Ref<any>
-  currentUser: Ref<any>
-  getMeetLinkForInvite: () => string | null
-  reloadListeners: () => void
-}
+/**
+ * @typedef {Object} SimulationHelpersOptions
+ * @property {import('vue').Ref<any>} selectedCandidateForSimulation
+ * @property {import('vue').Ref<string>} inviteLinkToShow
+ * @property {import('vue').Ref<number>} selectedDurationMinutes
+ * @property {import('vue').Ref<any>} stationData
+ * @property {import('vue').Ref<any>} currentUser
+ * @property {() => string | null} getMeetLinkForInvite
+ * @property {() => void} reloadListeners
+ */
 
 /**
  * Composable para funções auxiliares de simulação
  * Gerencia operações simples como limpeza de candidato e envio de chat
  */
-export function useSimulationHelpers(options: SimulationHelpersOptions) {
+/**
+ * @param {SimulationHelpersOptions} options
+ */
+export function useSimulationHelpers(options) {
   const {
     selectedCandidateForSimulation,
     inviteLinkToShow,

@@ -21,7 +21,7 @@ import {
   getInfrastructureColor,
   getInfrastructureIcon,
   processInfrastructureItems
-} from '@/utils/simulationUtils.ts'
+} from '@/utils/simulationUtils.js'
 import { addDoc, collection, doc, getDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'

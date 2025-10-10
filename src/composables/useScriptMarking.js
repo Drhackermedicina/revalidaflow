@@ -1,5 +1,5 @@
 /**
- * useScriptMarking.ts
+ * useScriptMarking.js
  *
  * Composable para gerenciar marcação de roteiros
  * Extrai lógica de marcação do SimulationView.vue
@@ -13,26 +13,27 @@
  * - Manipulação de classes CSS para marcações
  */
 
-import { ref, nextTick, type Ref } from 'vue'
+import { ref, nextTick } from 'vue'
 
-interface ScriptMarkingParams {
-  userRole: Ref<string | null>
-}
+/**
+ * @typedef {Object} ScriptMarkingParams
+ * @property {Ref<string|null>} userRole
+ */
 
-export function useScriptMarking({ userRole }: ScriptMarkingParams) {
+export function useScriptMarking({ userRole }) {
 
   // --- Estado de marcação ---
-  const markedScriptContexts = ref<Record<string, boolean>>({})
-  const markedScriptSentences = ref<Record<string, boolean>>({})
-  const markedParagraphs = ref<Record<string, boolean>>({})
-  const markedMainItems = ref<Record<string, boolean>>({})
-  const markedSubItems = ref<Record<string, boolean>>({})
-  const lastClickTime = ref<Record<string, number>>({})
+  const markedScriptContexts = ref({})
+  const markedScriptSentences = ref({})
+  const markedParagraphs = ref({})
+  const markedMainItems = ref({})
+  const markedSubItems = ref({})
+  const lastClickTime = ref({})
 
   /**
    * Marca/desmarca contexto do roteiro com debounce
    */
-  function toggleScriptContext(idx: number, event?: Event) {
+  function toggleScriptContext(idx, event) {
     // Impedir a propagação do evento para evitar múltiplos cliques
     if (event) {
       event.stopPropagation()
@@ -67,7 +68,7 @@ export function useScriptMarking({ userRole }: ScriptMarkingParams) {
             // Garante que a classe CSS permaneça aplicada
             if (el.getAttribute('data-marked') === 'true') {
               if (el.classList.contains('marked-context-primary') || el.classList.contains('marked-context-warning')) {
-                (el as HTMLElement).style.backgroundColor = el.classList.contains('marked-context-primary')
+                el.style.backgroundColor = el.classList.contains('marked-context-primary')
                   ? 'rgba(var(--v-theme-primary), 0.15)'
                   : 'rgba(var(--v-theme-warning), 0.2)'
               }
@@ -81,7 +82,7 @@ export function useScriptMarking({ userRole }: ScriptMarkingParams) {
   /**
    * Marca/desmarca sentença do roteiro
    */
-  function toggleScriptSentence(idx: number, sentenceIdx: number) {
+  function toggleScriptSentence(idx, sentenceIdx) {
     if (userRole.value === 'actor' || userRole.value === 'evaluator') {
       const key = `${idx}-${sentenceIdx}`
       markedScriptSentences.value[key] = !markedScriptSentences.value[key]
@@ -93,7 +94,7 @@ export function useScriptMarking({ userRole }: ScriptMarkingParams) {
   /**
    * Verifica se um parágrafo está marcado
    */
-  function isParagraphMarked(contextIdx: number, paragraphIdx: number): boolean {
+  function isParagraphMarked(contextIdx, paragraphIdx) {
     if (!markedParagraphs.value) return false
     const key = `${contextIdx}-${paragraphIdx}`
     return markedParagraphs.value[key] === true
@@ -102,7 +103,7 @@ export function useScriptMarking({ userRole }: ScriptMarkingParams) {
   /**
    * Marca/desmarca parágrafo do roteiro com debounce
    */
-  function toggleParagraphMark(contextIdx: number, paragraphIdx: number, event?: Event) {
+  function toggleParagraphMark(contextIdx, paragraphIdx, event) {
     // Impedir a propagação do evento para evitar múltiplos cliques
     if (event) {
       event.stopPropagation()
@@ -136,21 +137,21 @@ export function useScriptMarking({ userRole }: ScriptMarkingParams) {
   /**
    * Marca/desmarca item principal do roteiro
    */
-  function toggleMainItem(itemId: string) {
+  function toggleMainItem(itemId) {
     markedMainItems.value[itemId] = !markedMainItems.value[itemId]
   }
 
   /**
    * Marca/desmarca subitem do roteiro
    */
-  function toggleSubItem(itemId: string) {
+  function toggleSubItem(itemId) {
     markedSubItems.value[itemId] = !markedSubItems.value[itemId]
   }
 
   /**
    * Retorna classe CSS baseada no estado do item
    */
-  function getItemClasses(itemType: string, itemId: string): Record<string, boolean> {
+  function getItemClasses(itemType, itemId) {
     if (itemType === 'main') {
       return {
         'marked': markedMainItems.value[itemId]
@@ -166,10 +167,10 @@ export function useScriptMarking({ userRole }: ScriptMarkingParams) {
   /**
    * Manipula cliques nos itens do roteiro
    */
-  function handleClick(event: Event) {
+  function handleClick(event) {
     // Identifica qual elemento foi clicado
-    const mainItem = (event.target as HTMLElement).closest('.main-item')
-    const subItem = (event.target as HTMLElement).closest('.subitem')
+    const mainItem = event.target.closest('.main-item')
+    const subItem = event.target.closest('.subitem')
 
     if (mainItem) {
       // Se clicou em um item principal

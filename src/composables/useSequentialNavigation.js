@@ -1,5 +1,5 @@
 /**
- * useSequentialNavigation.ts
+ * useSequentialNavigation.js
  *
  * Composable para navegação entre estações no modo sequencial
  * Extrai lógica de navegação sequencial do SimulationView.vue
@@ -11,16 +11,17 @@
  * - Recuperação de dados perdidos do sessionStorage
  */
 
-import { computed, type Ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-interface SequentialNavigationParams {
-  isSequentialMode: Ref<boolean>
-  sequenceId: Ref<string | null>
-  sequenceIndex: Ref<number>
-  totalSequentialStations: Ref<number>
-  sequentialData: Ref<any>
-}
+/**
+ * @typedef {Object} SequentialNavigationParams
+ * @property {Ref<boolean>} isSequentialMode
+ * @property {Ref<string|null>} sequenceId
+ * @property {Ref<number>} sequenceIndex
+ * @property {Ref<number>} totalSequentialStations
+ * @property {Ref<any>} sequentialData
+ */
 
 export function useSequentialNavigation({
   isSequentialMode,
@@ -28,7 +29,7 @@ export function useSequentialNavigation({
   sequenceIndex,
   totalSequentialStations,
   sequentialData
-}: SequentialNavigationParams) {
+}) {
 
   const router = useRouter()
 
@@ -48,7 +49,7 @@ export function useSequentialNavigation({
   /**
    * Tenta reconstruir sequentialData do sessionStorage
    */
-  function reconstructSequentialData(): boolean {
+  function reconstructSequentialData() {
     console.warn('[SEQUENTIAL] sequentialData is null, attempting to reconstruct from sessionStorage')
 
     const savedData = sessionStorage.getItem('sequentialSession')
@@ -237,8 +238,8 @@ export function useSequentialNavigation({
   /**
    * Função de debug global para diagnosticar problemas sequenciais
    */
-  function setupDebugFunction(additionalData: any = {}) {
-    (window as any).debugSequentialNavigation = function () {
+  function setupDebugFunction(additionalData = {}) {
+    window.debugSequentialNavigation = function () {
       console.log('=== SEQUENTIAL NAVIGATION DEBUG ===')
       console.log('isSequentialMode:', isSequentialMode.value)
       console.log('sequenceIndex:', sequenceIndex.value)

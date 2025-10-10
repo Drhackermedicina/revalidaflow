@@ -3,7 +3,7 @@ import {
   processInfrastructureItems,
   getInfrastructureIcon,
   getInfrastructureColor
-} from '@/utils/simulationUtils.ts'
+} from '@/utils/simulationUtils.js'
 
 // Props
 const props = defineProps({

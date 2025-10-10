@@ -1,5 +1,5 @@
 /**
- * useSimulationMeet.ts
+ * useSimulationMeet.js
  *
  * Composable para gerenciar integração com Google Meet nas simulações
  * Extrai lógica de Google Meet do SimulationView.vue
@@ -12,15 +12,15 @@
  * - Integração com query params da rota
  */
 
-import { ref, type Ref } from 'vue'
-import type { RouteLocationNormalizedLoaded } from 'vue-router'
+import { ref } from 'vue'
 
-interface SimulationMeetParams {
-  userRole: Ref<string | null>
-  route: RouteLocationNormalizedLoaded
-}
+/**
+ * @typedef {Object} SimulationMeetParams
+ * @property {Ref<string|null>} userRole
+ * @property {RouteLocationNormalizedLoaded} route
+ */
 
-export function useSimulationMeet({ userRole, route }: SimulationMeetParams) {
+export function useSimulationMeet({ userRole, route }) {
 
   // --- Estado do Google Meet ---
 
@@ -30,27 +30,27 @@ export function useSimulationMeet({ userRole, route }: SimulationMeetParams) {
    * 'meet' - Google Meet
    * 'none' - Sem comunicação
    */
-  const communicationMethod = ref<string>('')
+  const communicationMethod = ref('')
 
   /**
    * Link do Google Meet (ator/avaliador)
    */
-  const meetLink = ref<string>('')
+  const meetLink = ref('')
 
   /**
    * Feedback visual de que o link foi copiado
    */
-  const meetLinkCopied = ref<boolean>(false)
+  const meetLinkCopied = ref(false)
 
   /**
    * Link do Meet recebido pelo candidato via query params
    */
-  const candidateMeetLink = ref<string>('')
+  const candidateMeetLink = ref('')
 
   /**
    * Controle se o candidato já abriu o Meet
    */
-  const candidateOpenedMeet = ref<boolean>(false)
+  const candidateOpenedMeet = ref(false)
 
   // --- Métodos ---
 
@@ -99,10 +99,10 @@ export function useSimulationMeet({ userRole, route }: SimulationMeetParams) {
 
   /**
    * Valida o link do Google Meet
-   * @param link - Link a ser validado
-   * @returns Objeto com status de validação e mensagem de erro
+   * @param {string} link - Link a ser validado
+   * @returns {Object} Objeto com status de validação e mensagem de erro
    */
-  function validateMeetLink(link: string): { valid: boolean; error?: string } {
+  function validateMeetLink(link) {
     if (!link || !link.trim()) {
       return {
         valid: false,
@@ -124,15 +124,15 @@ export function useSimulationMeet({ userRole, route }: SimulationMeetParams) {
   /**
    * Verifica se o método de comunicação escolhido é Google Meet
    */
-  function isMeetMode(): boolean {
+  function isMeetMode() {
     return communicationMethod.value === 'meet'
   }
 
   /**
    * Obtém o link do Meet formatado para ser incluído em convites
-   * @returns Link do Meet trimmed ou null se não for modo meet
+   * @returns {string|null} Link do Meet trimmed ou null se não for modo meet
    */
-  function getMeetLinkForInvite(): string | null {
+  function getMeetLinkForInvite() {
     if (isMeetMode() && meetLink.value) {
       return meetLink.value.trim()
     }

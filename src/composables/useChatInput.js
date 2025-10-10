@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
 // Função básica de sanitização (pode ser substituída por DOMPurify)
-const sanitizeHtml = (html: string): string => {
+const sanitizeHtml = (html) => {
     // Remove tags HTML potencialmente perigosas
     const allowedTags = ['a', 'br', 'strong', 'em', 'u']
     const allowedAttrs = ['href', 'target', 'rel']
@@ -27,7 +27,7 @@ export const useChatInput = () => {
     const newMessage = ref('')
 
     // Função para detectar e formatar links no texto
-    const formatMessageText = (text?: string) => {
+    const formatMessageText = (text) => {
         if (!text) return ''
 
         // Sanitizar primeiro
@@ -39,15 +39,17 @@ export const useChatInput = () => {
         return sanitized.replace(urlRegex, (url) => {
             return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="message-link">${url}</a>`
         }).replace(/\n/g, '<br>')
-    }    // Função para verificar se a mensagem contém links
-    const hasLinks = (text?: string) => {
+    }
+    
+    // Função para verificar se a mensagem contém links
+    const hasLinks = (text) => {
         if (!text) return false
         const urlRegex = /(https?:\/\/[^\s]+)/g
         return urlRegex.test(text)
     }
 
     // Função para copiar links da mensagem
-    const copyMessageLinks = async (text?: string) => {
+    const copyMessageLinks = async (text) => {
         if (!text) return
 
         try {
@@ -88,7 +90,7 @@ export const useChatInput = () => {
     }
 
     // Validação básica da mensagem
-    const validateMessage = (text: string): { valid: boolean; error?: string } => {
+    const validateMessage = (text) => {
         const trimmed = text.trim()
         if (!trimmed) {
             return { valid: false, error: 'Mensagem não pode estar vazia' }
@@ -108,7 +110,7 @@ export const useChatInput = () => {
     }
 
     // Função para sanitizar entrada do usuário
-    const sanitizeInput = (text: string): string => {
+    const sanitizeInput = (text) => {
         try {
             return text
                 .replace(/[<>"'&]/g, '') // Remove caracteres HTML perigosos

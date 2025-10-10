@@ -41,19 +41,19 @@ import PepSideView from '@/components/PepSideView.vue'
 import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue'
 
 // Composables Principais
-import { useSimulationSession } from '@/composables/useSimulationSession.ts'
-import { useSimulationSocket } from '@/composables/useSimulationSocket.ts'
+import { useSimulationSession } from '@/composables/useSimulationSession.js'
+import { useSimulationSocket } from '@/composables/useSimulationSocket.js'
 import { useSimulationInvites } from '@/composables/useSimulationInvites.js'
-import { useSequentialNavigation } from '@/composables/useSequentialNavigation.ts'
-import { useEvaluation } from '@/composables/useEvaluation.ts'
-import { useImagePreloading } from '@/composables/useImagePreloading.ts'
-import { useScriptMarking } from '@/composables/useScriptMarking.ts'
-import { useSimulationMeet } from '@/composables/useSimulationMeet.ts'
-import { useSimulationData } from '@/composables/useSimulationData.ts'
-import { useSimulationPEP } from '@/composables/useSimulationPEP.ts'
-import { useInternalInvites } from '@/composables/useInternalInvites.ts'
-import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.ts'
-import { useInviteLinkGeneration } from '@/composables/useInviteLinkGeneration.ts'
+import { useSequentialNavigation } from '@/composables/useSequentialNavigation.js'
+import { useEvaluation } from '@/composables/useEvaluation.js'
+import { useImagePreloading } from '@/composables/useImagePreloading.js'
+import { useScriptMarking } from '@/composables/useScriptMarking.js'
+import { useSimulationMeet } from '@/composables/useSimulationMeet.js'
+import { useSimulationData } from '@/composables/useSimulationData.js'
+import { useSimulationPEP } from '@/composables/useSimulationPEP.js'
+import { useInternalInvites } from '@/composables/useInternalInvites.js'
+import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.js'
+import { useInviteLinkGeneration } from '@/composables/useInviteLinkGeneration.js'
 
 // Utils de Formatação
 import {
@@ -68,7 +68,7 @@ import {
   getInfrastructureIcon,
   processInfrastructureItems,
   parseEnumeratedItems
-} from '@/utils/simulationUtils.ts'
+} from '@/utils/simulationUtils.js'
 
 // Bibliotecas Externas
 import { io } from 'socket.io-client'
@@ -504,15 +504,19 @@ async function sendLinkViaPrivateChat() {
     }
     
   } catch (error) {
-      } finally {
+    console.error('Erro ao enviar link via chat privado:', error);
+    errorMessage.value = 'Erro ao enviar convite. Tente novamente.';
+  } finally {
     sendingChat.value = false;
   }
 }
 
 
 function connectWebSocket() {
-  if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) {     return; }
-      connectionStatus.value = 'Conectando';
+  if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) {
+    return;
+  }
+  connectionStatus.value = 'Conectando';
   if (socketRef.value && socketRef.value.connected) { socketRef.value.disconnect(); }
   
   const socket = io(backendUrl, {
@@ -869,8 +873,10 @@ function loadSelectedCandidate() {
       const candidate = JSON.parse(candidateData);
       selectedCandidateForSimulation.value = candidate;
     } catch (error) {
-          }
+      console.error('Erro ao carregar candidato selecionado:', error);
+    }
   } else {
+    // Nenhum candidato salvo no sessionStorage
   }
 }
 
@@ -1002,7 +1008,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleEscKey);
 
   // Setup do listener de eventos para marcação
-  const toggleMarkHandler = (e) => toggleMark(e.detail);
+  const toggleMarkHandler = (e) => handleClick(e.detail);
   document.addEventListener('toggleMark', toggleMarkHandler);
 
   // Cleanup no onUnmounted
@@ -1081,7 +1087,7 @@ watch(simulationEnded, (newValue) => {
 });
 
 onUnmounted(() => {
-  document.removeEventListener('toggleMark', (e) => toggleMark(e.detail));
+  document.removeEventListener('toggleMark', (e) => handleClick(e.detail));
 });
 
 // --- FUNÇÕES PARA SIMULAÇÃO SEQUENCIAL ---
@@ -1376,7 +1382,7 @@ function toggleCollapse() {
                  color="warning"
                  size="small"
                  variant="outlined"
-                 @click="debugSequentialNavigation"
+                 @click="window.debugSequentialNavigation && window.debugSequentialNavigation()"
                  class="mt-4"
                >
                  Debug Console

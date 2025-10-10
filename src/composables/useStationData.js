@@ -7,7 +7,7 @@
 
 import { ref } from 'vue'
 import { db } from '@/plugins/firebase.js'
-import { collection, doc, getDoc, getDocs, query, limit, startAfter, orderBy } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, limit, orderBy } from 'firebase/firestore'
 import { currentUser } from '@/plugins/auth.js'
 
 export function useStationData() {
@@ -21,7 +21,6 @@ export function useStationData() {
   const hasMoreStations = ref(false)
   const isLoadingMoreStations = ref(false)
   const lastVisibleDoc = ref(null)
-  const stationsPerPage = 1000 // Carregar muitas estações inicialmente
 
   // Cache de estações completas (lazy loading)
   const fullStationsCache = ref(new Map())
@@ -46,9 +45,15 @@ export function useStationData() {
     }
 
     try {
-      // Carregar TODAS as estações inicialmente (sem limit)
+      // Carregar estações com apenas os campos necessários para otimização
+      // Ordena por número da estação no Firestore para melhor performance
       const stationsColRef = collection(db, 'estacoes_clinicas')
-      const querySnapshot = await getDocs(stationsColRef)
+      const q = query(
+        stationsColRef,
+        orderBy('numeroDaEstacao', 'asc'),
+        limit(1000) // Limite razoável para evitar sobrecarga
+      )
+      const querySnapshot = await getDocs(q)
       const stationsList = []
 
       querySnapshot.forEach((docSnap) => {
@@ -67,12 +72,12 @@ export function useStationData() {
         stationsList.push(modifiedData)
       })
 
-      // Ordenar por número da estação
-      stationsList.sort((a, b) => {
-        const numA = a.numeroDaEstacao || 0
-        const numB = b.numeroDaEstacao || 0
-        return numA - numB
-      })
+      // Como já ordenamos no Firestore, não precisamos ordenar novamente
+      // stationsList.sort((a, b) => {
+      //   const numA = a.numeroDaEstacao || 0
+      //   const numB = b.numeroDaEstacao || 0
+      //   return numA - numB
+      // })
 
       // Atualizar estado
       if (loadMore) {
@@ -208,3 +213,4 @@ export function useStationData() {
     getUserStationScore
   }
 }
+

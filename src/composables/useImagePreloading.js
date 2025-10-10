@@ -1,5 +1,5 @@
 /**
- * useImagePreloading.ts
+ * useImagePreloading.js
  *
  * Composable para gerenciar pré-carregamento de imagens
  * Extrai lógica de cache e preload do SimulationView.vue
@@ -12,18 +12,19 @@
  * - Zoom de imagens
  */
 
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 
-interface ImagePreloadingParams {
-  stationData: Ref<any>
-}
+/**
+ * @typedef {Object} ImagePreloadingParams
+ * @property {Ref<any>} stationData
+ */
 
-export function useImagePreloading({ stationData }: ImagePreloadingParams) {
+export function useImagePreloading({ stationData }) {
 
   // --- Estado de cache de imagens ---
-  const imageLoadAttempts = ref<Record<string, number>>({})
-  const imageLoadSources = ref<Record<string, string>>({})
-  const imagesPreloadStatus = ref<Record<string, string>>({})
+  const imageLoadAttempts = ref({})
+  const imageLoadSources = ref({})
+  const imagesPreloadStatus = ref({})
   const allImagesPreloaded = ref(false)
 
   // --- Estado de zoom ---
@@ -34,14 +35,14 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
   /**
    * Gera ID único para imagem
    */
-  function getImageId(impressoId: string, context: string): string {
+  function getImageId(impressoId, context) {
     return `${impressoId}-${context}`
   }
 
   /**
    * Obtém source da imagem do cache ou força preload
    */
-  function getImageSource(imagePath: string, imageId: string): string {
+  function getImageSource(imagePath, imageId) {
     // Se a imagem foi pré-carregada, retorna a URL do cache
     if (imageLoadSources.value[imageId]) {
       return imageLoadSources.value[imageId]
@@ -62,7 +63,7 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
   /**
    * Handler de sucesso no carregamento
    */
-  function handleImageLoad(imageId: string) {
+  function handleImageLoad(imageId) {
     // Reset tentativas quando carrega com sucesso
     if (imageLoadAttempts.value[imageId]) {
       delete imageLoadAttempts.value[imageId]
@@ -72,7 +73,7 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
   /**
    * Handler de erro no carregamento com retry
    */
-  function handleImageError(imagePath: string, imageId: string) {
+  function handleImageError(imagePath, imageId) {
     // Incrementa tentativas
     const attempts = (imageLoadAttempts.value[imageId] || 0) + 1
     imageLoadAttempts.value = {
@@ -119,7 +120,7 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
   /**
    * Pré-carrega uma única imagem
    */
-  function preloadSingleImage(imagePath: string, imageId: string, altText: string) {
+  function preloadSingleImage(imagePath, imageId, altText) {
     if (!imagePath || !imageId) {
       return
     }
@@ -151,11 +152,11 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
    * Pré-carrega imagem com callback de sucesso
    */
   function preloadSingleImageAdvanced(
-    imagePath: string,
-    imageId: string,
-    altText: string,
-    onSuccess?: () => void,
-    onError?: () => void
+    imagePath,
+    imageId,
+    altText,
+    onSuccess,
+    onError
   ) {
     if (!imagePath || !imageId) {
       return
@@ -199,7 +200,7 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
     }
 
     const impressosComImagem = stationData.value.materiaisDisponiveis.impressos.filter(
-      (impresso: any) => impresso.tipoConteudo === 'imagem_com_texto' &&
+      (impresso) => impresso.tipoConteudo === 'imagem_com_texto' &&
                          impresso.conteudo?.caminhoImagem
     )
 
@@ -212,9 +213,9 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
     allImagesPreloaded.value = false
     imagesPreloadStatus.value = {}
 
-    const imagesToPreload: Array<{ path: string; id: string; title: string }> = []
+    const imagesToPreload = []
 
-    impressosComImagem.forEach((impresso: any) => {
+    impressosComImagem.forEach((impresso) => {
       const imagePath = impresso.conteudo.caminhoImagem
 
       // IDs para ator e candidato
@@ -262,14 +263,14 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
   /**
    * Verifica se imagem está pré-carregada
    */
-  function isImagePreloaded(imageId: string): boolean {
+  function isImagePreloaded(imageId) {
     return !!imageLoadSources.value[imageId]
   }
 
   /**
    * Garante que imagem está pré-carregada
    */
-  function ensureImageIsPreloaded(imagePath: string, imageId: string, altText: string) {
+  function ensureImageIsPreloaded(imagePath, imageId, altText) {
     if (!isImagePreloaded(imageId)) {
       preloadSingleImage(imagePath, imageId, altText)
     }
@@ -278,7 +279,7 @@ export function useImagePreloading({ stationData }: ImagePreloadingParams) {
   /**
    * Abre zoom da imagem
    */
-  function openImageZoom(imageSrc: string, imageAlt: string) {
+  function openImageZoom(imageSrc, imageAlt) {
     if (!imageSrc || imageSrc.trim() === '') {
       console.error(`[ZOOM] ❌ Erro: URL da imagem está vazia ou inválida: "${imageSrc}"`)
       return

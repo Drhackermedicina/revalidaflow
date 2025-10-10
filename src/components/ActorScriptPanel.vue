@@ -8,7 +8,7 @@ import {
   getInfrastructureIcon,
   getInfrastructureColor,
   splitIntoParagraphs
-} from '@/utils/simulationUtils.ts'
+} from '@/utils/simulationUtils.js'
 import { memoize } from '@/utils/memoization.js'
 
 // Props

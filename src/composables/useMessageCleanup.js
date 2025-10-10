@@ -3,7 +3,7 @@ import { db } from '@/plugins/firebase'
 import { collection, deleteDoc, getDocs, query, where } from 'firebase/firestore'
 
 export const useMessageCleanup = () => {
-    let cleanupInterval: ReturnType<typeof setInterval> | null = null
+    let cleanupInterval = null
 
     // Função para limpar mensagens antigas (mais de 24 horas)
     const cleanOldMessages = async () => {
@@ -26,7 +26,7 @@ export const useMessageCleanup = () => {
             }
 
             // Remover mensagens em lote
-            const deletePromises: Promise<void>[] = []
+            const deletePromises = []
             querySnapshot.forEach((doc) => {
                 deletePromises.push(deleteDoc(doc.ref))
             })

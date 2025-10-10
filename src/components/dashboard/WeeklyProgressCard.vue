@@ -82,7 +82,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useTheme } from 'vuetify'
-import { useDashboardData } from '@/composables/useDashboardData'
+import { useDashboardData } from '@/composables/useDashboardData.js'
 
 const theme = useTheme()
 

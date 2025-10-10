@@ -180,8 +180,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
-import { useDashboardData } from '@/composables/useDashboardData'
-import { useDashboardStats } from '@/composables/useDashboardStats'
+import { useDashboardData } from '@/composables/useDashboardData.js'
+import { useDashboardStats } from '@/composables/useDashboardStats.js'
 
 // Componentes
 import WelcomeCard from '@/components/dashboard/WelcomeCard.vue'

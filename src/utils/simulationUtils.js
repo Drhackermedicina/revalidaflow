@@ -1,14 +1,14 @@
 // Funções utilitárias extraídas de SimulationView.vue
 
 // Função para detectar se o texto já contém HTML formatado
-function isRichTextContent(text: string): boolean {
+function isRichTextContent(text) {
   if (!text) return false;
   // Verifica se contém tags HTML válidas como <p>, <strong>, <em>, <br>, etc.
   const htmlTags = /<(p|strong|em|br|ul|li|ol|h[1-6]|div)\b[^>]*>/i;
   return htmlTags.test(text);
 }
 
-export function formatActorText(text: string, isActorOrEvaluator?: boolean): string {
+export function formatActorText(text, isActorOrEvaluator) {
   if (!text) return '';
 
   // Se o texto já está formatado como HTML rico, preserva a formatação
@@ -69,7 +69,7 @@ export function formatActorText(text: string, isActorOrEvaluator?: boolean): str
   return formattedLines.join('');
 }
 
-export function formatIdentificacaoPaciente(text: string, contexto: string, isActorOrEvaluator: boolean): string {
+export function formatIdentificacaoPaciente(text, contexto, isActorOrEvaluator) {
   if (!text) return '';
   if (contexto && contexto.toUpperCase().includes('IDENTIFICAÇÃO DO PACIENTE')) {
     const tempDiv = document.createElement('div');
@@ -92,18 +92,18 @@ export function formatIdentificacaoPaciente(text: string, contexto: string, isAc
   return formatActorText(text, isActorOrEvaluator);
 }
 
-export function splitIntoSentences(text: string): string[] {
+export function splitIntoSentences(text) {
   return text.split('. ').map(sentence => sentence.trim()).filter(sentence => sentence.length > 0);
 }
 
-export function formatTime(totalSeconds: number): string {
+export function formatTime(totalSeconds) {
   if (isNaN(totalSeconds) || totalSeconds < 0) totalSeconds = 0;
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function formatItemDescriptionForDisplay(descriptionText: string, itemTitle = ''): string {
+export function formatItemDescriptionForDisplay(descriptionText, itemTitle = '') {
   if (!descriptionText || typeof descriptionText !== 'string') {
     return descriptionText || '';
   }
@@ -128,7 +128,7 @@ export function formatItemDescriptionForDisplay(descriptionText: string, itemTit
   return desc;
 }
 
-export function splitIntoParagraphs(text: string): string[] {
+export function splitIntoParagraphs(text) {
   if (!text) return [];
   const textAsString = String(text);
 
@@ -155,7 +155,7 @@ export function splitIntoParagraphs(text: string): string[] {
   return paragraphs.length > 0 ? paragraphs : [textAsString];
 }
 
-export function getEvaluationLabel(item: any, score: number): string {
+export function getEvaluationLabel(item, score) {
   if (score === undefined) return 'Não avaliado';
   if (item.pontuacoes?.adequado && item.pontuacoes.adequado.pontos === score) {
     return 'Adequado';
@@ -167,7 +167,7 @@ export function getEvaluationLabel(item: any, score: number): string {
   return 'Pontuação: ' + score.toFixed(2);
 }
 
-export function getEvaluationColor(item: any, score: number): string {
+export function getEvaluationColor(item, score) {
   if (score === undefined) return 'grey-lighten-1';
   if (item.pontuacoes?.adequado && item.pontuacoes.adequado.pontos === score) {
     return 'success';
@@ -181,7 +181,7 @@ export function getEvaluationColor(item: any, score: number): string {
 
 // Para os ícones e cores de infraestrutura, copie as funções conforme o original, mantendo os mappings.
 
-export function getInfrastructureIcon(infraItem: string): string {
+export function getInfrastructureIcon(infraItem) {
   const cleanItem = infraItem.startsWith('- ') ? infraItem.substring(2) : infraItem;
   const text = cleanItem.toLowerCase();
   if (infraItem.startsWith('- ')) {
@@ -191,7 +191,7 @@ export function getInfrastructureIcon(infraItem: string): string {
   return 'ri-hospital-line';
 }
 
-export function getInfrastructureColor(infraItem: string): string {
+export function getInfrastructureColor(infraItem) {
   if (infraItem.startsWith('- ')) {
     return 'grey-darken-1';
   }
@@ -201,9 +201,9 @@ export function getInfrastructureColor(infraItem: string): string {
   return 'primary';
 }
 
-export function processInfrastructureItems(items: string[]): string[] {
+export function processInfrastructureItems(items) {
   if (!items || !Array.isArray(items)) return [];
-  const processedItems: string[] = [];
+  const processedItems = [];
   items.forEach(item => {
     if (!item || !item.trim()) return;
     const trimmedItem = item.trim();
@@ -226,8 +226,8 @@ export function processInfrastructureItems(items: string[]): string[] {
   return processedItems.filter(item => item.length > 0);
 }
 
-export function parseEnumeratedItems(descriptionText: string): { text: string; index: number }[] {
-  const items: { text: string; index: number }[] = [];
+export function parseEnumeratedItems(descriptionText) {
+  const items = [];
   if (!descriptionText || typeof descriptionText !== 'string') {
     return items;
   }

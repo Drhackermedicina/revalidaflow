@@ -1,35 +1,38 @@
 // src/composables/useInviteLinkGeneration.ts
 
-import { ref, type Ref } from 'vue'
-import type { Router } from 'vue-router'
+// import { ref } from 'vue'
 import { backendUrl } from '@/utils/backendUrl.js'
 
 /**
  * Interface para opções do composable de geração de link de convite
  */
-export interface InviteLinkGenerationOptions {
-  sessionId: Ref<string>
-  stationId: Ref<string>
-  userRole: Ref<string>
-  selectedDurationMinutes: Ref<number>
-  isLoading: Ref<boolean>
-  stationData: Ref<any>
-  errorMessage: Ref<string>
-  inviteLinkToShow: Ref<string>
-  socket: Ref<any>
-  isMeetMode: () => boolean
-  validateMeetLink: (link: string) => { valid: boolean; error?: string }
-  getMeetLinkForInvite: () => string | null
-  meetLink: Ref<string>
-  connectWebSocket: () => void
-  router: Router
-}
+/**
+ * @typedef {Object} InviteLinkGenerationOptions
+ * @property {import('vue').Ref<string>} sessionId
+ * @property {import('vue').Ref<string>} stationId
+ * @property {import('vue').Ref<string>} userRole
+ * @property {import('vue').Ref<number>} selectedDurationMinutes
+ * @property {import('vue').Ref<boolean>} isLoading
+ * @property {import('vue').Ref<any>} stationData
+ * @property {import('vue').Ref<string>} errorMessage
+ * @property {import('vue').Ref<string>} inviteLinkToShow
+ * @property {import('vue').Ref<any>} socket
+ * @property {() => boolean} isMeetMode
+ * @property {(link: string) => { valid: boolean; error?: string }} validateMeetLink
+ * @property {() => string | null} getMeetLinkForInvite
+ * @property {import('vue').Ref<string>} meetLink
+ * @property {() => void} connectWebSocket
+ * @property {import('vue-router').Router} router
+ */
 
 /**
  * Composable para geração de links de convite para simulações
  * Gerencia criação de sessão no backend e construção da URL de convite
  */
-export function useInviteLinkGeneration(options: InviteLinkGenerationOptions) {
+/**
+ * @param {InviteLinkGenerationOptions} options
+ */
+export function useInviteLinkGeneration(options) {
   const {
     sessionId,
     stationId,
@@ -51,7 +54,7 @@ export function useInviteLinkGeneration(options: InviteLinkGenerationOptions) {
   /**
    * Busca recursivamente uma rota por nome nas rotas do router
    */
-  function findRouteByName(routes: any[], name: string): any {
+  function findRouteByName(routes, name) {
     for (const route of routes) {
       if (route.name === name) {
         return route
@@ -140,7 +143,7 @@ export function useInviteLinkGeneration(options: InviteLinkGenerationOptions) {
 
         console.log('[INVITE-LINK] ✅ WebSocket conectado com sucesso - ID:', socket.value.id)
 
-      } catch (error: any) {
+      } catch (error) {
         errorMessage.value = `Não foi possível gerar link de convite: ${error.message}`
         return
       }
@@ -171,7 +174,7 @@ export function useInviteLinkGeneration(options: InviteLinkGenerationOptions) {
 
       if (partnerRoleToInvite) {
         try {
-          const inviteQuery: any = {
+          const inviteQuery = {
             sessionId: sessionId.value,
             role: partnerRoleToInvite,
             duration: selectedDurationMinutes.value
@@ -214,7 +217,7 @@ export function useInviteLinkGeneration(options: InviteLinkGenerationOptions) {
           console.log('[INVITE-LINK] ✅ Link de convite gerado com sucesso:', inviteLinkToShow.value);
           errorMessage.value = ''
 
-        } catch (e: any) {
+        } catch (e) {
           errorMessage.value = `Erro ao gerar link de convite: ${e.message}`
         }
       }

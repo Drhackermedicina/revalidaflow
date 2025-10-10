@@ -3,15 +3,16 @@ import { currentUser } from '@/plugins/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/plugins/firebase'
 
-export interface UserRole {
-  isAdmin: boolean
-  isModerator: boolean
-  canDeleteMessages: boolean
-  canManageUsers: boolean
-}
+/**
+ * @typedef {Object} UserRole
+ * @property {boolean} isAdmin
+ * @property {boolean} isModerator
+ * @property {boolean} canDeleteMessages
+ * @property {boolean} canManageUsers
+ */
 
 export const useAuthPermissions = () => {
-  const userRole = ref<UserRole>({
+  const userRole = ref({
     isAdmin: false,
     isModerator: false,
     canDeleteMessages: false,

@@ -117,8 +117,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTheme } from 'vuetify'
-import { useDashboardData } from '@/composables/useDashboardData'
-import { useDashboardStats } from '@/composables/useDashboardStats'
+import { useDashboardData } from '@/composables/useDashboardData.js'
+import { useDashboardStats } from '@/composables/useDashboardStats.js'
 
 const theme = useTheme()
 

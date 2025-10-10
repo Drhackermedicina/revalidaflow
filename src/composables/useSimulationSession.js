@@ -1,5 +1,5 @@
 /**
- * useSimulationSession.ts
+ * useSimulationSession.js
  *
  * Composable para gerenciar o ciclo de vida da sessão de simulação
  * Extrai lógica de setupSession() e fetchSimulationData()
@@ -16,7 +16,7 @@ import { ref, computed } from 'vue'
 import { doc, getDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { db } from '@/plugins/firebase.js'
-import { formatTime } from '@/utils/simulationUtils'
+import { formatTime } from '@/utils/simulationUtils.js'
 
 export function useSimulationSession() {
   // --- Estado da sessão ---
@@ -58,7 +58,7 @@ export function useSimulationSession() {
   /**
    * Busca dados da estação no Firestore
    */
-  async function fetchSimulationData(currentStationId: string) {
+  async function fetchSimulationData(currentStationId) {
     if (!currentStationId) {
       errorMessage.value = 'ID da estação inválido.'
       isLoading.value = false
@@ -144,7 +144,7 @@ export function useSimulationSession() {
   /**
    * Configura modo sequencial a partir dos parâmetros da rota
    */
-  function setupSequentialMode(routeQuery: any) {
+  function setupSequentialMode(routeQuery) {
     isSequentialMode.value = routeQuery.sequential === 'true'
     sequenceId.value = routeQuery.sequenceId || null
     sequenceIndex.value = parseInt(routeQuery.sequenceIndex) || 0
@@ -177,7 +177,7 @@ export function useSimulationSession() {
   /**
    * Configura duração da simulação a partir dos parâmetros da rota
    */
-  function setupDuration(routeQuery: any) {
+  function setupDuration(routeQuery) {
     const durationFromQuery = routeQuery.duration ? parseInt(routeQuery.duration) : null
     const validOptions = [5, 6, 7, 8, 9, 10]
 
@@ -195,7 +195,7 @@ export function useSimulationSession() {
   /**
    * Valida parâmetros essenciais da sessão
    */
-  function validateSessionParams(): { valid: boolean; error?: string } {
+  function validateSessionParams() {
     if (!stationId.value) {
       return {
         valid: false,
@@ -235,7 +235,7 @@ export function useSimulationSession() {
   /**
    * Atualiza duração selecionada e timer
    */
-  function updateDuration(minutes: number) {
+  function updateDuration(minutes) {
     const validOptions = [5, 6, 7, 8, 9, 10]
     if (validOptions.includes(minutes)) {
       selectedDurationMinutes.value = minutes

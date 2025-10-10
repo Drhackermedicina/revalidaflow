@@ -1,5 +1,5 @@
 /**
- * useSimulationPEP.ts
+ * useSimulationPEP.js
  *
  * Composable para gerenciar PEP (Prontuário Eletrônico do Paciente)
  * Responsabilidades:
@@ -8,28 +8,29 @@
  * - Fornecer estado reativo para componentes PEP
  */
 
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 
 // Constante compartilhada para índice do título
 // Usa 999 pois o spread operator não copia propriedades negativas (array[-1])
 export const TITLE_INDEX = 999
 
-interface SimulationPEPParams {
-  userRole: Ref<string | null>
-  checklistData: Ref<any>
-}
+/**
+ * @typedef {Object} SimulationPEPParams
+ * @property {Ref<string|null>} userRole
+ * @property {Ref<any>} checklistData
+ */
 
-export function useSimulationPEP({ userRole, checklistData }: SimulationPEPParams) {
+export function useSimulationPEP({ userRole, checklistData }) {
   // Estado do PEP
   const pepViewState = ref({ isVisible: false })
-  const markedPepItems = ref<Record<string, boolean[]>>({})
+  const markedPepItems = ref({})
 
   /**
    * Alterna marcação de um ponto do PEP
-   * @param itemId - ID do item
-   * @param pointIndex - Índice (-1 para título, 0+ para subitens)
+   * @param {string} itemId - ID do item
+   * @param {number} pointIndex - Índice (-1 para título, 0+ para subitens)
    */
-  function togglePepItemMark(itemId: string, pointIndex: number) {
+  function togglePepItemMark(itemId, pointIndex) {
     if (userRole.value !== 'actor' && userRole.value !== 'evaluator') return
 
     const marks = markedPepItems.value[itemId] || []
@@ -44,7 +45,7 @@ export function useSimulationPEP({ userRole, checklistData }: SimulationPEPParam
 
   /** Inicializa marcações para itens do checklist */
   function initializePepItems() {
-    checklistData.value?.itensAvaliacao?.forEach((item: any) => {
+    checklistData.value?.itensAvaliacao?.forEach(item => {
       if (item.idItem && !markedPepItems.value[item.idItem]) {
         markedPepItems.value[item.idItem] = []
       }
@@ -62,7 +63,7 @@ export function useSimulationPEP({ userRole, checklistData }: SimulationPEPParam
   }
 
   /** Verifica se ponto está marcado */
-  function isPointMarked(itemId: string, pointIndex: number): boolean {
+  function isPointMarked(itemId, pointIndex) {
     const index = pointIndex === -1 ? TITLE_INDEX : pointIndex
     return markedPepItems.value[itemId]?.[index] === true
   }

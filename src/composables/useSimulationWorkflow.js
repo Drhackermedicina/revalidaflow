@@ -1,5 +1,5 @@
 /**
- * useSimulationWorkflow.ts
+ * useSimulationWorkflow.js
  *
  * Composable para gerenciar o fluxo completo da simulação
  * Extrai lógica de ciclo de vida (ready/start/end) do SimulationView.vue
@@ -13,21 +13,22 @@
  * - Gerenciar estado de botões e habilitação
  */
 
-import { ref, computed, watch, type Ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { formatTime } from '@/utils/simulationUtils'
 
-interface SimulationWorkflowParams {
-  socketRef: Ref<any>
-  sessionId: Ref<string | null>
-  userRole: Ref<string | null>
-  partner: Ref<any>
-  stationData: Ref<any>
-  simulationTimeSeconds: Ref<number>
-  timerDisplay: Ref<string>
-  selectedDurationMinutes: Ref<number>
-  inviteLinkToShow: Ref<string>
-  backendUrl: string
-}
+/**
+ * @typedef {Object} SimulationWorkflowParams
+ * @property {Ref<any>} socketRef
+ * @property {Ref<string|null>} sessionId
+ * @property {Ref<string|null>} userRole
+ * @property {Ref<any>} partner
+ * @property {Ref<any>} stationData
+ * @property {Ref<number>} simulationTimeSeconds
+ * @property {Ref<string>} timerDisplay
+ * @property {Ref<number>} selectedDurationMinutes
+ * @property {Ref<string>} inviteLinkToShow
+ * @property {string} backendUrl
+ */
 
 export function useSimulationWorkflow({
   socketRef,
@@ -40,47 +41,47 @@ export function useSimulationWorkflow({
   selectedDurationMinutes,
   inviteLinkToShow,
   backendUrl
-}: SimulationWorkflowParams) {
+}) {
 
   // --- Estado de preparação (ready) ---
 
   /**
    * Estado "pronto" do usuário atual
    */
-  const myReadyState = ref<boolean>(false)
+  const myReadyState = ref(false)
 
   /**
    * Estado "pronto" do parceiro
    */
-  const partnerReadyState = ref<boolean>(false)
+  const partnerReadyState = ref(false)
 
   /**
    * Controla se candidato pode clicar em "Estou pronto"
    * Habilitado após conexão bem-sucedida
    */
-  const candidateReadyButtonEnabled = ref<boolean>(false)
+  const candidateReadyButtonEnabled = ref(false)
 
   // --- Estado da simulação ---
 
   /**
    * Se a simulação foi iniciada
    */
-  const simulationStarted = ref<boolean>(false)
+  const simulationStarted = ref(false)
 
   /**
    * Se a simulação terminou
    */
-  const simulationEnded = ref<boolean>(false)
+  const simulationEnded = ref(false)
 
   /**
    * Se a simulação foi encerrada manualmente antes do tempo
    */
-  const simulationWasManuallyEndedEarly = ref<boolean>(false)
+  const simulationWasManuallyEndedEarly = ref(false)
 
   /**
    * Se o backend foi ativado (delayed activation)
    */
-  const backendActivated = ref<boolean>(false)
+  const backendActivated = ref(false)
 
   // --- Computeds ---
 
@@ -265,9 +266,9 @@ export function useSimulationWorkflow({
 
   /**
    * Processa evento de parceiro pronto
-   * @param data - Dados do evento (com isReady do servidor)
+   * @param {any} data - Dados do evento (com isReady do servidor)
    */
-  function handlePartnerReady(data: any) {
+  function handlePartnerReady(data) {
     if (data?.isReady !== undefined) {
       partnerReadyState.value = data.isReady
     }
@@ -275,9 +276,9 @@ export function useSimulationWorkflow({
 
   /**
    * Processa evento de início da simulação
-   * @param data - Dados do evento com durationSeconds
+   * @param {any} data - Dados do evento com durationSeconds
    */
-  function handleSimulationStart(data: any) {
+  function handleSimulationStart(data) {
     if (data && typeof data.durationSeconds === 'number') {
       simulationTimeSeconds.value = data.durationSeconds
       timerDisplay.value = formatTime(data.durationSeconds)
@@ -292,9 +293,9 @@ export function useSimulationWorkflow({
 
   /**
    * Processa atualização do timer via socket
-   * @param data - Dados com remainingSeconds
+   * @param {any} data - Dados com remainingSeconds
    */
-  function handleTimerUpdate(data: any) {
+  function handleTimerUpdate(data) {
     // Ignorar atualizações se a simulação já terminou
     if (simulationEnded.value) {
       return
@@ -315,9 +316,9 @@ export function useSimulationWorkflow({
 
   /**
    * Processa evento de timer parado manualmente
-   * @param data - Dados do evento
+   * @param {any} data - Dados do evento
    */
-  function handleTimerStopped(data: any) {
+  function handleTimerStopped(data) {
     simulationEnded.value = true
     simulationWasManuallyEndedEarly.value = true
   }

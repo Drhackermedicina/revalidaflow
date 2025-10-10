@@ -67,7 +67,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
-import { useChatUsers } from '@/composables/useChatUsers'
+import { useChatUsers } from '@/composables/useChatUsers.js'
 
 const router = useRouter()
 const theme = useTheme()

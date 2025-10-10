@@ -183,10 +183,10 @@ import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 
 // Importar composables criados
-import { useChatUsers } from '@/composables/useChatUsers'
-import { useChatMessages, formatTime } from '@/composables/useChatMessages'
-import { useChatInput } from '@/composables/useChatInput'
-import { useMessageCleanup } from '@/composables/useMessageCleanup'
+import { useChatUsers } from '@/composables/useChatUsers.js'
+import { useChatMessages, formatTime } from '@/composables/useChatMessages.js'
+import { useChatInput } from '@/composables/useChatInput.js'
+import { useMessageCleanup } from '@/composables/useMessageCleanup.js'
 
 const router = useRouter()
 const theme = useTheme()

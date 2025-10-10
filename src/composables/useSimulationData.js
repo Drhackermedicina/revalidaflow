@@ -1,5 +1,5 @@
 /**
- * useSimulationData.ts
+ * useSimulationData.js
  *
  * Composable para gerenciar dados e materiais da simulação
  * Extrai lógica de dados e impressos do SimulationView.vue
@@ -12,21 +12,22 @@
  * - Reset de dados ao reiniciar simulação
  */
 
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 
-interface SimulationDataParams {
-  socket: Ref<any>
-  sessionId: Ref<string | null>
-  userRole: Ref<string | null>
-  stationData: Ref<any>
-}
+/**
+ * @typedef {Object} SimulationDataParams
+ * @property {Ref<any>} socket
+ * @property {Ref<string|null>} sessionId
+ * @property {Ref<string|null>} userRole
+ * @property {Ref<any>} stationData
+ */
 
 export function useSimulationData({
   socket,
   sessionId,
   userRole,
   stationData
-}: SimulationDataParams) {
+}) {
 
   // --- Estado de dados da simulação ---
 
@@ -34,37 +35,37 @@ export function useSimulationData({
    * Dados/impressos liberados para o candidato
    * Chave: dataItemId, Valor: objeto do impresso
    */
-  const releasedData = ref<Record<string, any>>({})
+  const releasedData = ref({})
 
   /**
    * Controla se o checklist está visível para o candidato
    */
-  const isChecklistVisibleForCandidate = ref<boolean>(false)
+  const isChecklistVisibleForCandidate = ref(false)
 
   /**
    * Controla visibilidade de impressos para ator/avaliador
    * Chave: impressoId, Valor: boolean (visível ou não)
    */
-  const actorVisibleImpressoContent = ref<Record<string, boolean>>({})
+  const actorVisibleImpressoContent = ref({})
 
   /**
    * IDs de impressos já liberados pelo ator
    * Chave: impressoId, Valor: boolean (liberado ou não)
    */
-  const actorReleasedImpressoIds = ref<Record<string, boolean>>({})
+  const actorReleasedImpressoIds = ref({})
 
   /**
    * Controla abertura do modal/drawer de impressos
    */
-  const impressosModalOpen = ref<boolean>(false)
+  const impressosModalOpen = ref(false)
 
   // --- Métodos ---
 
   /**
    * Alterna a visibilidade de um impresso para ator/avaliador
-   * @param impressoId - ID do impresso
+   * @param {string} impressoId - ID do impresso
    */
-  function toggleActorImpressoVisibility(impressoId: string) {
+  function toggleActorImpressoVisibility(impressoId) {
     actorVisibleImpressoContent.value[impressoId] = !actorVisibleImpressoContent.value[impressoId]
     // Força reatividade criando novo objeto
     actorVisibleImpressoContent.value = { ...actorVisibleImpressoContent.value }
@@ -72,9 +73,9 @@ export function useSimulationData({
 
   /**
    * Libera um dado/impresso para o candidato via socket
-   * @param dataItemId - ID do item a ser liberado
+   * @param {string} dataItemId - ID do item a ser liberado
    */
-  function releaseData(dataItemId: string) {
+  function releaseData(dataItemId) {
     if (!socket.value?.connected || !sessionId.value) {
       console.warn('Socket não conectado ou sessionId não definido')
       return
@@ -101,15 +102,15 @@ export function useSimulationData({
   /**
    * Processa dados recebidos pelo candidato via socket
    * Deve ser chamado no listener 'CANDIDATE_RECEIVE_DATA'
-   * @param dataItemId - ID do item recebido
+   * @param {string} dataItemId - ID do item recebido
    */
-  function handleCandidateReceiveData(dataItemId: string) {
+  function handleCandidateReceiveData(dataItemId) {
     if (userRole.value !== 'candidate' || !stationData.value?.materiaisDisponiveis?.impressos) {
       return
     }
 
     const impressoParaLiberar = stationData.value.materiaisDisponiveis.impressos.find(
-      (item: any) => item.idImpresso === dataItemId
+      (item) => item.idImpresso === dataItemId
     )
 
     if (impressoParaLiberar) {
@@ -147,27 +148,27 @@ export function useSimulationData({
 
   /**
    * Verifica se um impresso foi liberado
-   * @param impressoId - ID do impresso
-   * @returns true se liberado
+   * @param {string} impressoId - ID do impresso
+   * @returns {boolean} true se liberado
    */
-  function isImpressoReleased(impressoId: string): boolean {
+  function isImpressoReleased(impressoId) {
     return !!actorReleasedImpressoIds.value[impressoId]
   }
 
   /**
    * Verifica se um impresso está visível para o ator
-   * @param impressoId - ID do impresso
-   * @returns true se visível
+   * @param {string} impressoId - ID do impresso
+   * @returns {boolean} true se visível
    */
-  function isImpressoVisible(impressoId: string): boolean {
+  function isImpressoVisible(impressoId) {
     return !!actorVisibleImpressoContent.value[impressoId]
   }
 
   /**
    * Conta quantos impressos foram liberados
-   * @returns número de impressos liberados
+   * @returns {number} número de impressos liberados
    */
-  function getReleasedCount(): number {
+  function getReleasedCount() {
     return Object.keys(actorReleasedImpressoIds.value).filter(
       key => actorReleasedImpressoIds.value[key]
     ).length
@@ -175,9 +176,9 @@ export function useSimulationData({
 
   /**
    * Conta quantos dados o candidato recebeu
-   * @returns número de dados recebidos
+   * @returns {number} número de dados recebidos
    */
-  function getReceivedDataCount(): number {
+  function getReceivedDataCount() {
     return Object.keys(releasedData.value).length
   }
 
