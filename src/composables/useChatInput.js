@@ -4,7 +4,7 @@ import { ref } from 'vue'
 const sanitizeHtml = (html) => {
     // Remove tags HTML potencialmente perigosas
     const allowedTags = ['a', 'br', 'strong', 'em', 'u']
-    const allowedAttrs = ['href', 'target', 'rel']
+    const _allowedAttrs = ['href', 'target', 'rel']
 
     // Regex simples para remover tags não permitidas
     let sanitized = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
@@ -40,7 +40,7 @@ export const useChatInput = () => {
             return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="message-link">${url}</a>`
         }).replace(/\n/g, '<br>')
     }
-    
+
     // Função para verificar se a mensagem contém links
     const hasLinks = (text) => {
         if (!text) return false

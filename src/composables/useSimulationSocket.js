@@ -126,7 +126,7 @@ export function useSimulationSocket(options) {
       });
     });
 
-    socketInstance.on('SERVER_JOIN_CONFIRMED', (data) => { });
+    socketInstance.on('SERVER_JOIN_CONFIRMED', (_data) => { });
 
     socketInstance.on('SERVER_PARTNER_JOINED', (participantInfo) => {
       console.log('[SOCKET] 📥 SERVER_PARTNER_JOINED recebido:', participantInfo);
@@ -252,7 +252,7 @@ export function useSimulationSocket(options) {
       }
     });
 
-    socketInstance.on('SIMULATION_TIMER_UPDATE', (data) => {
+    socketInstance.on('SIMULATION_TIMER_UPDATE', (_data) => {
       // Timer updates handled by workflow composable
     });
 
@@ -264,7 +264,7 @@ export function useSimulationSocket(options) {
       showNotification('Simulação finalizada pelo avaliador.', 'info');
     });
 
-    socketInstance.on('EVALUATION_SCORES', (data) => {
+    socketInstance.on('EVALUATION_SCORES', (_data) => {
       // Evaluation scores handled by evaluation composable
     });
 

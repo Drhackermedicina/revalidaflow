@@ -120,7 +120,7 @@ export function useImagePreloading({ stationData }) {
   /**
    * Pré-carrega uma única imagem
    */
-  function preloadSingleImage(imagePath, imageId, altText) {
+  function preloadSingleImage(imagePath, imageId, _altText) {
     if (!imagePath || !imageId) {
       return
     }
@@ -201,7 +201,7 @@ export function useImagePreloading({ stationData }) {
 
     const impressosComImagem = stationData.value.materiaisDisponiveis.impressos.filter(
       (impresso) => impresso.tipoConteudo === 'imagem_com_texto' &&
-                         impresso.conteudo?.caminhoImagem
+        impresso.conteudo?.caminhoImagem
     )
 
     if (impressosComImagem.length === 0) {

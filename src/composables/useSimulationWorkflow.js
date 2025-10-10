@@ -40,7 +40,7 @@ export function useSimulationWorkflow({
   timerDisplay,
   selectedDurationMinutes,
   inviteLinkToShow,
-  backendUrl
+  backendUrl: _backendUrl
 }) {
 
   // --- Estado de preparação (ready) ---
@@ -316,9 +316,9 @@ export function useSimulationWorkflow({
 
   /**
    * Processa evento de timer parado manualmente
-   * @param {any} data - Dados do evento
+   * @param {any} _data - Dados do evento
    */
-  function handleTimerStopped(data) {
+  function handleTimerStopped(_data) {
     simulationEnded.value = true
     simulationWasManuallyEndedEarly.value = true
   }

@@ -46,7 +46,7 @@ export const useDashboardStats = (userData) => {
         if (current === 0) return 0
 
         // Calcular próximo milestone (a cada 100 pontos)
-        const nextMilestone = Math.ceil(current / 100) * 100
+        const _nextMilestone = Math.ceil(current / 100) * 100
         const progress = ((current % 100) / 100) * 100
 
         return Math.round(progress)

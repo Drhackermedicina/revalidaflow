@@ -7,7 +7,7 @@ import { addRecentPrivateChat } from '@/utils/cacheManager'
 export function useSimulationInvites(reloadListeners) {
   const isProcessingInvite = ref(false)
   const { notify } = useNotificationStore()
-  
+
   // Enviar convite via múltiplos canais
   async function sendSimulationInvite({
     candidateUid,
@@ -20,7 +20,7 @@ export function useSimulationInvites(reloadListeners) {
     senderUid
   }) {
     isProcessingInvite.value = true
-    
+
     try {
       // 1. Enviar via chat privado (Firebase) - formato especial para convites
       await sendChatInvite({
@@ -33,7 +33,7 @@ export function useSimulationInvites(reloadListeners) {
         senderUid,
         meetLink
       })
-      
+
       // 2. Salvar convite persistente (Firebase)
       await saveInviteToFirebase({
         candidateUid,
@@ -68,11 +68,11 @@ export function useSimulationInvites(reloadListeners) {
       isProcessingInvite.value = false
     }
   }
-  
+
   // Enviar mensagem especial no chat privado
   async function sendChatInvite({
     candidateUid,
-    candidateName,
+    candidateName: _candidateName,
     inviteLink,
     stationTitle,
     duration,
@@ -81,16 +81,16 @@ export function useSimulationInvites(reloadListeners) {
     meetLink
   }) {
     const chatId = [senderUid, candidateUid].sort().join('_')
-    
+
     let messageText = `🎯 CONVITE PARA SIMULAÇÃO\n\n`
     messageText += `‍⚕️ Convidado por: ${senderName}\n\n`
-    
+
     if (meetLink) {
       messageText += `📹 Google Meet: ${meetLink}\n\n`
     }
-    
+
     messageText += `✨ Aguarde o link da simulação que será enviado em breve!`
-    
+
     const messageData = {
       senderId: senderUid,
       senderName: senderName,
@@ -107,11 +107,11 @@ export function useSimulationInvites(reloadListeners) {
         isInvite: true
       }
     }
-    
+
     const chatRef = collection(db, `chatPrivado_${chatId}`)
     await addDoc(chatRef, messageData)
   }
-  
+
   // Salvar convite no Firebase para persistência
   async function saveInviteToFirebase({
     candidateUid,
@@ -134,11 +134,11 @@ export function useSimulationInvites(reloadListeners) {
       createdAt: serverTimestamp(),
       expiresAt: new Date(Date.now() + (2 * 60 * 60 * 1000)) // Expira em 2 horas
     }
-    
+
     const invitesRef = collection(db, 'simulationInvites')
     await addDoc(invitesRef, inviteData)
   }
-  
+
   return {
     sendSimulationInvite,
     isProcessingInvite

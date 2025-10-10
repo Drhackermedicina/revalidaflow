@@ -22,7 +22,7 @@ export const useChatUsers = () => {
   let unsubscribe = null
   const pageSize = 50
 
-  const loadUsers = (loadMore = false) => {
+  const loadUsers = (_loadMore = false) => {
     const usersCollectionRef = collection(db, 'usuarios')
 
     // Buscar usuários com qualquer status ativo

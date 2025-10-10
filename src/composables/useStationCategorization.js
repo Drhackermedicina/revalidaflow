@@ -1,4 +1,3 @@
-import { computed } from 'vue'
 import { useTheme } from 'vuetify'
 import { useStationCache } from './useStationCache'
 
@@ -170,16 +169,16 @@ export function useStationCategorization() {
     if (key === 'geral') {
       const tituloOriginal = (station.tituloEstacao || '').toLowerCase()
       if (tituloOriginal.includes('pre-natal') || tituloOriginal.includes('prenatal') ||
-          tituloOriginal.includes('parto') || tituloOriginal.includes('gestante')) {
+        tituloOriginal.includes('parto') || tituloOriginal.includes('gestante')) {
         key = 'ginecologia'
       } else if (tituloOriginal.includes('crianca') || tituloOriginal.includes('pediatrica') ||
-                 tituloOriginal.includes('lactente') || tituloOriginal.includes('infantil')) {
+        tituloOriginal.includes('lactente') || tituloOriginal.includes('infantil')) {
         key = 'pediatria'
       } else if (tituloOriginal.includes('trauma') || tituloOriginal.includes('cirurgica') ||
-                 tituloOriginal.includes('operacao') || tituloOriginal.includes('procedimento cirurgico')) {
+        tituloOriginal.includes('operacao') || tituloOriginal.includes('procedimento cirurgico')) {
         key = 'cirurgia'
       } else if (tituloOriginal.includes('prevencao') || tituloOriginal.includes('sus') ||
-                 tituloOriginal.includes('atencao basica') || tituloOriginal.includes('familia')) {
+        tituloOriginal.includes('atencao basica') || tituloOriginal.includes('familia')) {
         key = 'preventiva'
       }
     }
