@@ -2,37 +2,224 @@
 
 Bem-vindo à documentação técnica completa do REVALIDAFLOW!
 
-Esta pasta contém toda a documentação viva do projeto, incluindo PRD (Product Requirements Document), tracking de features, changelog e guias técnicos.
+Esta pasta contém toda a documentação viva do projeto, incluindo PRD (Product Requirements Document), tracking de features, changelog, guias técnicos, arquitetura e testes.
 
 ---
 
-## 📁 Estrutura de Documentos
+## 📖 Índice Rápido
 
-### 📄 Documentos Principais
+- [📄 PRD e Documentação Viva](#-prd-e-documentacao-viva)
+- [🏗️ Arquitetura](#-arquitetura)
+- [🧠 Composables](#-composables)
+- [📘 Guias Técnicos](#-guias-tecnicos)
+- [🧪 Testes](#-testes)
+- [⚙️ Desenvolvimento](#-desenvolvimento)
+- [📋 Templates](#-templates)
+- [🛠️ Configurações](#-configuracoes)
+
+---
+
+## 📄 PRD e Documentação Viva
+
+### Documentos Principais
 
 | Documento | Descrição | Status |
 |-----------|-----------|--------|
 | [PRD_REVALIDAFLOW.md](./PRD_REVALIDAFLOW.md) | Product Requirements Document completo (90+ páginas) | 🟢 Ativo |
-| [FEATURES_TRACKING.md](./FEATURES_TRACKING.md) | Tracking de features implementadas vs planejadas | 🟢 Ativo |
+| [FEATURES_TRACKING.md](./FEATURES_TRACKING.md) | Tracking de features implementadas vs planejadas (13 implementadas) | 🟢 Ativo |
 | [CHANGELOG_PRD.md](./CHANGELOG_PRD.md) | Histórico de mudanças no PRD | 🟢 Ativo |
+| [COMO_USAR_PRD_SYSTEM.md](./COMO_USAR_PRD_SYSTEM.md) | Guia completo de uso do sistema de documentação viva | 🟢 Ativo |
+| [.prd-metadata.json](./.prd-metadata.json) | Metadados auto-gerados (contadores, versão, estatísticas) | 🤖 Auto |
+
+**Estatísticas Atuais (2025-10-12):**
+- 📄 Páginas: 28
+- 🧩 Componentes: 44
+- 🧠 Composables: 44
+- 🔌 Services: 9
+- 💾 Stores: 3
+- 📊 Linhas de código (estimado): 16.600
+
+---
+
+## 🏗️ Arquitetura
+
+| Documento | Descrição |
+|-----------|-----------|
+| [architecture/ESTRUTURA_ATUAL.md](./architecture/ESTRUTURA_ATUAL.md) | Estrutura detalhada do projeto (frontend + backend) |
+| [architecture/ESTRUTURA_ORGANIZADA.md](./architecture/ESTRUTURA_ORGANIZADA.md) | Nova organização planejada de pastas e arquivos |
+
+**O que encontrar:**
+- Visão geral das pastas `src/`, `backend/`, `tests/`
+- Fluxo de funcionamento (autenticação, simulações, chat, admin)
+- Componentes críticos e suas conexões
+- Resumo técnico da stack
+
+---
+
+## 🧠 Composables
+
+| Documento | Descrição |
+|-----------|-----------|
+| [composables/COMPOSABLES_DOCUMENTACAO.md](./composables/COMPOSABLES_DOCUMENTACAO.md) | Documentação resumida de cada composable (44 composables) |
+| [composables/COMPOSABLES_DOCUMENTACAO_COMPLETA.md](./composables/COMPOSABLES_DOCUMENTACAO_COMPLETA.md) | Documentação completa com código fonte |
+
+**Principais composables documentados:**
+- `useAuth.js` - Autenticação
+- `useSimulationSocket.ts` - WebSocket em tempo real
+- `useSimulationInvites.js` - Convites de simulação
+- `useAdminAuth.js` - Permissões de administrador
+- E 40+ outros composables
+
+---
+
+## 📘 Guias Técnicos
+
+| Documento | Descrição |
+|-----------|-----------|
+| [guides/PROJECT_OVERVIEW.md](./guides/PROJECT_OVERVIEW.md) | Visão geral completa do projeto REVALIDAFLOW |
+| [guides/AGENTS.md](./guides/AGENTS.md) | Documentação sobre agentes AI |
+| [guides/GEMINI.md](./guides/GEMINI.md) | Integração com Google Gemini AI |
+| [guides/GEMINI_CHAT_SETUP.md](./guides/GEMINI_CHAT_SETUP.md) | Setup do chat Gemini |
+| [guides/GEMINI_SERVICE_CHANGES.md](./guides/GEMINI_SERVICE_CHANGES.md) | Mudanças no serviço Gemini |
+| [guides/AUTH_DEBUG_IMPROVEMENTS.md](./guides/AUTH_DEBUG_IMPROVEMENTS.md) | Melhorias de debug de autenticação |
+| [guides/FRONTEND_NOTES.md](./guides/FRONTEND_NOTES.md) | Notas técnicas do frontend |
+| [guides/PAYMENT_INTEGRATION.md](./guides/PAYMENT_INTEGRATION.md) | Integração de pagamentos (planejado) |
+| [guides/PEP_MARKING_SYSTEM.md](./guides/PEP_MARKING_SYSTEM.md) | Sistema de marcação PEP |
+| [guides/PEP_REFACTORING_SUMMARY.md](./guides/PEP_REFACTORING_SUMMARY.md) | Resumo da refatoração PEP |
+
+---
+
+## 🧪 Testes
+
+| Documento | Descrição |
+|-----------|-----------|
+| [GUIA_TESTES.md](./GUIA_TESTES.md) | Guia completo de testes (Vitest + Playwright) |
+| [testing/TESTES_GUIA_COMPLETO.md](./testing/TESTES_GUIA_COMPLETO.md) | Guia detalhado de testes com exemplos práticos |
+
+**O que encontrar:**
+- Como escrever testes unitários (Vitest)
+- Como escrever testes E2E (Playwright)
+- Exemplos práticos do RevalidaFlow
+- Boas práticas e debugging
+- Scripts de teste disponíveis
+
+---
+
+## ⚙️ Desenvolvimento
+
+| Documento | Descrição |
+|-----------|-----------|
+| [development/DEVELOPMENT_HISTORY.md](./development/DEVELOPMENT_HISTORY.md) | Histórico de desenvolvimento do projeto |
+| [development/SCRIPTS_DESENVOLVIMENTO.md](./development/SCRIPTS_DESENVOLVIMENTO.md) | Guia completo dos scripts disponíveis |
+
+**Scripts principais:**
+```bash
+npm run dev                 # Servidor de desenvolvimento
+npm run build              # Build para produção
+npm run test               # Rodar testes
+npm run update-prd         # Atualizar documentação
+npm run backend:local      # Rodar backend local
+```
+
+---
+
+## 📋 Templates
+
+| Documento | Descrição |
+|-----------|-----------|
+| [templates/feature-template.md](./templates/feature-template.md) | Template completo para documentar novas features |
+
+**Quando usar:**
+- Ao implementar nova funcionalidade
+- Ao planejar features futuras
+- Para documentar decisões técnicas
+
+---
+
+## 🛠️ Configurações
+
+| Documento | Descrição |
+|-----------|-----------|
+| [SENTRY_SETUP.md](./SENTRY_SETUP.md) | Configuração do Sentry para monitoramento de erros |
+| [metodo de ensino prova descritiva.md](./metodo%20de%20ensino%20prova%20descritiva.md) | Metodologia de ensino para prova descritiva |
 
 ---
 
 ## 🚀 Como Usar Esta Documentação
 
-### 1. Atualizar Documentação
+### 1. Atualizar Documentação (Sistema Vivo)
 
 #### Opção A: Script Automático (Recomendado)
-\`\`\`bash
+```bash
 npm run update-prd
-\`\`\`
+```
 
 #### Opção B: Comando Claude Code
-\`\`\`bash
+```bash
 /update-prd
-\`\`\`
+```
+
+#### Opção C: Git Hook Automático
+O sistema detecta mudanças automaticamente ao fazer `git commit` e exibe lembretes para atualizar o PRD.
+
+### 2. Criar Nova Feature
+
+1. Copie `templates/feature-template.md`
+2. Preencha todas as seções
+3. Implemente a feature
+4. Execute `npm run update-prd`
+5. Atualize o `CHANGELOG_PRD.md`
+
+### 3. Buscar Informação
+
+**Por categoria:**
+- Dúvida sobre estrutura do projeto → `architecture/`
+- Entender um composable → `composables/`
+- Como testar algo → `testing/` ou `GUIA_TESTES.md`
+- Setup de integração → `guides/`
+
+**Por funcionalidade:**
+- Use Ctrl+F neste README para buscar keywords
+- Consulte o índice de cada documento
 
 ---
 
-**Versão da Documentação**: 1.0.0
-**Última atualização**: 2025-01-12
+## 📊 Status do Projeto
+
+**Versão do PRD:** 1.0.0
+**Última atualização:** 2025-10-12
+**Features implementadas:** 13/13 (100%)
+**Features planejadas Q1 2025:** 12
+
+**Stack Tecnológico:**
+- Frontend: Vue.js 3 + Vuetify 3 + Pinia
+- Backend: Node.js + Express + Socket.IO
+- Database: Google Firestore
+- AI: Google Gemini
+- Hosting: Firebase + Google Cloud Run
+
+---
+
+## 🤝 Contribuindo
+
+Ao adicionar/modificar funcionalidades:
+
+1. ✅ Atualize a documentação relevante
+2. ✅ Execute `npm run update-prd` para atualizar contadores
+3. ✅ Adicione entrada no `CHANGELOG_PRD.md`
+4. ✅ Escreva/atualize testes
+5. ✅ Revise `FEATURES_TRACKING.md` se aplicável
+
+---
+
+## 📞 Suporte
+
+Dúvidas sobre a documentação? Consulte:
+- [COMO_USAR_PRD_SYSTEM.md](./COMO_USAR_PRD_SYSTEM.md) para detalhes do sistema de documentação
+- [guides/PROJECT_OVERVIEW.md](./guides/PROJECT_OVERVIEW.md) para visão geral completa
+
+---
+
+**Última sincronização:** 2025-10-12
+**Documentos totais:** 27 arquivos
+**Sistema de documentação:** ✅ Ativo e funcionando

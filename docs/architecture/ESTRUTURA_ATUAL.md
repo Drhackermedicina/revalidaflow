@@ -246,3 +246,25 @@ Esta estrutura suporta uma aplicação complexa de simulações médicas com:
 - Integração com IA
 - Gerenciamento de conteúdo
 - Sistema de administração
+
+---
+
+## 📈 Estatísticas do Projeto (Atualizadas em 2025-10-12)
+
+**Código Frontend:**
+- 📄 Páginas (`src/pages/`): **28 arquivos**
+- 🧩 Componentes (`src/components/`): **44 arquivos**
+- 🧠 Composables (`src/composables/`): **44 arquivos**
+- 🔌 Services (`src/services/`): **9 arquivos**
+- 💾 Stores (`src/stores/`): **3 arquivos**
+
+**Estimativas:**
+- Linhas de código total: ~16.600 linhas
+- Cobertura de testes: Em desenvolvimento
+- Features implementadas: 13/13 (100%)
+
+**Para estatísticas sempre atualizadas, consulte:**
+- `docs/.prd-metadata.json` - Metadados auto-gerados
+- `docs/FEATURES_TRACKING.md` - Tracking de features
+
+**Última atualização deste documento:** 2025-10-12

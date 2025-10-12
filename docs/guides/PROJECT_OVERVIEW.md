@@ -58,15 +58,45 @@ O REVALIDAFLOW é um aplicativo desenvolvido para auxiliar estudantes de medicin
 
 ## 5. Documentação Atualizada
 
-Para facilitar o entendimento e manutenção do projeto, foram criados documentos adicionais:
+Para facilitar o entendimento e manutenção do projeto, existe um **sistema completo de documentação viva** com atualização automática.
 
-*   **`docs/ESTRUTURA_ATUAL.md`** - Documentação completa da estrutura do projeto, incluindo organização de pastas e arquivos.
-*   **`docs/COMPOSABLES_DOCUMENTACAO.md`** - Documentação detalhada de cada composable, explicando sua função, parâmetros e uso.
-*   **`docs/COMPOSABLES_DOCUMENTACAO_COMPLETA.md`** - Documentação ainda mais detalhada dos composables com código fonte.
-*   **`docs/SCRIPTS_DESENVOLVIMENTO.md`** - Guia completo dos scripts de desenvolvimento e testes disponíveis.
-*   **`docs/ESTRUTURA_ORGANIZADA.md`** - Documentação da nova estrutura organizada do projeto.
-*   **`backend/docs/ESTRUTURA_ORGANIZADA.md`** - Documentação da nova estrutura organizada do backend.
-*   **`README.md`** - Inclui referências aos documentos acima e instruções atualizadas.
+### 📚 Sistema de Documentação Viva (PRD System)
+
+O projeto possui um sistema automatizado que mantém a documentação sincronizada com o código:
+
+*   **`docs/PRD_REVALIDAFLOW.md`** - Product Requirements Document completo (90+ páginas) com todas as funcionalidades
+*   **`docs/FEATURES_TRACKING.md`** - Tracking de features implementadas vs planejadas (13 implementadas, 100%)
+*   **`docs/CHANGELOG_PRD.md`** - Histórico de mudanças com versionamento semântico
+*   **`docs/COMO_USAR_PRD_SYSTEM.md`** - Guia completo de uso do sistema de documentação
+*   **`docs/.prd-metadata.json`** - Metadados auto-gerados (28 páginas, 44 componentes, 44 composables, 9 services, 3 stores)
+
+**Como atualizar:** Execute `npm run update-prd` ou use `/update-prd` no Claude Code
+
+### 🏗️ Documentação de Arquitetura
+
+*   **`docs/architecture/ESTRUTURA_ATUAL.md`** - Estrutura detalhada do projeto (frontend + backend)
+*   **`docs/architecture/ESTRUTURA_ORGANIZADA.md`** - Nova organização planejada de pastas
+
+### 🧠 Documentação de Composables
+
+*   **`docs/composables/COMPOSABLES_DOCUMENTACAO.md`** - Documentação resumida de cada composable (44 composables)
+*   **`docs/composables/COMPOSABLES_DOCUMENTACAO_COMPLETA.md`** - Documentação completa com código fonte
+
+### ⚙️ Documentação de Desenvolvimento
+
+*   **`docs/development/SCRIPTS_DESENVOLVIMENTO.md`** - Guia completo dos scripts de desenvolvimento e testes
+*   **`docs/development/DEVELOPMENT_HISTORY.md`** - Histórico de desenvolvimento
+
+### 🧪 Documentação de Testes
+
+*   **`docs/GUIA_TESTES.md`** - Guia completo de testes (Vitest + Playwright)
+*   **`docs/testing/TESTES_GUIA_COMPLETO.md`** - Guia detalhado com exemplos práticos
+
+### 📄 Índice Completo
+
+*   **`docs/README.md`** - Índice completo de TODA a documentação com links organizados por categoria
+
+**Última atualização:** 2025-10-12
 
 ## 6. Próximos Passos (Documentação)
 
