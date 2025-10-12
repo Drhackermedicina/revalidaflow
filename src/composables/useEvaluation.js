@@ -15,6 +15,9 @@
 
 import { ref, computed } from 'vue'
 import { registrarConclusaoEstacao } from '@/services/stationEvaluationService.js'
+import Logger from '@/utils/logger';
+const logger = new Logger('useEvaluation');
+
 
 /**
  * @typedef {Object} EvaluationParams
@@ -75,13 +78,13 @@ export function useEvaluation({
    */
   async function submitEvaluation() {
     if (userRole.value !== 'candidate') {
-      console.error('[DEBUG] submitEvaluation: ERRO - Não é candidato')
+      logger.error('[DEBUG] submitEvaluation: ERRO - Não é candidato')
       alert('Apenas o candidato pode submeter avaliação.')
       return
     }
 
     if (!socket.value?.connected || !sessionId.value) {
-      console.error('[DEBUG] submitEvaluation: ERRO - Não conectado ou sem sessionId')
+      logger.error('[DEBUG] submitEvaluation: ERRO - Não conectado ou sem sessionId')
       alert('Não conectado a uma sessão válida.')
       return
     }
@@ -92,7 +95,7 @@ export function useEvaluation({
       : evaluationScores.value
 
     if (Object.keys(scoresToSubmit).length === 0) {
-      console.error('[DEBUG] submitEvaluation: ERRO - Nenhuma pontuação registrada')
+      logger.error('[DEBUG] submitEvaluation: ERRO - Nenhuma pontuação registrada')
       alert('Nenhuma pontuação foi registrada pelo avaliador.')
       return
     }
@@ -109,7 +112,7 @@ export function useEvaluation({
       // Marcar como submetido
       evaluationSubmittedByCandidate.value = true
     } catch (error) {
-      console.error('[DEBUG] submitEvaluation: ERRO ao emitir evento:', error)
+      logger.error('[DEBUG] submitEvaluation: ERRO ao emitir evento:', error)
       alert('Erro ao submeter avaliação. Veja o console para detalhes.')
       return
     }
@@ -119,7 +122,7 @@ export function useEvaluation({
 
     // Validação final
     if (!candidateUid) {
-      console.error('[DEBUG] submitEvaluation: ERRO - UID do candidato não disponível')
+      logger.error('[DEBUG] submitEvaluation: ERRO - UID do candidato não disponível')
       alert('Não foi possível identificar o candidato para registrar a avaliação.')
       return
     }
@@ -142,13 +145,13 @@ export function useEvaluation({
         // Mostrar notificação de sucesso
         showNotification('Avaliação submetida com sucesso!', 'success')
       } catch (err) {
-        console.error('[DEBUG] submitEvaluation: ERRO ao registrar no Firestore:', err)
+        logger.error('[DEBUG] submitEvaluation: ERRO ao registrar no Firestore:', err)
         alert('Erro ao registrar avaliação. Veja o console para detalhes.')
       }
     } else {
-      console.error('[DEBUG] submitEvaluation: Dados insuficientes para registrar')
-      console.error('[DEBUG] submitEvaluation: stationId =', stationId.value)
-      console.error('[DEBUG] submitEvaluation: finalScore =', finalScore)
+      logger.error('[DEBUG] submitEvaluation: Dados insuficientes para registrar')
+      logger.error('[DEBUG] submitEvaluation: stationId =', stationId.value)
+      logger.error('[DEBUG] submitEvaluation: finalScore =', finalScore)
       alert('Dados insuficientes para registrar avaliação.')
     }
   }
@@ -157,38 +160,38 @@ export function useEvaluation({
    * Libera PEP para o candidato após fim da simulação
    */
   function releasePepToCandidate() {
-    console.log('[PEP_RELEASE] 📤 Tentando liberar PEP para candidato');
-    console.log('[PEP_RELEASE]   - socket.connected:', socket.value?.connected);
-    console.log('[PEP_RELEASE]   - sessionId:', sessionId.value);
-    console.log('[PEP_RELEASE]   - pepReleasedToCandidate:', pepReleasedToCandidate.value);
-    console.log('[PEP_RELEASE]   - userRole:', userRole.value);
-    console.log('[PEP_RELEASE]   - simulationEnded:', simulationEnded.value);
+    logger.debug('[PEP_RELEASE] 📤 Tentando liberar PEP para candidato');
+    logger.debug('[PEP_RELEASE]   - socket.connected:', socket.value?.connected);
+    logger.debug('[PEP_RELEASE]   - sessionId:', sessionId.value);
+    logger.debug('[PEP_RELEASE]   - pepReleasedToCandidate:', pepReleasedToCandidate.value);
+    logger.debug('[PEP_RELEASE]   - userRole:', userRole.value);
+    logger.debug('[PEP_RELEASE]   - simulationEnded:', simulationEnded.value);
 
     if (!socket.value?.connected || !sessionId.value) {
-      console.error('[PEP_RELEASE] ❌ Socket não conectado ou sessionId inválido');
+      logger.error('[PEP_RELEASE] ❌ Socket não conectado ou sessionId inválido');
       alert('Erro: Não conectado.')
       return
     }
 
     if (pepReleasedToCandidate.value) {
-      console.warn('[PEP_RELEASE] ⚠️ PEP já foi liberado');
+      logger.warn('[PEP_RELEASE] ⚠️ PEP já foi liberado');
       return
     }
 
     if (userRole.value !== 'actor' && userRole.value !== 'evaluator') {
-      console.error('[PEP_RELEASE] ❌ Usuário não autorizado:', userRole.value);
+      logger.error('[PEP_RELEASE] ❌ Usuário não autorizado:', userRole.value);
       alert('Não autorizado.')
       return
     }
 
     // Só permite liberar o PEP após o fim da estação
     if (!simulationEnded.value) {
-      console.error('[PEP_RELEASE] ❌ Simulação ainda não terminou');
+      logger.error('[PEP_RELEASE] ❌ Simulação ainda não terminou');
       alert('O PEP só pode ser liberado após o encerramento da estação.')
       return
     }
 
-    console.log('[PEP_RELEASE] ✅ Todas as verificações passaram - liberando PEP');
+    logger.debug('[PEP_RELEASE] ✅ Todas as verificações passaram - liberando PEP');
 
     // SINCRONIZAÇÃO: Envia avaliações atuais junto com a liberação do PEP
     const currentScores = {}
@@ -199,18 +202,18 @@ export function useEvaluation({
 
     const currentTotal = Object.values(currentScores).reduce((sum, v) => sum + (isNaN(v) ? 0 : v), 0)
 
-    console.log('[PEP_RELEASE] 📊 Scores atuais:', currentScores);
-    console.log('[PEP_RELEASE] 🔢 Total:', currentTotal);
+    logger.debug('[PEP_RELEASE] 📊 Scores atuais:', currentScores);
+    logger.debug('[PEP_RELEASE] 🔢 Total:', currentTotal);
 
     // Libera o PEP após verificar todas as condições
     const payload = { sessionId: sessionId.value }
-    console.log('[PEP_RELEASE] 📤 Emitindo ACTOR_RELEASE_PEP:', payload);
+    logger.debug('[PEP_RELEASE] 📤 Emitindo ACTOR_RELEASE_PEP:', payload);
     socket.value.emit('ACTOR_RELEASE_PEP', payload)
 
     // SINCRONIZAÇÃO: Força envio das avaliações atuais imediatamente após liberação
     setTimeout(() => {
       if (Object.keys(currentScores).length > 0) {
-        console.log('[PEP_RELEASE] 📤 Enviando scores para candidato');
+        logger.debug('[PEP_RELEASE] 📤 Enviando scores para candidato');
         socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
           sessionId: sessionId.value,
           scores: currentScores,
@@ -221,7 +224,7 @@ export function useEvaluation({
     }, 100) // Pequeno delay para garantir que o PEP foi liberado primeiro
 
     pepReleasedToCandidate.value = true
-    console.log('[PEP_RELEASE] ✅ PEP liberado com sucesso');
+    logger.debug('[PEP_RELEASE] ✅ PEP liberado com sucesso');
   }
 
   /**

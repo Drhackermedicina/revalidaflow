@@ -37,7 +37,19 @@
       "Bash(done)",
       "Bash(cat:*)",
       "Bash(npx eslint:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "WebSearch",
+      "Bash(mkdir:*)",
+      "Bash(if [ -f \"PRD_REVALIDAFLOW.md\" ])",
+      "Bash(then mv PRD_REVALIDAFLOW.md docs/PRD_REVALIDAFLOW.md)",
+      "Bash(else echo \"PRD já está em docs/\")",
+      "Bash(fi)",
+      "Bash(npm run update-prd:*)",
+      "Bash(ren:*)",
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

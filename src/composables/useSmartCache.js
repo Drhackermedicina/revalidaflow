@@ -1,3 +1,6 @@
+import Logger from '@/utils/logger';
+const logger = new Logger('useSmartCache');
+
 /**
  * useSmartCache.js
  * 
@@ -58,7 +61,7 @@ export function useSmartCache() {
         return memoryCache.get(fullKey)
       }
     } catch (error) {
-      console.warn('Erro ao ler cache:', error)
+      logger.warn('Erro ao ler cache:', error)
       // Remove item corrompido
       if (hasLocalStorage) {
         localStorage.removeItem(fullKey)
@@ -88,7 +91,7 @@ export function useSmartCache() {
 
         // Verifica tamanho antes de salvar (localStorage tem limite de ~5-10MB)
         if (serialized.length > 500000) { // 500KB limite por item
-          console.warn(`Cache item muito grande (${(serialized.length / 1024).toFixed(2)}KB), usando cache de memória`)
+          logger.warn(`Cache item muito grande (${(serialized.length / 1024).toFixed(2)}KB), usando cache de memória`)
           memoryCache.set(fullKey, cacheData)
         } else {
           localStorage.setItem(fullKey, serialized)
@@ -97,7 +100,7 @@ export function useSmartCache() {
         memoryCache.set(fullKey, cacheData)
       }
     } catch (error) {
-      console.warn('Erro ao salvar cache:', error)
+      logger.warn('Erro ao salvar cache:', error)
       // Se localStorage estiver cheio, limpa cache antigo
       if (error.name === 'QuotaExceededError') {
         clearExpiredCache()
@@ -183,14 +186,14 @@ export function useSmartCache() {
 
         // Verifica se ainda está válido
         if (cached.expires > now) {
-          console.log(`✅ Cache hit: ${key}`)
+          logger.debug(`✅ Cache hit: ${key}`)
           return cached.data
         }
       }
     }
 
     // Cache miss ou expirado - busca dados frescos
-    console.log(`🔄 Cache miss/expired: ${key} - buscando dados...`)
+    logger.debug(`🔄 Cache miss/expired: ${key} - buscando dados...`)
 
     try {
       const freshData = await fetcher()
@@ -200,12 +203,12 @@ export function useSmartCache() {
 
       return freshData
     } catch (error) {
-      console.error(`Erro ao buscar dados para ${key}:`, error)
+      logger.error(`Erro ao buscar dados para ${key}:`, error)
 
       // Se houver erro, tenta retornar cache expirado (melhor que nada)
       const cached = getCacheItem(key)
       if (cached && cached.data) {
-        console.warn(`Usando cache expirado devido a erro: ${key}`)
+        logger.warn(`Usando cache expirado devido a erro: ${key}`)
         return cached.data
       }
 

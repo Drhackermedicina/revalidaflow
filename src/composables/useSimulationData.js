@@ -13,6 +13,9 @@
  */
 
 import { ref } from 'vue'
+import Logger from '@/utils/logger';
+const logger = new Logger('useSimulationData');
+
 
 /**
  * @typedef {Object} SimulationDataParams
@@ -77,7 +80,7 @@ export function useSimulationData({
    */
   function releaseData(dataItemId) {
     if (!socket.value?.connected || !sessionId.value) {
-      console.warn('Socket não conectado ou sessionId não definido')
+      logger.warn('Socket não conectado ou sessionId não definido')
       return
     }
 

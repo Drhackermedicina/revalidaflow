@@ -2,6 +2,9 @@
 
 import { ref } from 'vue'
 import { useSimulationInvites } from '@/composables/useSimulationInvites.js'
+import Logger from '@/utils/logger';
+const logger = new Logger('useSimulationHelpers');
+
 
 /**
  * Opções para o composable de helpers de simulação
@@ -46,7 +49,7 @@ export function useSimulationHelpers(options) {
     try {
       sessionStorage.removeItem('selectedCandidate')
     } catch (error) {
-      console.warn('Erro ao limpar candidato selecionado:', error)
+      logger.warn('Erro ao limpar candidato selecionado:', error)
     }
   }
 
@@ -60,7 +63,7 @@ export function useSimulationHelpers(options) {
         selectedCandidateForSimulation.value = JSON.parse(storedCandidate)
       }
     } catch (error) {
-      console.warn('Erro ao carregar candidato selecionado:', error)
+      logger.warn('Erro ao carregar candidato selecionado:', error)
     }
   }
 
@@ -109,7 +112,7 @@ export function useSimulationHelpers(options) {
       }
 
     } catch (error) {
-      console.error('Erro ao enviar convite:', error)
+      logger.error('Erro ao enviar convite:', error)
     } finally {
       sendingChat.value = false
     }

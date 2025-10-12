@@ -15,6 +15,9 @@
 
 import { ref, computed, watch } from 'vue'
 import { formatTime } from '@/utils/simulationUtils'
+import Logger from '@/utils/logger';
+const logger = new Logger('useSimulationWorkflow');
+
 
 /**
  * @typedef {Object} SimulationWorkflowParams
@@ -117,7 +120,7 @@ export function useSimulationWorkflow({
     const socket = socketRef.value
 
     if (!socket || !socket.connected) {
-      console.error('Socket não disponível ou não conectado')
+      logger.error('Socket não disponível ou não conectado')
       return
     }
 
@@ -151,7 +154,7 @@ export function useSimulationWorkflow({
       // A sessão já foi criada no backend quando o WebSocket conectou
       backendActivated.value = true
     } catch (error) {
-      console.error('Erro ao ativar backend:', error)
+      logger.error('Erro ao ativar backend:', error)
       alert(`Erro ao ativar o backend: ${error.message}`)
 
       // Reset ready states on error
@@ -201,7 +204,7 @@ export function useSimulationWorkflow({
     }
 
     if (!socketRef.value?.connected || !sessionId.value) {
-      console.error('Socket não conectado ou sessionId inválido')
+      logger.error('Socket não conectado ou sessionId inválido')
       alert("Erro: Não conectado para encerrar.")
       return
     }
@@ -230,7 +233,7 @@ export function useSimulationWorkflow({
           timerDisplay.value = formatTime(simulationTimeSeconds.value)
         }
       } else if (simulationStarted.value) {
-        console.warn("Não é possível alterar a duração após o início da simulação.")
+        logger.warn("Não é possível alterar a duração após o início da simulação.")
       } else if (inviteLinkToShow.value) {
         // Se o link já foi gerado, a duração está "travada" com a duração do link.
         // Resetar o dropdown para o valor correto caso o usuário mude e tente iniciar de novo.
@@ -245,7 +248,7 @@ export function useSimulationWorkflow({
           selectedDurationMinutes.value = currentDurationInMinutes
         }
 
-        console.warn("Duração travada após geração do link. Use o valor previamente selecionado.")
+        logger.warn("Duração travada após geração do link. Use o valor previamente selecionado.")
       }
     }
   }
@@ -389,13 +392,13 @@ export function useSimulationWorkflow({
       if (userRole.value === 'actor' || userRole.value === 'evaluator') {
         // Verificar se socket está conectado
         if (!socketRef.value || !socketRef.value.connected) {
-          console.error('Socket não conectado! Não é possível iniciar')
+          logger.error('Socket não conectado! Não é possível iniciar')
           alert('Erro: Conexão com servidor perdida. Recarregue a página.')
           return
         }
 
         if (!sessionId.value) {
-          console.error('SessionId não definido! Não é possível iniciar')
+          logger.error('SessionId não definido! Não é possível iniciar')
           return
         }
 

@@ -3,6 +3,9 @@ import { io } from 'socket.io-client';
 import { ref, onBeforeUnmount } from 'vue';
 import { backendUrl } from '@/utils/backendUrl.js';
 import { captureWebSocketError, captureSimulationError } from '@/plugins/sentry';
+import Logger from '@/utils/logger';
+const logger = new Logger('useSimulationSocket');
+
 
 /**
  * @typedef {Object} SimulationSocketOptions
@@ -78,11 +81,11 @@ export function useSimulationSocket(options) {
       // 🔧 NOVO: Sincronizar referência externa se fornecida
       if (socketRef) {
         socketRef.value = socketInstance;
-        console.log('[SOCKET] ✅ Referência externa sincronizada:', socketInstance.id);
+        logger.debug('[SOCKET] ✅ Referência externa sincronizada:', socketInstance.id);
       }
 
       handleSocketConnect();
-      console.log('[SOCKET] 🟢 Conectado com sucesso - ID:', socketInstance.id);
+      logger.debug('[SOCKET] 🟢 Conectado com sucesso - ID:', socketInstance.id);
     });
 
     socketInstance.on('disconnect', (reason) => {
@@ -129,21 +132,21 @@ export function useSimulationSocket(options) {
     socketInstance.on('SERVER_JOIN_CONFIRMED', (_data) => { });
 
     socketInstance.on('SERVER_PARTNER_JOINED', (participantInfo) => {
-      console.log('[SOCKET] 📥 SERVER_PARTNER_JOINED recebido:', participantInfo);
+      logger.debug('[SOCKET] 📥 SERVER_PARTNER_JOINED recebido:', participantInfo);
       if (participantInfo && participantInfo.userId !== currentUser.value?.uid) {
         partner.value = participantInfo;
         partnerReadyState.value = participantInfo.isReady || false;
         errorMessage.value = '';
-        console.log('[SOCKET] ✅ Partner atualizado - Ready:', partnerReadyState.value);
+        logger.debug('[SOCKET] ✅ Partner atualizado - Ready:', partnerReadyState.value);
       }
     });
 
     socketInstance.on('SERVER_PARTNER_UPDATE', (data) => {
-      console.log('[SOCKET] 📥 SERVER_PARTNER_UPDATE recebido:', data);
+      logger.debug('[SOCKET] 📥 SERVER_PARTNER_UPDATE recebido:', data);
       updatePartnerInfo(data.participants);
 
       // 🔧 FIX: Verificar se ambos estão prontos após atualização do parceiro
-      console.log('[SOCKET] 🔍 Verificando estado após SERVER_PARTNER_UPDATE:', {
+      logger.debug('[SOCKET] 🔍 Verificando estado após SERVER_PARTNER_UPDATE:', {
         myReadyState: myReadyState.value,
         partnerReadyState: partnerReadyState.value,
         backendActivated: backendActivated.value,
@@ -153,8 +156,8 @@ export function useSimulationSocket(options) {
 
       // 🚀 ATIVAÇÃO DO BACKEND BASEADA EM SERVER_PARTNER_UPDATE
       if (myReadyState.value && partnerReadyState.value && partner.value && !backendActivated.value) {
-        console.log('[SOCKET] 🎯 Ambos prontos detectado via SERVER_PARTNER_UPDATE! Ativando backend...')
-        console.log('[SOCKET] 🔍 Estado antes da ativação:', {
+        logger.debug('[SOCKET] 🎯 Ambos prontos detectado via SERVER_PARTNER_UPDATE! Ativando backend...')
+        logger.debug('[SOCKET] 🔍 Estado antes da ativação:', {
           myReadyState: myReadyState.value,
           partnerReadyState: partnerReadyState.value,
           partner: partner.value,
@@ -164,21 +167,21 @@ export function useSimulationSocket(options) {
 
         backendActivated.value = true
 
-        console.log('[SOCKET] ✅ Backend ativado via SERVER_PARTNER_UPDATE - Botão "Iniciar Simulação" deve aparecer agora!')
-        console.log('[SOCKET] 🔍 Estado após ativação:', {
+        logger.debug('[SOCKET] ✅ Backend ativado via SERVER_PARTNER_UPDATE - Botão "Iniciar Simulação" deve aparecer agora!')
+        logger.debug('[SOCKET] 🔍 Estado após ativação:', {
           backendActivated: backendActivated.value,
           timestamp: new Date().toISOString()
         });
 
         // 🔧 DIAGNÓSTICO: Verificar se a mudança foi aplicada imediatamente
         setTimeout(() => {
-          console.log('[SOCKET] 🔍 Verificação pós-ativação (100ms):', {
+          logger.debug('[SOCKET] 🔍 Verificação pós-ativação (100ms):', {
             backendActivated: backendActivated.value,
             aindaIgual: backendActivated.value === true
           });
         }, 100);
       } else {
-        console.log('[SOCKET] ⏳ Condições não satisfeitas para ativação:', {
+        logger.debug('[SOCKET] ⏳ Condições não satisfeitas para ativação:', {
           myReadyState: myReadyState.value,
           partnerReadyState: partnerReadyState.value,
           partnerExists: !!partner.value,
@@ -188,7 +191,7 @@ export function useSimulationSocket(options) {
       }
 
       // 🔧 DIAGNÓSTICO: Log específico para partnerReadyState
-      console.log('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState após SERVER_PARTNER_UPDATE:', {
+      logger.debug('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState após SERVER_PARTNER_UPDATE:', {
         partnerReadyState: partnerReadyState.value,
         tipo: 'tempPartnerReadyState (passado como parâmetro)',
         fonte: 'SERVER_PARTNER_UPDATE',
@@ -197,18 +200,18 @@ export function useSimulationSocket(options) {
     });
 
     function updatePartnerInfo(participants) {
-      console.log('[SOCKET] 🔧 updatePartnerInfo chamado com:', participants);
+      logger.debug('[SOCKET] 🔧 updatePartnerInfo chamado com:', participants);
       const currentUserId = currentUser.value?.uid;
       if (participants && Array.isArray(participants) && currentUserId) {
         const otherParticipant = participants.find(p => p.userId !== currentUserId);
         if (otherParticipant) {
-          console.log('[SOCKET] 🔄 Partner encontrado:', otherParticipant);
+          logger.debug('[SOCKET] 🔄 Partner encontrado:', otherParticipant);
           const oldPartnerReadyState = partnerReadyState.value;
           partner.value = otherParticipant;
           partnerReadyState.value = partner.value.isReady || false;
           errorMessage.value = '';
-          console.log('[SOCKET] ✅ Partner atualizado - Ready:', partnerReadyState.value);
-          console.log('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState em updatePartnerInfo:', {
+          logger.debug('[SOCKET] ✅ Partner atualizado - Ready:', partnerReadyState.value);
+          logger.debug('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState em updatePartnerInfo:', {
             partnerReadyState: partnerReadyState.value,
             oldPartnerReadyState: oldPartnerReadyState,
             mudou: oldPartnerReadyState !== partnerReadyState.value,
@@ -218,11 +221,11 @@ export function useSimulationSocket(options) {
             timestamp: new Date().toISOString()
           });
         } else {
-          console.log('[SOCKET] ⚠️ Nenhum partner encontrado');
+          logger.debug('[SOCKET] ⚠️ Nenhum partner encontrado');
           const oldPartnerReadyState = partnerReadyState.value;
           partner.value = null;
           partnerReadyState.value = false;
-          console.log('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState resetado em updatePartnerInfo:', {
+          logger.debug('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState resetado em updatePartnerInfo:', {
             partnerReadyState: partnerReadyState.value,
             oldPartnerReadyState: oldPartnerReadyState,
             mudou: oldPartnerReadyState !== partnerReadyState.value,
@@ -236,12 +239,12 @@ export function useSimulationSocket(options) {
 
     // 🔧 DEBUG: Listener para SERVER_PARTNER_READY (evento específico quando parceiro fica pronto)
     socketInstance.on('SERVER_PARTNER_READY', (data) => {
-      console.log('[SOCKET] 📥 SERVER_PARTNER_READY recebido:', data);
+      logger.debug('[SOCKET] 📥 SERVER_PARTNER_READY recebido:', data);
       if (data && data.userId !== currentUser.value?.uid) {
         const oldPartnerReadyState = partnerReadyState.value;
         partnerReadyState.value = data.isReady || false;
-        console.log('[SOCKET] ✅ Partner ready state atualizado:', partnerReadyState.value);
-        console.log('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState após SERVER_PARTNER_READY:', {
+        logger.debug('[SOCKET] ✅ Partner ready state atualizado:', partnerReadyState.value);
+        logger.debug('[SOCKET] 📊 DIAGNÓSTICO - partnerReadyState após SERVER_PARTNER_READY:', {
           partnerReadyState: partnerReadyState.value,
           oldPartnerReadyState: oldPartnerReadyState,
           mudou: oldPartnerReadyState !== partnerReadyState.value,
@@ -281,7 +284,7 @@ export function useSimulationSocket(options) {
 
   function disconnect() {
     if (socket.value) {
-      console.log('[SOCKET] 🔴 Desconectando socket:', socket.value.id);
+      logger.debug('[SOCKET] 🔴 Desconectando socket:', socket.value.id);
       socket.value.disconnect();
       socket.value = null;
       connectionStatus.value = 'Desconectado';
@@ -289,7 +292,7 @@ export function useSimulationSocket(options) {
       // 🔧 NOVO: Limpar referência externa se fornecida
       if (socketRef) {
         socketRef.value = null;
-        console.log('[SOCKET] ✅ Referência externa limpa');
+        logger.debug('[SOCKET] ✅ Referência externa limpa');
       }
     }
   }

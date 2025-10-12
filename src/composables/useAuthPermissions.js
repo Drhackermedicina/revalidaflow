@@ -2,6 +2,9 @@ import { ref, computed } from 'vue'
 import { currentUser } from '@/plugins/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/plugins/firebase'
+import Logger from '@/utils/logger';
+const logger = new Logger('useAuthPermissions');
+
 
 /**
  * @typedef {Object} UserRole
@@ -63,7 +66,7 @@ export const useAuthPermissions = () => {
 
     } catch (err) {
       error.value = 'Erro ao verificar permissões do usuário'
-      console.error('Erro ao verificar permissões:', err)
+      logger.error('Erro ao verificar permissões:', err)
       
       // Em caso de erro, apenas verifica via lista hardcoded
       const isAdminByList = ADMIN_UIDS.includes(currentUser.value.uid || '')

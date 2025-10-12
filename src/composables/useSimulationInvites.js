@@ -3,6 +3,9 @@ import { db } from '@/plugins/firebase.js'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { addRecentPrivateChat } from '@/utils/cacheManager'
+import Logger from '@/utils/logger';
+const logger = new Logger('useSimulationInvites');
+
 
 export function useSimulationInvites(reloadListeners) {
   const isProcessingInvite = ref(false)
@@ -58,7 +61,7 @@ export function useSimulationInvites(reloadListeners) {
 
       return { success: true }
     } catch (error) {
-      console.error('Erro ao enviar convite:', error)
+      logger.error('Erro ao enviar convite:', error)
       notify({
         text: 'Erro ao enviar convite. Tente novamente.',
         color: 'error'

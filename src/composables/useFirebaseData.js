@@ -2,6 +2,9 @@ import { ref, watch } from 'vue'
 import { currentUser } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
 import { doc, getDoc } from 'firebase/firestore'
+import Logger from '@/utils/logger';
+const logger = new Logger('useFirebaseData');
+
 
 /**
  * Composable para operações comuns do Firebase
@@ -28,7 +31,7 @@ export function useFirebaseData() {
       }
     } catch (err) {
       error.value = 'Erro ao carregar dados do usuário'
-      console.error('Erro no fetchUserData:', err)
+      logger.error('Erro no fetchUserData:', err)
     } finally {
       loading.value = false
     }

@@ -2,6 +2,9 @@ import { currentUser } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { computed, ref, watch } from 'vue'
+import Logger from '@/utils/logger';
+const logger = new Logger('useUserData');
+
 
 export function useUserData() {
   const loading = ref(true)
@@ -35,7 +38,7 @@ export function useUserData() {
         }
       }
     } catch (err) {
-      console.error('Erro ao carregar dados do usuário:', err)
+      logger.error('Erro ao carregar dados do usuário:', err)
       error.value = 'Erro ao carregar dados do usuário'
       userData.value = null
     } finally {

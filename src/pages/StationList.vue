@@ -24,10 +24,11 @@ import SearchBar from '@/components/search/SearchBar.vue'
 import CandidateSearchBar from '@/components/search/CandidateSearchBar.vue'
 import SequentialConfigPanel from '@/components/sequential/SequentialConfigPanel.vue'
 import AdminUploadCard from '@/components/admin/AdminUploadCard.vue'
+import StationSkeleton from '@/components/StationSkeleton.vue'
 
 // Composables
 import { useStationData } from '@/composables/useStationData'
-import { useStationFiltering } from '@/composables/useStationFiltering'
+import { useStationFilteringOptimized } from '@/composables/useStationFilteringOptimized' // OTIMIZADO!
 import { useStationCategorization } from '@/composables/useStationCategorization'
 import { useSequentialMode } from '@/composables/useSequentialMode'
 import { useCandidateSearch } from '@/composables/useCandidateSearch'
@@ -50,7 +51,7 @@ const {
   isLoadingMoreStations
 } = useStationData()
 
-// 🔹 Filtering & Search
+// 🔹 Filtering & Search - USANDO VERSÃO OTIMIZADA
 const {
   globalSearchQuery,
   isINEPStation,
@@ -68,7 +69,7 @@ const {
   filteredStationsRevalidaFacilProcedimentos,
   filteredStationsByInepPeriod,
   globalAutocompleteItems
-} = useStationFiltering(stations)
+} = useStationFilteringOptimized(stations)
 
 // 🔹 Categorization & Colors
 const {
@@ -116,6 +117,10 @@ const {
 // 🔹 Local State
 const selectedStation = ref(null)
 const inepPeriods = ['2025.1', '2024.2', '2024.1', '2023.2', '2023.1', '2022.2', '2022.1', '2021', '2020', '2017', '2016', '2015', '2014', '2013', '2012', '2011']
+
+// Ref para scroll infinito
+const loadMoreSentinel = ref(null)
+let intersectionObserver = null
 
 // Refs para controle dos accordions
 const accordionRefs = {
@@ -189,16 +194,51 @@ function toggleCollapse() {
 }
 
 // 🔹 Lifecycle
-onMounted(() => {
+onMounted(async () => {
   document.documentElement.classList.add('station-list-page-active')
-  fetchStations()
+  
+  // Carregar primeira página
+  await fetchStations()
   clearSearchFields()
+  
+  // Carregar automaticamente mais 2 páginas para garantir conteúdo nas seções
+  // Isso totaliza ~600 estações iniciais (3 x 200)
+  if (hasMoreStations.value) {
+    await fetchStations(true) // Segunda página
+    if (hasMoreStations.value) {
+      await fetchStations(true) // Terceira página
+    }
+  }
+  
+  // Configurar scroll infinito para páginas adicionais
+  if (loadMoreSentinel.value) {
+    intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreStations.value && !isLoadingMoreStations.value) {
+          // Carregar mais estações quando o sentinel ficar visível
+          fetchStations(true)
+        }
+      },
+      { 
+        rootMargin: '200px', // Começar a carregar 200px antes de chegar no fim
+        threshold: 0.1 
+      }
+    )
+    
+    intersectionObserver.observe(loadMoreSentinel.value)
+  }
 })
 
 onUnmounted(() => {
   document.documentElement.classList.remove('station-list-page-active')
   const wrapper = document.querySelector('.layout-wrapper')
   wrapper?.classList.remove('layout-vertical-nav-collapsed')
+  
+  // Limpar observer
+  if (intersectionObserver) {
+    intersectionObserver.disconnect()
+    intersectionObserver = null
+  }
 })
 
 // 🔹 Watchers
@@ -272,7 +312,7 @@ watch(currentUser, (newUser) => {
           v-model="globalSearchQuery"
           v-model:selected-station="selectedStation"
           :items="globalAutocompleteItems"
-          :total-stations="totalStations"
+          :total-stations="stations.length"
           @station-selected="handleStartSimulation"
         />
 
@@ -469,6 +509,13 @@ watch(currentUser, (newUser) => {
           </v-expansion-panel>
         </v-expansion-panels>
 
+        <!-- Sentinel para scroll infinito -->
+        <div 
+          ref="loadMoreSentinel" 
+          class="load-more-sentinel"
+          style="height: 1px; margin-top: 20px;"
+        />
+
         <!-- Loading mais estações -->
         <v-row v-if="isLoadingMoreStations" class="mt-4">
           <v-col cols="12" class="text-center">
@@ -476,13 +523,25 @@ watch(currentUser, (newUser) => {
             <div class="mt-2">Carregando mais estações...</div>
           </v-col>
         </v-row>
+
+        <!-- Indicador de fim de lista -->
+        <v-row v-if="!hasMoreStations && stations.length > 0" class="mt-4">
+          <v-col cols="12" class="text-center text-grey">
+            <v-icon>ri-check-line</v-icon>
+            <div class="mt-2">Todas as estações carregadas</div>
+          </v-col>
+        </v-row>
       </v-col>
     </v-row>
 
-    <!-- Loading -->
-    <v-row v-if="isLoadingStations">
-      <v-col cols="12" class="text-center">
-        <v-progress-circular indeterminate color="primary" />
+    <!-- Loading inicial com Skeleton -->
+    <v-row v-if="isLoadingStations && stations.length === 0">
+      <v-col cols="12">
+        <div class="text-center mb-4">
+          <v-progress-circular indeterminate color="primary" size="40" />
+          <div class="mt-2 text-subtitle-1">Carregando estações...</div>
+        </div>
+        <StationSkeleton :count="8" />
       </v-col>
     </v-row>
   </v-container>

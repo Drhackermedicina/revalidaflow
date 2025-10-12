@@ -6,6 +6,9 @@
 
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import Logger from '@/utils/logger';
+const logger = new Logger('useStationNavigation');
+
 
 export function useStationNavigation() {
   const router = useRouter()
@@ -29,7 +32,7 @@ export function useStationNavigation() {
     } = options
 
     if (!stationId) {
-      console.error('stationId ausente:', stationId)
+      logger.error('stationId ausente:', stationId)
       errorApi.value = "ID da Estação ausente"
       alert("Erro: ID da estação não encontrado.")
       return
@@ -86,7 +89,7 @@ export function useStationNavigation() {
       window.open(routeData.href, '_blank')
 
     } catch (error) {
-      console.error('Erro ao navegar para simulação:', error)
+      logger.error('Erro ao navegar para simulação:', error)
       errorApi.value = `Erro: ${error.message}`
       alert(`Erro ao iniciar simulação: ${error.message}`)
     } finally {
@@ -109,7 +112,7 @@ export function useStationNavigation() {
     } = options
 
     if (!stationId) {
-      console.error('stationId ausente:', stationId)
+      logger.error('stationId ausente:', stationId)
       alert("Erro: ID da estação não encontrado.")
       return
     }
@@ -147,7 +150,7 @@ export function useStationNavigation() {
       // Abre a URL em uma nova janela/aba
       window.open(routeData.href, '_blank')
     } catch (error) {
-      console.error('Erro ao navegar para treinamento com IA:', error)
+      logger.error('Erro ao navegar para treinamento com IA:', error)
       alert(`Erro ao iniciar treinamento: ${error.message}`)
     }
   }

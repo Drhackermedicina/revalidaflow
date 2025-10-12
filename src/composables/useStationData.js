@@ -5,10 +5,15 @@
  * Extrai lógica de fetch do StationList.vue
  */
 
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { db } from '@/plugins/firebase.js'
-import { collection, doc, getDoc, getDocs, query, limit, orderBy } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, limit, orderBy, startAfter } from 'firebase/firestore'
 import { currentUser } from '@/plugins/auth.js'
+import Logger from '@/utils/logger';
+const logger = new Logger('useStationData');
+
+// Configuração de paginação OTIMIZADA
+const PAGE_SIZE = 200 // Carrega 200 estações por vez para balancear performance e disponibilidade
 
 export function useStationData() {
   // --- State ---
@@ -16,9 +21,11 @@ export function useStationData() {
   const isLoadingStations = ref(true)
   const errorMessage = ref('')
   const userScores = ref({}) // Armazena pontuações do usuário por estação
+  const totalStationsCount = ref(0)
 
-  // Lazy loading state
-  const hasMoreStations = ref(false)
+  // Pagination state MELHORADO
+  const currentPage = ref(0)
+  const hasMoreStations = ref(true)
   const isLoadingMoreStations = ref(false)
   const lastVisibleDoc = ref(null)
 
@@ -27,8 +34,8 @@ export function useStationData() {
   const isLoadingFullStation = ref(false)
 
   /**
-   * Busca todas as estações (carregamento completo inicial)
-   * Carrega todas as estações para manter compatibilidade com filtros existentes
+   * Busca estações com PAGINAÇÃO REAL
+   * @param {boolean} loadMore - Se deve carregar mais estações ou resetar
    */
   async function fetchStations(loadMore = false) {
     // Se não é carregamento adicional, reset state
@@ -36,29 +43,56 @@ export function useStationData() {
       isLoadingStations.value = true
       errorMessage.value = ''
       stations.value = []
-      hasMoreStations.value = false
+      hasMoreStations.value = true
       lastVisibleDoc.value = null
+      currentPage.value = 0
     } else {
       // Se já está carregando mais ou não há mais, retorna
       if (isLoadingMoreStations.value || !hasMoreStations.value) return
       isLoadingMoreStations.value = true
+      currentPage.value++
     }
 
     try {
-      // Carregar estações com apenas os campos necessários para otimização
-      // Ordena por número da estação no Firestore para melhor performance
+      // Query otimizada com paginação
       const stationsColRef = collection(db, 'estacoes_clinicas')
-      const q = query(
+      let q = query(
         stationsColRef,
         orderBy('numeroDaEstacao', 'asc'),
-        limit(1000) // Limite razoável para evitar sobrecarga
+        limit(PAGE_SIZE)
       )
-      const querySnapshot = await getDocs(q)
-      const stationsList = []
 
+      // Se está carregando mais, começar após o último documento
+      if (loadMore && lastVisibleDoc.value) {
+        q = query(
+          stationsColRef,
+          orderBy('numeroDaEstacao', 'asc'),
+          startAfter(lastVisibleDoc.value),
+          limit(PAGE_SIZE)
+        )
+      }
+      const querySnapshot = await getDocs(q)
+      
+      if (querySnapshot.empty && !loadMore) {
+        errorMessage.value = "Nenhuma estação encontrada no Firestore"
+        hasMoreStations.value = false
+        return
+      }
+
+      // Se retornou menos que PAGE_SIZE, não há mais páginas
+      hasMoreStations.value = querySnapshot.size === PAGE_SIZE
+      
+      // Guardar último documento para próxima paginação
+      if (!querySnapshot.empty) {
+        const docs = querySnapshot.docs
+        lastVisibleDoc.value = docs[docs.length - 1]
+      }
+
+      const stationsList = []
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data()
-        const modifiedData = {
+        // Carregar apenas campos necessários para lista
+        const stationData = {
           id: docSnap.id,
           idEstacao: data.idEstacao,
           tituloEstacao: data.tituloEstacao,
@@ -69,15 +103,8 @@ export function useStationData() {
           hmAttributeOrgQualifications: data.hmAttributeOrgQualifications,
           criadoEmTimestamp: data.criadoEmTimestamp
         }
-        stationsList.push(modifiedData)
+        stationsList.push(stationData)
       })
-
-      // Como já ordenamos no Firestore, não precisamos ordenar novamente
-      // stationsList.sort((a, b) => {
-      //   const numA = a.numeroDaEstacao || 0
-      //   const numB = b.numeroDaEstacao || 0
-      //   return numA - numB
-      // })
 
       // Atualizar estado
       if (loadMore) {
@@ -86,18 +113,16 @@ export function useStationData() {
         stations.value = stationsList
       }
 
-      // Não há mais estações para carregar (carregamos tudo de uma vez)
-      hasMoreStations.value = false
+      totalStationsCount.value = stations.value.length
+      logger.debug(`Carregadas ${stationsList.length} estações (Total: ${totalStationsCount.value})`)
 
-      // Buscar pontuações do usuário (sempre haverá usuário autenticado)
-      await fetchUserScores()
-
-      if (stations.value.length === 0) {
-        errorMessage.value = "Nenhuma estação encontrada no Firestore na coleção 'estacoes_clinicas'"
+      // Buscar pontuações do usuário APENAS se autenticado
+      if (currentUser.value) {
+        await fetchUserScores()
       }
 
     } catch (error) {
-      console.error('ERRO ao buscar lista de estações:', error)
+      logger.error('ERRO ao buscar lista de estações:', error)
       errorMessage.value = `Falha ao buscar estações: ${error.message}`
 
       if (error.code === 'permission-denied') {
@@ -147,7 +172,7 @@ export function useStationData() {
       userScores.value = scores
 
     } catch (error) {
-      console.error('ERRO ao buscar pontuações do usuário:', error)
+      logger.error('ERRO ao buscar pontuações do usuário:', error)
     }
   }
 
@@ -172,11 +197,11 @@ export function useStationData() {
         fullStationsCache.value.set(stationId, fullStationData)
         return fullStationData
       } else {
-        console.error(`Estação ${stationId} não encontrada`)
+        logger.error(`Estação ${stationId} não encontrada`)
         return null
       }
     } catch (error) {
-      console.error('Erro ao carregar estação completa:', error)
+      logger.error('Erro ao carregar estação completa:', error)
       errorMessage.value = `Erro ao carregar estação: ${error.message}`
       return null
     } finally {

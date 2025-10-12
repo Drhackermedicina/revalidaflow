@@ -2,6 +2,9 @@ import { ref, computed } from 'vue'
 import { currentUser } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
+import Logger from '@/utils/logger';
+const logger = new Logger('useDashboardData');
+
 
 /**
  * Composable para gerenciar dados centralizados do Dashboard
@@ -52,7 +55,7 @@ export const useDashboardData = () => {
             }
 
         } catch (err) {
-            console.error('Erro ao carregar dados do dashboard:', err)
+            logger.error('Erro ao carregar dados do dashboard:', err)
             error.value = 'Erro ao carregar dados. Tente novamente.'
         } finally {
             loading.value = false

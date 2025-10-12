@@ -13,6 +13,9 @@
  */
 
 import { ref } from 'vue'
+import Logger from '@/utils/logger';
+const logger = new Logger('useImagePreloading');
+
 
 /**
  * @typedef {Object} ImagePreloadingParams
@@ -182,7 +185,7 @@ export function useImagePreloading({ stationData }) {
     }
 
     img.onerror = () => {
-      console.error(`[PRELOAD] ❌ Erro ao pré-carregar: ${imageId} - ${imagePath}`)
+      logger.error(`[PRELOAD] ❌ Erro ao pré-carregar: ${imageId} - ${imagePath}`)
       imagesPreloadStatus.value[imageId] = 'error'
       handleImageError(imagePath, imageId)
       if (onError) onError()
@@ -281,7 +284,7 @@ export function useImagePreloading({ stationData }) {
    */
   function openImageZoom(imageSrc, imageAlt) {
     if (!imageSrc || imageSrc.trim() === '') {
-      console.error(`[ZOOM] ❌ Erro: URL da imagem está vazia ou inválida: "${imageSrc}"`)
+      logger.error(`[ZOOM] ❌ Erro: URL da imagem está vazia ou inválida: "${imageSrc}"`)
       return
     }
 

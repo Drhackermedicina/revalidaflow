@@ -1,4 +1,7 @@
 import { ref } from 'vue'
+import Logger from '@/utils/logger';
+const logger = new Logger('useChatInput');
+
 
 // Função básica de sanitização (pode ser substituída por DOMPurify)
 const sanitizeHtml = (html) => {
@@ -60,10 +63,10 @@ export const useChatInput = () => {
                 // Usa a Clipboard API moderna
                 const textToCopy = links.length === 1 ? links[0] : links.join('\n')
                 await navigator.clipboard.writeText(textToCopy)
-                console.log('Links copiados com sucesso:', links.length)
+                logger.debug('Links copiados com sucesso:', links.length)
             }
         } catch (error) {
-            console.error('Erro ao copiar links:', error)
+            logger.error('Erro ao copiar links:', error)
             // Fallback para navegadores mais antigos (ainda que deprecated)
             try {
                 const urlRegex = /(https?:\/\/[^\s]+)/g
@@ -75,10 +78,10 @@ export const useChatInput = () => {
                     textArea.select()
                     document.execCommand('copy')
                     document.body.removeChild(textArea)
-                    console.log('Links copiados via fallback')
+                    logger.debug('Links copiados via fallback')
                 }
             } catch (fallbackError) {
-                console.error('Fallback copy também falhou:', fallbackError)
+                logger.error('Fallback copy também falhou:', fallbackError)
                 throw new Error('Não foi possível copiar os links')
             }
         }
@@ -117,7 +120,7 @@ export const useChatInput = () => {
                 .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove caracteres de controle
                 .trim()
         } catch (error) {
-            console.error('Erro ao sanitizar input:', error)
+            logger.error('Erro ao sanitizar input:', error)
             return '' // Retorna string vazia em caso de erro
         }
     }

@@ -1,6 +1,9 @@
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { db } from '@/plugins/firebase'
 import { collection, onSnapshot, query, orderBy, limit, addDoc, startAfter, getDocs } from 'firebase/firestore'
+import Logger from '@/utils/logger';
+const logger = new Logger('useChatMessages');
+
 
 /**
  * @typedef {Object} ChatMessage
@@ -19,7 +22,7 @@ export const formatTime = (timestamp) => {
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
         return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     } catch (error) {
-        console.error('Erro ao formatar timestamp:', error)
+        logger.error('Erro ao formatar timestamp:', error)
         return ''
     }
 }
@@ -89,7 +92,7 @@ export const useChatMessages = (currentUser) => {
                 }
             }
         } catch (error) {
-            console.error('Erro ao carregar mensagens:', error)
+            logger.error('Erro ao carregar mensagens:', error)
             // Implementar fallback ou notificação de erro
         } finally {
             isLoadingMore.value = false
@@ -118,7 +121,7 @@ export const useChatMessages = (currentUser) => {
             nextTick(() => scrollToEnd())
             return true
         } catch (error) {
-            console.error('Erro ao enviar mensagem:', error)
+            logger.error('Erro ao enviar mensagem:', error)
             // Aqui poderia implementar retry ou notificação
             return false
         }
@@ -130,7 +133,7 @@ export const useChatMessages = (currentUser) => {
                 messagesEnd.value.scrollIntoView({ behavior: 'smooth' })
             }
         } catch (error) {
-            console.error('Erro ao fazer scroll para final:', error)
+            logger.error('Erro ao fazer scroll para final:', error)
             // Fallback: scroll manual
             const container = messagesEnd.value?.parentElement
             if (container) {

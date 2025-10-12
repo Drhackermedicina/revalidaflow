@@ -1,5 +1,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import Logger from '@/utils/logger';
+const logger = new Logger('useSequentialMode');
+
 
 /**
  * Composable para gerenciar modo sequencial de simulações
@@ -119,7 +122,7 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
       await startCurrentSequentialStation()
 
     } catch (error) {
-      console.error('Erro ao iniciar simulação sequencial:', error)
+      logger.error('Erro ao iniciar simulação sequencial:', error)
       alert(`Erro ao iniciar simulação sequencial: ${error.message}`)
       resetSequentialConfig()
     }
@@ -164,7 +167,7 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
       window.open(routeData.href, '_blank')
 
     } catch (error) {
-      console.error('Erro ao iniciar estação sequencial:', error)
+      logger.error('Erro ao iniciar estação sequencial:', error)
       alert(`Erro ao iniciar estação: ${error.message}`)
     }
   }

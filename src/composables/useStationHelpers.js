@@ -1,3 +1,6 @@
+import Logger from '@/utils/logger';
+const logger = new Logger('useStationHelpers');
+
 /**
  * useStationHelpers.js
  *
@@ -26,7 +29,7 @@ export function formatarDataBrasil(date) {
 
     return `${dia}/${mes}/${ano} às ${horas}:${minutos}:${segundos}`
   } catch (error) {
-    console.warn('❌ Erro ao formatar data:', error)
+    logger.warn('❌ Erro ao formatar data:', error)
     return 'Erro na data'
   }
 }

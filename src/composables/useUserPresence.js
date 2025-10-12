@@ -2,6 +2,9 @@ import { currentUser } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
 import { doc, updateDoc } from 'firebase/firestore'
 import { updateDocumentWithRetry, checkFirestoreConnectivity } from '@/services/firestoreService'
+import Logger from '@/utils/logger';
+const logger = new Logger('useUserPresence');
+
 
 class UserPresenceManager {
     constructor() {
@@ -27,9 +30,9 @@ class UserPresenceManager {
 
             const ref = doc(db, 'usuarios', currentUser.value.uid)
             await updateDocumentWithRetry(ref, { status }, 'atualização de presença do usuário')
-            console.log(`[Presence] Status: ${status}`)
+            logger.debug(`[Presence] Status: ${status}`)
         } catch (error) {
-            console.warn('[Presence] Erro ao atualizar status:', error)
+            logger.warn('[Presence] Erro ao atualizar status:', error)
         }
     }
 
@@ -102,7 +105,7 @@ class UserPresenceManager {
                 if (connectivity.available) {
                     const ref = doc(db, 'usuarios', currentUser.value.uid)
                     updateDoc(ref, { status: 'offline' }).catch(error => {
-                        console.warn('[Presence] Erro ao definir offline:', error)
+                        logger.warn('[Presence] Erro ao definir offline:', error)
                     })
                 }
             }
@@ -114,7 +117,7 @@ class UserPresenceManager {
         if (this.isInitialized) return
         this.isInitialized = true
 
-        console.log('[Presence] Sistema de presença inicializado')
+        logger.debug('[Presence] Sistema de presença inicializado')
 
         // Adicionar listeners
         this.setupActivityListeners()
@@ -138,7 +141,7 @@ class UserPresenceManager {
         clearInterval(this.heartbeatTimer)
 
         this.isInitialized = false
-        console.log('[Presence] Sistema de presença finalizado')
+        logger.debug('[Presence] Sistema de presença finalizado')
     }
 }
 

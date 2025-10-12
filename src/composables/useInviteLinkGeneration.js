@@ -2,6 +2,9 @@
 
 // import { ref } from 'vue'
 import { backendUrl } from '@/utils/backendUrl.js'
+import Logger from '@/utils/logger';
+const logger = new Logger('useInviteLinkGeneration');
+
 
 /**
  * Interface para opções do composable de geração de link de convite
@@ -72,30 +75,30 @@ export function useInviteLinkGeneration(options) {
    * Cria sessão no backend se necessário e constrói URL de convite
    */
   async function generateInviteLinkWithDuration() {
-    console.log('[INVITE-LINK] 🚀 Iniciando geração de link de convite...');
-    console.log('[INVITE-LINK] 📋 Estado inicial:');
-    console.log('  - isLoading:', isLoading.value);
-    console.log('  - stationData:', stationData.value ? 'carregado' : 'nulo');
-    console.log('  - sessionId:', sessionId.value || 'não definido');
-    console.log('  - socket:', socket.value ? `existe (${socket.value.id})` : 'nulo');
-    console.log('  - socket.connected:', socket.value?.connected || 'falso');
+    logger.debug('[INVITE-LINK] 🚀 Iniciando geração de link de convite...');
+    logger.debug('[INVITE-LINK] 📋 Estado inicial:');
+    logger.debug('  - isLoading:', isLoading.value);
+    logger.debug('  - stationData:', stationData.value ? 'carregado' : 'nulo');
+    logger.debug('  - sessionId:', sessionId.value || 'não definido');
+    logger.debug('  - socket:', socket.value ? `existe (${socket.value.id})` : 'nulo');
+    logger.debug('  - socket.connected:', socket.value?.connected || 'falso');
     
     // Validações iniciais
     if (isLoading.value) {
-      console.log('[INVITE-LINK] ⏳ Ainda carregando dados da estação...');
+      logger.debug('[INVITE-LINK] ⏳ Ainda carregando dados da estação...');
       errorMessage.value = "Aguarde o carregamento dos dados da estação."
       return
     }
 
     if (!stationData.value) {
-      console.log('[INVITE-LINK] ❌ Dados da estação não carregados');
+      logger.debug('[INVITE-LINK] ❌ Dados da estação não carregados');
       errorMessage.value = "Dados da estação ainda não carregados. Tente novamente em instantes."
       return
     }
 
     // Se não houver sessionId, criar sessão no backend
     if (!sessionId.value) {
-      console.log('[INVITE-LINK] 🆕 Criando nova sessão no backend...');
+      logger.debug('[INVITE-LINK] 🆕 Criando nova sessão no backend...');
       try {
         const response = await fetch(`${backendUrl}/api/create-session`, {
           method: 'POST',
@@ -115,16 +118,16 @@ export function useInviteLinkGeneration(options) {
 
         const sessionData = await response.json()
         sessionId.value = sessionData.sessionId
-        console.log('[INVITE-LINK] ✅ Sessão criada com sucesso:', sessionData.sessionId);
+        logger.debug('[INVITE-LINK] ✅ Sessão criada com sucesso:', sessionData.sessionId);
 
         // Conectar WebSocket e aguardar conexão
-        console.log('[INVITE-LINK] 🔌 Iniciando conexão WebSocket para geração de link...')
+        logger.debug('[INVITE-LINK] 🔌 Iniciando conexão WebSocket para geração de link...')
         connectWebSocket()
 
         let connectionAttempts = 0
         const maxAttempts = 20 // 10 segundos (20 * 500ms)
 
-        console.log('[INVITE-LINK] ⏳ Aguardando conexão WebSocket... socket:', socket.value?.id || 'nulo')
+        logger.debug('[INVITE-LINK] ⏳ Aguardando conexão WebSocket... socket:', socket.value?.id || 'nulo')
 
         while (!socket.value?.connected && connectionAttempts < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 500))
@@ -132,16 +135,16 @@ export function useInviteLinkGeneration(options) {
           
           // 🔧 NOVO: Log a cada 2 segundos para debug
           if (connectionAttempts % 4 === 0) {
-            console.log(`[INVITE-LINK] ⏳ Aguardando conexão... (${connectionAttempts}/${maxAttempts}) - Status: ${socket.value?.connected ? 'conectado' : 'desconectado'}`)
+            logger.debug(`[INVITE-LINK] ⏳ Aguardando conexão... (${connectionAttempts}/${maxAttempts}) - Status: ${socket.value?.connected ? 'conectado' : 'desconectado'}`)
           }
         }
 
         if (!socket.value?.connected) {
-          console.error('[INVITE-LINK] ❌ Falha na conexão WebSocket após', maxAttempts, 'tentativas')
+          logger.error('[INVITE-LINK] ❌ Falha na conexão WebSocket após', maxAttempts, 'tentativas')
           throw new Error(`WebSocket connection failed after ${maxAttempts} attempts during invite link generation. Socket status: ${socket.value ? 'exists' : 'null'}, Connected: ${socket.value?.connected}`)
         }
 
-        console.log('[INVITE-LINK] ✅ WebSocket conectado com sucesso - ID:', socket.value.id)
+        logger.debug('[INVITE-LINK] ✅ WebSocket conectado com sucesso - ID:', socket.value.id)
 
       } catch (error) {
         errorMessage.value = `Não foi possível gerar link de convite: ${error.message}`
@@ -151,17 +154,17 @@ export function useInviteLinkGeneration(options) {
 
     // Gerar link de convite
     if ((userRole.value === 'actor' || userRole.value === 'evaluator') && stationId.value && sessionId.value) {
-      console.log('[INVITE-LINK] 🔗 Gerando link de convite...');
-      console.log('  - userRole:', userRole.value);
-      console.log('  - stationId:', stationId.value);
-      console.log('  - sessionId:', sessionId.value);
+      logger.debug('[INVITE-LINK] 🔗 Gerando link de convite...');
+      logger.debug('  - userRole:', userRole.value);
+      logger.debug('  - stationId:', stationId.value);
+      logger.debug('  - sessionId:', sessionId.value);
       
       // Validar Meet se estiver em modo Meet
       if (isMeetMode()) {
-        console.log('[INVITE-LINK] 📺 Validando link do Meet...');
+        logger.debug('[INVITE-LINK] 📺 Validando link do Meet...');
         const validation = validateMeetLink(meetLink.value)
         if (!validation.valid) {
-          console.log('[INVITE-LINK] ❌ Link do Meet inválido:', validation.error);
+          logger.debug('[INVITE-LINK] ❌ Link do Meet inválido:', validation.error);
           errorMessage.value = validation.error || 'Link do Meet inválido'
           return
         }
@@ -214,7 +217,7 @@ export function useInviteLinkGeneration(options) {
 
           // Gerar URL completa
           inviteLinkToShow.value = window.location.origin + inviteRoute.href
-          console.log('[INVITE-LINK] ✅ Link de convite gerado com sucesso:', inviteLinkToShow.value);
+          logger.debug('[INVITE-LINK] ✅ Link de convite gerado com sucesso:', inviteLinkToShow.value);
           errorMessage.value = ''
 
         } catch (e) {

@@ -1,5 +1,8 @@
 import { ref, computed, nextTick, inject } from 'vue'
 import { geminiService } from '@/services/geminiService.js'
+import Logger from '@/utils/logger';
+const logger = new Logger('useMedicalChat');
+
 
 export function useMedicalChat() {
   // Estado reativo
@@ -16,7 +19,7 @@ export function useMedicalChat() {
     try {
       return $vuetify?.theme?.current?.dark ?? false
     } catch (error) {
-      console.warn('Erro ao acessar tema Vuetify:', error)
+      logger.warn('Erro ao acessar tema Vuetify:', error)
       return false
     }
   })
@@ -135,7 +138,7 @@ Responda de forma clara, objetiva e clinicamente relevante, considerando o conte
       messages.value.push(geminiMessage)
 
     } catch (error) {
-      console.error('Erro no chat médico:', error)
+      logger.error('Erro no chat médico:', error)
 
       const errorMessage = {
         id: generateMessageId(),

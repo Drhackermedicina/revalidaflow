@@ -8,6 +8,9 @@ import { ref, computed, watch } from 'vue'
 import { db } from '@/plugins/firebase.js'
 import { doc, getDoc } from 'firebase/firestore'
 import { currentUser } from '@/plugins/auth.js'
+import Logger from '@/utils/logger';
+const logger = new Logger('useUserManagement');
+
 
 export function useUserManagement() {
   // Cache de usuários
@@ -55,7 +58,7 @@ export function useUserManagement() {
         return defaultData
       }
     } catch (error) {
-      console.error('❌ Erro ao buscar dados do usuário:', error)
+      logger.error('❌ Erro ao buscar dados do usuário:', error)
       return {
         uid: uid,
         nome: 'Erro ao carregar',

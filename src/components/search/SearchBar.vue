@@ -52,10 +52,9 @@ function onStationSelected(stationId) {
       <v-autocomplete
         v-model="selectedStationModel"
         v-model:search="searchQuery"
-        :items="items"
-        :menu="searchQuery && searchQuery.length >= 2"
+        :items="searchQuery && searchQuery.length >= 2 ? items : []"
         item-title="title"
-        item-value="id"
+        item-value="value"
         label="Digite para buscar estações..."
         placeholder="Ex: Estação 1, Clínica Médica"
         prepend-inner-icon="ri-search-line"
@@ -64,11 +63,12 @@ function onStationSelected(stationId) {
         hide-details
         clearable
         class="rounded-input"
+        no-data-text="Digite pelo menos 2 caracteres para buscar"
       >
         <template #item="{ props, item }">
           <v-list-item
             v-bind="props"
-            @click="onStationSelected(item.raw.id)"
+            @click="onStationSelected(item.raw.value)"
           >
             <template #prepend>
               <div :style="{

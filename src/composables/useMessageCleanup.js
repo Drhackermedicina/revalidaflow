@@ -1,6 +1,9 @@
 import { onMounted, onUnmounted } from 'vue'
 import { db } from '@/plugins/firebase'
 import { collection, deleteDoc, getDocs, query, where } from 'firebase/firestore'
+import Logger from '@/utils/logger';
+const logger = new Logger('useMessageCleanup');
+
 
 export const useMessageCleanup = () => {
     let cleanupInterval = null
@@ -32,10 +35,10 @@ export const useMessageCleanup = () => {
             })
 
             await Promise.all(deletePromises)
-            console.log(`Limpeza automática: ${deletePromises.length} mensagens antigas removidas`)
+            logger.debug(`Limpeza automática: ${deletePromises.length} mensagens antigas removidas`)
 
         } catch (error) {
-            console.error('Erro na limpeza automática de mensagens:', error)
+            logger.error('Erro na limpeza automática de mensagens:', error)
             // Não lança erro para não interromper a aplicação
             // Em produção, poderia enviar para serviço de monitoring
         }

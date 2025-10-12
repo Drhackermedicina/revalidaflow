@@ -1,6 +1,9 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { db } from '@/plugins/firebase'
 import { collection, onSnapshot, query, where, limit } from 'firebase/firestore'
+import Logger from '@/utils/logger';
+const logger = new Logger('useChatUsers');
+
 
 /**
  * @typedef {Object} ChatUser
@@ -61,7 +64,7 @@ export const useChatUsers = () => {
 
       loading.value = false
     }, (err) => {
-      console.error('Erro ao carregar usuários do chat:', err)
+      logger.error('Erro ao carregar usuários do chat:', err)
       error.value = 'Erro ao carregar usuários. Tente novamente mais tarde.'
       loading.value = false
     })
@@ -87,7 +90,7 @@ export const useChatUsers = () => {
       // Último recurso: gerar avatar com iniciais
       return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`
     } catch (error) {
-      console.error('Erro ao gerar avatar:', error)
+      logger.error('Erro ao gerar avatar:', error)
       // Avatar padrão em caso de erro
       return 'https://ui-avatars.com/api/?name=User&background=6c757d&color=fff'
     }

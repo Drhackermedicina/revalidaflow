@@ -17,6 +17,9 @@ import { doc, getDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { db } from '@/plugins/firebase.js'
 import { formatTime } from '@/utils/simulationUtils.js'
+import Logger from '@/utils/logger';
+const logger = new Logger('useSimulationSession');
+
 
 export function useSimulationSession() {
   // --- Estado da sessão ---
@@ -62,7 +65,7 @@ export function useSimulationSession() {
     if (!currentStationId) {
       errorMessage.value = 'ID da estação inválido.'
       isLoading.value = false
-      console.error('[DIAGNOSTIC] Erro: ID da estação não fornecido')
+      logger.error('[DIAGNOSTIC] Erro: ID da estação não fornecido')
       return
     }
 
@@ -115,10 +118,10 @@ export function useSimulationSession() {
         if (!checklistData.value.itensAvaliacao ||
           !Array.isArray(checklistData.value.itensAvaliacao) ||
           checklistData.value.itensAvaliacao.length === 0) {
-          console.warn("[DIAGNOSTIC] PEP não contém 'itensAvaliacao' válidos.")
+          logger.warn("[DIAGNOSTIC] PEP não contém 'itensAvaliacao' válidos.")
         }
       } else {
-        console.warn("[DIAGNOSTIC] 'padraoEsperadoProcedimento' não encontrado na estação. PEP será nulo.")
+        logger.warn("[DIAGNOSTIC] 'padraoEsperadoProcedimento' não encontrado na estação. PEP será nulo.")
         checklistData.value = null
       }
 

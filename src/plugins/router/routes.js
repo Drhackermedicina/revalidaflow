@@ -125,6 +125,12 @@ export const routes = [
         meta: { requiresAuth: false }, // Temporariamente desabilitado para depuração
       },
       {
+        path: 'station-list-optimized',
+        name: 'station-list-optimized',
+        component: () => import('@/pages/StationListOptimized.vue'),
+        meta: { requiresAuth: false }, // Para testes
+      },
+      {
         path: 'edit-station/:id',
         name: 'edit-station',
         component: () => import('@/pages/EditStationView.vue'),

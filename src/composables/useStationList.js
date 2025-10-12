@@ -2,6 +2,9 @@ import { ref, computed, onMounted } from 'vue'
 import { collection, query, where, orderBy, limit, startAfter, getDocs, getDoc, doc } from 'firebase/firestore'
 import { db } from '@/plugins/firebase.js'
 import { checkStationEditStatus } from '@/utils/cacheManager.js'  // Para status básico
+import Logger from '@/utils/logger';
+const logger = new Logger('useStationList');
+
 
 const stationsMetadados = ref([])
 const fullStationsCache = ref(new Map())  // Cache para estações completas
@@ -88,7 +91,7 @@ const loadFullStation = async (stationId) => {
     }
     return null
   } catch (err) {
-    console.error('Erro ao carregar estação completa:', err)
+    logger.error('Erro ao carregar estação completa:', err)
     return null
   }
 }

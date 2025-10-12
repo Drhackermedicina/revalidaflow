@@ -1,6 +1,9 @@
 import { ref } from 'vue'
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore'
 import { db } from '@/plugins/firebase.js'
+import Logger from '@/utils/logger';
+const logger = new Logger('useCandidateSearch');
+
 
 /**
  * Composable para busca de candidatos e suas pontuações
@@ -75,12 +78,12 @@ export function useCandidateSearch(currentUser) {
       showCandidateSuggestions.value = candidates.length > 0
 
     } catch (error) {
-      console.error('Erro ao buscar candidatos:', error)
+      logger.error('Erro ao buscar candidatos:', error)
       candidateSearchSuggestions.value = []
       showCandidateSuggestions.value = false
 
       if (error.code === 'permission-denied') {
-        console.warn('Permissão negada para buscar candidatos. Verifique as regras do Firestore.')
+        logger.warn('Permissão negada para buscar candidatos. Verifique as regras do Firestore.')
       }
     } finally {
       isLoadingCandidateSearch.value = false
@@ -131,21 +134,21 @@ export function useCandidateSearch(currentUser) {
               }
             }
           } catch (estacaoError) {
-            console.warn('Erro ao processar estação do candidato:', estacao, estacaoError)
+            logger.warn('Erro ao processar estação do candidato:', estacao, estacaoError)
           }
         })
       } else {
-        console.warn('Documento do candidato não encontrado:', candidateUid)
+        logger.warn('Documento do candidato não encontrado:', candidateUid)
       }
 
       selectedCandidateScores.value = scores
 
     } catch (error) {
-      console.error('Erro ao buscar pontuações do candidato:', error)
+      logger.error('Erro ao buscar pontuações do candidato:', error)
       selectedCandidateScores.value = {}
 
       if (error.code === 'permission-denied') {
-        console.warn('Permissão negada para buscar dados do candidato. Verifique as regras do Firestore.')
+        logger.warn('Permissão negada para buscar dados do candidato. Verifique as regras do Firestore.')
       }
     }
   }
