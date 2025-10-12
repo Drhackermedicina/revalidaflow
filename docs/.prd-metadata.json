@@ -1,0 +1,49 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-12T19:09:44.296Z",
+  "lastFullReview": "2025-01-12",
+  "nextReviewDate": "2025-04-12",
+  "sections": {
+    "features": {
+      "lastModified": "2025-10-12",
+      "componentCount": 44,
+      "pageCount": 28,
+      "composableCount": 44,
+      "serviceCount": 9,
+      "storeCount": 3
+    },
+    "techStack": {
+      "lastModified": "2025-01-05",
+      "frontend": "Vue.js 3 + Vuetify 3",
+      "backend": "Node.js + Express + Socket.IO",
+      "database": "Google Firestore",
+      "ai": "Google Gemini"
+    },
+    "roadmap": {
+      "lastModified": "2025-01-12",
+      "q1_2025_features": 12,
+      "implemented_count": 13,
+      "in_progress_count": 0
+    }
+  },
+  "autoUpdateTriggers": [
+    "src/pages/**/*.vue",
+    "src/components/**/*.vue",
+    "src/composables/**/*.{js,ts}",
+    "package.json",
+    "src/services/**/*.{js,ts}"
+  ],
+  "statistics": {
+    "totalPages": 28,
+    "totalComponents": 44,
+    "totalComposables": 44,
+    "totalServices": 9,
+    "totalStores": 3,
+    "estimatedLinesOfCode": 16600
+  },
+  "changelog": {
+    "totalEntries": 1,
+    "latestVersion": "1.0.0",
+    "latestDate": "2025-01-12"
+  }
+}

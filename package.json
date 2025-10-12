@@ -25,7 +25,9 @@
     "test": "vitest",
     "launch-opera": "node scripts/launch-opera.js",
     "mcp:start": "genkit start",
-    "mcp:serve": "npx genkit start --port 3100"
+    "mcp:serve": "npx genkit start --port 3100",
+    "update-prd": "node scripts/update-prd.cjs",
+    "install-git-hook": "node scripts/install-git-hook.cjs"
   },
   "dependencies": {
     "@floating-ui/dom": "1.6.8",
