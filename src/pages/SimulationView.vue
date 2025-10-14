@@ -1102,7 +1102,7 @@ setupDebugFunction({
 // Watcher para navegação automática em modo sequencial
 // Quando simulação termina E está em modo sequencial, habilitar navegação
 watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
-  ([sequential, ended, completed, canNext]) => {
+  ([sequential, ended, _, canNext]) => {
     if (sequential && ended && userRole.value === 'candidate' && canNext) {
       showNotification('Aguardando o examinador avançar para a próxima estação.', 'info');
     }
