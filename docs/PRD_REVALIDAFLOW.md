@@ -1056,6 +1056,12 @@ Uma plataforma que oferece:
 - [ ] Ao final, vejo resumo com todas as pontuações
 - [ ] Posso sair do modo sequencial a qualquer momento
 
+**Notas de Implementação (2025-10)**
+- Navegação entre estações reaproveita uma única sessão compartilhada; IDs são propagados pelo backend e persistidos no `sessionStorage`.
+- O avanço é disparado por evento Socket.IO; o frontend aguarda 300 ms antes de trocar de rota garantindo processamento dos listeners.
+- Após cada transição, a tela reposiciona automaticamente no topo para manter o ator no início da próxima estação.
+- Ao concluir a sequência, o usuário retorna para `/app/station-list`, consolidando o fluxo dentro da biblioteca de estações.
+
 ---
 
 ## 🎨 Diretrizes de Design

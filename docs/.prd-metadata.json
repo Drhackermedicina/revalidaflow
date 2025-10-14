@@ -1,14 +1,14 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2025-10-12T22:48:59.331Z",
+  "lastUpdated": "2025-10-14T04:58:41.000Z",
   "lastFullReview": "2025-01-12",
   "nextReviewDate": "2025-04-12",
   "sections": {
     "features": {
-      "lastModified": "2025-10-12",
-      "componentCount": 44,
-      "pageCount": 28,
-      "composableCount": 44,
+      "lastModified": "2025-10-14",
+      "componentCount": 40,
+      "pageCount": 27,
+      "composableCount": 42,
       "serviceCount": 9,
       "storeCount": 3
     },
@@ -34,12 +34,12 @@
     "src/services/**/*.{js,ts}"
   ],
   "statistics": {
-    "totalPages": 28,
-    "totalComponents": 44,
-    "totalComposables": 44,
+    "totalPages": 27,
+    "totalComponents": 40,
+    "totalComposables": 42,
     "totalServices": 9,
     "totalStores": 3,
-    "estimatedLinesOfCode": 16600
+    "estimatedLinesOfCode": 15600
   },
   "changelog": {
     "totalEntries": 1,
