@@ -19,8 +19,7 @@ import {
   updateDoc,
   setDoc,
   deleteDoc,
-  serverTimestamp,
-  Timestamp
+  serverTimestamp
 } from 'firebase/firestore'
 import { useSmartCache } from '@/composables/useSmartCache'
 

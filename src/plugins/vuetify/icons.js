@@ -1,4 +1,3 @@
-/* eslint-disable regex/invalid */
 import { Icon } from '@iconify/vue'
 import { h } from 'vue'
 import { isIconCached, cacheIcon } from '@/utils/iconCache'
@@ -51,7 +50,6 @@ const aliases = {
   sortDesc: 'ri-arrow-down-line',
 }
 
-/* eslint-enable */
 export const iconify = {
   component: props => {
     // Load custom SVG directly instead of going through icon component

@@ -8,7 +8,7 @@
 import StationListItem from '@/components/StationListItem.vue'
 
 // Props
-const props = defineProps({
+defineProps({
   title: {
     type: String,
     required: true

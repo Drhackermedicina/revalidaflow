@@ -954,47 +954,6 @@ async function salvarEstacaoManualmente() {
   }
 }
 
-async function onBatchStationsJsonUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  let stations;
-  try {
-    const text = await file.text();
-    stations = JSON.parse(text);
-    if (!Array.isArray(stations)) throw new Error('O JSON deve ser um array de estações.');
-  } catch (e) {
-    mensagemStatusUpload.value = 'Arquivo JSON inválido ou formato incorreto.';
-    tipoMensagemUpload.value = 'erro';
-    return;
-  }
-  const estacoesColRef = collection(db, 'estacoes_clinicas');
-  let sucesso = 0, falha = 0;
-  for (const station of stations) {
-    try {
-      const dadosParaSalvar = {
-        ...station,
-        criadoEmTimestamp: serverTimestamp(),
-        atualizadoEmTimestamp: serverTimestamp(),
-        // Campos de histórico de edição
-        editHistory: [], // Array vazio - estação nova não tem histórico ainda
-        hasBeenEdited: false, // Não foi editada ainda
-        totalEdits: 0, // Zero edições
-        // Campos para integração
-        mediaNotas: 0,
-        totalAvaliacoes: 0,
-        usuariosQueConcluíram: []
-      };
-      await addDoc(estacoesColRef, dadosParaSalvar);
-      sucesso++;
-    } catch (e) {
-      falha++;
-      console.error('Falha ao salvar estação:', station, e);
-    }
-  }
-  mensagemStatusUpload.value = `Processo concluído: ${sucesso} estações salvas, ${falha} falharam.`;
-  tipoMensagemUpload.value = falha === 0 ? 'sucesso' : 'erro';
-}
-
 async function onBatchQuestionsJsonUpload(event) {
   const file = event.target.files[0];
   if (!file) return;

@@ -1,6 +1,6 @@
 // src/services/firestoreService.js
 
-import { doc, updateDoc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { updateDoc, getDoc, setDoc } from 'firebase/firestore'
 import { db, handleFirestoreError, isOnline } from '@/plugins/firebase'
 
 // Wrapper para operações de update com retry automático

@@ -18,6 +18,7 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
   const currentSequenceIndex = ref(0)
   const isSequentialModeConfiguring = ref(false)
   const sequentialSessionId = ref(null)
+  const sharedSessionId = ref(null)
   const showSequentialConfig = ref(false)
 
   // --- Helper: Verifica se estação está na sequência ---
@@ -46,6 +47,7 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
     isSequentialModeConfiguring.value = false
     currentSequenceIndex.value = 0
     sequentialSessionId.value = null
+    sharedSessionId.value = null
   }
 
   /**
@@ -107,12 +109,14 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
       sequentialMode.value = true
       currentSequenceIndex.value = 0
 
-      // Gerar ID único para a sessão sequencial
+      // Gerar IDs únicos para a sequência (controle) e para a sessão compartilhada (socket)
       sequentialSessionId.value = `seq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      sharedSessionId.value = `session_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
 
       // Armazenar configuração da sequência no sessionStorage
       sessionStorage.setItem('sequentialSession', JSON.stringify({
         sessionId: sequentialSessionId.value,
+        sharedSessionId: sharedSessionId.value,
         sequence: selectedStationsSequence.value,
         currentIndex: 0,
         startedAt: new Date().toISOString()
@@ -150,12 +154,21 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
       // Atualizar sessionStorage com índice atual
       const sequentialData = JSON.parse(sessionStorage.getItem('sequentialSession') || '{}')
       sequentialData.currentIndex = currentSequenceIndex.value
+      if (!sequentialData.sharedSessionId) {
+        sequentialData.sharedSessionId = sharedSessionId.value
+      }
       sessionStorage.setItem('sequentialSession', JSON.stringify(sequentialData))
+
+      // Recuperar sessionId compartilhado da sequência
+      const sessionId = sequentialData.sharedSessionId || sharedSessionId.value
+      sharedSessionId.value = sessionId
+      logger.debug(`Utilizando sessionId compartilhado para estação ${currentStation.id}:`, sessionId)
 
       // Navegar para a estação atual
       const routeData = router.resolve({
         path: `/app/simulation/${currentStation.id}`,
         query: {
+          sessionId,
           role: 'actor',
           sequential: 'true',
           sequenceId: sequentialSessionId.value,

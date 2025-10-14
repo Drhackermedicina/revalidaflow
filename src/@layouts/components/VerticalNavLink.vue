@@ -1,7 +1,7 @@
 <script setup>
 import { VIcon } from 'vuetify/components/VIcon';
 import { VTooltip } from 'vuetify/components/VTooltip';
-const props = defineProps({
+defineProps({
   item: {
     type: null,
     required: true,

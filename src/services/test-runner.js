@@ -60,7 +60,7 @@ class PerformanceTestRunner {
       const startTime = performance.now();
 
       try {
-        const result = await geminiService.makeRequest(testCase.prompt, '', 3, testCase.type);
+        await geminiService.makeRequest(testCase.prompt, '', 3, testCase.type);
         const endTime = performance.now();
         const responseTime = endTime - startTime;
 

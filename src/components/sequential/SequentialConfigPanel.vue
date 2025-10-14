@@ -5,7 +5,7 @@
  * Painel de configuração de simulação sequencial
  */
 
-const props = defineProps({
+defineProps({
   show: {
     type: Boolean,
     default: false

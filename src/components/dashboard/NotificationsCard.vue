@@ -104,13 +104,12 @@
   </VCard>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTheme } from 'vuetify'
 import { currentUser, waitForAuth } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
 import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, writeBatch, getDoc } from 'firebase/firestore'
-import type { DashboardNotification } from '@/types/dashboard'
 
 const theme = useTheme()
 
@@ -121,7 +120,7 @@ const isDarkTheme = computed(() => theme.global.name.value === 'dark')
 const maxDisplay = 3
 
 // Estado
-const notifications = ref<DashboardNotification[]>([])
+const notifications = ref([])
 const loading = ref(true)
 
 /**
@@ -139,11 +138,11 @@ const loading = ref(true)
  */
 
 // Computed
-const displayedNotifications = computed(() => 
+const displayedNotifications = computed(() =>
   notifications.value.slice(0, maxDisplay)
 )
 
-const unreadCount = computed(() => 
+const unreadCount = computed(() =>
   notifications.value.filter(n => !n.lida).length
 )
 
@@ -166,7 +165,7 @@ onMounted(async () => {
     const userNotifRef = doc(db, 'notificacoes', userId)
     
     // Tentar ler o documento do usuário (pode não existir ainda)
-    const userDoc = await getDoc(userNotifRef)
+    await getDoc(userNotifRef)
     
     // Tentar buscar notificações reais do Firestore
     // Usar estrutura com subcoleções: notificacoes/{userId}/items/{notifId}
@@ -183,11 +182,11 @@ onMounted(async () => {
           notifications.value = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
-          } as DashboardNotification))
+          }))
         }
         loading.value = false
       },
-      (error) => {
+      (_error) => {
         useMockData()
         loading.value = false
       }
@@ -228,7 +227,7 @@ const useMockData = () => {
 }
 
 // Helpers
-const getNotifIcon = (tipo: string): string => {
+const getNotifIcon = (tipo) => {
   switch (tipo) {
     case 'info':
       return 'ri-information-line'
@@ -243,7 +242,7 @@ const getNotifIcon = (tipo: string): string => {
   }
 }
 
-const getNotifColor = (tipo: string): string => {
+const getNotifColor = (tipo) => {
   switch (tipo) {
     case 'info':
       return 'info'
@@ -258,7 +257,7 @@ const getNotifColor = (tipo: string): string => {
   }
 }
 
-const formatTime = (timestamp: any): string => {
+const formatTime = (timestamp) => {
   const date = timestamp?.toDate ? timestamp.toDate() : (timestamp instanceof Date ? timestamp : new Date(timestamp))
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -278,7 +277,7 @@ const formatTime = (timestamp: any): string => {
 }
 
 // Actions
-const markAsRead = async (notif: DashboardNotification) => {
+const markAsRead = async (notif) => {
   notif.lida = true
   
   // Atualizar no Firestore se não for mock

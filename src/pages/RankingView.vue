@@ -274,13 +274,6 @@ const obterCorRanking = (posicao) => {
   return 'grey'
 }
 
-const obterCorNota = (nota) => {
-  if (nota >= 9) return 'success'
-  if (nota >= 7) return 'info'
-  if (nota >= 5) return 'warning'
-  return 'error'
-}
-
 const obterIniciais = (nome, sobrenome) =>
   (nome?.charAt(0).toUpperCase() || '') + (sobrenome?.charAt(0).toUpperCase() || '')
 

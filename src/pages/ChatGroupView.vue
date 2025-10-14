@@ -176,7 +176,7 @@
   </v-container>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { currentUser } from '@/plugins/auth'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -227,7 +227,7 @@ const {
 useMessageCleanup()
 
 // Funções do componente
-function openPrivateChat(user: any) {
+function openPrivateChat(user) {
   if (!user.uid || user.uid === currentUser.value?.uid) return
   router.push({ name: 'ChatPrivateView', params: { uid: user.uid } })
 }

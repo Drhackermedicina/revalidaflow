@@ -181,9 +181,7 @@ export function getEvaluationColor(item, score) {
 
 // Para os ícones e cores de infraestrutura, copie as funções conforme o original, mantendo os mappings.
 
-export function getInfrastructureIcon(infraItem) {
-  const cleanItem = infraItem.startsWith('- ') ? infraItem.substring(2) : infraItem;
-  const text = cleanItem.toLowerCase();
+export function getInfrastructureIcon(infraItem = '') {
   if (infraItem.startsWith('- ')) {
     return 'ri-arrow-right-s-line';
   }
@@ -191,12 +189,10 @@ export function getInfrastructureIcon(infraItem) {
   return 'ri-hospital-line';
 }
 
-export function getInfrastructureColor(infraItem) {
+export function getInfrastructureColor(infraItem = '') {
   if (infraItem.startsWith('- ')) {
     return 'grey-darken-1';
   }
-  const cleanItem = infraItem.startsWith('- ') ? infraItem.substring(2) : infraItem;
-  const text = cleanItem.toLowerCase();
   // ... (mapeamento conforme original)
   return 'primary';
 }

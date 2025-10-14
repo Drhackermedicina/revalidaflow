@@ -1,8 +1,5 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
 
 const planos = [
   { label: 'Mensal', value: 'mensal', preco: 'R$ 29,90', valor: 29.90 },
@@ -41,7 +38,7 @@ function realizarPagamento() {
     
     // Redirecionar para gateway apropriado baseado no método escolhido
     if (metodo?.gateway === 'stripe') {
-      redirecionarParaStripe(plano, metodo)
+      redirecionarParaStripe(plano)
     } else if (metodo?.gateway === 'mercadopago') {
       redirecionarParaMercadoPago(plano, metodo)
     } else {
@@ -51,7 +48,7 @@ function realizarPagamento() {
   }, 1500)
 }
 
-function redirecionarParaStripe(plano, metodo) {
+function redirecionarParaStripe(plano) {
   // URL de exemplo do Stripe - em produção seria gerada pela API
   const stripeUrl = `https://checkout.stripe.com/pay/cs_test_example?amount=${plano.valor * 100}&currency=brl`
   window.open(stripeUrl, '_blank')

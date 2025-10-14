@@ -8,7 +8,6 @@ import authV1MaskLight from '@images/pages/auth-v1-mask-light.png'
 import revalidaFacilLogo from '@images/revalidafacillogo.png'
 
 const vuetifyTheme = useTheme()
-const router = useRouter()
 const { loading, error, loginComGoogle } = useLoginAuth()
 
 const authThemeMask = computed(() => {

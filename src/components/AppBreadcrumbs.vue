@@ -8,10 +8,9 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const router = useRouter()
 
 const breadcrumbs = computed(() => {
   const matched = route.matched.filter(r => r.name && r.path !== '/')

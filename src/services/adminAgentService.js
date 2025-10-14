@@ -83,7 +83,7 @@ export const adminAgentService = {
     };
   },
 
-  async autoFixStation(stationId) {
+  async autoFixStation(_stationId) {
     console.log('🛠 Aplicando correções automáticas...');
     // Mock implementation
     return {
@@ -92,7 +92,7 @@ export const adminAgentService = {
     };
   },
 
-  async validatePEP(stationId) {
+  async validatePEP(_stationId) {
     console.log('✅ Validando PEP...');
     // Mock implementation
     return {

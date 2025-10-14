@@ -166,7 +166,7 @@ export { storage }
 export async function testStorageConnection() {
   try {
     // Tenta criar uma referência simples para testar conectividade
-    const testRef = ref(storage, 'test-connection');
+    ref(storage, 'test-connection');
     return true;
   } catch (error) {
     console.error('❌ Falha na conectividade do Storage:', error);

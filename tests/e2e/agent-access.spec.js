@@ -6,12 +6,9 @@
 
 import { test, expect } from '@playwright/test';
 import {
-  loginAsAgent,
   isLoggedInAsAgent,
-  logoutAgent,
   setupAgentSession,
-  testAgentPageAccess,
-  AGENT_EMAIL
+  testAgentPageAccess
 } from './agent-auth.js';
 
 // Configuração base para todos os testes
@@ -121,7 +118,7 @@ test.describe('Usuário Agente - Acesso Completo', () => {
     }
   });
 
-  test.afterEach(async ({ page }) => {
+  test.afterEach(async () => {
     // Opcional: fazer logout após cada teste
     // await logoutAgent(page);
   });

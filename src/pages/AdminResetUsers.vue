@@ -254,26 +254,12 @@
 
 <script setup>
 import { useAdminAuth } from '@/composables/useAdminAuth';
-import { currentUser } from '@/plugins/auth';
 import { db } from '@/plugins/firebase';
 import { collection, doc, getDocs, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref } from 'vue';
 
 // Verificação de admin
-const { isAuthorizedAdmin, isLoading, isAdmin, hasAdminRole } = useAdminAuth();
-const router = useRouter();
-
-// Debug das verificações de admin
-watch([isAuthorizedAdmin, isLoading, isAdmin, hasAdminRole], () => {
-  // console.log('Admin auth state changed:', {
-  //   isAuthorizedAdmin: isAuthorizedAdmin.value,
-  //   isLoading: isLoading.value,
-  //   isAdmin: isAdmin.value,
-  //   hasAdminRole: hasAdminRole.value,
-  //   currentUser: currentUser.value
-  // });
-}, { immediate: true });
+const { isAuthorizedAdmin } = useAdminAuth();
 
 // Não redirecionar automaticamente - deixar o usuário ver a mensagem
 
@@ -417,7 +403,6 @@ async function executeStatsReset() {
   for (const userDoc of usersSnapshot.docs) {
     try {
       const userRef = doc(db, 'usuarios', userDoc.id);
-      const userData = userDoc.data();
       
       
       // Objeto completo de reset - TODOS os campos de estatísticas
@@ -499,7 +484,6 @@ async function executeCompleteReset() {
   for (const userDoc of usersSnapshot.docs) {
     try {
       const userRef = doc(db, 'usuarios', userDoc.id);
-      const userData = userDoc.data();
       
       
       // Reset completo: status + todas as estatísticas
@@ -596,7 +580,7 @@ async function debugUserStats() {
     const usersSnapshot = await getDocs(collection(db, 'usuarios'));
     
     
-    usersSnapshot.forEach((doc, index) => {
+    usersSnapshot.forEach((doc) => {
       const data = doc.data();
       const userInfo = {
         id: doc.id,
@@ -609,17 +593,8 @@ async function debugUserStats() {
         progresso: data.progresso || 'Não definido',
         historicoSimulacoes: data.historicoSimulacoes ? data.historicoSimulacoes.length : 0
       };
-      
-      
-      // Verificar especificamente campos críticos
-      if (data.estacoesConcluidas && data.estacoesConcluidas.length > 0) {
-      }
-      
-      if (data.statistics && Object.keys(data.statistics).length > 0) {
-      }
-      
-      if (data.nivelHabilidade && data.nivelHabilidade > 0) {
-      }
+
+      console.log('[AdminResetUsers][DEBUG]', userInfo)
     });
     
     addLog('info', 'Debug de estatísticas concluído - verifique o console');

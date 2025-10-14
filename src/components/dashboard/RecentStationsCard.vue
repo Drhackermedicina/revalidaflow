@@ -88,24 +88,18 @@
   </VCard>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { db } from '@/plugins/firebase'
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
 
-interface Station {
-  title: string
-  difficulty: string
-  createdAt: any
-}
-
 const router = useRouter()
 const theme = useTheme()
 
 const loading = ref(true)
-const recentStations = ref<Station[]>([])
+const recentStations = ref([])
 
 // Tema
 const isDarkTheme = computed(() => theme.global.name.value === 'dark')
@@ -139,7 +133,7 @@ onMounted(async () => {
 })
 
 // Formatação de data
-const formatDate = (date: any): string => {
+const formatDate = (date) => {
   if (!date) return 'Data desconhecida'
   
   try {
@@ -162,8 +156,8 @@ const formatDate = (date: any): string => {
 }
 
 // Cor por dificuldade
-const getDifficultyColor = (difficulty: string): string => {
-  const difficultyMap: Record<string, string> = {
+const getDifficultyColor = (difficulty) => {
+  const difficultyMap = {
     'Fácil': 'success',
     'Médio': 'warning',
     'Difícil': 'error'

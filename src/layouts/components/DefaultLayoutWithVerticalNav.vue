@@ -11,11 +11,6 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
 
 import { ref } from 'vue'
 
-// Função exemplo para abrir Google Meet
-function openGoogleMeet() {
-  window.open('https://meet.google.com/new', '_blank')
-}
-
 // Estado do chat Gemini
 const showGeminiChat = ref(false)
 

@@ -5,75 +5,71 @@ defineProps({
 })
 
 // Imports - seguindo mesmo padrão do SimulationView.vue
-import { usePrivateChatNotification } from '@/plugins/privateChatListener.js'
 import { currentUser } from '@/plugins/auth.js'
 import { db } from '@/plugins/firebase.js'
 import { backendUrl } from '@/utils/backendUrl.js' // Necessário para IA
-import {
-  formatTime,
-  getEvaluationColor,
-  getEvaluationLabel,
-  formatActorText,
-  formatIdentificacaoPaciente,
-  formatItemDescriptionForDisplay,
-  parseEnumeratedItems,
-  splitIntoParagraphs,
-  getInfrastructureColor,
+import {  getInfrastructureColor,
   getInfrastructureIcon,
   processInfrastructureItems
 } from '@/utils/simulationUtils.js'
-import { addDoc, collection, doc, getDoc } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
+import { addDoc, collection } from 'firebase/firestore'
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
+import { useSimulationSession } from '@/composables/useSimulationSession.js'
+import { useSimulationWorkflowStandalone } from '@/composables/useSimulationWorkflowStandalone.js'
 // import PepSideView from '@/components/PepSideView.vue' // Removido - usando PEP completo
 
 // Configuração do tema
 const theme = useTheme()
 const isDarkTheme = computed(() => theme.global.name.value === 'dark')
 
-// Configuração do chat privado
-const { reloadListeners } = usePrivateChatNotification()
-
 const route = useRoute()
 const router = useRouter()
 
-// Refs para dados da estação e checklist - seguindo mesmo padrão
-const stationData = ref(null)
-const checklistData = ref(null)
-const isLoading = ref(true)
-const errorMessage = ref('')
+// Estado e carregamento compartilhados com SimulationView
+const {
+  stationId,
+  sessionId,
+  userRole,
+  stationData,
+  checklistData,
+  isLoading,
+  errorMessage,
+  simulationTimeSeconds,
+  timerDisplay,
+  selectedDurationMinutes,
+  fetchSimulationData: fetchSessionData,
+  setupDuration
+} = useSimulationSession()
 
-// Refs para controle de simulação AI
-const sessionId = ref(null) // Local apenas, sem backend
-const stationId = ref(route.params.id)
-const userRole = ref('candidate') // Usuário sempre candidato na simulação AI
-const aiPartner = ref({ name: 'IA Virtual', role: 'actor' }) // IA como ator/avaliador
+stationId.value = route.params.id || null
+userRole.value = 'candidate'
+setupDuration(route.query || {})
 
-// Refs para estado de simulação - seguindo mesmo padrão
-const myReadyState = ref(false)
-const aiReadyState = ref(false) // IA sempre pronta
-const simulationStarted = ref(false)
-const simulationEnded = ref(false)
-const candidateReadyButtonEnabled = ref(false)
-
-// Refs para timer - seguindo mesmo padrão
-const simulationTimeSeconds = ref(10 * 60)
-const timerDisplay = ref(formatTime(simulationTimeSeconds.value))
-const selectedDurationMinutes = ref(10)
+const {
+  myReadyState,
+  partnerReadyState,
+  candidateReadyButtonEnabled,
+  simulationStarted,
+  simulationEnded,
+  manuallyEndSimulation,
+  sendReady,
+  updateTimerDisplayFromSelection
+} = useSimulationWorkflowStandalone({
+  simulationTimeSeconds,
+  timerDisplay,
+  selectedDurationMinutes,
+  autoStartOnReady: true
+})
 
 // Refs para dados da simulação - seguindo mesmo padrão
 const releasedData = ref({})
-const evaluationScores = ref({})
 const isChecklistVisibleForCandidate = ref(false)
 const pepReleasedToCandidate = ref(false)
 const evaluationSubmittedByCandidate = ref(false)
 const submittingEvaluation = ref(false)
-const actorVisibleImpressoContent = ref({})
-const candidateReceivedScores = ref({})
 const candidateReceivedTotalScore = ref(0)
-const actorReleasedImpressoIds = ref({})
 
 // Refs para PEP - seguindo mesmo padrão
 const pepViewState = ref({ isVisible: false })
@@ -111,8 +107,6 @@ const aiStats = ref({
 })
 
 // Propriedades computadas
-const isCandidate = computed(() => true) // Sempre candidato
-const isActorOrEvaluator = computed(() => false) // Nunca ator/avaliador
 
 const canSendMessage = computed(() =>
   currentMessage.value.trim().length > 0 &&
@@ -120,84 +114,52 @@ const canSendMessage = computed(() =>
   simulationStarted.value
 )
 
-const bothUsersReady = computed(() => myReadyState.value && aiReadyState.value)
 
 // Inicializar dados da estação - seguindo mesmo padrão do SimulationView
-async function fetchSimulationData(currentStationId) {
+async function loadSimulationData(currentStationId) {
+  resetWorkflowState()
+
   if (!currentStationId) {
     errorMessage.value = 'ID da estação inválido.'
     isLoading.value = false
     return
   }
 
-  isLoading.value = true
-  errorMessage.value = ''
-
-  // 🧹 LIMPAR HISTÓRICO DE CONVERSA AO TROCAR DE ESTAÇÃO
   conversationHistory.value = []
-  console.log('🧹 Histórico de conversa limpo para nova estação:', currentStationId)
+  console.log('?? Histórico de conversa limpo para nova estação:', currentStationId)
 
-  // 🔊 RESETAR VOZ SELECIONADA para nova seleção baseada no novo paciente
   selectedVoice.value = null
-  console.log('🔊 Voz resetada para nova estação')
+  console.log('?? Voz resetada para nova estação')
 
   try {
-    const auth = getAuth()
-    const user = auth.currentUser
+    await fetchSessionData(currentStationId)
 
-    if (!user) {
-      throw new Error('Usuário não autenticado no Firebase')
+    if (!stationData.value) {
+      throw new Error('Falha ao carregar dados da estação')
     }
 
-    // Carregar dados da estação do Firestore
-    const stationRef = doc(db, 'estacoes_clinicas', currentStationId)
-    const stationDoc = await getDoc(stationRef)
-
-    if (!stationDoc.exists()) {
-      throw new Error('Estação não encontrada no banco de dados')
-    }
-
-    const data = stationDoc.data()
-    stationData.value = { id: currentStationId, ...data }
-
-    // 🔍 DEBUG: Verificar script do paciente
-    const patientScript = data?.materiaisDisponiveis?.informacoesVerbaisSimulado || []
-    console.log('📋 Script do paciente carregado:', patientScript.length, 'seções')
+    const patientScript = stationData.value?.materiaisDisponiveis?.informacoesVerbaisSimulado || []
+    console.log('?? Script do paciente carregado:', patientScript.length, 'seções')
     if (patientScript.length > 0) {
-      console.log('📋 Primeira seção do script:', patientScript[0])
+      console.log('?? Primeira seção do script:', patientScript[0])
     } else {
-      console.warn('⚠️ AVISO: Script do paciente está vazio!')
+      console.warn('?? AVISO: Script do paciente está vazio!')
     }
 
-    // Configurar timer
-    simulationTimeSeconds.value = selectedDurationMinutes.value * 60
-    timerDisplay.value = formatTime(simulationTimeSeconds.value)
-
-    // Carregar checklist (PEP)
-    if (stationData.value?.padraoEsperadoProcedimento) {
-      checklistData.value = stationData.value.padraoEsperadoProcedimento
-
-      if (stationData.value.feedbackEstacao && !checklistData.value.feedbackEstacao) {
-        checklistData.value.feedbackEstacao = stationData.value.feedbackEstacao
-      }
-
-      if (checklistData.value.itensAvaliacao?.length > 0) {
-        checklistData.value.itensAvaliacao.forEach(item => {
-          if (item.idItem && !markedPepItems.value[item.idItem]) {
-            markedPepItems.value[item.idItem] = []
-          }
-        })
-      }
+    if (checklistData.value?.itensAvaliacao?.length > 0) {
+      checklistData.value.itensAvaliacao.forEach(item => {
+        if (item.idItem && !markedPepItems.value[item.idItem]) {
+          markedPepItems.value[item.idItem] = []
+        }
+      })
     }
 
-    // Inicializar sessão AI local (sem backend)
     initializeLocalAISession()
-
   } catch (error) {
-    console.error('Erro ao carregar dados da estação:', error)
-    errorMessage.value = error.message
-  } finally {
-    isLoading.value = false
+    console.error('Erro ao carregar dados da estação (IA):', error)
+    if (!errorMessage.value) {
+      errorMessage.value = error.message || 'Falha ao carregar dados da estação.'
+    }
   }
 }
 
@@ -205,47 +167,17 @@ async function fetchSimulationData(currentStationId) {
 function initializeLocalAISession() {
   // Gerar ID de sessão local
   sessionId.value = `ai-local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  aiReadyState.value = true // IA sempre pronta
+  partnerReadyState.value = true // IA sempre pronta
 
-  console.log('✅ Sessão AI local inicializada:', sessionId.value)
+  console.log('? Sessão AI local inicializada:', sessionId.value)
 
   // Candidato deve iniciar a conversa
-  console.log('📝 IA aguardando candidato iniciar a conversa...')
+  console.log('?? IA aguardando candidato iniciar a conversa...')
 }
 
-// Funções de controle da simulação - seguindo mesmo padrão
 function toggleReadyState() {
   if (!candidateReadyButtonEnabled.value) return
-  myReadyState.value = !myReadyState.value
-}
-
-function startSimulationTimer() {
-  if (!bothUsersReady.value) return
-
-  simulationStarted.value = true
-
-  const interval = setInterval(() => {
-    if (simulationTimeSeconds.value > 0 && !simulationEnded.value) {
-      simulationTimeSeconds.value--
-      timerDisplay.value = formatTime(simulationTimeSeconds.value)
-    } else {
-      clearInterval(interval)
-      if (!simulationEnded.value) {
-        endSimulation()
-      }
-    }
-  }, 1000)
-}
-
-function endSimulation() {
-  console.log('🔚 Finalizando simulação...')
-  simulationEnded.value = true
-
-  // A liberação do PEP e avaliação automática será feita pelo watcher de simulationEnded
-  console.log('✅ Simulação marcada como finalizada - aguardando watcher para liberar PEP')
-
-  // Finalizar sessão AI
-  finalizeAISimulation()
+  sendReady()
 }
 
 // Enviar mensagem para IA
@@ -808,23 +740,6 @@ function releaseMaterialById(materialId) {
 // As funções identificarSecaoRelevante, buscarRespostasNaSecao, perguntaCorrespondeAoGatilho
 // e checkAndReleaseMaterials foram removidas pois a IA agora decide tudo dinamicamente
 
-
-// Função para alternar marcação de itens do PEP - seguindo mesmo padrão
-function togglePepItemMark(itemId, pointIndex) {
-  if (!markedPepItems.value[itemId]) {
-    markedPepItems.value[itemId] = []
-  }
-
-  while (markedPepItems.value[itemId].length <= pointIndex) {
-    markedPepItems.value[itemId].push(false)
-  }
-
-  const currentItemMarks = [...markedPepItems.value[itemId]]
-  currentItemMarks[pointIndex] = !currentItemMarks[pointIndex]
-  markedPepItems.value[itemId] = currentItemMarks
-  markedPepItems.value = { ...markedPepItems.value }
-}
-
 // Submeter avaliação - seguindo mesmo padrão
 async function submitEvaluation() {
   if (evaluationSubmittedByCandidate.value) return
@@ -854,7 +769,7 @@ async function forceLoadPEP() {
   console.log('🔧 Forçando carregamento do PEP...')
   try {
     // Recarregar dados da estação para obter PEP
-    await fetchSimulationData(stationId.value)
+    await loadSimulationData(stationId.value)
 
     // Forçar liberação
     pepReleasedToCandidate.value = true
@@ -907,313 +822,9 @@ function closeImageZoom() {
 }
 
 
-// Função para abrir material liberado
-function openMaterial(material) {
-  console.log('🔍 Material clicado:', material) // Debug para ver estrutura
 
-  // Verificar se tem link direto
-  if (material.linkOriginal) {
-    window.open(material.linkOriginal, '_blank')
-    return
-  }
-
-  // Usar o conteúdo que já está no material (fornecido pela IA)
-  if (material.conteudo || material.conteudoImpresso) {
-    console.log('✅ Usando conteúdo do material')
-    openFullMaterial(material)
-    return
-  }
-
-  // Se não tem conteúdo, buscar na estação como fallback
-  const fullMaterial = findMaterialInStation(material.idImpresso)
-  if (fullMaterial) {
-    console.log('✅ Usando material da estação')
-    openFullMaterial(fullMaterial)
-    return
-  }
-
-  // Fallback final
-  console.log('❌ Nenhum conteúdo encontrado')
-  const info = `
-Material: ${material.tituloImpresso || 'Sem título'}
-Tipo: ${material.tipoConteudo || 'Documento'}
-ID: ${material.idImpresso || 'N/A'}
-
-⚠️ Conteúdo completo não disponível.
-Este material foi liberado pela IA mas o conteúdo detalhado não foi fornecido.
-  `.trim()
-
-  alert(info)
-}
-
-// Buscar material completo na estação carregada
-function findMaterialInStation(materialId) {
-  if (!stationData.value || !materialId) {
-    console.log('❌ Não há stationData ou materialId:', { stationData: !!stationData.value, materialId })
-    return null
-  }
-
-  console.log('🔍 Procurando material:', materialId)
-  console.log('📊 Estrutura da estação:', Object.keys(stationData.value))
-
-  // Verificar em diferentes seções da estação
-  const sections = [
-    { name: 'materiaisImpressos', data: stationData.value.materiaisImpressos },
-    { name: 'anexos', data: stationData.value.anexos },
-    { name: 'documentos', data: stationData.value.documentos },
-    { name: 'materiais', data: stationData.value.materiais },
-    { name: 'impressos', data: stationData.value.impressos }
-  ]
-
-  for (const section of sections) {
-    if (Array.isArray(section.data)) {
-      console.log(`🔍 Procurando em ${section.name} (array):`, section.data.length, 'itens')
-      const found = section.data.find(item =>
-        item && (
-          item.idImpresso === materialId ||
-          item.id === materialId ||
-          item.titulo === materialId ||
-          item.nome === materialId
-        )
-      )
-      if (found) {
-        console.log('✅ Material encontrado em', section.name, ':', found)
-        return found
-      }
-    } else if (section.data && typeof section.data === 'object') {
-      console.log(`🔍 Procurando em ${section.name} (object):`, Object.keys(section.data))
-      const found = Object.values(section.data).find(item =>
-        item && (
-          item.idImpresso === materialId ||
-          item.id === materialId ||
-          item.titulo === materialId ||
-          item.nome === materialId
-        )
-      )
-      if (found) {
-        console.log('✅ Material encontrado em', section.name, ':', found)
-        return found
-      }
-    }
-  }
-
-  console.log('❌ Material não encontrado')
-  return null
-}
-
-// Abrir material completo da estação
-function openFullMaterial(material) {
-  const newWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes')
-
-  let content = material.conteudoImpresso || 'Conteúdo não disponível'
-
-  // Se tiver conteúdo estruturado
-  if (material.conteudo) {
-    console.log('📋 Processando conteúdo estruturado:', material.conteudo)
-
-    if (material.tipoConteudo === 'lista_chave_valor_secoes') {
-      // Usar secoes se existir, senão tentar extrair do conteudo
-      const secoes = material.secoes || material.conteudo.secoes || material.conteudo
-      content = formatKeyValueSections(secoes)
-    } else if (material.tipoConteudo === 'imagemComLaudo' || material.tipoConteudo === 'imagem_com_texto') {
-      // Processar conteúdo de imagem com laudo
-      content = ''
-
-      if (material.conteudo.textoDescritivo) {
-        content += `<div class="texto-descritivo">${material.conteudo.textoDescritivo}</div>`
-      }
-
-      if (material.conteudo.caminhoImagem) {
-        content += `<div class="imagem-container" style="text-align: center; margin: 20px 0;">
-          <img src="${material.conteudo.caminhoImagem}"
-               alt="${material.tituloImpresso}"
-               style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;" />
-        </div>`
-      }
-
-      if (material.conteudo.legendaImagem) {
-        content += `<div class="legenda" style="font-style: italic; text-align: center; margin: 10px 0;">${material.conteudo.legendaImagem}</div>`
-      }
-
-      if (material.conteudo.laudo || material.conteudo.laudoCompleto) {
-        const laudoTexto = material.conteudo.laudo || material.conteudo.laudoCompleto
-        content += `<div class="laudo" style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Laudo:</h3>
-          <p>${laudoTexto}</p>
-        </div>`
-      }
-    } else {
-      // Para outros tipos, converter objeto para HTML
-      content = formatObjectContent(material.conteudo)
-    }
-  } else if (material.tipoConteudo === 'lista_chave_valor_secoes' && material.secoes) {
-    content = formatKeyValueSections(material.secoes)
-  }
-
-  newWindow.document.write(`
-    <html>
-      <head>
-        <title>${material.titulo || material.tituloImpresso || 'Material'}</title>
-        <meta charset="UTF-8">
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background: #f5f5f5;
-          }
-          .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          }
-          h1 {
-            color: #1976d2;
-            border-bottom: 2px solid #1976d2;
-            padding-bottom: 10px;
-          }
-          .meta {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-          }
-          .section {
-            margin: 20px 0;
-          }
-          .key {
-            font-weight: bold;
-            color: #333;
-          }
-          .value {
-            margin-left: 10px;
-            color: #666;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>${material.titulo || material.tituloImpresso || 'Material'}</h1>
-          <div class="meta">
-            <p><strong>Tipo:</strong> ${material.tipoConteudo || 'Documento'}</p>
-            <p><strong>ID:</strong> ${material.idImpresso || material.id || 'N/A'}</p>
-          </div>
-          <div class="content">
-            ${content}
-          </div>
-        </div>
-      </body>
-    </html>
-  `)
-  newWindow.document.close()
-}
-
-// Abrir conteúdo fornecido pela IA
-function openMaterialContent(material) {
-  const newWindow = window.open('', '_blank', 'width=600,height=500')
-  newWindow.document.write(`
-    <html>
-      <head>
-        <title>${material.tituloImpresso || 'Material'}</title>
-        <meta charset="UTF-8">
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
-          h1 { color: #1976d2; }
-          .meta { background: #f0f0f0; padding: 10px; border-radius: 5px; }
-        </style>
-      </head>
-      <body>
-        <h1>${material.tituloImpresso || 'Material'}</h1>
-        <div class="meta">
-          <p><strong>Tipo:</strong> ${material.tipoConteudo || 'Documento'}</p>
-        </div>
-        <div>${material.conteudoImpresso}</div>
-      </body>
-    </html>
-  `)
-  newWindow.document.close()
-}
 
 // Formatar seções chave-valor
-function formatKeyValueSections(secoes) {
-  console.log('🔧 Formatando seções:', secoes)
-
-  if (!secoes) return 'Nenhuma seção fornecida'
-
-  // Se for array, processar normalmente
-  if (Array.isArray(secoes)) {
-    return secoes.map(secao => {
-      let html = `<div class="section"><h3>${secao.titulo || secao.nome || 'Seção'}</h3>`
-
-      if (Array.isArray(secao.itens)) {
-        secao.itens.forEach(item => {
-          html += `<div><span class="key">${item.chave || item.nome}:</span> <span class="value">${item.valor || item.valor}</span></div>`
-        })
-      } else if (secao.itens && typeof secao.itens === 'object') {
-        // Se itens for objeto, converter para HTML
-        Object.entries(secao.itens).forEach(([key, value]) => {
-          html += `<div><span class="key">${key}:</span> <span class="value">${value}</span></div>`
-        })
-      }
-
-      html += '</div>'
-      return html
-    }).join('')
-  }
-
-  // Se for objeto, tentar converter
-  if (typeof secoes === 'object') {
-    return formatObjectContent(secoes)
-  }
-
-  return 'Formato de seções não reconhecido'
-}
-
-// Formatar conteúdo de objeto genérico
-function formatObjectContent(obj) {
-  if (!obj || typeof obj !== 'object') return 'Conteúdo inválido'
-
-  let html = ''
-
-  Object.entries(obj).forEach(([key, value]) => {
-    html += `<div class="section">`
-    html += `<h3>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h3>`
-
-    if (Array.isArray(value)) {
-      value.forEach(item => {
-        if (typeof item === 'object') {
-          Object.entries(item).forEach(([subKey, subValue]) => {
-            html += `<div><span class="key">${subKey}:</span> <span class="value">${subValue}</span></div>`
-          })
-        } else {
-          html += `<div class="value">${item}</div>`
-        }
-      })
-    } else if (typeof value === 'object') {
-      Object.entries(value).forEach(([subKey, subValue]) => {
-        html += `<div><span class="key">${subKey}:</span> <span class="value">${subValue}</span></div>`
-      })
-    } else {
-      html += `<div class="value">${value}</div>`
-    }
-
-    html += '</div>'
-  })
-
-  return html
-}
-
-// Funções auxiliares
-function scrollToBottom() {
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-  }
-}
-
 function formatTimestamp(timestamp) {
   return new Date(timestamp).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
@@ -1675,31 +1286,15 @@ function toggleAutoRecordMode() {
   }
 }
 
-// Watchers - seguindo mesmo padrão
-watch(bothUsersReady, (newValue) => {
-  if (newValue && !simulationStarted.value) {
-    startSimulationTimer()
-  }
-})
-
-watch(myReadyState, (newValue) => {
-  if (newValue && aiReadyState.value && !simulationStarted.value) {
-    setTimeout(() => {
-      startSimulationTimer()
-    }, 1000)
-  }
-})
-
-watch(selectedDurationMinutes, (newValue) => {
-  if (!simulationStarted.value) {
-    simulationTimeSeconds.value = newValue * 60
-    timerDisplay.value = formatTime(simulationTimeSeconds.value)
-  }
+// Watchers - ajustes específicos para modo IA
+watch(selectedDurationMinutes, () => {
+  updateTimerDisplayFromSelection()
 })
 
 // Watcher para liberar PEP automaticamente ao final da simulação (mesma lógica do SimulationView.vue)
 watch(simulationEnded, (newValue) => {
   if (newValue) {
+    finalizeAISimulation()
     console.log('🔚 Simulação finalizada - liberando PEP automaticamente')
     // Liberar PEP automaticamente quando a simulação termina
     pepReleasedToCandidate.value = true
@@ -1831,7 +1426,7 @@ function processAIEvaluationSimple(evaluationText) {
 
   const items = evaluationText.split(',')
 
-  checklistData.value.itensAvaliacao.forEach((item, index) => {
+  checklistData.value.itensAvaliacao.forEach(item => {
     if (!markedPepItems.value[item.idItem]) {
       markedPepItems.value[item.idItem] = []
     }
@@ -1901,7 +1496,7 @@ function autoEvaluatePEPFallback() {
     msg.sender === 'candidate' || msg.role === 'candidate'
   )
 
-  checklistData.value.itensAvaliacao.forEach((item, index) => {
+  checklistData.value.itensAvaliacao.forEach(item => {
     if (!markedPepItems.value[item.idItem]) {
       markedPepItems.value[item.idItem] = []
     }
@@ -1934,8 +1529,6 @@ function getClassificacaoFromPontuacao(pontuacao, item) {
 
   const adequado = item.pontuacoes.adequado?.pontos || 1.0
   const parcial = item.pontuacoes.parcialmenteAdequado?.pontos || 0.5
-  const inadequado = item.pontuacoes.inadequado?.pontos || 0.0
-
   // Compara com margem de erro mínima (0.01) para lidar com imprecisões de float
   const epsilon = 0.01
 
@@ -1967,6 +1560,7 @@ onMounted(async () => {
   // Register cleanup BEFORE any await statements
   onUnmounted(() => {
     document.removeEventListener('keydown', handleEscKey)
+    resetWorkflowState()
     finalizeAISimulation()
   })
 
@@ -1994,7 +1588,7 @@ onMounted(async () => {
   }, 3000)
 
   // Carregar dados da estação
-  await fetchSimulationData(stationId.value)
+  await loadSimulationData(stationId.value)
 
   // Focus no input após simulação iniciar
   await nextTick()
@@ -2413,7 +2007,7 @@ onMounted(async () => {
                     <v-btn
                       color="warning"
                       variant="outlined"
-                      @click="endSimulation"
+                    @click="manuallyEndSimulation"
                       v-if="!simulationEnded"
                       block
                     >
@@ -3053,3 +2647,4 @@ onMounted(async () => {
 
 /* DIAGNÓSTICO URGENTE: Usando apenas estilos inline no template */
 </style>
+

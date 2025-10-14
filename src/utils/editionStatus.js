@@ -30,22 +30,6 @@ function isValidTimestamp(timestamp) {
   }
 }
 
-function safeToISOString(timestamp) {
-  try {
-    if (!timestamp) return null;
-    let date;
-    if (timestamp.toDate) {
-      date = timestamp.toDate();
-    } else {
-      date = new Date(timestamp);
-    }
-    if (isNaN(date.getTime())) return null;
-    return date.toISOString();
-  } catch {
-    return null;
-  }
-}
-
 export function verificarEdicaoHibrida(station) {
   const cacheKey = `${station.id}_${station.hasBeenEdited}_${station.atualizadoEmTimestamp}_${station.criadoEmTimestamp}`;
   if (editStatusCache.has(cacheKey)) {

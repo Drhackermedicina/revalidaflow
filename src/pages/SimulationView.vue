@@ -16,16 +16,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 
 // Firebase
-import { db } from '@/plugins/firebase.js'
 import { currentUser } from '@/plugins/auth.js'
-import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
 
 // Plugins & Utils
 import { backendUrl } from '@/utils/backendUrl.js'
-import { loadAudioFile, playAudioSegment, playSoundEffect } from '@/utils/audioService.js'
-import { memoize } from '@/utils/memoization.js'
-import { captureSimulationError, captureWebSocketError, captureFirebaseError } from '@/plugins/sentry'
+import { playSoundEffect } from '@/utils/audioService.js'
+import { captureSimulationError, captureWebSocketError } from '@/plugins/sentry'
 import { usePrivateChatNotification } from '@/plugins/privateChatListener.js'
 
 // Componentes
@@ -37,12 +33,10 @@ import ActorScriptPanel from '@/components/ActorScriptPanel.vue'
 import CandidateContentPanel from '@/components/CandidateContentPanel.vue'
 import ImageZoomModal from '@/components/ImageZoomModal.vue'
 import ImpressosModal from '@/components/ImpressosModal.vue'
-import PepSideView from '@/components/PepSideView.vue'
 import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue'
 
 // Composables Principais
 import { useSimulationSession } from '@/composables/useSimulationSession.js'
-import { useSimulationSocket } from '@/composables/useSimulationSocket.js'
 import { useSimulationInvites } from '@/composables/useSimulationInvites.js'
 import { useSequentialNavigation } from '@/composables/useSequentialNavigation.js'
 import { useEvaluation } from '@/composables/useEvaluation.js'
@@ -56,83 +50,24 @@ import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.js'
 import { useInviteLinkGeneration } from '@/composables/useInviteLinkGeneration.js'
 
 // Utils de Formatação
-import {
-  formatActorText,
-  formatIdentificacaoPaciente,
-  formatItemDescriptionForDisplay,
-  splitIntoParagraphs,
-  formatTime,
-  getEvaluationColor,
-  getEvaluationLabel,
-  getInfrastructureColor,
-  getInfrastructureIcon,
-  processInfrastructureItems,
-  parseEnumeratedItems
-} from '@/utils/simulationUtils.js'
 
 // Bibliotecas Externas
 import { io } from 'socket.io-client'
 
 // Handlers para imagem de zoom (evitam warnings Vue)
-function handleZoomImageError(err) {
+function handleZoomImageError(_err) {
   // Silently handle zoom image errors
 }
-function handleZoomImageLoad(event) {
+function handleZoomImageLoad(_event) {
   // Carregamento de imagem completo
 }
 
 // Funções de formatação memoizadas
-const memoizedFormatActorText = memoize(formatActorText);
-const memoizedFormatIdentificacaoPaciente = memoize(formatIdentificacaoPaciente);
-const memoizedFormatItemDescriptionForDisplay = memoize(formatItemDescriptionForDisplay);
-
-// Configuração do tema
-const theme = useTheme();
-const isDarkTheme = computed(() => theme.global.name.value === 'dark');
-
-// Configuração do chat privado
-const { reloadListeners } = usePrivateChatNotification();
-
-// Configuração do editor removida - TinyMCE não essencial
-
-// Função para processar linhas do roteiro
-const processRoteiro = computed(() => {
-  return (text) => {
-    if (!text) return '';
-    return formatActorText(text, isActorOrEvaluator.value);
-  }
-});
-
-// Função para processar roteiro especificamente para ator (removendo aspas simples)
-const processRoteiroActor = computed(() => {
-  return (text) => {
-    if (!text) return '';
-    return formatActorText(text, isActorOrEvaluator.value);
-  }
-});
-
-// Função para formatar texto do roteiro do ator
-
-// Função específica para formatar identificação do paciente
-
-// Adiciona função para edição
-function editStationData(field, value) {
-  if (stationData.value) {
-    stationData.value[field] = value;  // Atualiza o campo
-    // Reaplica formatação se necessário
-    if (field === 'descricaoCasoCompleta' || field.includes('informacoesVerbaisSimulado')) {
-      stationData.value[field] = formatActorText(value, isActorOrEvaluator.value);  // Mantém formatação
-    }
-  }
-}
-
 // Inicializa o composable de sessão
 const {
   stationId,
   sessionId,
-  userRole,
-  localSessionId,
-  stationData,
+  userRole,  stationData,
   checklistData,
   isLoading,
   errorMessage,
@@ -150,35 +85,46 @@ const {
   fetchSimulationData,
   setupSequentialMode,
   setupDuration,
-  validateSessionParams,
-  clearSession,
-  updateDuration
-} = useSimulationSession();
+  validateSessionParams,} = useSimulationSession();
+
+// Socket - declarado ANTES para uso nos composables
+const socketRef = ref(null);
+const connectionStatus = ref('Desconectado');
+const disconnect = () => {
+  if (socketRef.value) {
+    console.log('[WebSocket] 🔴 Desconectando socket -', socketRef.value.id);
+    socketRef.value.disconnect();
+    socketRef.value = null;
+  }
+  connectionStatus.value = 'Desconectado';
+};
 
 // Inicializa composable de navegação sequencial
-const {
-  setupSequentialNavigation,
-  goToNextSequentialStation,
+const {  goToNextSequentialStation,
   goToPreviousSequentialStation,
   exitSequentialMode,
   canGoToPrevious,
   canGoToNext,
-  sequentialProgress,
-  currentSequentialStation,
-  setupDebugFunction
+  sequentialProgress,  setupDebugFunction
 } = useSequentialNavigation({
   isSequentialMode,
   sequenceId,
   sequenceIndex,
   totalSequentialStations,
-  sequentialData
+  sequentialData,
+  userRole,  // ✅ FIX: Passar userRole para o composable
+  socketRef,  // ✅ NOVO: Passar socket para sincronização
+  sessionId   // ✅ NOVO: Passar sessionId para eventos Socket
 });
 
-// Socket - declarado antes para uso nos composables
-const socketRef = ref(null);
-let connectionStatus = ref('');
-let connect = () => {};
-let disconnect = () => {};
+// Função local para chamar debug sequencial (acessível no template)
+const callDebugSequentialNavigation = () => {
+  if (window.debugSequentialNavigation) {
+    window.debugSequentialNavigation();
+  } else {
+    console.warn('[DEBUG] debugSequentialNavigation não está disponível. Certifique-se de que setupDebugFunction foi chamado.');
+  }
+};
 
 // Refs para notificações
 // NOTA: simulationEnded agora vem do useSimulationWorkflow (linha 176)
@@ -196,6 +142,13 @@ const showNotification = (message, color = 'info') => {
 // IMPORTANTE: Deve vir ANTES de useEvaluation pois exporta simulationEnded
 const partner = ref(null);
 const inviteLinkToShow = ref('');
+const { reloadListeners } = usePrivateChatNotification();
+
+const theme = useTheme();
+const isDarkTheme = computed(() => theme.global.name.value === 'dark');
+
+// Inicializa composable de convites de simulação (usado em sendLinkViaPrivateChat)
+const { sendSimulationInvite } = useSimulationInvites(reloadListeners);
 
 const {
   myReadyState,
@@ -207,13 +160,9 @@ const {
   simulationWasManuallyEndedEarly,
   backendActivated,
   bothParticipantsReady,
-  sendReady,
-  activateBackend,
-  handleStartSimulationClick,
+  sendReady,  handleStartSimulationClick,
   manuallyEndSimulation,
-  updateTimerDisplayFromSelection,
-  resetWorkflowState,
-  handlePartnerReady,
+  updateTimerDisplayFromSelection,  handlePartnerReady,
   handleSimulationStart,
   handleTimerUpdate,
   handleTimerEnd,
@@ -244,13 +193,9 @@ const selectedCandidateForSimulation = ref(null);
 // Google Meet integration
 const {
   communicationMethod,
-  meetLink,
-  meetLinkCopied,
-  candidateMeetLink,
+  meetLink,  candidateMeetLink,
   candidateOpenedMeet,
-  openGoogleMeet,
-  copyMeetLink,
-  checkCandidateMeetLink,
+  openGoogleMeet,  checkCandidateMeetLink,
   openCandidateMeet,
   validateMeetLink,
   isMeetMode,
@@ -275,7 +220,12 @@ const {
   getMeetLinkForInvite,
   meetLink,
   connectWebSocket,
-  router
+  router,
+  // ✅ FIX: Passar parâmetros de modo sequencial para geração de link
+  isSequentialMode,
+  sequenceId,
+  sequenceIndex,
+  totalSequentialStations
 });
 
 // Estado para copiar link de convite
@@ -311,10 +261,7 @@ const {
   allEvaluationsCompleted,
   submitEvaluation,
   releasePepToCandidate,
-  updateEvaluationScore,
-  clearEvaluationScores,
-  updateCandidateReceivedScores
-} = useEvaluation({
+  updateEvaluationScore,} = useEvaluation({
   socket: socketRef,
   sessionId,
   stationId,
@@ -327,45 +274,21 @@ const {
 });
 
 // Inicializa composable de preload de imagens
-const {
-  imageLoadAttempts,
-  imageLoadSources,
-  imagesPreloadStatus,
-  allImagesPreloaded,
-  zoomedImageSrc,
+const {  zoomedImageSrc,
   zoomedImageAlt,
   imageZoomDialog,
   getImageId,
   getImageSource,
   handleImageLoad,
   handleImageError,
-  clearImageCache,
-  preloadSingleImage,
-  preloadSingleImageAdvanced,
-  preloadImpressoImages,
-  isImagePreloaded,
-  ensureImageIsPreloaded,
-  openImageZoom,
+  clearImageCache,  preloadImpressoImages,  openImageZoom,
   closeImageZoom
 } = useImagePreloading({ stationData });
 
 // Inicializa composable de marcação de roteiro
 const {
-  markedScriptContexts,
-  markedScriptSentences,
-  markedParagraphs,
-  markedMainItems,
-  markedSubItems,
-  toggleScriptContext,
-  toggleScriptSentence,
-  isParagraphMarked,
-  toggleParagraphMark,
-  toggleMainItem,
-  toggleSubItem,
-  getItemClasses,
-  handleClick,
-  clearAllMarkings
-} = useScriptMarking({ userRole });
+  markedScriptContexts,  markedParagraphs,  toggleScriptContext,  isParagraphMarked,
+  toggleParagraphMark,  handleClick,} = useScriptMarking({ userRole });
 
 // Aliases para manter compatibilidade com template (funções já têm debounce interno)
 const debouncedToggleParagraphMark = toggleParagraphMark;
@@ -403,15 +326,9 @@ const {
 } = useSimulationPEP({ userRole, checklistData });
 
 // Internal invites management
-const {
-  onlineCandidates,
-  isSendingInternalInvite,
-  internalInviteSentTo,
-  internalInviteDialog,
+const {  internalInviteDialog,
   internalInviteData,
-  handleOnlineUsersList,
-  sendInternalInvite,
-  handleInternalInviteReceived,
+  handleOnlineUsersList,  handleInternalInviteReceived,
   acceptInternalInvite,
   declineInternalInvite,
   requestOnlineUsers
@@ -481,8 +398,6 @@ async function sendLinkViaPrivateChat() {
   chatSentSuccess.value = false;
 
   try {
-    const { sendSimulationInvite } = useSimulationInvites(reloadListeners);
-
     const result = await sendSimulationInvite({
       candidateUid: selectedCandidateForSimulation.value.uid,
       candidateName: selectedCandidateForSimulation.value.name,
@@ -513,29 +428,69 @@ async function sendLinkViaPrivateChat() {
 
 
 function connectWebSocket() {
+  console.log('[WebSocket] 🔌 Conectando -', userRole.value, '- Session:', sessionId.value);
+  
   if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) {
+    console.error('[WebSocket] ❌ Parâmetros faltando');
     return;
   }
   connectionStatus.value = 'Conectando';
-  if (socketRef.value && socketRef.value.connected) { socketRef.value.disconnect(); }
+  if (socketRef.value && socketRef.value.connected) { 
+    socketRef.value.disconnect(); 
+  }
   
+  // ✅ FIX: Incluir parâmetros de modo sequencial na conexão Socket
+  const socketQuery = {
+    sessionId: sessionId.value,
+    userId: currentUser.value?.uid,
+    role: userRole.value,
+    stationId: stationId.value,
+    displayName: currentUser.value?.displayName
+  };
+
+  // Se está em modo sequencial, adiciona os parâmetros à query
+  if (isSequentialMode.value) {
+    socketQuery.isSequential = 'true';
+    socketQuery.sequenceId = sequenceId.value;
+    socketQuery.sequenceIndex = sequenceIndex.value?.toString();
+    socketQuery.totalStations = totalSequentialStations.value?.toString();
+    console.log('[WebSocket] 🔗 Modo sequencial - Index:', sequenceIndex.value, '/', totalSequentialStations.value);
+  }
   const socket = io(backendUrl, {
     transports: ['websocket'],
-    query: {
-      sessionId: sessionId.value,
-      userId: currentUser.value?.uid,
-      role: userRole.value,
-      stationId: stationId.value,
-      displayName: currentUser.value?.displayName
+    query: socketQuery
+  });
+  
+  // Registrar listener ANTES da conexão para capturar evento imediato
+  socket.on('SERVER_SEQUENTIAL_MODE_INFO', (data) => {
+    console.log('[Sequential] 📥 Modo sequencial ativado - Index:', data.sequenceIndex, '/', data.totalStations);
+    
+    if (data.isSequential) {
+      isSequentialMode.value = true;
+      sequenceId.value = data.sequenceId;
+      sequenceIndex.value = parseInt(data.sequenceIndex) || 0;
+      totalSequentialStations.value = parseInt(data.totalStations) || 0;
+      
+      // Persiste no sessionStorage para sobreviver a reloads
+      const sequentialSession = {
+        sequenceId: data.sequenceId,
+        currentIndex: data.sequenceIndex,
+        totalStations: data.totalStations,
+        sequence: sequentialData.value?.sequence || []
+      };
+      sessionStorage.setItem('sequentialSession', JSON.stringify(sequentialSession));
     }
   });
   
   socket.on('connect', () => {
+    console.log('[SOCKET_CONNECT] ✅ Socket conectado com sucesso');
+    console.log('[SOCKET_CONNECT]    - socket.id:', socket.id);
+    console.log('[SOCKET_CONNECT]    - role:', userRole.value);
+    console.log('[SOCKET_CONNECT]    - sessionId:', sessionId.value);
     connectionStatus.value = 'Conectado';
     
     // ATUALIZAR O REF DO SOCKET APÓS CONEXÃO
     socketRef.value = socket;
-
 
     // Workflow: habilitar botão "Estou pronto" para candidato
     handleSocketConnect();
@@ -583,7 +538,7 @@ function connectWebSocket() {
       simulationState: simulationStarted.value ? 'started' : 'preparing'
     });
   });
-  socket.on('SERVER_JOIN_CONFIRMED', (data) => { });
+  socket.on('SERVER_JOIN_CONFIRMED', (_data) => { });
   socket.on('SERVER_PARTNER_JOINED', (participantInfo) => {
     if (participantInfo && participantInfo.userId !== currentUser.value?.uid) {
       partner.value = participantInfo;
@@ -694,6 +649,7 @@ function connectWebSocket() {
       showNotification('Tempo finalizado! Aguardando avaliação do examinador...', 'info');
     }
   });
+  
   socket.on('TIMER_STOPPED', (data) => {
     // Workflow: atualizar estados
     handleTimerStopped(data);
@@ -771,6 +727,52 @@ function connectWebSocket() {
       }
     }
   });
+  
+  // Listener para quando o ator avança, todos os participantes navegam juntos
+  socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
+    console.log('[Sequential] 📥 Avançando - Index:', data.sequenceIndex);
+
+    if (!isSequentialMode.value) {
+      console.warn('[Sequential] ⚠️ Não está em modo sequencial, ignorando');
+      return;
+    }
+
+    const {
+      nextStationId,
+      sequenceIndex: nextIndex,
+      sequenceId: seqId,
+      sessionId: nextSessionId
+    } = data;
+
+    // Persistir progresso e sessionId compartilhado
+    const updatedData = { ...(sequentialData.value || {}) };
+    updatedData.currentIndex = nextIndex;
+    if (nextSessionId) {
+      updatedData.sharedSessionId = nextSessionId;
+      sessionId.value = nextSessionId;
+    }
+    sequentialData.value = updatedData;
+    sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData));
+
+    const navigationTarget = {
+      path: `/app/simulation/${nextStationId}`,
+      query: {
+        sessionId: nextSessionId || sessionId.value,
+        role: userRole.value,
+        sequential: 'true',
+        sequenceId: seqId || sequenceId.value,
+        sequenceIndex: nextIndex,
+        totalStations: totalSequentialStations.value,
+        autoReady: 'false'
+      }
+    };
+
+    // Delay curto para garantir que stores atualizem antes da navegação
+    setTimeout(() => {
+      router.push(navigationTarget);
+    }, 300);
+  });
+  
   socket.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
     if (userRole.value === 'candidate' && data && data.scores) {
       // Converte para number e atualiza scores do candidato
@@ -882,7 +884,17 @@ function loadSelectedCandidate() {
 
 
 function setupSession() {
+  console.log('');
+  console.log('═════════════════════════════════════════════════════════');
+  console.log('[SETUP_SESSION] 🎬 Iniciando setupSession');
+  console.log('[SETUP_SESSION]    - URL atual:', window.location.href);
+  console.log('[SETUP_SESSION]    - route.params.id:', route.params.id);
+  console.log('[SETUP_SESSION]    - route.query:', route.query);
+  console.log('═════════════════════════════════════════════════════════');
+  console.log('');
+  
   if (isSettingUpSession.value) {
+    console.log('[SETUP_SESSION] ⚠️ Setup já em andamento, ignorando chamada duplicada');
     return;
   }
 
@@ -891,16 +903,34 @@ function setupSession() {
   // Reset de estado
   errorMessage.value = '';
   isLoading.value = true;
-  if (socketRef.value && socketRef.value.connected) { socketRef.value.disconnect(); }
-  socketRef.value = null;
+  if (socketRef.value && socketRef.value.connected) {
+    disconnect();
+  } else {
+    socketRef.value = null;
+  }
 
   // Configura IDs e papel do usuário
   stationId.value = route.params.id;
   sessionId.value = route.query.sessionId;
   userRole.value = route.query.role || 'evaluator';
+  
+  console.log('[Session] 📋 Iniciando - Station:', stationId.value, 'Role:', userRole.value);
 
   // Configuração do modo sequencial
   setupSequentialMode(route.query);
+  
+  if (isSequentialMode.value) {
+    console.log('[Session] 🔗 Modo sequencial - Index:', sequenceIndex.value, '/', totalSequentialStations.value);
+    if (sessionId.value && sequentialData.value) {
+      const updatedSequential = { ...sequentialData.value };
+      if (!updatedSequential.sharedSessionId) {
+        updatedSequential.sharedSessionId = sessionId.value;
+        sequentialData.value = updatedSequential;
+        sessionStorage.setItem('sequentialSession', JSON.stringify(updatedSequential));
+        console.log('[Session] 🔁 sessionId compartilhado sincronizado a partir da rota:', sessionId.value);
+      }
+    }
+  }
 
   // Auto-ready para navegação sequencial
   const shouldAutoReady = route.query.autoReady === 'true';
@@ -944,18 +974,6 @@ function setupSession() {
   }
 
   // Inicializa o composable de socket APÓS os refs estarem definidos
-  const socketApi = useSimulationSocket({
-    backendUrl,
-    sessionId: sessionId.value ?? '',
-    userId: currentUser.value?.uid ?? '',
-    role: userRole.value ?? '',
-    stationId: stationId.value ?? '',
-    displayName: currentUser.value?.displayName ?? '',
-  });
-  connectionStatus = socketApi.connectionStatus;
-  connect = socketApi.connect;
-  disconnect = socketApi.disconnect;
-
   // Busca dados da estação e configura pós-carregamento
   fetchSimulationData(stationId.value).then(() => {
     // Inicializa markedPepItems para cada item do checklist
@@ -973,10 +991,12 @@ function setupSession() {
       // Configura o WebSocket com todos os event listeners
       connectWebSocket();
 
-      // Auto-ready para navegação sequencial
+      // Auto-ready apenas para ATOR/AVALIADOR em navegação sequencial
+      // ❌ CANDIDATO NUNCA TEM AUTO-READY - deve clicar manualmente
       if (shouldAutoReady && isActorOrEvaluator.value) {
-          setTimeout(() => {
+        setTimeout(() => {
           if (!myReadyState.value && socketRef.value?.connected) {
+            console.log('[AUTO-READY] ✅ Ator/Avaliador marcando-se como pronto automaticamente');
             sendReady();
           }
         }, 1000);
@@ -1040,17 +1060,6 @@ watch(() => route.fullPath, (newPath, oldPath) => {
 // --- Funções de Interação ---
 
 // Função para manter os callbacks de avaliação
-function sendEvaluationScores() {
-  // Envia os scores iniciais ao liberar o PEP (se já houver algum)
-  if (socketRef.value?.connected) {
-      socketRef.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
-        sessionId: sessionId.value,
-        scores: evaluationScores.value,
-        totalScore: totalScore.value
-      });
-  }
-}
-
 watch(evaluationScores, (newScores) => {
   if (
     socketRef.value?.connected &&
@@ -1103,10 +1112,22 @@ setupDebugFunction({
 
 // --- NOVO: Comunicação Google Meet ---
 
-// Watcher para debugging de variáveis sequenciais
+// Watcher para navegação automática em modo sequencial
+// Quando simulação termina E está em modo sequencial, habilitar navegação
 watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
   ([sequential, ended, completed, canNext]) => {
-    // Sequential navigation logic
+    // Log para debug
+    if (sequential && ended) {
+      console.log('[SEQUENTIAL_WATCH] Simulação encerrada em modo sequencial');
+      console.log('[SEQUENTIAL_WATCH]   - Role:', userRole.value);
+      console.log('[SEQUENTIAL_WATCH]   - Pode avançar:', canNext);
+      console.log('[SEQUENTIAL_WATCH]   - Avaliações completas:', completed);
+      
+      // Se for candidato, mostrar mensagem de aguardo
+      if (userRole.value === 'candidate' && canNext) {
+        console.log('[SEQUENTIAL_WATCH] 💡 Candidato aguardando ator avançar para próxima estação');
+      }
+    }
   },
   { immediate: true }
 );
@@ -1133,18 +1154,6 @@ onUnmounted(() => {
     socketRef.value.off('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
   }
 });
-
-// Função utilitária para buscar rota aninhada por nome
-function findRouteByName(routes, name) {
-  for (const route of routes) {
-    if (route.name === name) return route;
-    if (route.children) {
-      const found = findRouteByName(route.children, name);
-      if (found) return found;
-    }
-  }
-  return null;
-}
 
 // Função para colapsar/expandir sidebar
 function toggleCollapse() {
@@ -1382,7 +1391,7 @@ function toggleCollapse() {
                  color="warning"
                  size="small"
                  variant="outlined"
-                 @click="window.debugSequentialNavigation && window.debugSequentialNavigation()"
+                 @click="callDebugSequentialNavigation"
                  class="mt-4"
                >
                  Debug Console
@@ -1474,6 +1483,48 @@ function toggleCollapse() {
                  @submit-evaluation="submitEvaluation"
                />
              </template>
+             
+             <!-- Card de Navegação Sequencial para CANDIDATO (aguardando ator avançar) -->
+             <VCard
+               v-if="isSequentialMode && isCandidate && simulationEnded && canGoToNext"
+               :class="[
+                 'mb-6 sequential-navigation-card',
+                 isDarkTheme ? 'sequential-navigation-card--dark' : 'sequential-navigation-card--light'
+               ]"
+             >
+               <VCardItem>
+                 <VCardTitle class="d-flex align-center">
+                   <VIcon color="info" icon="ri-route-line" size="large" class="me-2" :tabindex="undefined" />
+                   Navegação Sequencial
+                 </VCardTitle>
+               </VCardItem>
+               <VCardText>
+                 <VAlert variant="tonal" color="info" class="mb-4">
+                   <div class="d-flex align-center">
+                     <VIcon icon="ri-time-line" class="me-2" :tabindex="undefined" />
+                     <div>
+                       <div class="font-weight-bold">Aguardando Avaliador</div>
+                       <div class="text-body-2">
+                         O avaliador irá avançar para a próxima estação quando estiver pronto. 
+                         Você será redirecionado automaticamente.
+                       </div>
+                     </div>
+                   </div>
+                 </VAlert>
+
+                 <div class="text-center">
+                   <VProgressCircular
+                     indeterminate
+                     color="info"
+                     :size="40"
+                     :width="4"
+                   />
+                   <div class="text-caption text-medium-emphasis mt-2">
+                     Estação {{ sequenceIndex + 1 }}/{{ totalSequentialStations }} concluída
+                   </div>
+                 </div>
+               </VCardText>
+             </VCard>
            </div>
          </VCol>
  

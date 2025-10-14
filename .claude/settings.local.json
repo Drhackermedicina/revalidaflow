@@ -49,7 +49,8 @@
       "Bash(npm run:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Read(//c/Users/helli/.claude/**)"
     ],
     "deny": [],
     "ask": []

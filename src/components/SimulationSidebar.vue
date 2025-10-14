@@ -1,6 +1,6 @@
 <script setup>
 // Props necessárias para o componente
-const props = defineProps({
+defineProps({
   // Estados da simulação
   simulationStarted: {
     type: Boolean,
@@ -26,9 +26,6 @@ const props = defineProps({
     default: false
   }
 })
-
-// Emits para comunicação com o componente pai
-const emit = defineEmits([])
 
 // Funções utilitárias
 function processRoteiro(roteiro) {

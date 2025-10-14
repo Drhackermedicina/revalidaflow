@@ -49,6 +49,8 @@ const handleImageLoad = (event) => {
         class="zoom-image-full"
         @error="handleImageError"
         @load="handleImageLoad"
+        @click="closeModal"
+        style="cursor: zoom-out;"
       />
     </div>
   </VDialog>

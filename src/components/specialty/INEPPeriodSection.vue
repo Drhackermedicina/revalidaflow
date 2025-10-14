@@ -6,7 +6,7 @@
  */
 import StationListItem from '@/components/StationListItem.vue'
 
-const props = defineProps({
+defineProps({
   period: {
     type: String,
     required: true

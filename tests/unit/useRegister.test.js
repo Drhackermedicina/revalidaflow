@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useRegister } from '../../src/composables/useRegister'
-import { ref } from 'vue'
 
 // Mocks simples
 const mockRouter = {

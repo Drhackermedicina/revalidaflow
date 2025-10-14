@@ -399,7 +399,7 @@ const simplifySpecialty = (especialidade) => {
   return map[especialidade] || map[especialidadeUpper] || especialidade
 }
 
-const formatDate = (timestamp, options = {}) => {
+const formatDate = (timestamp) => {
   if (!timestamp) return 'N/A'
   try {
     let date

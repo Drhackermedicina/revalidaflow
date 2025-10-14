@@ -2,7 +2,7 @@
 import { onMounted } from 'vue'
 import { useMedicalChat } from '@/composables/useMedicalChat.js'
 
-const props = defineProps({
+defineProps({
   isOpen: {
     type: Boolean,
     default: false

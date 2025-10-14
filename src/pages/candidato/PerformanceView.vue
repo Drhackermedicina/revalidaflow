@@ -113,7 +113,7 @@ import { useThemeConfig } from '@/composables/useThemeConfig'
 import { useFirebaseData } from '@/composables/useFirebaseData'
 import PerformanceChart from '@/components/PerformanceChart.vue'
 
-const { isDarkTheme, themeClasses } = useThemeConfig()
+const { themeClasses } = useThemeConfig()
 const { loading, error, userData, fetchUserStats } = useFirebaseData()
 
 const simulations = computed(() => userData.value?.estacoesConcluidas?.length ?? 0)

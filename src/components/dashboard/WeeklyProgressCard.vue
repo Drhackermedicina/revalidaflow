@@ -79,7 +79,7 @@
   </VCard>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTheme } from 'vuetify'
 import { useDashboardData } from '@/composables/useDashboardData.js'
@@ -87,7 +87,7 @@ import { useDashboardData } from '@/composables/useDashboardData.js'
 const theme = useTheme()
 
 // Composable
-const { userData, streakDays, totalSimulations } = useDashboardData()
+const { streakDays, totalSimulations } = useDashboardData()
 
 // Tema
 const isDarkTheme = computed(() => theme.global.name.value === 'dark')
@@ -95,7 +95,7 @@ const isDarkTheme = computed(() => theme.global.name.value === 'dark')
 // Dados da semana
 const weeklyGoal = ref(5) // Meta: 5 simulações por semana
 const completedThisWeek = ref(0)
-const last7Days = ref<Array<{ label: string; count: number }>>([])
+const last7Days = ref([])
 
 // Streak atual (vem do Firestore - campo 'streak' do usuário)
 const currentStreak = computed(() => streakDays.value || 0)
@@ -107,7 +107,7 @@ const weeklyGoalPercent = computed(() => {
 })
 
 // Calcular altura da barra (máximo 100%)
-const getBarHeight = (count: number): number => {
+const getBarHeight = (count) => {
   const maxCount = Math.max(...last7Days.value.map(d => d.count), 1)
   return count > 0 ? (count / maxCount) * 100 : 0
 }

@@ -4,7 +4,6 @@
  *
  * Componente de busca global de estações com autocomplete
  */
-import inepIcon from '@/assets/images/inep.png'
 
 const props = defineProps({
   modelValue: {

@@ -9,6 +9,7 @@ Esta pasta contém toda a documentação viva do projeto, incluindo PRD (Product
 ## 📖 Índice Rápido
 
 - [📄 PRD e Documentação Viva](#-prd-e-documentacao-viva)
+- [🔍 Análise e Code Review](#-analise-e-code-review)
 - [🏗️ Arquitetura](#-arquitetura)
 - [🧠 Composables](#-composables)
 - [📘 Guias Técnicos](#-guias-tecnicos)
@@ -38,6 +39,120 @@ Esta pasta contém toda a documentação viva do projeto, incluindo PRD (Product
 - 🔌 Services: 9
 - 💾 Stores: 3
 - 📊 Linhas de código (estimado): 16.600
+
+---
+
+## 🔍 Análise e Code Review
+
+**Análise Completa de Código (2025-10-14)**: Auditoria técnica abrangente de todo o codebase.
+
+### Executive Summaries
+
+| Documento | Descrição | Score |
+|-----------|-----------|-------|
+| [analysis/BACKEND_EXECUTIVE_SUMMARY.md](./analysis/BACKEND_EXECUTIVE_SUMMARY.md) | Análise completa backend (14 arquivos, 4.500 LOC) | 🔴 3.5/10 |
+| [analysis/FRONTEND_EXECUTIVE_SUMMARY.md](./analysis/FRONTEND_EXECUTIVE_SUMMARY.md) | Análise estratégica frontend (258 arquivos) | ⚠️ 7/10 |
+| [MASTER_REFACTORING_TASKS.md](./MASTER_REFACTORING_TASKS.md) | Roadmap completo de refatoração (453.5h) | 📋 Task List |
+
+### Principais Descobertas
+
+**Backend (Production Readiness: 3/10)** 🔴:
+- ❌ **P0 CRÍTICO**: Nenhuma autenticação em endpoints
+- ❌ **P0 CRÍTICO**: Rate limiters não aplicados (apesar de configurados!)
+- ❌ **P0 CRÍTICO**: Nomes de collections Firestore incorretos no cache
+- ⚠️ **P0**: Sessions in-memory (não escalável)
+- ⚠️ Arquivos com SQL em projeto Firestore (erro arquitetural)
+- **Vulnerabilidade de custo**: $100-1000/dia se abusado
+- **Débito técnico**: 237.5h (~6 semanas)
+
+**Frontend (Production Readiness: 7/10)** ⚠️:
+- ✅ **Excelente**: Composables bem organizados (40+)
+- ✅ **Excelente**: Vue 3 Composition API patterns
+- ✅ **Ótimo**: StationList refatorada 2300 → 530 linhas
+- ⚠️ **P0**: UIDs de admin hardcoded (inseguro)
+- ⚠️ **P1**: SimulationView.vue ainda com 1175 linhas
+- ⚠️ **P1**: Cobertura de testes mínima (3 arquivos)
+- **Débito técnico**: 216h (~5 semanas)
+
+### Análises Individuais de Arquivos
+
+**Backend**: `analysis/file-analysis/backend/`
+- `server.js` (1275 linhas) - Socket.IO + Express
+- `cache.js` (296 linhas) - Bug crítico de collections
+- `aiChat.js` (1126 linhas) - AI sem autenticação
+- `rateLimiter.js` - Excelente mas não usado
+- E mais 10 arquivos analisados
+
+**Frontend**: Análise estratégica focada em:
+- SimulationView.vue (1175 linhas)
+- StationList.vue (530 linhas)
+- Padrões de composables
+- Arquitetura Vue 3
+
+### Roadmap de Refatoração
+
+**Total**: 453.5 horas (~11.5 semanas para 1 dev)
+
+**Sprint 1 (Semana 1)**: Segurança Crítica - 30h
+- Implementar autenticação Firebase
+- Aplicar rate limiters
+- Corrigir nomes de collections no cache
+- Remover UIDs hardcoded
+
+**Sprints 2-3 (Semanas 2-3)**: Escalabilidade - 80h
+- Migrar sessions para Firestore
+- Implementar cache distribuído (Redis)
+- Testar deploy multi-instância
+
+**Sprints 4-5 (Semanas 4-5)**: Frontend & Testes - 80h
+- Completar sistema de roles
+- Cobertura de testes >70%
+- Lógica de reconexão Socket.IO
+
+**Sprints 6-8 (Semanas 6-8)**: Arquitetura - 120h
+- Extrair handlers Socket.IO
+- Dividir aiChat.js em serviços
+- Extrair composables de SimulationView
+
+**Sprints 9-10 (Semanas 9-10)**: Performance - 80h
+- Otimização de bundle
+- Pipeline de otimização de imagens
+- Service worker PWA
+
+### Quick Wins (Fazer Hoje)
+
+```bash
+# 1. Corrigir collections no cache (15 min)
+# backend/cache.js: 'users' → 'usuarios', 'stations' → 'estacoes_clinicas'
+
+# 2. Aplicar rate limiters (1 hora)
+# backend/server.js: adicionar generalLimiter, aiLimiter
+
+# 3. Remover arquivos não usados (20 min)
+rm backend/config/firebase.js backend/routes/gemini.js
+
+# 4. Logger de produção (2 horas)
+# Criar src/utils/logger.js e substituir console.log
+```
+
+### Métricas de Sucesso
+
+**Após Fase 1 (Security)**:
+- [ ] Todos endpoints com autenticação
+- [ ] Rate limiters ativos
+- [ ] Zero hardcoded admin checks
+- [ ] >50 testes passando
+
+**Após Fase 3 (Scalability)**:
+- [ ] Multi-instance deploy OK
+- [ ] Cache distribuído
+- [ ] Zero data loss em restart
+
+**Após Fase 5 (Complete)**:
+- [ ] Cobertura testes >70%
+- [ ] Production readiness 9/10
+- [ ] Bundle size <2MB
+- [ ] Lighthouse >90
 
 ---
 
@@ -187,7 +302,7 @@ O sistema detecta mudanças automaticamente ao fazer `git commit` e exibe lembre
 ## 📊 Status do Projeto
 
 **Versão do PRD:** 1.0.0
-**Última atualização:** 2025-10-12
+**Última atualização:** 2025-10-14
 **Features implementadas:** 13/13 (100%)
 **Features planejadas Q1 2025:** 12
 
@@ -197,6 +312,11 @@ O sistema detecta mudanças automaticamente ao fazer `git commit` e exibe lembre
 - Database: Google Firestore
 - AI: Google Gemini
 - Hosting: Firebase + Google Cloud Run
+
+**Production Readiness:**
+- Backend: 🔴 3.5/10 (Necessário Sprint 1 de segurança)
+- Frontend: ⚠️ 7/10 (Funcional, precisa otimização)
+- Overall: ⚠️ 5/10 (Ver análise completa em `analysis/`)
 
 ---
 
@@ -220,6 +340,7 @@ Dúvidas sobre a documentação? Consulte:
 
 ---
 
-**Última sincronização:** 2025-10-12
-**Documentos totais:** 27 arquivos
+**Última sincronização:** 2025-10-14
+**Documentos totais:** 30+ arquivos
 **Sistema de documentação:** ✅ Ativo e funcionando
+**Análise de código:** ✅ Completa (Backend + Frontend + Master Task List)

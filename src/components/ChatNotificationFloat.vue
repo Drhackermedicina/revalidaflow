@@ -146,7 +146,7 @@ import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { currentUser } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
-import { collection, query, where, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'
 
 const router = useRouter()
 const { notify } = useNotificationStore()

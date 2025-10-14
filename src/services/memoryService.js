@@ -2,7 +2,7 @@
  * Serviço para gerenciar memórias de correções no Firestore
  */
 import { db } from '@/plugins/firebase.js';
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, serverTimestamp, collection, getDocs, query, orderBy, limit, deleteDoc, where, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, orderBy, limit, deleteDoc, where, addDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // Debug flag (controla logs verbosos). Pode ser ativado via Vite env VITE_AI_DEBUG='true' ou

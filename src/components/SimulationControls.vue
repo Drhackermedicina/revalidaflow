@@ -109,14 +109,6 @@ watch(localMeetLink, (newValue) => {
 })
 
 // Funções para emitir eventos
-function handleCommunicationMethodUpdate(newValue) {
-  emit('update:communicationMethod', newValue)
-}
-
-function handleMeetLinkUpdate(newValue) {
-  emit('update:meetLink', newValue)
-}
-
 function handleOpenGoogleMeet() {
   emit('openGoogleMeet')
 }

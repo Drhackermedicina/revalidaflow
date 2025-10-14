@@ -1,5 +1,4 @@
 <script setup>
-import { computed } from 'vue'
 import PepSideView from '@/components/PepSideView.vue'
 import {
   formatActorText,
@@ -33,7 +32,6 @@ const props = defineProps({
 // Emits
 const emit = defineEmits([
   'toggle-pep-view',
-  'toggle-script-context',
   'toggle-paragraph-mark',
   'toggle-pep-item-mark',
   'toggle-actor-impresso-visibility',
@@ -42,7 +40,6 @@ const emit = defineEmits([
 ])
 
 // Funções memoizadas
-const memoizedFormatActorText = memoize(formatActorText)
 const memoizedFormatIdentificacaoPaciente = memoize(formatIdentificacaoPaciente)
 
 // Função para processar roteiro do ator
@@ -54,10 +51,6 @@ const processRoteiroActor = (text) => {
 // Funções delegadas para o componente pai
 const togglePepViewHandler = () => {
   props.pepViewState.isVisible = !props.pepViewState.isVisible
-}
-
-const debouncedToggleScriptContext = (idx, e) => {
-  emit('toggle-script-context', idx, e)
 }
 
 const debouncedToggleParagraphMark = (idx, pIdx, e) => {

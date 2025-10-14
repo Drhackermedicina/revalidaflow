@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useLoginAuth } from '../../src/composables/useLoginAuth'
-import { ref } from 'vue'
 
 // Mocks
 const mockRouter = {

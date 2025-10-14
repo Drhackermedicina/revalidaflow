@@ -6,12 +6,9 @@
  */
 
 import { ref, computed } from 'vue'
-import { useStationCache } from './useStationCache'
 import { useDebounce } from '@vueuse/core'
 
 export function useStationFilteringOptimized(stations) {
-  const { memoize } = useStationCache()
-
   // --- State ---
   const globalSearchQuery = ref('')
   

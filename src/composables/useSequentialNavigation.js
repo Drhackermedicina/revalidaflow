@@ -24,6 +24,9 @@ const logger = new Logger('useSequentialNavigation');
  * @property {Ref<number>} sequenceIndex
  * @property {Ref<number>} totalSequentialStations
  * @property {Ref<any>} sequentialData
+ * @property {Ref<string>} userRole
+ * @property {Ref<any>} socketRef
+ * @property {Ref<string>} sessionId
  */
 
 export function useSequentialNavigation({
@@ -31,7 +34,10 @@ export function useSequentialNavigation({
   sequenceId,
   sequenceIndex,
   totalSequentialStations,
-  sequentialData
+  sequentialData,
+  userRole,
+  socketRef,
+  sessionId
 }) {
 
   const router = useRouter()
@@ -132,20 +138,38 @@ export function useSequentialNavigation({
       logger.debug('[SEQUENTIAL] Next station:', nextStation)
 
       if (nextStation) {
-        const routeData = router.resolve({
+        const sharedSessionId = sessionId.value || sequentialData.value.sharedSessionId
+
+        // ✅ NOVO: Se for ator/avaliador E houver Socket, emitir evento para sincronizar candidato
+        if ((userRole.value === 'actor' || userRole.value === 'evaluator') && socketRef?.value?.connected) {
+          logger.debug('[SEQUENTIAL] Emitindo ACTOR_ADVANCE_SEQUENTIAL via Socket')
+
+          socketRef.value.emit('ACTOR_ADVANCE_SEQUENTIAL', {
+            sessionId: sharedSessionId,
+            nextStationId: nextStation.id,
+            sequenceIndex: nextIndex,
+            sequenceId: sequenceId.value
+          })
+
+          logger.debug('[SEQUENTIAL] ✅ Evento emitido - Backend notificará todos os participantes')
+        }
+
+        // Navegar (tanto ator quanto candidato navegarão - ator imediatamente, candidato via evento Socket)
+        const navigationTarget = {
           path: `/app/simulation/${nextStation.id}`,
           query: {
-            role: 'actor',
+            sessionId: sharedSessionId,
+            role: userRole.value,  // ✅ FIX: Usar role do usuário ao invés de hardcoded 'actor'
             sequential: 'true',
             sequenceId: sequenceId.value,
             sequenceIndex: nextIndex,
             totalStations: totalSequentialStations.value,
-            autoReady: 'true'  // Indica que deve ir direto para o estado "pronto"
+            autoReady: 'false'  // Exigir confirmação após a primeira estação
           }
-        })
+        }
 
-        logger.debug('[SEQUENTIAL] Navigating to:', routeData.href)
-        window.location.href = routeData.href
+        logger.debug('[SEQUENTIAL] Navigating to next station with query:', navigationTarget.query)
+        router.push(navigationTarget)
       } else {
         logger.error('[SEQUENTIAL] Next station not found in sequence')
         alert('Erro: Próxima estação não encontrada na sequência')
@@ -174,18 +198,20 @@ export function useSequentialNavigation({
       // Navegar para estação anterior
       const prevStation = sequentialData.value.sequence[prevIndex]
       if (prevStation) {
-        const routeData = router.resolve({
+        const navigationTarget = {
           path: `/app/simulation/${prevStation.id}`,
           query: {
-            role: 'actor',
+            sessionId: sessionId.value || sequentialData.value.sharedSessionId,
+            role: userRole.value,  // ✅ FIX: Usar role do usuário
             sequential: 'true',
             sequenceId: sequenceId.value,
             sequenceIndex: prevIndex,
-            totalStations: totalSequentialStations.value
+            totalStations: totalSequentialStations.value,
+            autoReady: 'false'
           }
-        })
+        }
 
-        window.location.href = routeData.href
+        router.push(navigationTarget)
       }
     }
   }

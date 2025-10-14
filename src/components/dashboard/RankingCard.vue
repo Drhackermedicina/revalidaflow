@@ -206,41 +206,34 @@
   </VCard>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed, toRefs } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { currentUser } from '@/plugins/auth'
-import type { RankingUser, UserStats } from '@/types/dashboard'
 
-// Props recebidas do componente pai
-interface Props {
-  loading: boolean
-  error: string
-  loadDashboardData: () => Promise<void>
-  rankingPosition: number
-  rankingScore: number
-  top3Users: RankingUser[]
-  userData: UserStats | null
-  rankingProgress: number
-  pointsToNextLevel: number
-  nextRankingMilestone: number
-  rankingHistory: number[]
-}
+const props = defineProps({
+  loading: { type: Boolean, default: false },
+  error: { type: String, default: '' },
+  loadDashboardData: { type: Function, required: true },
+  rankingPosition: { type: Number, default: 0 },
+  rankingScore: { type: Number, default: 0 },
+  top3Users: { type: Array, default: () => [] },
+  userData: { type: Object, default: null },
+  rankingProgress: { type: Number, default: 0 },
+  pointsToNextLevel: { type: Number, default: 0 },
+  nextRankingMilestone: { type: Number, default: 0 },
+  rankingHistory: { type: Array, default: () => [] }
+})
 
-const props = defineProps<Props>()
-
-// Extrair função separadamente (não pode usar toRefs em funções)
 const { loadDashboardData: loadData } = props
 
-// Tornar props reativas para uso no template
 const {
   loading,
   error,
   rankingPosition,
   rankingScore,
   top3Users,
-  userData,
   rankingProgress,
   pointsToNextLevel,
   nextRankingMilestone,
@@ -250,45 +243,42 @@ const {
 const router = useRouter()
 const theme = useTheme()
 
-// Tema
 const isDarkTheme = computed(() => theme.global.name.value === 'dark')
-
-// ID do usuário atual
 const currentUserId = computed(() => currentUser.value?.uid || '')
 
-// Helpers
-const getUserName = (user: RankingUser): string => {
+const getUserName = (user) => {
+  if (!user || typeof user !== 'object') return 'Usuário'
   if (user.nome) {
     return `${user.nome} ${user.sobrenome || ''}`.trim()
   }
   return user.displayName || 'Usuário'
 }
 
-const getMedalIcon = (index: number): string => {
+const getMedalIcon = (index) => {
   const medals = ['🥇', '🥈', '🥉']
   return medals[index] || '🏅'
 }
 
-const getMedalColor = (index: number): string => {
+const getMedalColor = (index) => {
   const colors = ['warning', 'grey', 'brown']
   return colors[index] || 'info'
 }
 
-const getPositionColor = (position: number): string => {
+const getPositionColor = (position) => {
   if (position <= 3) return 'warning'
   if (position <= 10) return 'success'
   if (position <= 50) return 'primary'
   return 'info'
 }
 
-const getPositionIcon = (position: number): string => {
+const getPositionIcon = (position) => {
   if (position === 1) return 'ri-medal-line'
   if (position <= 3) return 'ri-award-line'
   if (position <= 10) return 'ri-star-line'
   return 'ri-thumb-up-line'
 }
 
-const getMotivationalMessage = (position: number): string => {
+const getMotivationalMessage = (position) => {
   if (position === 1) return '🏆 Incrível! Você é o 1º lugar!'
   if (position === 2) return '🥈 Muito bem! Você está em 2º lugar!'
   if (position === 3) return '🥉 Parabéns! Você está em 3º lugar!'
@@ -297,7 +287,7 @@ const getMotivationalMessage = (position: number): string => {
   return '💪 Continue estudando para subir no ranking!'
 }
 
-const getRankTier = (position: number): string => {
+const getRankTier = (position) => {
   if (position <= 3) return 'warning'
   if (position <= 10) return 'success'
   if (position <= 50) return 'info'
@@ -305,7 +295,7 @@ const getRankTier = (position: number): string => {
   return 'secondary'
 }
 
-const getRankTierName = (position: number): string => {
+const getRankTierName = (position) => {
   if (position === 0) return 'Sem rank'
   if (position <= 3) return 'ELITE'
   if (position <= 10) return 'OURO'
@@ -314,7 +304,6 @@ const getRankTierName = (position: number): string => {
   return 'INICIANTE'
 }
 
-// Navegação
 const goToRanking = () => {
   router.push('/app/ranking')
 }

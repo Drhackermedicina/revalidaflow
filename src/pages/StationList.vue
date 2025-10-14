@@ -9,15 +9,11 @@
  * - Consolidação de CSS duplicado
  */
 
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { signOut } from 'firebase/auth'
-import { firebaseAuth } from '@/plugins/firebase.js'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 
 // Componentes
 import inepIcon from '@/assets/images/inep.png'
-import StationListItem from '@/components/StationListItem.vue'
 import SpecialtySection from '@/components/specialty/SpecialtySection.vue'
 import INEPPeriodSection from '@/components/specialty/INEPPeriodSection.vue'
 import SearchBar from '@/components/search/SearchBar.vue'
@@ -36,14 +32,11 @@ import { useUserManagement } from '@/composables/useUserManagement'
 import { useStationNavigation } from '@/composables/useStationNavigation'
 import { currentUser } from '@/plugins/auth.js'
 
-const router = useRouter()
-
 // 🔹 Data Management
 const {
   stations,
   isLoadingStations,
-  errorMessage,
-  userScores,
+  fetchUserScores,
   fetchStations,
   loadFullStation,
   getUserStationScore,
@@ -56,9 +49,9 @@ const {
   globalSearchQuery,
   isINEPStation,
   isRevalidaFacilStation,
-  getINEPPeriod,
   getSpecialty,
   getRevalidaFacilSpecialty,
+  getCleanStationTitle,
   filteredINEPStations,
   filteredRevalidaFacilStations,
   filteredStationsRevalidaFacilClinicaMedica,
@@ -73,7 +66,8 @@ const {
 
 // 🔹 Categorization & Colors
 const {
-  getStationBackgroundColor
+  getStationBackgroundColor,
+  getStationArea
 } = useStationCategorization()
 
 // 🔹 Sequential Mode
@@ -87,7 +81,7 @@ const {
   removeFromSequence,
   moveStationInSequence,
   startSequentialSimulation
-} = useSequentialMode(loadFullStation, getINEPPeriod)
+} = useSequentialMode(loadFullStation, getCleanStationTitle, getStationArea)
 
 // 🔹 Candidate Search
 const {
@@ -134,18 +128,7 @@ const accordionRefs = {
 }
 
 // 🔹 Computed
-const totalStations = computed(() => {
-  const inepTotal = filteredINEPStations.value.length
-  const revalidaFacilTotal = [
-    filteredStationsRevalidaFacilClinicaMedica.value.length,
-    filteredStationsRevalidaFacilCirurgia.value.length,
-    filteredStationsRevalidaFacilPediatria.value.length,
-    filteredStationsRevalidaFacilGO.value.length,
-    filteredStationsRevalidaFacilPreventiva.value.length,
-    filteredStationsRevalidaFacilProcedimentos.value.length
-  ].reduce((a, b) => a + b, 0)
-  return inepTotal + revalidaFacilTotal
-})
+// (nenhum computed adicional necessário no momento)
 
 // 🔹 Methods
 function findStation(stationId) {
@@ -252,7 +235,6 @@ watchDebounced(
 
 watch(currentUser, (newUser) => {
   if (newUser && stations.value.length > 0) {
-    const { fetchUserScores } = useStationData()
     fetchUserScores()
   }
 }, { immediate: true })

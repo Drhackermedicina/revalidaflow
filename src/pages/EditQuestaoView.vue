@@ -5,16 +5,11 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 // Removendo importações diretas do firebase/storage, agora vêm do plugin
 import imageCompression from 'browser-image-compression';
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useTheme } from 'vuetify';
 
 const route = useRoute();
 const router = useRouter();
-const theme = useTheme();
-
-// Computed para detectar tema escuro
-const isDarkTheme = computed(() => theme.global.name.value === 'dark');
 
 const questaoId = ref(null);
 const isLoading = ref(true);

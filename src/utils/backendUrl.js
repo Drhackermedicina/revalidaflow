@@ -4,9 +4,6 @@
 // Valor padrão para desenvolvimento (Backend Node.js na porta 3000)
 const defaultUrl = 'http://localhost:3000'
 
-// URL de produção no Google Cloud Run (Brasil - São Paulo)
-const productionUrl = 'https://revalida-backend-772316263153.southamerica-east1.run.app'
-
 // Usa a variável de ambiente se estiver definida; em dev usa defaultUrl, senão produção
 export const backendUrl = (
   typeof import.meta.env.VITE_BACKEND_URL === 'string' &&

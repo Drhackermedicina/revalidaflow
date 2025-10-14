@@ -1,7 +1,7 @@
 // Script para diagnosticar e corrigir problemas no ranking
 // Execute no console do navegador na página de diagnóstico
 
-import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/plugins/firebase'
 
 export async function diagnosticarRanking() {

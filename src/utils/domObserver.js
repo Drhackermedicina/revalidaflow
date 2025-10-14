@@ -1,7 +1,7 @@
 // Utilitário para prevenir erros de MutationObserver
 // Resolve problemas com extensões do browser e elementos DOM inexistentes
 
-export function safeMutationObserver(callback, options = {}) {
+export function safeMutationObserver(callback, _options = {}) {
   if (typeof MutationObserver === 'undefined') {
     console.warn('[DOM Observer] MutationObserver não disponível neste ambiente')
     return null

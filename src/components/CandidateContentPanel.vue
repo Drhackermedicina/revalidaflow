@@ -6,7 +6,7 @@ import {
 } from '@/utils/simulationUtils.js'
 
 // Props
-const props = defineProps({
+defineProps({
   stationData: { type: Object, required: true },
   simulationStarted: { type: Boolean, required: true },
   isDarkTheme: { type: Boolean, default: false }

@@ -34,7 +34,7 @@ try {
   require('dotenv').config();
 
   // Carrega configuração do Sentry do backend
-  const sentryConfig = require('../backend/config/sentry');
+  require('../backend/config/sentry');
 
   if (process.env.SENTRY_DSN && process.env.SENTRY_DSN !== 'YOUR_SENTRY_DSN_HERE') {
     console.log('   ✅ SENTRY_DSN configurado');

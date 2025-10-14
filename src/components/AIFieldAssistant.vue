@@ -266,7 +266,7 @@ registerPlugins @ plugins.js:45
 </template>
 
 <script setup>
-import { ref, computed, watch, inject, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import geminiService from '@/services/geminiService.js'
 import memoryService from '@/services/memoryService.js'
 

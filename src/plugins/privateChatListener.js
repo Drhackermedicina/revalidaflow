@@ -1,47 +1,13 @@
 import { currentUser } from '@/plugins/auth'
 import { db } from '@/plugins/firebase'
-import { collection, getDocs, limit, onSnapshot, orderBy, query, where, deleteDoc, doc } from 'firebase/firestore'
+import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { getRecentPrivateChats } from '@/utils/cacheManager'
-import { onMounted, onUnmounted, watch } from 'vue' // Adicionado 'watch'
+import { onUnmounted, watch } from 'vue' // Adicionado 'watch'
 import { useRoute } from 'vue-router'
 
 let unsubscribeList = []
 let listenersInitialized = false // Novo flag para controlar a inicialização
 let cleanupInterval = null // Timer para limpeza automática
-
-// 🗑️ Função para limpar convites expirados automaticamente
-const cleanupExpiredInvites = async () => {
-  try {
-    const now = new Date()
-    const invitesRef = collection(db, 'simulationInvites')
-    
-    // Buscar todos os convites pendentes (sem filtro de data para evitar índice composto)
-    const pendingQuery = query(
-      invitesRef,
-      where('status', '==', 'pending')
-    )
-    
-    const querySnapshot = await getDocs(pendingQuery)
-    
-    // Filtrar expirados no lado do cliente
-    const expiredDocs = querySnapshot.docs.filter(docSnapshot => {
-      const data = docSnapshot.data()
-      const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt)
-      return expiresAt <= now
-    })
-    
-    if (expiredDocs.length > 0) {
-      const deletePromises = expiredDocs.map(docSnapshot => 
-        deleteDoc(doc(db, 'simulationInvites', docSnapshot.id))
-      )
-      
-      await Promise.all(deletePromises)
-      // Convites expirados removidos silenciosamente
-    }
-  } catch (error) {
-    console.error('Erro na limpeza automática de convites:', error)
-  }
-}
 
 export function usePrivateChatNotification() {
   const route = useRoute()
@@ -202,7 +168,7 @@ export function usePrivateChatNotification() {
             if (messages.length > 0) {
               lastMessageId = messages[0].id;
             }
-          }, (error) => {
+          }, () => {
             // Silencioso
           });
 

@@ -5,7 +5,7 @@
  * Extrai lógica de fetch do StationList.vue
  */
 
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { db } from '@/plugins/firebase.js'
 import { collection, doc, getDoc, getDocs, query, limit, orderBy, startAfter } from 'firebase/firestore'
 import { currentUser } from '@/plugins/auth.js'
@@ -72,7 +72,7 @@ export function useStationData() {
         )
       }
       const querySnapshot = await getDocs(q)
-      
+
       if (querySnapshot.empty && !loadMore) {
         errorMessage.value = "Nenhuma estação encontrada no Firestore"
         hasMoreStations.value = false
@@ -81,7 +81,7 @@ export function useStationData() {
 
       // Se retornou menos que PAGE_SIZE, não há mais páginas
       hasMoreStations.value = querySnapshot.size === PAGE_SIZE
-      
+
       // Guardar último documento para próxima paginação
       if (!querySnapshot.empty) {
         const docs = querySnapshot.docs
@@ -238,4 +238,3 @@ export function useStationData() {
     getUserStationScore
   }
 }
-

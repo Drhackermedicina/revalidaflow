@@ -87,10 +87,6 @@ const props = defineProps({
 // Valor local para o seletor de duração (sincronizado com prop)
 const localSelectedDurationMinutes = ref(props.selectedDurationMinutes)
 
-// 🔧 LOG: Computeds seguros para evitar undefined
-const safeSimulationStarted = computed(() => props.simulationStarted ?? false);
-const safeSimulationEnded = computed(() => props.simulationEnded ?? false);
-
 // Sincronizar valor local quando prop muda
 watch(() => props.selectedDurationMinutes, (newValue) => {
   localSelectedDurationMinutes.value = newValue

@@ -221,13 +221,6 @@ Por favor, corrija o campo conforme solicitado, mantendo o formato adequado para
 
       // Verificação adicional para campo de descrição de caso
       if (fieldName === 'descricaoCasoCompleta') {
-        // Padrões comuns que devem ser removidos
-        const problematicPatterns = [
-          /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g, // Nomes próprios
-          /\b\d+\s*(?:meses?|anos?|dias?)\b/gi, // Idades específicas
-          /\bJoão\b/gi, /\bMaria\b/gi, /\bPedro\b/gi, // Nomes comuns
-        ];
-
         let cleanedResult = result;
         // Substituir padrões problemáticos por termos genéricos
         cleanedResult = cleanedResult.replace(/\bJoão\b/gi, 'o paciente');

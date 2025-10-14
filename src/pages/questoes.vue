@@ -855,9 +855,6 @@ const loadQuestions = async () => {
       }
     }
 
-    // Feedback sobre total de dados carregados
-    const totalDocs = querySnapshot.docs.length
-
   } catch (error) {
     console.error('Erro ao carregar questões:', error)
     errorMsg.value = 'Erro ao carregar questões. Tente novamente.'
@@ -1007,7 +1004,6 @@ const addComment = async (question) => {
     
     // Atualizar localmente primeiro (UI otimista)
     question.comments.push(newComment)
-    const originalComment = question.newComment
     question.newComment = ''
     
     // Atualizar no Firebase usando a referência correta
@@ -1095,18 +1091,6 @@ const saveProfessorComment = async (question) => {
   } finally {
     question.isSavingProfessorComment = false
   }
-}
-
-const formatDate = (timestamp) => {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  return date.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 }
 
 // Função para recarregar questões manualmente

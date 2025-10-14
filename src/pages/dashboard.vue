@@ -176,7 +176,7 @@
   </VContainer>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
@@ -237,7 +237,7 @@ onMounted(async () => {
 })
 
 // Sidebar sempre aberto
-function ensureSidebarOpen(): void {
+function ensureSidebarOpen() {
   const wrapper = document.querySelector('.layout-wrapper')
   if (wrapper) {
     wrapper.classList.remove('layout-vertical-nav-collapsed')

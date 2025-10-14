@@ -26,6 +26,10 @@ const logger = new Logger('useInviteLinkGeneration');
  * @property {import('vue').Ref<string>} meetLink
  * @property {() => void} connectWebSocket
  * @property {import('vue-router').Router} router
+ * @property {import('vue').Ref<boolean>} isSequentialMode
+ * @property {import('vue').Ref<string>} sequenceId
+ * @property {import('vue').Ref<number>} sequenceIndex
+ * @property {import('vue').Ref<number>} totalSequentialStations
  */
 
 /**
@@ -51,7 +55,11 @@ export function useInviteLinkGeneration(options) {
     getMeetLinkForInvite,
     meetLink,
     connectWebSocket,
-    router
+    router,
+    isSequentialMode,
+    sequenceId,
+    sequenceIndex,
+    totalSequentialStations
   } = options
 
   /**
@@ -82,7 +90,7 @@ export function useInviteLinkGeneration(options) {
     logger.debug('  - sessionId:', sessionId.value || 'não definido');
     logger.debug('  - socket:', socket.value ? `existe (${socket.value.id})` : 'nulo');
     logger.debug('  - socket.connected:', socket.value?.connected || 'falso');
-    
+
     // Validações iniciais
     if (isLoading.value) {
       logger.debug('[INVITE-LINK] ⏳ Ainda carregando dados da estação...');
@@ -132,7 +140,7 @@ export function useInviteLinkGeneration(options) {
         while (!socket.value?.connected && connectionAttempts < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 500))
           connectionAttempts++
-          
+
           // 🔧 NOVO: Log a cada 2 segundos para debug
           if (connectionAttempts % 4 === 0) {
             logger.debug(`[INVITE-LINK] ⏳ Aguardando conexão... (${connectionAttempts}/${maxAttempts}) - Status: ${socket.value?.connected ? 'conectado' : 'desconectado'}`)
@@ -158,7 +166,7 @@ export function useInviteLinkGeneration(options) {
       logger.debug('  - userRole:', userRole.value);
       logger.debug('  - stationId:', stationId.value);
       logger.debug('  - sessionId:', sessionId.value);
-      
+
       // Validar Meet se estiver em modo Meet
       if (isMeetMode()) {
         logger.debug('[INVITE-LINK] 📺 Validando link do Meet...');
@@ -181,6 +189,18 @@ export function useInviteLinkGeneration(options) {
             sessionId: sessionId.value,
             role: partnerRoleToInvite,
             duration: selectedDurationMinutes.value
+          }
+
+          // ✅ FIX: Adicionar parâmetros de modo sequencial ao link de convite
+          if (isSequentialMode.value) {
+            inviteQuery.sequential = 'true'
+            inviteQuery.sequenceId = sequenceId.value
+            inviteQuery.sequenceIndex = sequenceIndex.value?.toString()
+            inviteQuery.totalStations = totalSequentialStations.value?.toString()
+            logger.debug('[INVITE-LINK] 🔗 Modo sequencial detectado - adicionando parâmetros:');
+            logger.debug('  - sequenceId:', sequenceId.value);
+            logger.debug('  - sequenceIndex:', sequenceIndex.value);
+            logger.debug('  - totalStations:', totalSequentialStations.value);
           }
 
           // Adicionar dados do candidato selecionado se disponível

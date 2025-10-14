@@ -1,6 +1,6 @@
 // src/stores/userStore.js
 import { db } from '@/plugins/firebase'; // Importa a instância do Firestore
-import { collection, limit, onSnapshot, orderBy, query, where, getDocs } from 'firebase/firestore';
+import { collection, limit, orderBy, query, where, getDocs } from 'firebase/firestore';
 import { reactive } from 'vue';
 
 const state = reactive({
@@ -82,4 +82,3 @@ function useUserStore() {
 
 export default userStore;
 export { useUserStore };
-

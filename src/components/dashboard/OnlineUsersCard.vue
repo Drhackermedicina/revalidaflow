@@ -122,7 +122,7 @@
   </VCard>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
@@ -148,7 +148,7 @@ const currentUserId = computed(() => currentUser.value?.uid || '')
 const displayedUsers = computed(() => users.value.slice(0, maxDisplay))
 
 // Helpers
-const getUserName = (user: ChatUser): string => {
+const getUserName = (user) => {
   if (user.nome && user.sobrenome) {
     return `${user.nome} ${user.sobrenome}`
   }
@@ -156,7 +156,7 @@ const getUserName = (user: ChatUser): string => {
   return user.displayName || 'Usuário'
 }
 
-const getStatusColor = (status?: string): string => {
+const getStatusColor = (status) => {
   switch (status) {
     case 'disponivel':
       return 'success'
@@ -169,7 +169,7 @@ const getStatusColor = (status?: string): string => {
   }
 }
 
-const getStatusText = (status?: string): string => {
+const getStatusText = (status) => {
   switch (status) {
     case 'disponivel':
       return 'Disponível'
@@ -187,7 +187,7 @@ const goToChat = () => {
   router.push('/app/chat-group')
 }
 
-const openChat = (user: ChatUser) => {
+const openChat = (user) => {
   if (user.uid === currentUserId.value) return
   router.push({ name: 'ChatPrivateView', params: { uid: user.uid } })
 }

@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useThemeConfig } from '@/composables/useThemeConfig'
 import { useFirebaseData } from '@/composables/useFirebaseData'
 

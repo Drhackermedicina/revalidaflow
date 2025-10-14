@@ -1,6 +1,5 @@
 <script setup>
 import { onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { currentUser } from '@/plugins/auth'
 
 // Componentes das seções
@@ -13,8 +12,6 @@ import TestimonialsCarousel from './components/TestimonialsCarousel.vue'
 import PricingCards from './components/PricingCards.vue'
 import FAQAccordion from './components/FAQAccordion.vue'
 import LandingFooter from './components/LandingFooter.vue'
-
-const router = useRouter()
 
 // A landing page agora é acessível tanto para usuários logados quanto não logados
 // Não há mais redirecionamento automático

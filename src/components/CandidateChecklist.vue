@@ -1,5 +1,5 @@
 <script setup>
-import { computed, watch, onMounted } from 'vue'
+import { computed } from 'vue'
 import { parseEnumeratedItems, formatItemDescriptionForDisplay } from '@/utils/simulationUtils.js'
 import { TITLE_INDEX } from '@/composables/useSimulationPEP.js'
 
