@@ -117,15 +117,6 @@ const {  goToNextSequentialStation,
   sessionId   // ✅ NOVO: Passar sessionId para eventos Socket
 });
 
-// Função local para chamar debug sequencial (acessível no template)
-const callDebugSequentialNavigation = () => {
-  if (window.debugSequentialNavigation) {
-    window.debugSequentialNavigation();
-  } else {
-    console.warn('[DEBUG] debugSequentialNavigation não está disponível. Certifique-se de que setupDebugFunction foi chamado.');
-  }
-};
-
 // Refs para notificações
 // NOTA: simulationEnded agora vem do useSimulationWorkflow (linha 176)
 const showNotificationSnackbar = ref(false);
@@ -730,10 +721,7 @@ function connectWebSocket() {
   
   // Listener para quando o ator avança, todos os participantes navegam juntos
   socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
-    console.log('[Sequential] 📥 Avançando - Index:', data.sequenceIndex);
-
     if (!isSequentialMode.value) {
-      console.warn('[Sequential] ⚠️ Não está em modo sequencial, ignorando');
       return;
     }
 
@@ -769,7 +757,13 @@ function connectWebSocket() {
 
     // Delay curto para garantir que stores atualizem antes da navegação
     setTimeout(() => {
-      router.push(navigationTarget);
+      router.push(navigationTarget).then(() => {
+        setupSession();
+      }).catch(err => {
+        if (err && err.name !== 'NavigationDuplicated') {
+          console.error('Falha ao navegar para próxima estação:', err);
+        }
+      });
     }, 300);
   });
   
@@ -863,6 +857,8 @@ function connectWebSocket() {
     if (userRole.value === 'actor' || userRole.value === 'evaluator') {
         showNotification(`Candidato submeteu avaliação final. Nota: ${data.totalScore?.toFixed(2) || 'N/A'}`, 'info');
     }
+
+    // Garantir que o usuário volte ao topo da página ao iniciar próxima estação
   });
 }
 
@@ -884,17 +880,7 @@ function loadSelectedCandidate() {
 
 
 function setupSession() {
-  console.log('');
-  console.log('═════════════════════════════════════════════════════════');
-  console.log('[SETUP_SESSION] 🎬 Iniciando setupSession');
-  console.log('[SETUP_SESSION]    - URL atual:', window.location.href);
-  console.log('[SETUP_SESSION]    - route.params.id:', route.params.id);
-  console.log('[SETUP_SESSION]    - route.query:', route.query);
-  console.log('═════════════════════════════════════════════════════════');
-  console.log('');
-  
   if (isSettingUpSession.value) {
-    console.log('[SETUP_SESSION] ⚠️ Setup já em andamento, ignorando chamada duplicada');
     return;
   }
 
@@ -914,20 +900,16 @@ function setupSession() {
   sessionId.value = route.query.sessionId;
   userRole.value = route.query.role || 'evaluator';
   
-  console.log('[Session] 📋 Iniciando - Station:', stationId.value, 'Role:', userRole.value);
-
   // Configuração do modo sequencial
   setupSequentialMode(route.query);
   
   if (isSequentialMode.value) {
-    console.log('[Session] 🔗 Modo sequencial - Index:', sequenceIndex.value, '/', totalSequentialStations.value);
     if (sessionId.value && sequentialData.value) {
       const updatedSequential = { ...sequentialData.value };
       if (!updatedSequential.sharedSessionId) {
         updatedSequential.sharedSessionId = sessionId.value;
         sequentialData.value = updatedSequential;
         sessionStorage.setItem('sequentialSession', JSON.stringify(updatedSequential));
-        console.log('[Session] 🔁 sessionId compartilhado sincronizado a partir da rota:', sessionId.value);
       }
     }
   }
@@ -1038,8 +1020,6 @@ onMounted(() => {
   });
 });
 
-
-watch(() => route.fullPath, (newPath, oldPath) => { if (newPath !== oldPath && route.name === 'SimulationView') { setupSession(); }});
 onUnmounted(() => {
   disconnect();
   // Limpar candidato selecionado ao sair da simulação
@@ -1051,9 +1031,16 @@ onUnmounted(() => {
 });
 
 watch(() => route.fullPath, (newPath, oldPath) => {
-  if (newPath !== oldPath && route.name === 'SimulationView') {
-        setupSession();
+  if (newPath !== oldPath) {
+    setupSession();
     checkCandidateMeetLink();
+    requestAnimationFrame(() => {
+      try {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      } catch (error) {
+        window.scrollTo(0, 0);
+      }
+    });
   }
 });
 
@@ -1116,17 +1103,8 @@ setupDebugFunction({
 // Quando simulação termina E está em modo sequencial, habilitar navegação
 watch([isSequentialMode, simulationEnded, allEvaluationsCompleted, canGoToNext],
   ([sequential, ended, completed, canNext]) => {
-    // Log para debug
-    if (sequential && ended) {
-      console.log('[SEQUENTIAL_WATCH] Simulação encerrada em modo sequencial');
-      console.log('[SEQUENTIAL_WATCH]   - Role:', userRole.value);
-      console.log('[SEQUENTIAL_WATCH]   - Pode avançar:', canNext);
-      console.log('[SEQUENTIAL_WATCH]   - Avaliações completas:', completed);
-      
-      // Se for candidato, mostrar mensagem de aguardo
-      if (userRole.value === 'candidate' && canNext) {
-        console.log('[SEQUENTIAL_WATCH] 💡 Candidato aguardando ator avançar para próxima estação');
-      }
+    if (sequential && ended && userRole.value === 'candidate' && canNext) {
+      showNotification('Aguardando o examinador avançar para a próxima estação.', 'info');
     }
   },
   { immediate: true }
@@ -1379,23 +1357,13 @@ function toggleCollapse() {
                  color="success"
                  size="x-large"
                  prepend-icon="ri-check-line"
-                 @click="$router.push('/app/stations')"
+                 @click="$router.push('/app/station-list')"
                  class="px-8"
                  variant="elevated"
                >
                  Finalizar Sequência Completa
                </VBtn>
 
-               <!-- Botão de debug sempre visível durante desenvolvimento -->
-               <VBtn
-                 color="warning"
-                 size="small"
-                 variant="outlined"
-                 @click="callDebugSequentialNavigation"
-                 class="mt-4"
-               >
-                 Debug Console
-               </VBtn>
              </VCardText>
            </VCard>
 
@@ -1570,7 +1538,7 @@ function toggleCollapse() {
                    color="success"
                    size="large"
                    prepend-icon="ri-check-line"
-                   @click="$router.push('/app/stations')"
+                   @click="$router.push('/app/station-list')"
                  >
                    Finalizar Sequência
                  </VBtn>

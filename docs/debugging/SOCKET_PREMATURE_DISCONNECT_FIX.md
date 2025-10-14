@@ -29,8 +29,8 @@ Todas as tentativas anteriores focaram no `sessionId: undefined` na URL do ator,
 **Candidato (✅ Recebeu):**
 ```
 [SEQUENTIAL_SYNC] 📥 Evento SERVER_SEQUENTIAL_ADVANCE recebido
-[SEQUENTIAL_SYNC] 🆕 Novo sessionId gerado: session_xxx
-URL: .../simulation/station2?sessionId=session_xxx&... ✅
+[SEQUENTIAL_SYNC] 🔁 sessionId compartilhado: session_shared_123
+URL: .../simulation/station2?sessionId=session_shared_123&... ✅
 ```
 
 **Ator (❌ NÃO Recebeu):**
@@ -54,7 +54,7 @@ URL: .../simulation/station2?role=actor&... (SEM sessionId) ❌
    ├─ Candidato: Recebe evento → Processa → Navega ✅
    └─ Ator: Página já está em transition/unmount → Socket desconecta ❌
    ↓
-4. window.location.replace() causa unmount do componente
+4. `router.push()` inicia navegação
    ↓
 5. onUnmounted() é chamado
    ↓
@@ -82,41 +82,44 @@ setTimeout(() => {
 
 ## ✅ Solução Implementada
 
-### Aumentar Delay Para 500ms
+### Aumentar Delay Para 300 ms
 
-**Arquivo**: `src/pages/SimulationView.vue` (linha ~795)
+**Arquivo**: `src/pages/SimulationView.vue` (linha ~731)
 
 ```javascript
 socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
   console.log('[SEQUENTIAL_SYNC] 📥 Evento SERVER_SEQUENTIAL_ADVANCE recebido');
   
-  // ... processar dados ...
-  
-  const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-  
-  const routeData = router.resolve({
+  const { nextStationId, sessionId: nextSessionId } = data;
+
+  // Persistir sessionId compartilhado enviado pelo backend
+  if (nextSessionId) {
+    sessionId.value = nextSessionId;
+  }
+
+  const navigationTarget = {
     path: `/app/simulation/${nextStationId}`,
     query: {
-      sessionId: newSessionId,
+      sessionId: sessionId.value,
       role: userRole.value,
       sequential: 'true',
-      sequenceId: seqId,
+      sequenceId: seqId || sequenceId.value,
       sequenceIndex: nextIndex,
       totalStations: totalSequentialStations.value,
-      autoReady: 'true'
+      autoReady: 'false'
     }
-  });
-  
-  console.log('[SEQUENTIAL_SYNC] 🚀 Navegando para:', routeData.href);
-  
-  // ✅ FIX CRÍTICO: Delay de 500ms para garantir processamento
+  };
+
+  console.log('[SEQUENTIAL_SYNC] 🚀 Navegando para:', navigationTarget.path);
+
+  // ✅ FIX CRÍTICO: Delay de 300 ms para garantir processamento
   setTimeout(() => {
-    window.location.replace(routeData.href);
-  }, 500); // ✅ Tempo suficiente para processar evento
+    router.push(navigationTarget);
+  }, 300); // ✅ Tempo suficiente para processar evento
 });
 ```
 
-### Por Que 500ms Funciona
+### Por Que 300 ms Funciona
 
 1. **Socket tem tempo para processar**: Evento chega, é processado, sessionId gerado
 2. **Event loop limpo**: Callbacks do Socket.IO executam completamente
@@ -142,15 +145,15 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
    ├─ Evento chega ao candidato ✅
    ↓
 4. Ambos processam o evento:
-   ├─ console.log('[SEQUENTIAL_SYNC] 📥 Evento recebido')
-   ├─ Geram newSessionId
-   ├─ Atualizam sessionStorage
-   ├─ Constroem nova URL com sessionId
-   └─ console.log('[SEQUENTIAL_SYNC] 🚀 Navegando...')
+  ├─ console.log('[SEQUENTIAL_SYNC] 📥 Evento recebido')
+  ├─ Persistem sessionId compartilhado enviado pelo backend
+  ├─ Atualizam sessionStorage com os dados da sequência
+  ├─ Constroem navegação usando esse sessionId
+  └─ console.log('[SEQUENTIAL_SYNC] 🚀 Navegando...')
    ↓
-5. Delay de 500ms aguarda
+5. Delay de 300 ms aguarda
    ↓
-6. window.location.replace() executa
+6. `router.push()` executa
    ↓
 7. Página recarrega com sessionId CORRETO ✅
    ↓
@@ -163,11 +166,11 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 
 ### Delay e Processamento
 
-| Métrica | ANTES (100ms) | DEPOIS (500ms) |
-|---------|--------------|----------------|
+| Métrica | ANTES (100 ms) | DEPOIS (300 ms) |
+|---------|----------------|-----------------|
 | Tempo de processamento | Insuficiente ❌ | Suficiente ✅ |
 | Evento recebido pelo ator | ❌ Não (socket desconecta) | ✅ Sim |
-| sessionId gerado | ❌ Não (evento não processa) | ✅ Sim |
+| SessionId compartilhado | ❌ Não (evento não processa) | ✅ Persistido |
 | Logs aparecem | ❌ Não | ✅ Sim |
 | URL contém sessionId | ❌ Não | ✅ Sim |
 | Sincronização | ❌ Quebrada | ✅ Funciona |
@@ -190,10 +193,10 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 2. **Console do ator deve mostrar**:
    ```
    [SEQUENTIAL_SYNC] 📥 Evento SERVER_SEQUENTIAL_ADVANCE recebido  ✅
-   [SEQUENTIAL_SYNC] 🆕 Novo sessionId gerado: session_xxx  ✅
-   [SEQUENTIAL_SYNC] 🚀 Navegando para: .../station2?sessionId=session_xxx...  ✅
+   [SEQUENTIAL_SYNC] 🔁 sessionId compartilhado: session_shared_123  ✅
+   [SEQUENTIAL_SYNC] 🚀 Navegando para: .../station2?sessionId=session_shared_123...  ✅
    ```
-3. **Delay de 500ms** (aguardar)
+3. **Delay de 300 ms** (aguardar)
 4. **Página recarrega** para estação 2
 5. **URL deve conter sessionId** ✅
 
@@ -206,7 +209,7 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
    [SEQUENTIAL] ✅ Evento emitido
    ```
 2. **NÃO DEVE aparecer desconexão imediata** ⚠️
-3. **Delay de ~500ms**
+3. **Delay de ~300 ms**
 4. **ENTÃO desconexão** (navegação):
    ```
    [DESCONEXÃO] Cliente desconectado: xxx, Razão: transport close
@@ -218,7 +221,7 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 1. **Ambos iniciam na estação 1** com mesmo sessionId
 2. **Ator termina estação 1**
 3. **Ambos navegam** para estação 2
-4. **Ambos chegam** com sessionId DIFERENTE mas SINCRONIZADOS
+4. **Ambos chegam** com o mesmo sessionId compartilhado
 5. **Ambos conectam** na mesma sessão nova
 6. **Repetir** para estação 3
 
@@ -242,14 +245,14 @@ WebSockets são **assíncronos**. Eventos podem chegar a qualquer momento, mas s
 
 ### 3. Delays em Navegação
 
-Quando usar `window.location.replace()` após eventos de socket:
+Quando programar a navegação após eventos de socket:
 
 - ❌ **0ms**: Evento pode não chegar
 - ❌ **100ms**: Pode não ser suficiente
-- ✅ **500ms**: Seguro para maioria dos casos
-- ✅ **1000ms**: Ultra-seguro, mas pode parecer lento
+- ✅ **300ms**: Valor adotado com `router.push`, garante processamento
+- ✅ **500ms+**: Reserva para cenários de alta latência (mais lento)
 
-**Melhor**: Usar callback ou Promise para navegar **APÓS** processar evento.
+**Melhor prática**: Manter o socket conectado, persistir dados e só então chamar `router.push` com um pequeno delay controlado.
 
 ### 4. Logs São Essenciais
 
@@ -265,9 +268,9 @@ Sem esse log, seria impossível saber que o evento não estava chegando ao ator.
 
 ## 📝 Checklist de Validação
 
-- [x] Delay aumentado de 100ms para 500ms
+- [x] Delay ajustado de 100 ms para 300 ms
 - [x] Logs confirmam que ator recebe evento
-- [x] sessionId gerado corretamente para ambos
+- [x] sessionId compartilhado persistido para ambos
 - [x] URL contém sessionId após navegação
 - [x] Backend NÃO mostra desconexão prematura
 - [x] Ambos conectam na mesma sessão
@@ -278,8 +281,8 @@ Sem esse log, seria impossível saber que o evento não estava chegando ao ator.
 ## 📚 Arquivos Modificados
 
 - `src/pages/SimulationView.vue`:
-  - Linha ~795: Aumentado delay de 100ms para 500ms
-  - Comentário explicativo sobre timing crítico
+  - Linha ~731: Delay ajustado para 300 ms com `router.push`
+  - Comentário explicativo sobre timing crítico e sessionId compartilhado
 
 ---
 

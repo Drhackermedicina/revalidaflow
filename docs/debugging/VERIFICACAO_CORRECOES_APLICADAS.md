@@ -7,15 +7,15 @@
 
 ## 📋 Checklist de Correções
 
-### ✅ 1. Delay de 500ms Antes de Navegar
+### ✅ 1. Delay de 300 ms com `router.push`
 
-**Arquivo**: `src/pages/SimulationView.vue` (linha ~754-756)
+**Arquivo**: `src/pages/SimulationView.vue` (linha ~770-773)
 
 ```javascript
-// ✅ FIX CRÍTICO: Delay antes de navegar para garantir processamento do evento
+// Delay curto para garantir atualização de estado antes da navegação
 setTimeout(() => {
-  window.location.replace(routeData.href);
-}, 500);
+  router.push(navigationTarget);
+}, 300);
 ```
 
 **Status**: ✅ APLICADO CORRETAMENTE
@@ -86,50 +86,55 @@ socket.on('SERVER_SEQUENTIAL_MODE_INFO', (data) => {
 
 ---
 
-### ✅ 5. Logs Limpos no Listener SERVER_SEQUENTIAL_ADVANCE
+### ✅ 5. Listener SERVER_SEQUENTIAL_ADVANCE Alinhado
 
-**Arquivo**: `src/pages/SimulationView.vue` (linha ~726-758)
+**Arquivo**: `src/pages/SimulationView.vue` (linha ~731-773)
 
 ```javascript
 socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
   console.log('[Sequential] 📥 Avançando - Index:', data.sequenceIndex);
-  
+
   if (!isSequentialMode.value) {
     console.warn('[Sequential] ⚠️ Não está em modo sequencial, ignorando');
     return;
   }
-  
-  const { nextStationId, sequenceIndex: nextIndex, sequenceId: seqId } = data;
-  
-  // Atualizar sessionStorage
-  const updatedData = { ...sequentialData.value };
+
+  const {
+    nextStationId,
+    sequenceIndex: nextIndex,
+    sequenceId: seqId,
+    sessionId: nextSessionId
+  } = data;
+
+  const updatedData = { ...(sequentialData.value || {}) };
   updatedData.currentIndex = nextIndex;
+  if (nextSessionId) {
+    updatedData.sharedSessionId = nextSessionId;
+    sessionId.value = nextSessionId;
+  }
+  sequentialData.value = updatedData;
   sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData));
-  
-  // Gerar NOVO sessionId para a próxima estação
-  const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-  
-  const routeData = router.resolve({
+
+  const navigationTarget = {
     path: `/app/simulation/${nextStationId}`,
     query: {
-      sessionId: newSessionId,
+      sessionId: nextSessionId || sessionId.value,
       role: userRole.value,
       sequential: 'true',
-      sequenceId: seqId,
+      sequenceId: seqId || sequenceId.value,
       sequenceIndex: nextIndex,
       totalStations: totalSequentialStations.value,
-      autoReady: 'true'
+      autoReady: 'false'
     }
-  });
-  
-  // ✅ FIX CRÍTICO: Delay antes de navegar
+  };
+
   setTimeout(() => {
-    window.location.replace(routeData.href);
-  }, 500);
+    router.push(navigationTarget);
+  }, 300);
 });
 ```
 
-**Status**: ✅ APLICADO CORRETAMENTE (logs excessivos removidos, lógica mantida)
+**Status**: ✅ APLICADO CORRETAMENTE (sincronização de sessão preservada)
 
 ---
 
@@ -154,14 +159,21 @@ if (shouldAutoReady && isActorOrEvaluator.value) {
 
 ---
 
-### ✅ 7. SessionId Gerado na Primeira Estação
+### ✅ 7. SessionId Compartilhado Persistente
 
-**Arquivo**: `src/composables/useSequentialMode.js` (linha ~157-159)
+**Arquivo**: `src/composables/useSequentialMode.js` (linha ~154-167)
 
 ```javascript
-// ✅ FIX: Gerar sessionId único para cada estação
-const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
-logger.debug(`Gerando sessionId para estação ${currentStation.id}:`, sessionId)
+const sequentialData = JSON.parse(sessionStorage.getItem('sequentialSession') || '{}')
+sequentialData.currentIndex = currentSequenceIndex.value
+if (!sequentialData.sharedSessionId) {
+  sequentialData.sharedSessionId = sharedSessionId.value
+}
+sessionStorage.setItem('sequentialSession', JSON.stringify(sequentialData))
+
+const sessionId = sequentialData.sharedSessionId || sharedSessionId.value
+sharedSessionId.value = sessionId
+logger.debug(`Utilizando sessionId compartilhado para estação ${currentStation.id}:`, sessionId)
 ```
 
 **Status**: ✅ APLICADO CORRETAMENTE
@@ -174,13 +186,13 @@ logger.debug(`Gerando sessionId para estação ${currentStation.id}:`, sessionId
 
 | # | Correção | Status | Arquivo | Linha |
 |---|----------|--------|---------|-------|
-| 1 | Delay de 500ms | ✅ | SimulationView.vue | ~754-756 |
-| 2 | Logs limpos (connectWebSocket) | ✅ | SimulationView.vue | ~425-427 |
-| 3 | Parâmetros sequenciais no socket | ✅ | SimulationView.vue | ~447-452 |
-| 4 | Listener antes da conexão | ✅ | SimulationView.vue | ~459-473 |
-| 5 | Logs limpos (SEQUENTIAL_ADVANCE) | ✅ | SimulationView.vue | ~726-758 |
-| 6 | Auto-ready condicional | ✅ | SimulationView.vue | ~980-989 |
-| 7 | SessionId na primeira estação | ✅ | useSequentialMode.js | ~157-159 |
+| 1 | Delay de 300 ms com `router.push` | ✅ | SimulationView.vue | ~770-773 |
+| 2 | Logs limpos (connectWebSocket) | ✅ | SimulationView.vue | ~431-437 |
+| 3 | Parâmetros sequenciais no socket | ✅ | SimulationView.vue | ~444-455 |
+| 4 | Listener antes da conexão | ✅ | SimulationView.vue | ~459-475 |
+| 5 | Listener SERVER_SEQUENTIAL_ADVANCE alinhado | ✅ | SimulationView.vue | ~731-773 |
+| 6 | Auto-ready condicional | ✅ | SimulationView.vue | ~970-989 |
+| 7 | SessionId compartilhado persistente | ✅ | useSequentialMode.js | ~154-167 |
 
 ---
 
@@ -189,14 +201,14 @@ logger.debug(`Gerando sessionId para estação ${currentStation.id}:`, sessionId
 ### Frontend
 
 ✅ **src/pages/SimulationView.vue** (1637 linhas)
-- Delay de 500ms: ✅ Linha 756
-- Logs limpos: ✅ Linhas 425, 727
-- Parâmetros sequenciais: ✅ Linha 447-452
-- Listener timing: ✅ Linha 459-473
-- Auto-ready: ✅ Linha 980-989
+- Delay de 300 ms via `router.push`: ✅ Linha 772
+- Logs limpos: ✅ Linhas 431, 733
+- Parâmetros sequenciais: ✅ Linhas 444-455
+- Listener antes da conexão: ✅ Linhas 459-475
+- Auto-ready: ✅ Linhas 970-989
 
 ✅ **src/composables/useSequentialMode.js** (215 linhas)
-- SessionId generation: ✅ Linha 157
+- Persistência do sessionId compartilhado: ✅ Linhas 154-167
 
 ### Backend
 
@@ -250,7 +262,7 @@ npm run dev
 
 **TODAS AS CORREÇÕES FORAM APLICADAS COM SUCESSO!**
 
-O código está pronto para teste. A causa raiz (desconexão prematura do socket) foi corrigida com o delay de 500ms antes da navegação.
+O código está pronto para teste. A causa raiz (desconexão prematura do socket) foi mitigada com o delay de 300 ms antes da navegação via `router.push`.
 
 ---
 

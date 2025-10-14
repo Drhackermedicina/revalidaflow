@@ -48,7 +48,7 @@ Foram identificados e corrigidos **7 problemas diferentes**:
 
 #### 4. ✅ Colisão de sessionId
 - **Problema**: Ambos chegavam com mesmo sessionId, candidato criava sessão primeiro
-- **Solução**: Gerar sessionId único para cada estação
+- **Solução**: Padronizar sessionId compartilhado emitido pelo backend e persistir no `sessionStorage`
 - **Arquivo**: `SimulationView.vue` (listener SERVER_SEQUENTIAL_ADVANCE)
 
 #### 5. ✅ Candidato com auto-ready indevido
@@ -63,7 +63,7 @@ Foram identificados e corrigidos **7 problemas diferentes**:
 
 #### 7. ✅ **CAUSA RAIZ**: Desconexão prematura do socket
 - **Problema**: Socket desconecta ANTES de processar SERVER_SEQUENTIAL_ADVANCE
-- **Solução**: Aumentar delay de 100ms para 500ms antes de navegar
+- **Solução**: Aumentar delay de 100 ms para 300 ms antes de navegar via `router.push`
 - **Arquivo**: `SimulationView.vue` (listener SERVER_SEQUENTIAL_ADVANCE)
 
 ---
@@ -87,45 +87,54 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
   const { nextStationId, sequenceIndex: nextIndex, sequenceId: seqId } = data;
   
   // Atualizar sessionStorage
-  const updatedData = { ...sequentialData.value };
+  const {
+    nextStationId,
+    sequenceIndex: nextIndex,
+    sequenceId: seqId,
+    sessionId: nextSessionId
+  } = data;
+
+  const updatedData = { ...(sequentialData.value || {}) };
   updatedData.currentIndex = nextIndex;
+  if (nextSessionId) {
+    updatedData.sharedSessionId = nextSessionId;
+    sessionId.value = nextSessionId;
+  }
+  sequentialData.value = updatedData;
   sessionStorage.setItem('sequentialSession', JSON.stringify(updatedData));
-  
-  // ✅ Gerar NOVO sessionId para cada estação (evita colisão)
-  const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-  
-  const routeData = router.resolve({
+
+  const navigationTarget = {
     path: `/app/simulation/${nextStationId}`,
     query: {
-      sessionId: newSessionId,
+      sessionId: nextSessionId || sessionId.value,
       role: userRole.value,
       sequential: 'true',
-      sequenceId: seqId,
+      sequenceId: seqId || sequenceId.value,
       sequenceIndex: nextIndex,
       totalStations: totalSequentialStations.value,
-      autoReady: 'true'
+      autoReady: 'false'
     }
-  });
-  
-  // ✅ FIX CRÍTICO: Delay de 500ms para garantir processamento
+  };
+
+  // ✅ FIX CRÍTICO: Delay de 300 ms para garantir processamento antes de navegar
   setTimeout(() => {
-    window.location.replace(routeData.href);
-  }, 500); // ← Esta linha resolve o problema!
+    router.push(navigationTarget);
+  }, 300); // ← Esta linha resolve o problema!
 });
 ```
 
-### Por Que 500ms?
+### Por Que 300 ms?
 
-**ANTES (100ms)**:
+**ANTES (100 ms)**:
 1. Backend emite evento
-2. Ator já está em process de unmount
+2. Ator já está em processo de unmount
 3. Socket desconecta **ANTES** de processar
 4. Evento perdido ❌
 
-**DEPOIS (500ms)**:
+**DEPOIS (300 ms)**:
 1. Backend emite evento
 2. Evento chega ao cliente
-3. Callback executado (sessionId gerado)
+3. Callback executa e persiste `sessionId`
 4. Logs aparecem
 5. **ENTÃO** navega ✅
 
@@ -155,11 +164,9 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
   10. Backend emite SERVER_SEQUENTIAL_ADVANCE
       ├─ para socketId do ator
       └─ para socketId do candidato
-  11. Ambos recebem evento (500ms delay protege) ✅
-  12. Cada um gera NOVO sessionId:
-      ├─ Ator: session_456_def
-      └─ Candidato: session_456_xyz
-  13. Ambos navegam para station2
+  11. Ambos recebem evento (delay de 300 ms protege) ✅
+  12. SessionId compartilhado (`session_123_abc`) é reaplicado
+  13. Ambos navegam para station2 via `router.push`
 
 ┌─────────────────────────────────────────────────┐
 │         ESTAÇÃO 2 (Segunda)                     │
@@ -178,7 +185,7 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 └─────────────────────────────────────────────────┘
   22. Backend emite SERVER_SEQUENTIAL_ADVANCE
   23. Ambos recebem evento ✅
-  24. Geram NOVOS sessionIds
+  24. Mantêm `session_123_abc` sincronizado
   25. Navegam para station3
 
 ┌─────────────────────────────────────────────────┐
@@ -210,14 +217,14 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 
 ```bash
 # Estação 1
-[WebSocket] 🔌 Conectando - actor - Session: session_123_abc
+[WebSocket] 🔌 Conectando - actor - Session: session_shared_123
 [Sequential] 📥 Modo sequencial ativado - Index: 0 / 3
 
 # Fim da estação 1
 [Sequential] 📥 Avançando - Index: 1
 
 # Estação 2
-[WebSocket] 🔌 Conectando - actor - Session: session_456_def
+[WebSocket] 🔌 Conectando - actor - Session: session_shared_123
 [Sequential] 📥 Modo sequencial ativado - Index: 1 / 3
 [AUTO-READY] ✅ Ator/Avaliador marcando-se como pronto automaticamente
 
@@ -225,7 +232,7 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 [Sequential] 📥 Avançando - Index: 2
 
 # Estação 3
-[WebSocket] 🔌 Conectando - actor - Session: session_789_ghi
+[WebSocket] 🔌 Conectando - actor - Session: session_shared_123
 [Sequential] 📥 Modo sequencial ativado - Index: 2 / 3
 ```
 
@@ -233,7 +240,7 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 
 ```bash
 # Estação 1
-[WebSocket] 🔌 Conectando - candidate - Session: session_123_abc
+[WebSocket] 🔌 Conectando - candidate - Session: session_shared_123
 [Sequential] 📥 Modo sequencial ativado - Index: 0 / 3
 (candidato clica "Estou Pronto" manualmente)
 
@@ -241,7 +248,7 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 [Sequential] 📥 Avançando - Index: 1
 
 # Estação 2
-[WebSocket] 🔌 Conectando - candidate - Session: session_456_xyz
+[WebSocket] 🔌 Conectando - candidate - Session: session_shared_123
 [Sequential] 📥 Modo sequencial ativado - Index: 1 / 3
 (candidato clica "Estou Pronto" manualmente)
 ```
@@ -255,12 +262,12 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 1. **src/pages/SimulationView.vue**
    - Linha ~425-470: Logs limpos em connectWebSocket
    - Linha ~466-485: Listener SERVER_SEQUENTIAL_MODE_INFO antes da conexão
-   - Linha ~726-755: Listener SERVER_SEQUENTIAL_ADVANCE com delay de 500ms
+   - Linha ~731-773: Listener SERVER_SEQUENTIAL_ADVANCE reaproveita sessionId compartilhado e navega após delay de 300 ms
    - Linha ~900-910: Logs limpos em setupSession
    - Linha ~985-992: Auto-ready apenas para ator/avaliador
 
 2. **src/composables/useSequentialMode.js**
-   - Linha ~156-167: Geração de sessionId na primeira estação
+   - Linha ~154-167: Persistência do sessionId compartilhado no `sessionStorage`
 
 3. **src/composables/useInviteLinkGeneration.js**
    - Linha ~183-198: Parâmetros sequenciais no invite link
@@ -297,8 +304,8 @@ socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
 |-------|-----------|
 | 0ms | ❌ Evento pode não chegar |
 | 100ms | ⚠️ Pode não ser suficiente |
-| 500ms | ✅ Seguro para maioria dos casos |
-| 1000ms | ✅ Ultra-seguro (mas lento) |
+| 300ms | ✅ Valor atual — garante processamento antes da navegação |
+| 500ms+ | ✅ Reserva para cenários de alta latência (mais lento) |
 
 ### 4. Logs São Essenciais
 
@@ -333,17 +340,17 @@ Quando quick fixes falham repetidamente:
 - ✅ Composables inicializados corretamente
 - ✅ Socket.IO com parâmetros sequenciais
 - ✅ Invite links propagam informações sequenciais
-- ✅ SessionId único por estação (evita colisão)
+- ✅ SessionId compartilhado persistido entre estações
 - ✅ Auto-ready apenas para ator/avaliador
 - ✅ Listeners registrados antes da conexão
-- ✅ **Timing corrigido (500ms delay)**
+- ✅ **Timing corrigido (delay de 300 ms antes da navegação)**
 
 ### Funcionalidades Validadas
 
 - ✅ Múltiplas estações sequenciais (testado com 3)
 - ✅ Sincronização entre participantes
 - ✅ Navegação conjunta
-- ✅ Sessões únicas por estação
+- ✅ Sessão compartilhada única para toda a sequência
 - ✅ Auto-ready condicional
 - ✅ Logs limpos e informativos
 

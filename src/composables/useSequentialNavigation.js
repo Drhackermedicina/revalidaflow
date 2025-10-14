@@ -101,7 +101,7 @@ export function useSequentialNavigation({
         if (nextIndex < totalSequentialStations.value) {
           // Voltar para lista de estações para reconfigurar
           const routeData = router.resolve({
-            path: `/app/stations`,
+            path: `/app/station-list`,
             query: {
               sequential: 'true',
               sequenceId: sequenceId.value,
@@ -117,7 +117,7 @@ export function useSequentialNavigation({
         } else {
           alert('Simulação sequencial concluída!')
           sessionStorage.removeItem('sequentialSession')
-          router.push('/app/stations')
+          router.push('/app/station-list')
           return
         }
       }
@@ -178,7 +178,7 @@ export function useSequentialNavigation({
       logger.debug('[SEQUENTIAL] Reached end of sequence')
       alert('Simulação sequencial concluída!')
       sessionStorage.removeItem('sequentialSession')
-      router.push('/app/stations')
+      router.push('/app/station-list')
     }
   }
 
@@ -221,7 +221,7 @@ export function useSequentialNavigation({
    */
   function exitSequentialMode() {
     sessionStorage.removeItem('sequentialSession')
-    router.push('/app/stations')
+    router.push('/app/station-list')
   }
 
   /**

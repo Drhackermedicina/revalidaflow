@@ -1,25 +1,25 @@
 # Guia Rápido de Teste: Modo Sequencial
 
 **Status**: ✅ Pronto para testar  
-**Correção aplicada**: Delay de 500ms antes de navegação
+**Correção aplicada**: Delay de 300 ms com navegação via `router.push`
 
 ---
 
 ## 🎯 O Que Foi Corrigido
 
 ### Problema
-Socket do ator desconectava **ANTES** de processar o evento SERVER_SEQUENTIAL_ADVANCE, resultando em:
-- URL sem sessionId (undefined)
+O socket do ator desconectava **ANTES** de processar o evento `SERVER_SEQUENTIAL_ADVANCE`, gerando:
+- URL sem `sessionId` (undefined)
 - Candidato criando sessão sozinho
-- Ator não conseguindo conectar
+- Ator incapaz de reconectar
 - Sincronização quebrada
 
 ### Solução
-Aumentado delay de **100ms → 500ms** antes de navegar, garantindo que:
-- Evento seja recebido
-- sessionId seja gerado
-- Logs sejam exibidos
-- **ENTÃO** navegação acontece
+Aplicado delay de **100 ms → 300 ms** antes de navegar usando `router.push`, garantindo que:
+- O evento seja recebido e processado
+- O `sessionId` compartilhado seja persistido
+- Logs apareçam no console
+- A navegação aconteça somente depois disso
 
 ---
 
@@ -74,15 +74,15 @@ Aumentado delay de **100ms → 500ms** antes de navegar, garantindo que:
 ```
 
 **Ações**:
-- ✅ Verifique que ambos conectaram (indicador verde)
-- ✅ **Candidato** clica **"Estou Pronto"** (MANUALMENTE)
-- ✅ Simulação inicia automaticamente
-- ✅ Execute a simulação normalmente
-- ✅ **Ator** termina clicando **"Terminar Simulação"**
+- ✅ Confirme que ambos conectaram (indicador verde)
+- ✅ **Candidato** clica **"Estou Pronto"** (manual)
+- ✅ Simulação inicia normalmente
+- ✅ Execute a simulação
+- ✅ **Ator** encerra clicando **"Terminar Simulação"**
 
 #### Passo 4: Transição 1 → 2
 
-**🔍 PONTO CRÍTICO - Verifique os logs**:
+**🔍 PONTO CRÍTICO – Verifique os logs**:
 
 ```bash
 # ATOR (DEVE APARECER!)
@@ -93,13 +93,13 @@ Aumentado delay de **100ms → 500ms** antes de navegar, garantindo que:
 ```
 
 **O que deve acontecer**:
-- ✅ Ambas as páginas aguardam ~500ms
+- ✅ Ambas as páginas aguardam ~300 ms
 - ✅ Ambos navegam automaticamente para a estação 2
-- ✅ URLs de ambos contêm `sessionId=session_yyy` (NÃO undefined!)
+- ✅ URLs de ambos mantêm o mesmo `sessionId` compartilhado (nunca undefined)
 
 **❌ O que NÃO deve acontecer**:
-- ❌ Ator com URL sem sessionId
-- ❌ Mensagem "Aguardando parceiro..."
+- ❌ Ator com URL sem `sessionId`
+- ❌ Mensagem “Aguardando parceiro...”
 - ❌ Candidato conectado sozinho
 
 #### Passo 5: Estação 2
@@ -108,12 +108,12 @@ Aumentado delay de **100ms → 500ms** antes de navegar, garantindo que:
 
 ```bash
 # ATOR
-[WebSocket] 🔌 Conectando - actor - Session: session_yyy (NOVO ID!)
+[WebSocket] 🔌 Conectando - actor - Session: session_xxx (MESMO ID)
 [Sequential] 📥 Modo sequencial ativado - Index: 1 / 3
 [AUTO-READY] ✅ Ator/Avaliador marcando-se como pronto automaticamente
 
 # CANDIDATO
-[WebSocket] 🔌 Conectando - candidate - Session: session_yyy (DIFERENTE, mas SINCRONIZADO!)
+[WebSocket] 🔌 Conectando - candidate - Session: session_xxx (MESMO ID)
 [Sequential] 📥 Modo sequencial ativado - Index: 1 / 3
 ```
 
@@ -134,7 +134,7 @@ Aumentado delay de **100ms → 500ms** antes de navegar, garantindo que:
 
 **O que deve acontecer**:
 - ✅ Ambos navegam para estação 3
-- ✅ URLs com sessionId (não undefined)
+- ✅ URLs preservam o mesmo `sessionId`
 - ✅ Sincronização mantida
 
 #### Passo 7: Estação 3
@@ -150,15 +150,7 @@ Aumentado delay de **100ms → 500ms** antes de navegar, garantindo que:
 
 ## 🚨 Problemas a Observar
 
-### ❌ Ator com sessionId undefined
-
-**Sintoma**: URL do ator na estação 2 é `/simulation/station2?role=actor&...` (sem sessionId)
-
-**Causa**: Socket desconectou antes de receber evento (delay insuficiente)
-
-**Verificação**: Console do ator NÃO mostra log `[Sequential] 📥 Avançando`
-
-**Solução**: Se isso acontecer, aumentar delay de 500ms para 750ms ou 1000ms
+**Solução**: Se isso acontecer, aumente o delay padrão (300 ms) para 500 ms ou 700 ms
 
 ### ❌ Candidato cria sessão sozinho
 
@@ -198,13 +190,16 @@ Aumentado delay de **100ms → 500ms** antes de navegar, garantindo que:
 [SEQUENTIAL] 📤 Emitindo para candidate: socketId def456
 [SEQUENTIAL] ✅ Evento SERVER_SEQUENTIAL_ADVANCE emitido
 
-# IMPORTANTE: Aguardar ~500ms
+# IMPORTANTE: Aguardar ~300 ms
 
 [DESCONEXÃO] Cliente desconectado: abc123, Razão: transport close
 [DESCONEXÃO] Cliente desconectado: def456, Razão: transport close
 
-# Conexões na estação 2
-[SESSION] ✅ Sessão criada: session_yyy
+[SESSION] ✅ Sessão removida (sem participantes): session_xxx
+
+# IMPORTANTE: Aguardar ~300 ms
+
+[SESSION] ✅ Sessão recriada: session_xxx
 [SOCKET] 🔗 Participante conectou: actor (socketId: ghi789)
 [SOCKET] 🔗 Participante conectou: candidate (socketId: jkl012)
 ```
@@ -236,12 +231,12 @@ Marque conforme testa:
 ### Transição 1 → 2
 - [ ] Console do ATOR mostra `[Sequential] 📥 Avançando - Index: 1`
 - [ ] Console do CANDIDATO mostra `[Sequential] 📥 Avançando - Index: 1`
-- [ ] Delay visível (~500ms)
+- [ ] Delay visível (~300 ms)
 - [ ] Ambos navegam automaticamente
 
 ### Estação 2
-- [ ] URL do ATOR contém `sessionId=session_yyy` (NÃO undefined)
-- [ ] URL do CANDIDATO contém `sessionId=session_zzz`
+- [ ] URL do ATOR contém `sessionId=` com o mesmo valor da estação 1
+- [ ] URL do CANDIDATO contém `sessionId=` com o mesmo valor
 - [ ] Ambos conectam na MESMA sessão (indicador verde)
 - [ ] Ator está pronto automaticamente
 - [ ] Candidato clica "Estou Pronto" manualmente
@@ -286,12 +281,7 @@ Verifique:
 
 Se estiver testando em rede lenta, considere aumentar delay:
 
-```javascript
-// SimulationView.vue, linha ~750
-setTimeout(() => {
-  window.location.replace(routeData.href);
-}, 1000); // ← Aumentar para 1000ms em redes lentas
-```
+Em redes muito lentas, aumente o delay em `src/pages/SimulationView.vue` (listener `SERVER_SEQUENTIAL_ADVANCE`) para 500–700 ms.
 
 ---
 
