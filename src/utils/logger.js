@@ -69,7 +69,32 @@ class Logger {
       console.log(...this._formatMessage(LOG_LEVELS.DEBUG, ...args))
     }
   }
-  
+
+  // Alias para console.log (compatibilidade)
+  log(...args) {
+    this.info(...args)
+  }
+
+  // Método para tabelas (apenas em desenvolvimento)
+  table(data) {
+    if (this.logLevel >= LOG_LEVELS.DEBUG) {
+      console.table(data)
+    }
+  }
+
+  // Método para grupos (apenas em desenvolvimento)
+  group(label) {
+    if (this.logLevel >= LOG_LEVELS.DEBUG) {
+      console.group(label)
+    }
+  }
+
+  groupEnd() {
+    if (this.logLevel >= LOG_LEVELS.DEBUG) {
+      console.groupEnd()
+    }
+  }
+
   // Método para criar um logger com namespace específico
   createChild(childNamespace) {
     return new Logger(`${this.namespace}:${childNamespace}`)

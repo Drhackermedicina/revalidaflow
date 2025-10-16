@@ -57,37 +57,31 @@ router.beforeEach(async (to, from, next) => {
 
   // Se estivermos em modo DEV e usando o usuário simulado, pulamos todas as verificações.
   if (import.meta.env.DEV && useSimulatedUser) {
-    console.log('[beforeEach] Acesso permitido para usuário simulado.');
     next();
     return;
   }
 
   // Verificar cache de autenticação primeiro
   if (isAuthCheckValid()) {
-    console.log('[beforeEach] Usando cache de autenticação válido');
     const cachedResult = authCheckCache.data
 
     // Para rotas que NÃO requerem autenticação, permite acesso direto
     if (!to.matched.some(record => record.meta.requiresAuth)) {
-      console.log('[beforeEach] Rota não requer autenticação, permitindo acesso direto');
       next();
       return;
     }
 
     // Usar resultado do cache
     if (!cachedResult.isAuthenticated) {
-      console.log('[beforeEach] Cache: Usuário não autenticado, redirecionando para login');
       next('/login')
       return;
     }
 
     if (!cachedResult.isProfileComplete) {
-      console.log('[beforeEach] Cache: Cadastro incompleto, redirecionando para register');
       next('/register')
       return;
     }
 
-    console.log('[beforeEach] Cache: Verificação concluída com sucesso');
     next()
     return;
   }
@@ -144,7 +138,6 @@ router.beforeEach(async (to, from, next) => {
     presenceInitialized = true
     import('@/composables/useUserPresence').then(({ initUserPresence }) => {
       initUserPresence()
-      console.log('[Router] Sistema de presença inicializado')
     }).catch(error => {
       console.warn('[Router] Erro ao inicializar sistema de presença:', error)
     })

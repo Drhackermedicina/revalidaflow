@@ -10,24 +10,8 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    logLevel: 'info',
     plugins: [
-        {
-            name: 'debug-resolver',
-            configResolved(config) {
-                console.log('--- Diagnóstico de Aliases ---');
-                const aliases = config.resolve.alias;
-                if (Array.isArray(aliases)) {
-                    const coreAlias = aliases.find(a => a.find === '@core');
-                    const layoutsAlias = aliases.find(a => a.find === '@layouts');
-                    const stylesAlias = aliases.find(a => a.find === '@styles');
-
-                    console.log('Caminho para @core:', coreAlias ? coreAlias.replacement : 'Não encontrado');
-                    console.log('Caminho para @layouts:', layoutsAlias ? layoutsAlias.replacement : 'Não encontrado');
-                    console.log('Caminho para @styles:', stylesAlias ? stylesAlias.replacement : 'Não encontrado');
-                }
-                console.log('------------------------------');
-            },
-        },
         vue(),
         vueJsx(),
         vuetify({

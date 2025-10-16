@@ -8,6 +8,7 @@ import { ref, computed, watch } from 'vue'
 import { db } from '@/plugins/firebase.js'
 import { doc, getDoc } from 'firebase/firestore'
 import { currentUser } from '@/plugins/auth.js'
+import { useUserStore } from '@/stores/userStore'
 import Logger from '@/utils/logger';
 const logger = new Logger('useUserManagement');
 
@@ -17,8 +18,8 @@ export function useUserManagement() {
   const usersCache = ref(new Map())
   const isLoadingUsers = ref(false)
 
-  // Estado de admin do usuário atual
-  const isCurrentUserAdmin = ref(false)
+  // Usar userStore para verificar permissões de admin
+  const { canEditStations } = useUserStore()
 
   /**
    * Busca dados de um usuário por UID
@@ -69,27 +70,14 @@ export function useUserManagement() {
   }
 
   /**
-   * Atualizar status de admin quando usuário muda
+   * Computed para verificar se usuário atual é admin usando userStore
    */
-  watch(currentUser, async (user) => {
-    if (user) {
-      const userData = await buscarDadosUsuario(user.uid)
-      isCurrentUserAdmin.value = userData?.isAdmin || false
-    } else {
-      isCurrentUserAdmin.value = false
-    }
-  }, { immediate: true })
-
-  /**
-   * Computed para verificar se usuário atual é admin
-   */
-  const isAdmin = computed(() => isCurrentUserAdmin.value)
+  const isAdmin = computed(() => canEditStations.value)
 
   return {
     // State
     usersCache,
     isLoadingUsers,
-    isCurrentUserAdmin,
 
     // Computed
     isAdmin,

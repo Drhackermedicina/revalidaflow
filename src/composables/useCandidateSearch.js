@@ -68,7 +68,8 @@ export function useCandidateSearch(currentUser) {
       const candidates = candidatesSnapshot.docs
         .map(doc => ({ uid: doc.id, ...doc.data() }))
         .filter(candidate => {
-          if (candidate.isAdmin) return false
+          // Excluir admins da busca de candidatos usando o novo sistema de roles
+          if (candidate.role === 'admin' || candidate.role === 'moderator') return false
           const fullName = `${candidate.nome || ''} ${candidate.sobrenome || ''}`.toLowerCase()
           const email = (candidate.email || '').toLowerCase()
           return fullName.includes(searchTerm) || email.includes(searchTerm)

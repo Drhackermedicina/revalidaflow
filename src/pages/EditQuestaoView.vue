@@ -7,6 +7,7 @@ import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/fir
 import imageCompression from 'browser-image-compression';
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/userStore';
 
 const route = useRoute();
 const router = useRouter();
@@ -135,15 +136,12 @@ const subespecialidadesDisponiveis = computed(() => {
   }));
 });
 
+// Importar userStore para verificação de permissões
+const { canEditStations } = useUserStore();
+
 // Verifica se o usuário atual é admin
 const isAdmin = computed(() => {
-  return currentUser.value && (
-    currentUser.value.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
-    currentUser.value.uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
-    currentUser.value.uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
-    currentUser.value.uid === 'gb8MEg8UMmOOUhiBu1A2EY6GkX52' ||
-    currentUser.value.uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
-  );
+  return canEditStations.value;
 });
 
 // **FUNÇÕES DE INICIALIZAÇÃO**

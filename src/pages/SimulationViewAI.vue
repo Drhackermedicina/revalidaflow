@@ -55,7 +55,8 @@ const {
   simulationEnded,
   manuallyEndSimulation,
   sendReady,
-  updateTimerDisplayFromSelection
+  updateTimerDisplayFromSelection,
+  resetWorkflowState
 } = useSimulationWorkflowStandalone({
   simulationTimeSeconds,
   timerDisplay,
@@ -81,6 +82,14 @@ const currentMessage = ref('')
 const isProcessingMessage = ref(false)
 const chatContainer = ref(null)
 const messageInput = ref(null)
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (chatContainer.value) {
+      chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+    }
+  })
+}
 
 // Refs para controle de voz
 const isListening = ref(false)
@@ -116,8 +125,10 @@ const canSendMessage = computed(() =>
 
 
 // Inicializar dados da estação - seguindo mesmo padrão do SimulationView
-async function loadSimulationData(currentStationId) {
-  resetWorkflowState()
+async function loadSimulationData(currentStationId, { preserveWorkflowState = false } = {}) {
+  if (!preserveWorkflowState) {
+    resetWorkflowState()
+  }
 
   if (!currentStationId) {
     errorMessage.value = 'ID da estação inválido.'
@@ -249,12 +260,11 @@ async function processAIResponse(candidateMessage) {
 
   try {
     // Chamar API do backend que usa Gemini 2.5 Flash
-    const response = await fetch(`${backendUrl}/api/ai-chat/chat`, {
+    const response = await fetch(`${backendUrl}/ai-chat/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentUser.value?.accessToken || ''}`,
-        'user-id': currentUser.value?.uid || ''
+        'Authorization': `Bearer ${currentUser.value?.accessToken || ''}`
       },
       body: JSON.stringify({
         message: candidateMessage,
@@ -769,7 +779,7 @@ async function forceLoadPEP() {
   console.log('🔧 Forçando carregamento do PEP...')
   try {
     // Recarregar dados da estação para obter PEP
-    await loadSimulationData(stationId.value)
+    await loadSimulationData(stationId.value, { preserveWorkflowState: true })
 
     // Forçar liberação
     pepReleasedToCandidate.value = true
@@ -1006,13 +1016,13 @@ function startListening() {
       speechRecognition.value.start()
       console.log('🎤 Iniciando gravação...')
 
-      // Definir timeout de 25 segundos para parar automaticamente
+      // Definir timeout de 30 segundos para parar automaticamente
       speechTimeout.value = setTimeout(() => {
         if (isListening.value) {
-          console.log('⏰ Timeout de gravação atingido (25s)')
+          console.log('⏰ Timeout de gravação atingido (30s)')
           stopListening()
         }
-      }, 25000) // 25 segundos
+      }, 30000) // 30 segundos
 
     } catch (error) {
       console.error('❌ Erro ao iniciar gravação:', error)
@@ -1333,12 +1343,11 @@ async function aiEvaluatePEP() {
 
   try {
     // Chamar endpoint de avaliação PEP
-    const response = await fetch(`${backendUrl}/api/ai-chat/evaluate-pep`, {
+    const response = await fetch(`${backendUrl}/ai-chat/evaluate-pep`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentUser.value?.accessToken || ''}`,
-        'user-id': currentUser.value?.uid || ''
+        'Authorization': `Bearer ${currentUser.value?.accessToken || ''}`
       },
       body: JSON.stringify({
         stationData: stationData.value,
@@ -2025,21 +2034,18 @@ onMounted(async () => {
             v-if="!pepViewState.isVisible"
             cols="12"
             md="4"
-            class="d-flex flex-column"
+            class="d-flex flex-column chat-column"
           >
             <!-- Cenário da estação -->
-            <v-card class="flex-1-1 d-flex flex-column ma-2" flat>
-              <v-card-title class="d-flex align-center py-2">
-                <v-icon class="me-2">ri-chat-3-line</v-icon>
-                Comunicação com Paciente Virtual
+            <v-card class="flex-1-1 d-flex flex-column ma-2 chat-card" flat>
+              <v-card-title class="chat-card-header d-flex align-center py-3">
+                <v-icon class="me-2 chat-title-icon" size="26">ri-message-3-line</v-icon>
+                <span class="chat-title">Chat</span>
                 <v-spacer />
-                <v-chip
-                  size="small"
-                  :color="simulationEnded ? 'error' : 'success'"
-                  variant="tonal"
-                >
-                  {{ simulationEnded ? 'Finalizada' : 'Em andamento' }}
-                </v-chip>
+                <div class="chat-timer">
+                  <v-icon size="20">ri-timer-line</v-icon>
+                  <span>{{ timerDisplay }}</span>
+                </div>
               </v-card-title>
 
               <v-divider />
@@ -2106,7 +2112,7 @@ onMounted(async () => {
               </div>
 
               <!-- Input de mensagem com controles de voz -->
-              <v-card-actions class="pa-4 chat-input-actions" style="border-top: 1px solid rgb(var(--v-theme-outline-variant)); position: sticky; bottom: 0; z-index: 100;">
+              <v-card-actions class="pa-4 chat-input-actions">
                 <v-text-field
                   id="chat-message-input"
                   ref="messageInput"
@@ -2138,7 +2144,7 @@ onMounted(async () => {
                   :aria-label="autoRecordMode ? 'Modo automático ativo' : 'Modo manual ativo'"
                   @click="toggleAutoRecordMode"
                 >
-                  <v-icon>{{ autoRecordMode ? 'ri-ai-generate' : 'ri-hand-coin-line' }}</v-icon>
+                  <v-icon>{{ autoRecordMode ? 'ri-robot-2-line' : 'ri-user-voice-line' }}</v-icon>
                   <v-tooltip activator="parent" location="top">
                     {{ autoRecordMode ? 'Modo Automático (clique para Manual)' : 'Modo Manual (clique para Automático)' }}
                   </v-tooltip>
@@ -2472,6 +2478,44 @@ onMounted(async () => {
 .chat-history {
   background-color: rgb(var(--v-theme-surface)) !important;
   color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.chat-card {
+  position: relative;
+}
+
+.chat-card-header {
+  position: sticky;
+  top: 96px;
+  z-index: 6;
+  background-color: rgb(var(--v-theme-surface));
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.06);
+}
+
+.chat-title {
+  font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.chat-title-icon {
+  color: rgb(var(--v-theme-primary));
+}
+
+.chat-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(2rem, 3.6vw, 3.2rem);
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary));
+  line-height: 1;
+}
+
+.chat-timer :deep(.v-icon) {
+  color: inherit;
+  margin-top: 4px;
 }
 
 .chat-history.dark-theme {

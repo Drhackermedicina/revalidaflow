@@ -476,14 +476,14 @@
 </template>
 
 <script setup>
-import { useAuth } from '@/composables/useAuth'
+import { useUserStore } from '@/stores/userStore'
 import { db } from '@/plugins/firebase'
 import { collection, getDocs, query, updateDoc, where } from 'firebase/firestore'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 // Composables e stores
-const authStore = useAuth()
+const { canEditStations, displayName } = useUserStore()
 const router = useRouter()
 
 // Função de debounce para otimizar performance
@@ -777,7 +777,7 @@ const filtrosAtivos = computed(() => {
 })
 
 // Computed para verificar se é admin
-const isAdmin = computed(() => authStore.isAdmin)
+const isAdmin = computed(() => canEditStations.value)
 
 // Métodos
 const loadQuestions = async () => {
@@ -998,7 +998,7 @@ const addComment = async (question) => {
     
     const newComment = {
       text: question.newComment.trim(),
-      author: authStore.user?.name || 'Usuário',
+      author: displayName.value || 'Usuário',
       timestamp: new Date().toISOString()
     }
     

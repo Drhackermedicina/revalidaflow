@@ -31,18 +31,32 @@ import { formatTime } from '@/utils/simulationUtils'
  */
 
 export function useSimulationWorkflow({
-    socketRef,
-    sessionId,
-    userRole,
-    partner,
-    stationData,
-    simulationTimeSeconds,
-    timerDisplay,
-    selectedDurationMinutes,
-    inviteLinkToShow,
+    socketRef: incomingSocketRef,
+    sessionId: incomingSessionId,
+    userRole: incomingUserRole,
+    partner: incomingPartner,
+    stationData: incomingStationData,
+    simulationTimeSeconds: incomingSimulationTimeSeconds,
+    timerDisplay: incomingTimerDisplay,
+    selectedDurationMinutes: incomingSelectedDurationMinutes,
+    inviteLinkToShow: incomingInviteLinkToShow,
     backendUrl: _backendUrl,
     workflowOptions = {}
 }) {
+
+    const socketRef = incomingSocketRef ?? ref(null)
+    const sessionId = incomingSessionId ?? ref(null)
+    const userRole = incomingUserRole ?? ref('candidate')
+    const partner = incomingPartner ?? ref(null)
+    const stationData = incomingStationData ?? ref(null)
+    const selectedDurationMinutes = incomingSelectedDurationMinutes ?? ref(10)
+
+    const initialDurationSeconds = (selectedDurationMinutes.value ?? 0) * 60
+    const simulationTimeSeconds = incomingSimulationTimeSeconds ?? ref(initialDurationSeconds)
+    const timerDisplay = incomingTimerDisplay ?? ref(
+        formatTime((simulationTimeSeconds.value ?? initialDurationSeconds) || 0)
+    )
+    const inviteLinkToShow = incomingInviteLinkToShow ?? ref('')
 
     const {
         standalone = false,

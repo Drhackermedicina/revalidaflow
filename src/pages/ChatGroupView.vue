@@ -80,7 +80,7 @@
             <!-- Botão de teste para limpeza (apenas para admins) -->
             <v-spacer />
             <v-btn 
-              v-if="(currentUser?.uid || '').trim() === 'KiSITAxXMAY5uU3bOPW5JMQPent2'"
+              v-if="canCleanMessages"
               icon
               variant="text"
               color="warning"
@@ -223,8 +223,17 @@ const {
   sanitizeInput
 } = useChatInput()
 
-// Inicializar limpeza automática
-useMessageCleanup()
+// Importar userStore para verificação de permissões
+import { useUserStore } from '@/stores/userStore'
+
+const { canDeleteMessages } = useUserStore()
+
+// Inicializar limpeza automática e acesso manual controlado
+const { cleanOldMessages: runMessageCleanup } = useMessageCleanup()
+
+const canCleanMessages = computed(() => {
+  return canDeleteMessages.value
+})
 
 // Funções do componente
 function openPrivateChat(user) {
@@ -258,13 +267,36 @@ const sendMessage = async () => {
   }
 }
 
-// Botão de limpeza apenas para admin (remover UID hardcoded em produção)
+// Botão de limpeza apenas para perfis autorizados
 const cleanOldMessages = async () => {
-  // TODO: Implementar verificação de permissões adequada
+  if (!canCleanMessages.value) {
+    snackbar.value = {
+      show: true,
+      text: 'Você não possui permissão para executar esta operação.',
+      color: 'error'
+    }
+    return
+  }
+
   snackbar.value = {
     show: true,
-    text: 'Limpeza automática em execução',
+    text: 'Iniciando limpeza de mensagens antigas...',
     color: 'info'
+  }
+
+  try {
+    await runMessageCleanup()
+    snackbar.value = {
+      show: true,
+      text: 'Limpeza concluída com sucesso.',
+      color: 'success'
+    }
+  } catch (error) {
+    snackbar.value = {
+      show: true,
+      text: 'Falha ao executar a limpeza. Tente novamente mais tarde.',
+      color: 'error'
+    }
   }
 }
 </script>

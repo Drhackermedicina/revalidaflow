@@ -17,6 +17,7 @@ import { useTheme } from 'vuetify'
 
 // Firebase
 import { currentUser } from '@/plugins/auth.js'
+import { useUserStore } from '@/stores/userStore'
 
 // Plugins & Utils
 import { backendUrl } from '@/utils/backendUrl.js'
@@ -92,7 +93,6 @@ const socketRef = ref(null);
 const connectionStatus = ref('Desconectado');
 const disconnect = () => {
   if (socketRef.value) {
-    console.log('[WebSocket] 🔴 Desconectando socket -', socketRef.value.id);
     socketRef.value.disconnect();
     socketRef.value = null;
   }
@@ -336,14 +336,11 @@ const {  internalInviteDialog,
 const sendingChat = ref(false);
 const chatSentSuccess = ref(false);
 
+// Importar userStore para verificação de permissões
+const { canEditStations } = useUserStore();
+
 const isAdmin = computed(() => {
-  return currentUser.value && (
-    currentUser.value.uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
-    currentUser.value.uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
-    currentUser.value.uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
-    currentUser.value.uid === 'gb8MEg8UMmOOUhiBu1A2EY6GkX52' ||
-    currentUser.value.uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
-  );
+  return canEditStations.value;
 });
 
 // Função para abrir a página de edição em uma nova aba
@@ -419,8 +416,6 @@ async function sendLinkViaPrivateChat() {
 
 
 function connectWebSocket() {
-  console.log('[WebSocket] 🔌 Conectando -', userRole.value, '- Session:', sessionId.value);
-  
   if (!sessionId.value || !userRole.value || !stationId.value || !currentUser.value?.uid) {
     console.error('[WebSocket] ❌ Parâmetros faltando');
     return;
@@ -445,7 +440,6 @@ function connectWebSocket() {
     socketQuery.sequenceId = sequenceId.value;
     socketQuery.sequenceIndex = sequenceIndex.value?.toString();
     socketQuery.totalStations = totalSequentialStations.value?.toString();
-    console.log('[WebSocket] 🔗 Modo sequencial - Index:', sequenceIndex.value, '/', totalSequentialStations.value);
   }
   const socket = io(backendUrl, {
     transports: ['websocket'],
@@ -454,8 +448,6 @@ function connectWebSocket() {
   
   // Registrar listener ANTES da conexão para capturar evento imediato
   socket.on('SERVER_SEQUENTIAL_MODE_INFO', (data) => {
-    console.log('[Sequential] 📥 Modo sequencial ativado - Index:', data.sequenceIndex, '/', data.totalStations);
-    
     if (data.isSequential) {
       isSequentialMode.value = true;
       sequenceId.value = data.sequenceId;
@@ -474,10 +466,6 @@ function connectWebSocket() {
   });
   
   socket.on('connect', () => {
-    console.log('[SOCKET_CONNECT] ✅ Socket conectado com sucesso');
-    console.log('[SOCKET_CONNECT]    - socket.id:', socket.id);
-    console.log('[SOCKET_CONNECT]    - role:', userRole.value);
-    console.log('[SOCKET_CONNECT]    - sessionId:', sessionId.value);
     connectionStatus.value = 'Conectado';
     
     // ATUALIZAR O REF DO SOCKET APÓS CONEXÃO
@@ -585,32 +573,13 @@ function connectWebSocket() {
     handleCandidateReceiveData(dataItemId);
   });
   socket.on('SERVER_PARTNER_READY', (data) => {
-    console.log('[SOCKET] ✅ SERVER_PARTNER_READY recebido')
-    console.log('[SOCKET]   - data:', data)
-    console.log('[SOCKET]   - data.userId:', data?.userId)
-    console.log('[SOCKET]   - currentUser.uid:', currentUser.value?.uid)
-    console.log('[SOCKET]   - partner.value:', partner.value)
-
     if (data && data.userId !== currentUser.value?.uid) {
-      console.log('[SOCKET]   ✅ Evento válido - processando...')
-
       if (partner.value && partner.value.userId === data.userId) {
-        console.log('[SOCKET]   ✅ Atualizando partner.value.isReady')
         partner.value.isReady = data.isReady;
-      } else {
-        console.log('[SOCKET]   ⚠️ Partner não encontrado ou userId não corresponde')
-        console.log('[SOCKET]     - partner.value:', partner.value)
-        console.log('[SOCKET]     - partner.value.userId:', partner.value?.userId)
-        console.log('[SOCKET]     - data.userId:', data.userId)
       }
 
       // Workflow: atualizar estado de prontidão do parceiro
-      console.log('[SOCKET]   📤 Chamando handlePartnerReady...')
       handlePartnerReady(data);
-    } else {
-      console.log('[SOCKET]   ❌ Evento ignorado')
-      if (!data) console.log('[SOCKET]     - Razão: data é null/undefined')
-      if (data?.userId === currentUser.value?.uid) console.log('[SOCKET]     - Razão: é o próprio usuário')
     }
   });
   socket.on('SERVER_START_SIMULATION', (data) => {

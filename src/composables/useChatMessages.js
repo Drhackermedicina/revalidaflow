@@ -1,8 +1,18 @@
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { db } from '@/plugins/firebase'
-import { collection, onSnapshot, query, orderBy, limit, addDoc, startAfter, getDocs } from 'firebase/firestore'
-import Logger from '@/utils/logger';
-const logger = new Logger('useChatMessages');
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+  addDoc,
+  startAfter,
+  getDocs,
+  serverTimestamp
+} from 'firebase/firestore'
+import Logger from '@/utils/logger'
+const logger = new Logger('useChatMessages')
 
 
 /**
@@ -27,155 +37,233 @@ export const formatTime = (timestamp) => {
     }
 }
 
-export const useChatMessages = (currentUser) => {
-    const messages = ref([])
-    const messagesEnd = ref(null)
-    const isLoadingMore = ref(false)
-    const hasMoreMessages = ref(true)
-    const pageSize = 50 // Carregar 50 mensagens por vez
-    let lastDoc = null
-    let unsubscribe = null
-
-    const loadMessages = async (loadMore = false) => {
-        if (isLoadingMore.value) return
-
-        try {
-            isLoadingMore.value = loadMore
-
-            const messagesCollectionRef = collection(db, 'chatMessages')
-            let q = query(
-                messagesCollectionRef,
-                orderBy('timestamp', 'desc'),
-                limit(pageSize)
-            )
-
-            // Se estiver carregando mais, começar após o último documento
-            if (loadMore && lastDoc) {
-                q = query(q, startAfter(lastDoc))
-            }
-
-            // Limpar listener anterior se existir
-            if (unsubscribe) {
-                unsubscribe()
-                unsubscribe = null
-            }
-
-            // Para primeira carga, usar snapshot listener
-            if (!loadMore) {
-                unsubscribe = onSnapshot(q, (snapshot) => {
-                    const newMessages = snapshot.docs
-                        .map(doc => ({ id: doc.id, ...doc.data() }))
-                        .reverse()
-
-                    messages.value = newMessages
-                    lastDoc = snapshot.docs[snapshot.docs.length - 1] || null
-                    hasMoreMessages.value = snapshot.docs.length === pageSize
-
-                    nextTick(() => {
-                        if (!loadMore) scrollToEnd()
-                    })
-                })
-            } else {
-                // Para carregamento adicional, buscar uma vez
-                const snapshot = await getDocs(q)
-                if (!snapshot.empty) {
-                    const newMessages = snapshot.docs
-                        .map(doc => ({ id: doc.id, ...doc.data() }))
-                        .reverse()
-
-                    // Adicionar no início (mensagens mais antigas)
-                    messages.value = [...newMessages, ...messages.value]
-                    lastDoc = snapshot.docs[snapshot.docs.length - 1]
-                    hasMoreMessages.value = snapshot.docs.length === pageSize
-                } else {
-                    hasMoreMessages.value = false
-                }
-            }
-        } catch (error) {
-            logger.error('Erro ao carregar mensagens:', error)
-            // Implementar fallback ou notificação de erro
-        } finally {
-            isLoadingMore.value = false
-        }
-    }
-
-    const loadMoreMessages = () => {
-        if (hasMoreMessages.value && !isLoadingMore.value) {
-            loadMessages(true)
-        }
-    }
-
-    const sendMessage = async (text) => {
-        if (!text.trim() || !currentUser?.value) return false
-
-        try {
-            await addDoc(collection(db, 'chatMessages'), {
-                senderId: currentUser.value.uid,
-                senderName: currentUser.value.displayName || 'Anônimo',
-                senderPhotoURL: currentUser.value.photoURL || '',
-                text: text.trim(),
-                timestamp: new Date(),
-            })
-
-            // Scroll para o final após enviar
-            nextTick(() => scrollToEnd())
-            return true
-        } catch (error) {
-            logger.error('Erro ao enviar mensagem:', error)
-            // Aqui poderia implementar retry ou notificação
-            return false
-        }
-    }
-
-    const scrollToEnd = () => {
-        try {
-            if (messagesEnd.value?.scrollIntoView) {
-                messagesEnd.value.scrollIntoView({ behavior: 'smooth' })
-            }
-        } catch (error) {
-            logger.error('Erro ao fazer scroll para final:', error)
-            // Fallback: scroll manual
-            const container = messagesEnd.value?.parentElement
-            if (container) {
-                container.scrollTop = container.scrollHeight
-            }
-        }
-    }
-
-    const getMessageUserPhoto = (message) => {
-        // Prioriza a foto salva na mensagem
-        if (message.senderPhotoURL) {
-            return message.senderPhotoURL
-        }
-        // Fallback: gerar avatar com iniciais do nome
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(message.senderName || 'User')}`
-    }
-
-    // Computed para verificar se deve mostrar botão de carregar mais
-    const shouldShowLoadMore = computed(() => {
-        return hasMoreMessages.value && !isLoadingMore.value && messages.value.length >= pageSize
-    })
-
-    onMounted(() => {
-        loadMessages()
-    })
-
-    onUnmounted(() => {
-        if (unsubscribe) {
-            unsubscribe()
-        }
-    })
-
-    return {
-        messages,
-        messagesEnd,
-        isLoadingMore,
-        hasMoreMessages,
-        shouldShowLoadMore,
-        sendMessage,
-        loadMoreMessages,
-        scrollToEnd,
-        formatTime,
-        getMessageUserPhoto
-    }
+const getTimestampMs = (timestamp) => {
+  if (!timestamp) return 0
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate().getTime()
+  }
+  if (timestamp instanceof Date) {
+    return timestamp.getTime()
+  }
+  return new Date(timestamp).getTime()
 }
+
+export const useChatMessages = (currentUser) => {
+  const messages = ref([])
+  const messagesEnd = ref(null)
+  const isLoadingMore = ref(false)
+  const hasMoreMessages = ref(true)
+  const historyFullyLoaded = ref(false)
+  const pageSize = 50 // Carregar 50 mensagens por vez
+
+  let unsubscribe = null
+  let paginationCursor = null
+  let isInitialSnapshot = true
+
+  const initializeRealtimeListener = () => {
+    if (unsubscribe) return
+
+    try {
+      const messagesCollectionRef = collection(db, 'chatMessages')
+      const realtimeQuery = query(
+        messagesCollectionRef,
+        orderBy('timestamp', 'desc'),
+        limit(pageSize)
+      )
+
+      unsubscribe = onSnapshot(
+        realtimeQuery,
+        (snapshot) => {
+          if (!historyFullyLoaded.value && snapshot.docs.length === pageSize) {
+            hasMoreMessages.value = true
+          } else if (!historyFullyLoaded.value) {
+            hasMoreMessages.value = snapshot.docs.length === pageSize
+          }
+
+          if (!paginationCursor && snapshot.docs.length > 0) {
+            paginationCursor = snapshot.docs[snapshot.docs.length - 1]
+          }
+
+          const previousLastMessageId = messages.value.length
+            ? messages.value[messages.value.length - 1].id
+            : null
+
+          const mergedMessages = new Map(
+            messages.value.map(message => [message.id, message])
+          )
+
+          snapshot.docs.forEach(doc => {
+            mergedMessages.set(doc.id, { id: doc.id, ...doc.data() })
+          })
+
+          const sortedMessages = Array.from(mergedMessages.values()).sort(
+            (a, b) => getTimestampMs(a.timestamp) - getTimestampMs(b.timestamp)
+          )
+
+          messages.value = sortedMessages
+
+          const currentLastMessageId = sortedMessages.length
+            ? sortedMessages[sortedMessages.length - 1].id
+            : null
+
+          const shouldAutoScroll =
+            isInitialSnapshot || currentLastMessageId !== previousLastMessageId
+
+          if (shouldAutoScroll) {
+            nextTick(() => scrollToEnd())
+          }
+
+          isInitialSnapshot = false
+        },
+        (error) => {
+          logger.error('Erro ao carregar mensagens em tempo real:', error)
+        }
+      )
+    } catch (error) {
+      logger.error('Erro ao inicializar listener de mensagens:', error)
+    }
+  }
+
+  const fetchOlderMessages = async () => {
+    if (isLoadingMore.value || !hasMoreMessages.value || historyFullyLoaded.value) return
+    if (!paginationCursor) {
+      historyFullyLoaded.value = true
+      hasMoreMessages.value = false
+      return
+    }
+
+    try {
+      isLoadingMore.value = true
+
+      const messagesCollectionRef = collection(db, 'chatMessages')
+      const olderQuery = query(
+        messagesCollectionRef,
+        orderBy('timestamp', 'desc'),
+        startAfter(paginationCursor),
+        limit(pageSize)
+      )
+
+      const snapshot = await getDocs(olderQuery)
+
+      if (snapshot.empty) {
+        historyFullyLoaded.value = true
+        hasMoreMessages.value = false
+        return
+      }
+
+      const olderMessages = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .reverse()
+
+      const existingIds = new Set(messages.value.map(message => message.id))
+      const dedupedOlderMessages = olderMessages.filter(
+        message => !existingIds.has(message.id)
+      )
+
+      if (dedupedOlderMessages.length) {
+        messages.value = [...dedupedOlderMessages, ...messages.value]
+      }
+
+      paginationCursor = snapshot.docs[snapshot.docs.length - 1] || paginationCursor
+      hasMoreMessages.value = snapshot.docs.length === pageSize
+
+      if (snapshot.docs.length < pageSize) {
+        historyFullyLoaded.value = true
+      }
+    } catch (error) {
+      logger.error('Erro ao carregar mensagens antigas:', error)
+    } finally {
+      isLoadingMore.value = false
+    }
+  }
+
+  const loadMoreMessages = () => {
+    if (hasMoreMessages.value && !isLoadingMore.value) {
+      return fetchOlderMessages()
+    }
+    return Promise.resolve()
+  }
+
+  const sendMessage = async (text) => {
+    if (!text.trim() || !currentUser?.value) return false
+
+    try {
+      const user = currentUser.value
+      const senderPhotoURL = user.photoURL || user.photoUrl || ''
+      const senderName =
+        user.displayName ||
+        [user.nome, user.sobrenome].filter(Boolean).join(' ') ||
+        user.email ||
+        'Anonimo'
+
+      await addDoc(collection(db, 'chatMessages'), {
+        senderId: user.uid,
+        senderName,
+        senderPhotoURL,
+        text: text.trim(),
+        timestamp: serverTimestamp()
+      })
+
+      nextTick(() => scrollToEnd())
+      return true
+    } catch (error) {
+      logger.error('Erro ao enviar mensagem:', error)
+      return false
+    }
+  }
+
+  const scrollToEnd = () => {
+    try {
+      if (messagesEnd.value?.scrollIntoView) {
+        messagesEnd.value.scrollIntoView({ behavior: 'smooth' })
+      }
+    } catch (error) {
+      logger.error('Erro ao fazer scroll para final:', error)
+      const container = messagesEnd.value?.parentElement
+      if (container) {
+        container.scrollTop = container.scrollHeight
+      }
+    }
+  }
+
+  const getMessageUserPhoto = (message) => {
+    if (message.senderPhotoURL) {
+      return message.senderPhotoURL
+    }
+    if (message.senderPhotoUrl) {
+      return message.senderPhotoUrl
+    }
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(message.senderName || 'User')}`
+  }
+
+  const shouldShowLoadMore = computed(() => {
+    return hasMoreMessages.value && !isLoadingMore.value && messages.value.length >= pageSize
+  })
+
+  onMounted(() => {
+    initializeRealtimeListener()
+  })
+
+  onUnmounted(() => {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  })
+
+  return {
+    messages,
+    messagesEnd,
+    isLoadingMore,
+    hasMoreMessages,
+    shouldShowLoadMore,
+    sendMessage,
+    loadMoreMessages,
+    scrollToEnd,
+    formatTime,
+    getMessageUserPhoto
+  }
+}
+
+
+

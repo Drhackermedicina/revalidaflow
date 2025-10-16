@@ -148,56 +148,34 @@ export function useSimulationSession() {
    * Configura modo sequencial a partir dos parâmetros da rota
    */
   function setupSequentialMode(routeQuery) {
-    console.log('[SETUP_SEQUENTIAL_MODE] 🔧 Iniciando configuração');
-    console.log('[SETUP_SEQUENTIAL_MODE]    - routeQuery:', routeQuery);
-    console.log('[SETUP_SEQUENTIAL_MODE]    - routeQuery.sequential:', routeQuery.sequential);
-    console.log('[SETUP_SEQUENTIAL_MODE]    - routeQuery.sequenceId:', routeQuery.sequenceId);
-    console.log('[SETUP_SEQUENTIAL_MODE]    - routeQuery.sequenceIndex:', routeQuery.sequenceIndex);
-    console.log('[SETUP_SEQUENTIAL_MODE]    - routeQuery.totalStations:', routeQuery.totalStations);
-
     isSequentialMode.value = routeQuery.sequential === 'true'
     sequenceId.value = routeQuery.sequenceId || null
     sequenceIndex.value = parseInt(routeQuery.sequenceIndex) || 0
     totalSequentialStations.value = parseInt(routeQuery.totalStations) || 0
 
-    console.log('[SETUP_SEQUENTIAL_MODE] 📊 Valores configurados:');
-    console.log('[SETUP_SEQUENTIAL_MODE]    - isSequentialMode:', isSequentialMode.value);
-    console.log('[SETUP_SEQUENTIAL_MODE]    - sequenceId:', sequenceId.value);
-    console.log('[SETUP_SEQUENTIAL_MODE]    - sequenceIndex:', sequenceIndex.value);
-    console.log('[SETUP_SEQUENTIAL_MODE]    - totalSequentialStations:', totalSequentialStations.value);
-
     if (isSequentialMode.value) {
       // Modo sequencial detectado
-      console.log('[SETUP_SEQUENTIAL_MODE] ✅ Modo sequencial ATIVADO');
 
       // Carregar dados da sessão sequencial do sessionStorage
       const savedSequentialData = sessionStorage.getItem('sequentialSession')
-      console.log('[SETUP_SEQUENTIAL_MODE] 📦 Dados salvos no sessionStorage:', savedSequentialData);
 
       if (savedSequentialData) {
         try {
           sequentialData.value = JSON.parse(savedSequentialData)
-          console.log('[SETUP_SEQUENTIAL_MODE] ✅ Dados carregados do sessionStorage:', sequentialData.value);
         } catch (error) {
           console.error('[SETUP_SEQUENTIAL_MODE] ❌ Erro ao parsear dados:', error);
           sequentialData.value = null
         }
       } else {
-        console.log('[SETUP_SEQUENTIAL_MODE] ⚠️ Nenhum dado encontrado no sessionStorage');
         sequentialData.value = null
       }
 
       // Validar se sequentialData está correto
       if (sequentialData.value) {
         if (!sequentialData.value.sequence || !Array.isArray(sequentialData.value.sequence)) {
-          console.log('[SETUP_SEQUENTIAL_MODE] ❌ Dados inválidos, resetando');
           sequentialData.value = null
-        } else {
-          console.log('[SETUP_SEQUENTIAL_MODE] ✅ Dados válidos');
         }
       }
-    } else {
-      console.log('[SETUP_SEQUENTIAL_MODE] ❌ Modo sequencial DESATIVADO');
     }
   }
 

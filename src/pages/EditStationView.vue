@@ -16,6 +16,7 @@ import AIFieldAssistant from '@/components/AIFieldAssistant.vue';
 import TiptapEditor from '@/components/TiptapEditor.vue';
 import { geminiService } from '@/services/geminiService.js';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useUserStore } from '@/stores/userStore';
 
 // Configuração de Storage carregada
 
@@ -232,17 +233,12 @@ const editStatus = ref({
   lastEditBy: null
 });
 
+// Importar userStore para verificação de permissões
+const { canEditStations } = useUserStore();
+
 // Verifica se o usuário atual é admin
 const isAdmin = computed(() => {
-  if (!currentUser.value || !currentUser.value.uid) return false;
-  const uid = (currentUser.value.uid || '').trim();
-  return (
-    uid === 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
-    uid === 'anmxavJdQdgZ16bDsKKEKuaM4FW2' ||
-    uid === 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
-    uid === 'gb8MEg8UMmOOUhiBu1A2EY6GkX52' ||
-    uid === 'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
-  );
+  return canEditStations.value;
 });
 
 // Computed para calcular pontuação total do PEP

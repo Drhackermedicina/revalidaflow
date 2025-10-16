@@ -17,6 +17,20 @@ const logger = new Logger('useChatUsers');
  * @property {any} [lastActive]
  */
 
+const AUSENTE_THRESHOLD_MS = 10 * 60 * 1000
+const OFFLINE_FALLBACK_THRESHOLD_MS = 20 * 60 * 1000
+
+const getLastActiveMs = (value) => {
+  if (!value) return 0
+  if (typeof value.toDate === 'function') {
+    return value.toDate().getTime()
+  }
+  if (value instanceof Date) {
+    return value.getTime()
+  }
+  return new Date(value).getTime()
+}
+
 export const useChatUsers = () => {
   const users = ref([])
   const loading = ref(true)
@@ -43,24 +57,45 @@ export const useChatUsers = () => {
 
       // Filtra por status e atualiza status baseado no tempo de inatividade
       const now = Date.now()
-      const twoMinutesAgo = now - 2 * 60 * 1000
+      const awayThreshold = now - AUSENTE_THRESHOLD_MS
+      const offlineFallbackThreshold = now - OFFLINE_FALLBACK_THRESHOLD_MS
 
-      users.value = allUsers
-        .filter(user => user.status !== 'offline') // Remove usuários offline
-        .map(user => {
-          const lastActive = user.lastActive ? new Date(user.lastActive).getTime() : 0
-          let updatedStatus = user.status
+      const enrichedUsers = allUsers.map(user => {
+        const lastActiveMs = getLastActiveMs(user.lastActive)
+        return {
+          raw: user,
+          lastActiveMs
+        }
+      })
 
-          if (lastActive < twoMinutesAgo && user.status !== 'offline') {
-            updatedStatus = 'ausente'
+      users.value = enrichedUsers
+        .filter(({ raw, lastActiveMs }) => {
+          if (raw.status === 'offline' || raw.isOnline === false) return false
+          if (!lastActiveMs) return false
+          if (lastActiveMs < offlineFallbackThreshold) return false
+          return true
+        })
+        .map(({ raw, lastActiveMs }) => {
+          let updatedStatus = raw.status
+
+          if (raw.status !== 'treinando') {
+            if (lastActiveMs < awayThreshold) {
+              updatedStatus = 'ausente'
+            } else if (raw.status !== 'disponivel') {
+              updatedStatus = 'disponivel'
+            }
           }
 
           return {
-            ...user,
+            ...raw,
             status: updatedStatus,
-            displayName: user.displayName || 'Usuário sem nome'
+            displayName: raw.displayName || [raw.nome, raw.sobrenome].filter(Boolean).join(' ') || 'Usuário sem nome',
+            lastActive: raw.lastActive,
+            lastActiveMs
           }
         })
+        .sort((a, b) => b.lastActiveMs - a.lastActiveMs)
+        .map(({ lastActiveMs: _lastActiveMs, ...rest }) => rest)
 
       loading.value = false
     }, (err) => {
@@ -75,6 +110,9 @@ export const useChatUsers = () => {
       // Usar photoURL se disponível
       if (user.photoURL) {
         return user.photoURL
+      }
+      if (user.photoUrl) {
+        return user.photoUrl
       }
 
       // Fallback para avatar customizado

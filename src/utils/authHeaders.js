@@ -1,5 +1,6 @@
 // utils/authHeaders.js
 import { currentUser } from '@/plugins/auth.js';
+import { useUserStore } from '@/stores/userStore';
 
 /**
  * Obtém headers de autenticação para requisições à API
@@ -87,14 +88,7 @@ export function isAdmin() {
   const user = currentUser.value;
   if (!user) return false;
 
-  // Lista de UIDs de administradores
-  const adminUids = [
-    'KiSITAxXMAY5uU3bOPW5JMQPent2',
-    'anmxavJdQdgZ16bDsKKEKuaM4FW2',
-    'RtfNENOqMUdw7pvgeeaBVSuin662',
-    'gb8MEg8UMmOOUhiBu1A2EY6GkX52',
-    'lNwhdYgMwLhS1ZyufRzw9xLD10y1'
-  ];
-
-  return adminUids.includes(user.uid);
+  // Usar userStore para verificação de permissões
+  const { canEditStations } = useUserStore();
+  return canEditStations.value;
 }

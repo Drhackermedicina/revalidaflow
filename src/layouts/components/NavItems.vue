@@ -1,6 +1,6 @@
 <script>
 import trophy from '@/assets/images/misc/trophy.png';
-import { useAdminAuth } from '@/composables/useAdminAuth';
+import { useUserStore } from '@/stores/userStore';
 import VerticalNavGroup from '@layouts/components/VerticalNavGroup.vue';
 import VerticalNavLink from '@layouts/components/VerticalNavLink.vue';
 import { computed, ref, onMounted } from 'vue';
@@ -13,8 +13,8 @@ export default {
     VerticalNavGroup,
   },
   setup() {
-    // Verificação de admin
-    const { isAuthorizedAdmin } = useAdminAuth();
+    // Verificação de admin usando userStore
+    const { canAccessAdminPanel } = useUserStore();
 
     // Firebase
     const db = getFirestore();
@@ -22,7 +22,7 @@ export default {
 
     // Exibe o menu admin apenas para administradores
     const showAdminMenu = computed(() => {
-      return isAuthorizedAdmin.value;
+      return canAccessAdminPanel.value || false;
     })
 
     // Estado do ranking do usuário no sidebar
@@ -151,6 +151,7 @@ export default {
 </script>
 
 <template>
+  
   <VerticalNavLink :item="homeLink" />
   <VerticalNavLink :item="estacoesLink" />
   <VerticalNavLink :item="questoesLink" />
