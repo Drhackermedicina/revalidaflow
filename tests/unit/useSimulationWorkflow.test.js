@@ -320,6 +320,7 @@ describe('useSimulationWorkflow', () => {
         socketRef,
         sessionId,
         userRole,
+        partner: mockPartner,
         selectedDurationMinutes,
         inviteLinkToShow: ref(''),
         backendUrl: 'http://localhost:3000'
@@ -347,6 +348,7 @@ describe('useSimulationWorkflow', () => {
         socketRef,
         sessionId,
         userRole,
+        partner: mockPartner,
         selectedDurationMinutes,
         inviteLinkToShow: ref(''),
         backendUrl: 'http://localhost:3000'

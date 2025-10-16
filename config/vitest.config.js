@@ -1,30 +1,44 @@
 // Arquivo de configuração do Vitest
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const projectRoot = path.resolve(__dirname, '..')
+const srcRoot = path.resolve(projectRoot, 'src')
+
+const resolveSrcPath = (relativePath) => path.resolve(srcRoot, relativePath)
+
+const aliasConfig = {
+    '@': srcRoot,
+    '@core': resolveSrcPath('@core'),
+    '@layouts': resolveSrcPath('@layouts'),
+    '@images': resolveSrcPath('assets/images/'),
+    '@styles': resolveSrcPath('assets/styles/'),
+    '@configured-variables': resolveSrcPath('assets/styles/variables/_template.scss'),
+    '@plugins': resolveSrcPath('plugins'),
+    '@components': resolveSrcPath('components'),
+    '@composables': resolveSrcPath('composables'),
+    '@assets': resolveSrcPath('assets'),
+    '@stores': resolveSrcPath('stores'),
+    '@utils': resolveSrcPath('utils'),
+    '@services': resolveSrcPath('services'),
+    '@views': resolveSrcPath('views'),
+    '@pages': resolveSrcPath('pages'),
+}
 export default defineConfig({
     plugins: [vue()],
     test: {
         globals: true,
         environment: 'jsdom',
         setupFiles: ['./tests/setup.js'],
-        include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-        alias: {
-            '@': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src',
-            '@core': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/@core',
-            '@layouts': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/@layouts',
-            '@images': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets/images/',
-            '@styles': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets/styles/',
-            '@configured-variables': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets/styles/variables/_template.scss',
-            '@plugins': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/plugins',
-            '@components': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/components',
-            '@composables': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/composables',
-            '@assets': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets',
-            '@stores': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/stores',
-            '@utils': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/utils',
-            '@services': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/services',
-            '@views': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/views',
-            '@pages': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/pages',
-        },
+        include: [
+            'tests/unit/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+            'tests/integration/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
+        ],
+        alias: aliasConfig,
         coverage: {
             provider: 'istanbul',
             reporter: ['text', 'json', 'html'],
@@ -40,22 +54,6 @@ export default defineConfig({
         }
     },
     resolve: {
-        alias: {
-            '@': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src',
-            '@core': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/@core',
-            '@layouts': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/@layouts',
-            '@images': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets/images/',
-            '@styles': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets/styles/',
-            '@configured-variables': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets/styles/variables/_template.scss',
-            '@plugins': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/plugins',
-            '@components': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/components',
-            '@composables': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/composables',
-            '@assets': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/assets',
-            '@stores': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/stores',
-            '@utils': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/utils',
-            '@services': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/services',
-            '@views': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/views',
-            '@pages': 'D:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND/src/pages',
-        }
+        alias: aliasConfig
     }
 })

@@ -22,7 +22,7 @@
     "firebase:deploy": "firebase deploy",
     "firebase:deploy:staging": "firebase deploy --project staging",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
-    "test": "vitest",
+    "test": "vitest --config config/vitest.config.js --environment jsdom",
     "launch-opera": "node scripts/launch-opera.js",
     "mcp:start": "genkit start",
     "mcp:serve": "npx genkit start --port 3100",
