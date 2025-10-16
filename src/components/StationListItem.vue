@@ -54,14 +54,38 @@ const scoreColor = computed(() => {
   if (props.userScore.percentage >= 50) return 'warning'
   return 'error'
 })
+
+const cardClasses = computed(() => {
+  return [
+    'mb-2',
+    'rounded-lg',
+    'elevation-1',
+    'station-list-item',
+    'clickable-card',
+    props.showSequentialConfig ? 'sequential-mode-card' : '',
+    props.showSequentialConfig && props.isInSequence ? 'sequential-selected-card' : ''
+  ]
+})
+
+const handleCardClick = () => {
+  if (props.showSequentialConfig) {
+    if (props.isInSequence) {
+      emit('remove-from-sequence', props.station.id)
+    } else {
+      emit('add-to-sequence', props.station)
+    }
+  } else {
+    emit('click', props.station.id)
+  }
+}
 </script>
 
 <template>
   <v-list-item
     :key="station.id"
-    class="mb-2 rounded-lg elevation-1 station-list-item clickable-card"
+    :class="cardClasses"
     :style="{ backgroundColor: backgroundColor }"
-    @click="emit('click', station.id)"
+    @click="handleCardClick"
   >
     <template #prepend>
       <v-icon color="info">ri-file-list-3-line</v-icon>
@@ -99,30 +123,17 @@ const scoreColor = computed(() => {
           class="me-2 sequential-selection-btn"
         />
 
-        <!-- Botão Modo Sequencial -->
-        <v-btn
+        <!-- Indicador de seleção sequencial -->
+        <v-chip
           v-if="showSequentialConfig"
-          :color="isInSequence ? 'success' : 'primary'"
-          :variant="isInSequence ? 'tonal' : 'outlined'"
+          :color="isInSequence ? 'success' : 'grey'"
           size="small"
-          @click.stop="isInSequence ? emit('remove-from-sequence', station.id) : emit('add-to-sequence', station)"
-          class="me-2 sequential-selection-btn"
-          :aria-label="isInSequence ? 'Remover da sequência' : 'Adicionar à sequência'"
+          variant="tonal"
+          class="me-2 sequential-indicator"
+          :prepend-icon="isInSequence ? 'ri-check-line' : 'ri-checkbox-blank-line'"
         >
-          <v-icon
-            :style="{
-              color: isInSequence ? 'var(--v-theme-success)' : 'var(--v-theme-primary)',
-              opacity: '1',
-              fontWeight: '600',
-              visibility: 'visible'
-            }"
-            :data-fallback="isInSequence ? '✓' : '+'"
-            :aria-hidden="false"
-            :aria-label="isInSequence ? 'Estação selecionada' : 'Selecionar estação'"
-          >
-            {{ isInSequence ? 'ri-check-line' : 'ri-plus-line' }}
-          </v-icon>
-        </v-btn>
+          {{ isInSequence ? 'Selecionada' : 'Adicionar' }}
+        </v-chip>
 
         <!-- Botão Editar (Admin) -->
         <v-btn
@@ -173,5 +184,20 @@ const scoreColor = computed(() => {
 
 .sequential-selection-btn {
   flex-shrink: 0;
+}
+
+.sequential-mode-card {
+  border: 2px dashed rgba(33, 150, 243, 0.35);
+}
+
+.sequential-selected-card {
+  border: 2px solid rgba(76, 175, 80, 0.8);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.18) !important;
+  background-color: rgba(76, 175, 80, 0.08) !important;
+}
+
+.sequential-indicator {
+  font-weight: 600;
+  pointer-events: none;
 }
 </style>

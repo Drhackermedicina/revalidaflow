@@ -2,6 +2,7 @@
 
 // import { ref } from 'vue'
 import { backendUrl } from '@/utils/backendUrl.js'
+import { getAuthHeadersAsync } from '@/utils/authHeaders.js'
 import Logger from '@/utils/logger';
 const logger = new Logger('useInviteLinkGeneration');
 
@@ -108,10 +109,19 @@ export function useInviteLinkGeneration(options) {
     if (!sessionId.value) {
       logger.debug('[INVITE-LINK] 🆕 Criando nova sessão no backend...');
       try {
+        const authHeaders = await getAuthHeadersAsync()
+
+        if (!authHeaders.Authorization) {
+          logger.warn('[INVITE-LINK] WARNING Nenhum token de autenticacao disponivel ao tentar criar sessao.');
+          errorMessage.value = 'Sessao expirada. Faca login novamente para gerar o link de convite.'
+          return
+        }
+
         const response = await fetch(`${backendUrl}/api/create-session`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...authHeaders
           },
           body: JSON.stringify({
             stationId: stationId.value,
@@ -121,6 +131,9 @@ export function useInviteLinkGeneration(options) {
         })
 
         if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Autenticacao necessaria. Faca login novamente para gerar o link de convite.')
+          }
           throw new Error(`HTTP error! status: ${response.status}`)
         }
 

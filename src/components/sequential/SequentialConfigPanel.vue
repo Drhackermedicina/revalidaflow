@@ -174,7 +174,7 @@ function getAreaColor(areaKey) {
           >
             <template #title>Como usar a Simulação Sequencial</template>
             <div class="text-body-2 mt-2">
-              <p>1. Clique no botão <v-icon size="small">ri-plus-line</v-icon> ao lado de cada estação que deseja incluir na sequência</p>
+              <p>1. Clique no card da estação que deseja incluir ou remover da sequência</p>
               <p>2. Organize a ordem das estações usando as setas ↑↓</p>
               <p>3. Clique em "Iniciar Simulação Sequencial" para começar</p>
               <p class="mt-2 font-weight-medium text-primary">

@@ -171,6 +171,12 @@ function handleStartAITraining(stationId) {
   })
 }
 
+function handleStartSequentialSimulation() {
+  startSequentialSimulation({
+    candidate: selectedCandidate.value || null
+  })
+}
+
 function toggleCollapse() {
   const wrapper = document.querySelector('.layout-wrapper')
   wrapper?.classList.toggle('layout-vertical-nav-collapsed')
@@ -273,7 +279,7 @@ watch(currentUser, (newUser) => {
           @toggle="toggleSequentialConfig"
           @move-station="moveStationInSequence"
           @remove-station="removeFromSequence"
-          @start="startSequentialSimulation"
+          @start="handleStartSequentialSimulation"
           @reset="resetSequentialConfig"
         />
 

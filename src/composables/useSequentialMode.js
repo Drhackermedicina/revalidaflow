@@ -11,6 +11,7 @@ const logger = new Logger('useSequentialMode');
 export function useSequentialMode(loadFullStation, getCleanStationTitle, getStationArea) {
 
   const router = useRouter()
+  const SELECTED_CANDIDATE_KEY = 'selectedCandidate'
 
   // --- State ---
   const sequentialMode = ref(false)
@@ -95,10 +96,49 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
     selectedStationsSequence.value = stations
   }
 
+  function persistSelectedCandidate(candidate, sessionId = null) {
+    if (typeof window === 'undefined') return
+    if (!candidate) return
+
+    const fullName = `${candidate.nome || ''} ${candidate.sobrenome || ''}`.trim()
+    const fallbackName = candidate.displayName || candidate.email || 'Participante'
+
+    const payload = {
+      uid: candidate.uid,
+      name: fullName || fallbackName,
+      email: candidate.email || '',
+      photoURL: candidate.photoURL || '',
+      selectedAt: Date.now(),
+      sessionId
+    }
+
+    try {
+      sessionStorage.setItem(SELECTED_CANDIDATE_KEY, JSON.stringify(payload))
+    } catch (error) {
+      logger.warn('Não foi possível persistir candidato selecionado para sequência:', error)
+    }
+  }
+
+  function updateCandidateSession(sessionId) {
+    if (typeof window === 'undefined') return
+    if (!sessionId) return
+
+    try {
+      const raw = sessionStorage.getItem(SELECTED_CANDIDATE_KEY)
+      if (!raw) return
+
+      const data = JSON.parse(raw)
+      data.sessionId = sessionId
+      sessionStorage.setItem(SELECTED_CANDIDATE_KEY, JSON.stringify(data))
+    } catch (error) {
+      logger.warn('Não foi possível atualizar sessionId do candidato sequencial:', error)
+    }
+  }
+
   /**
    * Inicia simulação sequencial
    */
-  const startSequentialSimulation = async () => {
+  const startSequentialSimulation = async (options = {}) => {
     if (selectedStationsSequence.value.length === 0) {
       alert('Selecione pelo menos uma estação para a simulação sequencial')
       return
@@ -108,6 +148,11 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
       isSequentialModeConfiguring.value = true
       sequentialMode.value = true
       currentSequenceIndex.value = 0
+
+      const { candidate = null } = options
+      if (candidate && candidate.uid) {
+        persistSelectedCandidate(candidate)
+      }
 
       // Gerar IDs únicos para a sequência (controle) e para a sessão compartilhada (socket)
       sequentialSessionId.value = `seq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -163,6 +208,8 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
       const sessionId = sequentialData.sharedSessionId || sharedSessionId.value
       sharedSessionId.value = sessionId
       logger.debug(`Utilizando sessionId compartilhado para estação ${currentStation.id}:`, sessionId)
+
+      updateCandidateSession(sessionId)
 
       // Navegar para a estação atual
       const routeData = router.resolve({
