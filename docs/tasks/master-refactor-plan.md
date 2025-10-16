@@ -5,11 +5,15 @@ Este plano organiza o trabalho de médio prazo em fases, priorizando a migraçã
 ## Fase 1 — Fluxo IA (em andamento)
 - [ ] **SimulationViewAI.vue → < 500 linhas**: aplicar o plano detalhado em `docs/tasks/simulation-view-ai-refactor.md`, com foco em:
   - [ ] Reutilizar composables existentes (`useSimulationSession`, `useSimulationWorkflow`, `useSimulationPEP`, `useEvaluation`, `useSimulationData`, `useImagePreloading`).
+    - [x] `useSimulationSession` integrado para carregar estação/checklist/duração.
+    - [x] `useSimulationWorkflowStandalone` criado e conectado no fluxo IA.
+    - [ ] Extrair PEP, avaliação e liberação de materiais para composables compartilhados.
   - [ ] Criar `useSimulationAiChat` encapsulando integração com Gemini, heurísticas de liberação e estado específico da IA.
   - [ ] Extrair módulo `useSpeechInteraction` para reconhecimento/síntese de voz com VAD.
-  - [ ] Substituir template por componentes já existentes (`SimulationControls`, `CandidateContentPanel`, `CandidateChecklist`, `CandidateImpressosPanel`, `SimulationSidebar`, `ImageZoomModal`).
+  - [ ] Substituir template por componentes já existentes (`SimulationControls`, `CandidateContentPanel`, `CandidateChecklist`, `CandidateImpressosPanel`, `SimulationSidebar`, `ImageZoomModal`) sem alterar o layout aprovado do fluxo IA.
   - [ ] Padronizar logs/feedbacks, remover `document.write`, documentar fluxo IA atualizado.
   - [ ] Adicionar testes unitários/integrados cobrindo chat IA, liberação de material, avaliação automática.
+  - [x] Implementar requisitos funcionais recentes: timer visível na UI durante a simulação, timeout de gravação automática de 30 s e atualização dos ícones de modo manual/automático mantendo o layout atual.
 
 ## Fase 2 — Convergência dos fluxos humano e IA
 - [ ] Revisitar `SimulationView.vue` após concluir a etapa IA para extrair o mesmo conjunto de subcomponentes/composables, minimizando divergência entre os flows.

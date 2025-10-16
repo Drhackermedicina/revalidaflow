@@ -14,18 +14,25 @@
 - Template/CSS replicam componentes já disponíveis (`CandidateContentPanel`, `CandidateChecklist`, `CandidateImpressosPanel`, `SimulationSidebar`) e usam `document.write` para pré-visualização (`src/pages/SimulationViewAI.vue:1047-2660`).
 - Logs de debug verbosos (`??`, `?`) despejados em produção (`src/pages/SimulationViewAI.vue:138-1985`).
 
+## Status Atual (jun/2024)
+- [x] `SimulationViewAI.vue` já consome `useSimulationSession` para carregar estação, checklist, duração e estado base.
+- [x] Variante `useSimulationWorkflowStandalone` criada (`src/composables/useSimulationWorkflowStandalone.js`) e integrada ao componente IA, garantindo timer local e flags do fluxo.
+- [ ] Demais extrações (chat IA, voz/VAD, PEP, template) ainda residem no SFC principal; arquivos utilitários não foram criados.
+- [ ] Logs verbosos permanecem no código; nenhum teste novo cobre o fluxo IA.
+- [x] Requisitos mais recentes: manter layout atual do chat/impressos, melhorar apenas ícones do modo de gravação, exibir o timer na UI, ampliar o timeout de escuta automática para 30 s e fixar o cabeçalho “Chat” com timer destacado.
+
 ## Plano de Refatoração
 
 ### 1. Reuso de Composables Existentes
 - Estado atual: refs duplicadas para `stationData`, `checklistData`, `simulationTimeSeconds`, `timerDisplay`, `selectedDurationMinutes`, `sessionId`, `stationId`, flags de carregamento e erros (`src/pages/SimulationViewAI.vue:30-120`). Todas essas estruturas são fornecidas diretamente por `useSimulationSession`.
-- [x] Substituir refs e métodos manuais por `useSimulationSession`, configurando `userRole` como `candidate` e adicionando suporte opcional a "parceiro IA" no composable quando não houver WebSocket (`src/pages/SimulationViewAI.vue:40-140`, `src/composables/useSimulationSession.js`).
+- [x] Substituir refs e métodos manuais por `useSimulationSession`, configurando `userRole` como `candidate` e adicionando suporte opcional a "parceiro IA" no composable quando não houver WebSocket (`src/pages/SimulationViewAI.vue:40-140`, `src/composables/useSimulationSession.js`). **Status:** concluído, componente usa o composable compartilhado.
 - Diagnóstico `useSimulationWorkflow`: depende de `socketRef` conectado para `sendReady`, `handleStartSimulationClick`, `activateBackend` e eventos de timer; exige `partner.value` real e marca `bothParticipantsReady` com base nisso; dispara alertas de erro de socket e atualiza o timer a partir de mensagens do servidor (`src/composables/useSimulationWorkflow.js:45-407`).
 - Ajustes necessários para IA:
   - Permitir modo `standalone` sem socket (no-op para `sendReady`, `activateBackend` e handlers).
   - Fornecer parceiro virtual e `partnerReadyState` inicializado como `true`.
   - Garantir que o timer funcione via `setInterval` local quando não houver eventos do backend.
   - Tornar opcionais alertas UI relacionados a falhas de socket/backend.
-- [x] Criar variante `useSimulationWorkflowStandalone` específica para o fluxo IA, encapsulando timer local, `sendReady` e `manuallyEndSimulation` (`src/composables/useSimulationWorkflowStandalone.js`, `src/pages/SimulationViewAI.vue:40-210`).
+- [x] Criar variante `useSimulationWorkflowStandalone` específica para o fluxo IA, encapsulando timer local, `sendReady` e `manuallyEndSimulation` (`src/composables/useSimulationWorkflowStandalone.js`, `src/pages/SimulationViewAI.vue:40-210`). **Status:** concluído e já instanciado no componente.
 - [ ] Integrar `useSimulationWorkflow` (ou adaptar variante standalone) para gerenciar `myReadyState`, `simulationStarted`, `simulationEnded` e timer, fornecendo adaptador que cria um parceiro virtual sempre pronto e elimina watchers manuais (`src/composables/useSimulationWorkflow.js`).
 - [ ] Reutilizar `useSimulationPEP` e `useEvaluation` para marcação do PEP e submissão de notas, extraindo dependências de socket para permitir operação local/IA (ex.: método `submitEvaluationLocal`) (`src/pages/SimulationViewAI.vue:1728-1934`, `src/composables/useSimulationPEP.js`, `src/composables/useEvaluation.js`).
 - [ ] Ajustar `useSimulationData` para aceitar uma estratégia de liberação “local” (sem `socket.emit`) e adotá-lo no fluxo IA para manter `releasedData`, `isChecklistVisibleForCandidate` e contadores (`src/pages/SimulationViewAI.vue:394-873`, `src/composables/useSimulationData.js`).
@@ -39,6 +46,7 @@
 ### 3. Voz e Áudio
 - [ ] Isolar reconhecimento e síntese de fala (`initSpeechRecognition`, `startListening`, `stopListening`, `selectVoiceForPatient`, `speakText`) em um composable `useSpeechInteraction`, com guards para ambientes sem `window` e limpeza centralizada de timeouts/VAD (`src/pages/SimulationViewAI.vue:1271-1654`).
 - [ ] Injetar callbacks do composable de voz no fluxo IA para retomar gravação automática após respostas e permitir testes com mocks (`src/pages/SimulationViewAI.vue:274-305`, `src/pages/SimulationViewAI.vue:1309-1418`).
+- [x] Ajustar timeout da captura automática de voz para 30 s e atualizar ícones/feedbacks visuais de modo automático/manual sem alterar o layout geral.
 
 ### 4. PEP e Avaliação Automática
 - [ ] Mover `aiEvaluatePEP`, `autoEvaluatePEPFallback`, `getClassificacaoFromPontuacao` para serviço dedicado reutilizado por `useEvaluation`, validando payload com schema (Zod ou similar) e padronizando mensagens de erro (`src/pages/SimulationViewAI.vue:1728-1934`).
