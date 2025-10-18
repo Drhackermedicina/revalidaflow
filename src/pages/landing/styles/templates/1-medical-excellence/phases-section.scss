@@ -1,0 +1,168 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Phases Section Styles (SEM FEYNMAN)
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+.phases-section {
+    position: relative;
+    padding: $section-padding-mobile 0;
+    background: white;
+
+    @include md {
+        padding: $section-padding-tablet 0;
+    }
+
+    @include lg {
+        padding: $section-padding-desktop 0;
+    }
+
+    &__container {
+        @include container;
+    }
+
+    &__header {
+        text-align: center;
+        max-width: 800px;
+        margin: 0 auto $space-4xl;
+    }
+
+    &__subtitle {
+        display: inline-block;
+        font-size: $font-size-sm;
+        font-weight: $weight-semibold;
+        color: $primary-green;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: $space-md;
+    }
+
+    &__title {
+        @include heading-2;
+        margin-bottom: $space-lg;
+    }
+
+    &__description {
+        @include body-large;
+    }
+
+    // Tabs Navigation
+    &__tabs {
+        display: flex;
+        justify-content: center;
+        gap: $space-md;
+        margin-bottom: $space-3xl;
+        border-bottom: $border-width solid $border-light;
+        overflow-x: auto;
+
+        @include mobile {
+            justify-content: flex-start;
+            padding-bottom: $space-md;
+        }
+    }
+
+    &__tab {
+        padding: $space-md $space-xl;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-family: $font-body;
+        font-size: $font-size-base;
+        font-weight: $weight-semibold;
+        color: $text-secondary;
+        cursor: pointer;
+        transition: $transition-all;
+        white-space: nowrap;
+        position: relative;
+
+        &:hover {
+            color: $primary-cyan;
+        }
+
+        &--active {
+            color: $primary-cyan;
+            border-bottom-color: $primary-cyan;
+        }
+    }
+
+    // Tab Content
+    &__content {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-xl;
+
+        @include md {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @include lg {
+            grid-template-columns: repeat(3, 1fr);
+            gap: $space-2xl;
+        }
+    }
+
+    // Phase Card
+    &__card {
+        @include card-base;
+        border: $border-width solid $border-light;
+        transition: $transition-all;
+
+        &:hover {
+            transform: translateY(-4px);
+            border-color: $primary-cyan;
+            box-shadow: $shadow-lg;
+        }
+    }
+
+    &__card-number {
+        width: 48px;
+        height: 48px;
+        border-radius: $radius-lg;
+        background: $gradient-cyan;
+        @include flex-center;
+        margin-bottom: $space-lg;
+        font-family: $font-mono;
+        font-size: $font-size-xl;
+        font-weight: $weight-bold;
+        color: white;
+    }
+
+    &__card-title {
+        @include heading-4;
+        margin-bottom: $space-md;
+    }
+
+    &__card-description {
+        @include body-base;
+        margin-bottom: $space-lg;
+    }
+
+    &__card-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+            display: flex;
+            align-items: flex-start;
+            gap: $space-sm;
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            margin-bottom: $space-sm;
+
+            &::before {
+                content: '→';
+                color: $primary-cyan;
+                font-weight: $weight-bold;
+                flex-shrink: 0;
+            }
+        }
+    }
+}

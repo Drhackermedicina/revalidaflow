@@ -1,46 +1,47 @@
 // src/pages/landing/data/features.js
+// ATUALIZADO: Removido Feynman (não implementado) e adicionadas funcionalidades reais
 export const heroFeatures = [
   {
-    icon: 'ri-mic-line',
-    title: 'IA Feynman',
-    description: 'Explique em áudio, receba feedback instantâneo',
-    color: 'yellow',
-    badge: 'EXCLUSIVO'
-  },
-  {
-    icon: 'ri-book-open-line',
-    title: '50.000+ Questões',
-    description: 'Banco atualizado formato 2025.2',
+    icon: 'ri-stethoscope-line',
+    title: '600+ Estações OSCE',
+    description: 'Biblioteca completa organizada por INEP e especialidade',
     color: 'blue',
-    badge: 'NOVO FORMATO'
+    badge: 'COMPLETO'
   },
   {
     icon: 'ri-user-voice-line',
-    title: 'Simulações Reais',
-    description: 'Estações clínicas com atores profissionais',
+    title: 'Simulações em Tempo Real',
+    description: 'Pratique com parceiros via WebSocket ao vivo',
     color: 'green',
     badge: 'AO VIVO'
   },
   {
-    icon: 'ri-calendar-check-line',
-    title: 'Cronograma IA',
-    description: 'Planejamento personalizado inteligente',
+    icon: 'ri-timer-line',
+    title: 'Modo Sequencial',
+    description: 'Treine 10 estações seguidas como no exame real',
     color: 'purple',
-    badge: 'PERSONALIZADO'
+    badge: 'REALISTA'
   },
   {
-    icon: 'ri-flashlight-line',
-    title: 'Flashcards IA',
-    description: 'Repetição espaçada inteligente',
+    icon: 'ri-checkbox-multiple-line',
+    title: 'Sistema PEP',
+    description: 'Avaliação estruturada em tempo real sincronizada',
+    color: 'cyan',
+    badge: 'PROFISSIONAL'
+  },
+  {
+    icon: 'ri-line-chart-line',
+    title: 'Ranking e Estatísticas',
+    description: 'Acompanhe sua evolução e performance detalhada',
     color: 'orange',
-    badge: 'INTELIGENTE'
+    badge: 'GAMIFICADO'
   },
   {
-    icon: 'ri-video-line',
-    title: 'Videoaulas Exclusivas',
-    description: 'Conteúdo por médicos revalidados',
+    icon: 'ri-chat-3-line',
+    title: 'Chat e Comunidade',
+    description: 'Encontre parceiros e troque experiências ao vivo',
     color: 'red',
-    badge: 'PREMIUM'
+    badge: 'ATIVO'
   }
 ]
 

@@ -1,0 +1,237 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Testimonials Section Styles
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+.testimonials-section {
+    position: relative;
+    padding: $section-padding-mobile 0;
+    background: white;
+    overflow: hidden;
+
+    @include md {
+        padding: $section-padding-tablet 0;
+    }
+
+    @include lg {
+        padding: $section-padding-desktop 0;
+    }
+
+    &__container {
+        @include container;
+    }
+
+    &__header {
+        text-align: center;
+        max-width: 800px;
+        margin: 0 auto $space-4xl;
+    }
+
+    &__subtitle {
+        display: inline-block;
+        font-size: $font-size-sm;
+        font-weight: $weight-semibold;
+        color: $primary-green;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: $space-md;
+    }
+
+    &__title {
+        @include heading-2;
+        margin-bottom: $space-lg;
+    }
+
+    &__description {
+        @include body-large;
+    }
+
+    // Carousel Wrapper
+    &__carousel {
+        position: relative;
+        margin-bottom: $space-2xl;
+    }
+
+    // Testimonials Grid
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-xl;
+
+        @include md {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @include lg {
+            grid-template-columns: repeat(3, 1fr);
+            gap: $space-2xl;
+        }
+    }
+
+    // Testimonial Card
+    &__card {
+        @include card-base;
+        border: $border-width solid $border-light;
+        transition: $transition-all;
+        display: flex;
+        flex-direction: column;
+
+        &:hover {
+            transform: translateY(-4px);
+            box-shadow: $shadow-xl;
+        }
+    }
+
+    &__card-header {
+        display: flex;
+        align-items: center;
+        gap: $space-md;
+        margin-bottom: $space-lg;
+    }
+
+    &__card-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 2px solid $primary-cyan;
+        flex-shrink: 0;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+
+    &__card-author {
+        flex-grow: 1;
+    }
+
+    &__card-name {
+        font-size: $font-size-lg;
+        font-weight: $weight-semibold;
+        color: $text-primary;
+        margin-bottom: $space-xs;
+    }
+
+    &__card-role {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+
+    &__card-rating {
+        display: flex;
+        gap: $space-xs;
+        margin-bottom: $space-lg;
+
+        i {
+            width: 16px;
+            height: 16px;
+            color: $warning;
+        }
+    }
+
+    &__card-quote {
+        position: relative;
+        font-size: $font-size-base;
+        line-height: $leading-relaxed;
+        color: $text-secondary;
+        margin-bottom: $space-lg;
+        flex-grow: 1;
+
+        &::before {
+            content: '"';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            font-size: 60px;
+            color: rgba($primary-cyan, 0.2);
+            font-family: Georgia, serif;
+            line-height: 1;
+        }
+    }
+
+    &__card-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: $space-xs;
+        padding: $space-xs $space-md;
+        background: rgba($primary-green, 0.1);
+        color: $primary-green;
+        border-radius: $radius-full;
+        font-size: $font-size-xs;
+        font-weight: $weight-semibold;
+
+        i {
+            width: 14px;
+            height: 14px;
+        }
+    }
+
+    // Navigation Dots
+    &__dots {
+        display: flex;
+        justify-content: center;
+        gap: $space-sm;
+        margin-top: $space-2xl;
+    }
+
+    &__dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: $border-medium;
+        border: none;
+        cursor: pointer;
+        transition: $transition-all;
+        padding: 0;
+
+        &--active {
+            background: $primary-cyan;
+            width: 32px;
+            border-radius: $radius-full;
+        }
+
+        &:hover:not(&--active) {
+            background: $border-dark;
+        }
+    }
+
+    // Stats Bar
+    &__stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: $space-2xl;
+        margin-top: $space-4xl;
+        padding: $space-3xl;
+        background: $gradient-cyan;
+        border-radius: $radius-2xl;
+        text-align: center;
+        color: white;
+    }
+
+    &__stat {
+        &-number {
+            display: block;
+            font-family: $font-mono;
+            font-size: $font-size-4xl;
+            font-weight: $weight-extrabold;
+            margin-bottom: $space-sm;
+
+            @include lg {
+                font-size: $font-size-5xl;
+            }
+        }
+
+        &-label {
+            font-size: $font-size-base;
+            font-weight: $weight-medium;
+            opacity: 0.9;
+        }
+    }
+}

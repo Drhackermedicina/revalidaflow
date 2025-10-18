@@ -6,7 +6,6 @@ import { currentUser } from '@/plugins/auth'
 import LandingHeader from './components/LandingHeader.vue'
 import HeroSection from './components/HeroSection.vue'
 import FeaturesGrid from './components/FeaturesGrid.vue'
-import FeynmanSection from './components/FeynmanSection.vue'
 import PhasesTabs from './components/PhasesTabs.vue'
 import TestimonialsCarousel from './components/TestimonialsCarousel.vue'
 import PricingCards from './components/PricingCards.vue'
@@ -36,8 +35,6 @@ watch(currentUser, (newUser, oldUser) => {
 
     <FeaturesGrid id="features" />
 
-    <FeynmanSection id="feynman" />
-
     <PhasesTabs id="phases" />
 
     <TestimonialsCarousel id="testimonials" />
@@ -51,5 +48,5 @@ watch(currentUser, (newUser, oldUser) => {
 </template>
 
 <style scoped lang="scss">
-@import './styles/landing.scss';
+@import './styles/templates/2-tech-forward/landing.scss';
 </style>

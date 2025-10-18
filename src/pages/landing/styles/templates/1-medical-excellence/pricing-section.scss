@@ -1,0 +1,251 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Pricing Section Styles
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+.pricing-section {
+    position: relative;
+    padding: $section-padding-mobile 0;
+    background: $bg-light;
+
+    @include md {
+        padding: $section-padding-tablet 0;
+    }
+
+    @include lg {
+        padding: $section-padding-desktop 0;
+    }
+
+    &__container {
+        @include container;
+    }
+
+    &__header {
+        text-align: center;
+        max-width: 800px;
+        margin: 0 auto $space-3xl;
+    }
+
+    &__subtitle {
+        display: inline-block;
+        font-size: $font-size-sm;
+        font-weight: $weight-semibold;
+        color: $primary-cyan;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: $space-md;
+    }
+
+    &__title {
+        @include heading-2;
+        margin-bottom: $space-lg;
+    }
+
+    &__description {
+        @include body-large;
+    }
+
+    // Pricing Grid
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-xl;
+        max-width: 1200px;
+        margin: 0 auto;
+
+        @include md {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @include lg {
+            grid-template-columns: repeat(3, 1fr);
+            gap: $space-2xl;
+        }
+    }
+
+    // Pricing Card
+    &__card {
+        @include card-base;
+        border: $border-width-thick solid $border-light;
+        transition: $transition-all;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+
+        &--popular {
+            border-color: $primary-cyan;
+            box-shadow: $shadow-xl, $shadow-cyan;
+            transform: scale(1.05);
+
+            @include mobile {
+                transform: scale(1);
+            }
+
+            .pricing-section__card-header {
+                background: $gradient-cyan;
+                color: white;
+                margin: (-$space-xl) (-$space-xl) $space-xl;
+                padding: $space-xl;
+                border-radius: $radius-xl $radius-xl 0 0;
+            }
+
+            .pricing-section__card-badge {
+                background: white;
+                color: $primary-cyan;
+            }
+
+            .pricing-section__card-name {
+                color: white;
+            }
+
+            .pricing-section__card-price {
+                color: white;
+            }
+        }
+
+        &:not(&--popular):hover {
+            transform: translateY(-4px);
+            border-color: $primary-cyan;
+            box-shadow: $shadow-lg;
+        }
+    }
+
+    &__card-badge {
+        position: absolute;
+        top: -12px;
+        right: $space-xl;
+        padding: $space-xs $space-md;
+        background: $primary-cyan;
+        color: white;
+        border-radius: $radius-full;
+        font-size: $font-size-xs;
+        font-weight: $weight-bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    &__card-header {
+        margin-bottom: $space-xl;
+    }
+
+    &__card-name {
+        @include heading-3;
+        margin-bottom: $space-sm;
+    }
+
+    &__card-description {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+
+    &__card-price-wrapper {
+        margin-bottom: $space-xl;
+    }
+
+    &__card-price {
+        display: flex;
+        align-items: baseline;
+        gap: $space-xs;
+        margin-bottom: $space-xs;
+
+        &-currency {
+            font-size: $font-size-2xl;
+            font-weight: $weight-bold;
+            color: $text-primary;
+        }
+
+        &-amount {
+            font-size: $font-size-5xl;
+            font-weight: $weight-extrabold;
+            color: $text-primary;
+            font-family: $font-mono;
+        }
+
+        &-period {
+            font-size: $font-size-lg;
+            color: $text-secondary;
+        }
+    }
+
+    &__card-features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 $space-2xl;
+        flex-grow: 1;
+
+        li {
+            display: flex;
+            align-items: flex-start;
+            gap: $space-md;
+            padding: $space-md 0;
+            border-bottom: $border-width solid $border-light;
+            font-size: $font-size-base;
+            color: $text-secondary;
+
+            &:last-child {
+                border-bottom: none;
+            }
+
+            i {
+                width: 20px;
+                height: 20px;
+                color: $primary-green;
+                flex-shrink: 0;
+                margin-top: 2px;
+            }
+        }
+    }
+
+    &__card-button {
+        @include button-primary;
+        width: 100%;
+
+        .pricing-section__card--popular & {
+            background: white;
+            color: $primary-cyan;
+            border: $border-width-thick solid white;
+
+            &:hover {
+                background: transparent;
+                color: white;
+            }
+        }
+
+        .pricing-section__card:not(.pricing-section__card--popular) & {
+            @include button-secondary;
+        }
+    }
+
+    // Money Back Guarantee Badge
+    &__guarantee {
+        text-align: center;
+        margin-top: $space-3xl;
+        padding: $space-xl;
+        background: white;
+        border-radius: $radius-xl;
+        box-shadow: $shadow-md;
+
+        &-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto $space-md;
+            color: $primary-green;
+        }
+
+        &-text {
+            font-size: $font-size-lg;
+            font-weight: $weight-semibold;
+            color: $text-primary;
+            margin-bottom: $space-xs;
+        }
+
+        &-subtext {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+        }
+    }
+}

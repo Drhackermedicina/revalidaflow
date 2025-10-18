@@ -1,0 +1,424 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Mixins & Helpers
+// ============================================
+
+@import './variables';
+
+// ============================================
+// RESPONSIVE BREAKPOINTS
+// ============================================
+
+@mixin mobile {
+    @media (max-width: #{$breakpoint-sm - 1px}) {
+        @content;
+    }
+}
+
+@mixin tablet {
+    @media (min-width: $breakpoint-sm) and (max-width: #{$breakpoint-lg - 1px}) {
+        @content;
+    }
+}
+
+@mixin desktop {
+    @media (min-width: $breakpoint-lg) {
+        @content;
+    }
+}
+
+@mixin wide {
+    @media (min-width: $breakpoint-xl) {
+        @content;
+    }
+}
+
+// Specific breakpoints
+@mixin sm {
+    @media (min-width: $breakpoint-sm) {
+        @content;
+    }
+}
+
+@mixin md {
+    @media (min-width: $breakpoint-md) {
+        @content;
+    }
+}
+
+@mixin lg {
+    @media (min-width: $breakpoint-lg) {
+        @content;
+    }
+}
+
+@mixin xl {
+    @media (min-width: $breakpoint-xl) {
+        @content;
+    }
+}
+
+// ============================================
+// CONTAINER
+// ============================================
+
+@mixin container {
+    width: 100%;
+    max-width: $container-xl;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: $space-lg;
+    padding-right: $space-lg;
+
+    @include lg {
+        padding-left: $space-2xl;
+        padding-right: $space-2xl;
+    }
+}
+
+@mixin container-narrow {
+    width: 100%;
+    max-width: $container-lg;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: $space-lg;
+    padding-right: $space-lg;
+}
+
+// ============================================
+// TYPOGRAPHY
+// ============================================
+
+@mixin heading-1 {
+    font-family: $font-heading;
+    font-size: $font-size-4xl;
+    font-weight: $weight-extrabold;
+    line-height: $leading-tight;
+    color: $text-primary;
+
+    @include md {
+        font-size: $font-size-5xl;
+    }
+
+    @include lg {
+        font-size: $font-size-6xl;
+    }
+}
+
+@mixin heading-2 {
+    font-family: $font-heading;
+    font-size: $font-size-3xl;
+    font-weight: $weight-bold;
+    line-height: $leading-tight;
+    color: $text-primary;
+
+    @include md {
+        font-size: $font-size-4xl;
+    }
+
+    @include lg {
+        font-size: $font-size-5xl;
+    }
+}
+
+@mixin heading-3 {
+    font-family: $font-heading;
+    font-size: $font-size-2xl;
+    font-weight: $weight-bold;
+    line-height: $leading-snug;
+    color: $text-primary;
+
+    @include md {
+        font-size: $font-size-3xl;
+    }
+}
+
+@mixin heading-4 {
+    font-family: $font-heading;
+    font-size: $font-size-xl;
+    font-weight: $weight-semibold;
+    line-height: $leading-snug;
+    color: $text-primary;
+
+    @include md {
+        font-size: $font-size-2xl;
+    }
+}
+
+@mixin body-large {
+    font-family: $font-body;
+    font-size: $font-size-lg;
+    font-weight: $weight-regular;
+    line-height: $leading-relaxed;
+    color: $text-secondary;
+
+    @include md {
+        font-size: $font-size-xl;
+    }
+}
+
+@mixin body-base {
+    font-family: $font-body;
+    font-size: $font-size-base;
+    font-weight: $weight-regular;
+    line-height: $leading-normal;
+    color: $text-secondary;
+}
+
+@mixin body-small {
+    font-family: $font-body;
+    font-size: $font-size-sm;
+    font-weight: $weight-regular;
+    line-height: $leading-normal;
+    color: $text-muted;
+}
+
+// ============================================
+// BUTTONS
+// ============================================
+
+@mixin button-base {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: $space-md $space-xl;
+    font-family: $font-body;
+    font-size: $font-size-base;
+    font-weight: $weight-semibold;
+    line-height: 1;
+    border-radius: $radius-lg;
+    cursor: pointer;
+    transition: $transition-all;
+    text-decoration: none;
+    border: none;
+    outline: none;
+    white-space: nowrap;
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+@mixin button-primary {
+    @include button-base;
+    background: $gradient-cyan;
+    color: white;
+    box-shadow: $shadow-cyan;
+
+    &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: $shadow-xl, $shadow-cyan;
+    }
+
+    &:active:not(:disabled) {
+        transform: translateY(0);
+    }
+}
+
+@mixin button-secondary {
+    @include button-base;
+    background: white;
+    color: $primary-cyan;
+    border: $border-width-thick solid $primary-cyan;
+
+    &:hover:not(:disabled) {
+        background: $primary-cyan;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: $shadow-md;
+    }
+}
+
+@mixin button-ghost {
+    @include button-base;
+    background: transparent;
+    color: $text-primary;
+    border: $border-width solid $border-medium;
+
+    &:hover:not(:disabled) {
+        background: $bg-lighter;
+        border-color: $border-dark;
+    }
+}
+
+// ============================================
+// CARDS
+// ============================================
+
+@mixin card-base {
+    background: white;
+    border-radius: $radius-xl;
+    padding: $space-xl;
+    transition: $transition-all;
+}
+
+@mixin card-hover {
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: $shadow-xl;
+    }
+}
+
+@mixin card-elevated {
+    @include card-base;
+    box-shadow: $shadow-md;
+
+    &:hover {
+        box-shadow: $shadow-xl;
+        transform: translateY(-4px);
+    }
+}
+
+@mixin card-bordered {
+    @include card-base;
+    border: $border-width solid $border-light;
+
+    &:hover {
+        border-color: $primary-cyan;
+        box-shadow: $shadow-cyan;
+    }
+}
+
+// ============================================
+// GRADIENTS
+// ============================================
+
+@mixin gradient-text {
+    background: $gradient-cyan;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+@mixin gradient-border {
+    position: relative;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        border-radius: inherit;
+        padding: $border-width-thick;
+        background: $gradient-cyan;
+        -webkit-mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        mask-composite: exclude;
+    }
+}
+
+// ============================================
+// GRID PATTERN BACKGROUND
+// ============================================
+
+@mixin grid-pattern {
+    background-color: $bg-white;
+    background-image: $grid-pattern;
+    background-size: 40px 40px;
+}
+
+// ============================================
+// GLASSMORPHISM
+// ============================================
+
+@mixin glass {
+    background: rgba(255, 255, 255, 0.8);
+    -webkit-backdrop-filter: $backdrop-blur-md;
+    backdrop-filter: $backdrop-blur-md;
+    border: $border-width solid rgba(255, 255, 255, 0.3);
+}
+
+@mixin glass-dark {
+    background: rgba(15, 23, 42, 0.8);
+    -webkit-backdrop-filter: $backdrop-blur-md;
+    backdrop-filter: $backdrop-blur-md;
+    border: $border-width solid rgba(255, 255, 255, 0.1);
+}
+
+// ============================================
+// ANIMATIONS
+// ============================================
+
+@mixin fade-in {
+    animation: fadeIn $animation-duration-base ease-in-out;
+}
+
+@mixin slide-up {
+    animation: slideUp $animation-duration-base ease-out;
+}
+
+@mixin scale-in {
+    animation: scaleIn $animation-duration-base ease-out;
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+@mixin absolute-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+@mixin aspect-ratio($width, $height) {
+    aspect-ratio: $width / $height;
+
+    @supports not (aspect-ratio: 1 / 1) {
+        &::before {
+            content: '';
+            display: block;
+            padding-top: calc(($height / $width) * 100%);
+        }
+    }
+}
+
+@mixin truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@mixin line-clamp($lines) {
+    display: -webkit-box;
+    -webkit-line-clamp: $lines;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+// ============================================
+// FOCUS STATES
+// ============================================
+
+@mixin focus-ring {
+    outline: 2px solid $primary-cyan;
+    outline-offset: 2px;
+}
+
+@mixin focus-visible {
+    &:focus-visible {
+        @include focus-ring;
+    }
+}

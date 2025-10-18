@@ -197,9 +197,9 @@ const router = useRouter()
 const theme = useTheme()
 
 // Composable central
-const { 
-  loading, 
-  error, 
+const {
+  loading,
+  error,
   loadDashboardData,
   userData,
   rankingPosition,
@@ -227,11 +227,10 @@ const isDarkTheme = computed(() => theme.global.name.value === 'dark')
 onMounted(async () => {
   try {
     await loadDashboardData()
-    
+
     // Garantir que o sidebar esteja sempre aberto no dashboard
     ensureSidebarOpen()
   } catch (err) {
-    console.error('Erro ao carregar dashboard:', err)
     showError.value = true
   }
 })

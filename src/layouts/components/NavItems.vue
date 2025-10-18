@@ -101,11 +101,11 @@ export default {
       to: '/app/station-list',
     };
 
-    const questoesLink = {
+    const questoesDescritivasLink = {
       title: 'Questões',
-      icon: 'ri-file-text-fill',
-      iconColor: '#e91e63',
-      to: '/app/questoes',
+      icon: 'ri-edit-box-fill',
+      iconColor: '#9c27b0',
+      to: '/app/descriptive-questions',
     };
 
     const grupoChatLink = {
@@ -132,10 +132,12 @@ export default {
       showCodeDialog.value = false;
     }
 
+    console.log('[NavItems] Componente montado, showAdminMenu:', showAdminMenu.value);
+
     return {
       homeLink,
       estacoesLink,
-      questoesLink,
+      questoesDescritivasLink,
       grupoChatLink,
       buscarUsuariosGroup,
       showAdminMenu,
@@ -154,7 +156,7 @@ export default {
   
   <VerticalNavLink :item="homeLink" />
   <VerticalNavLink :item="estacoesLink" />
-  <VerticalNavLink :item="questoesLink" />
+  <VerticalNavLink :item="questoesDescritivasLink" />
   <VerticalNavLink :item="grupoChatLink" />
 
   <VerticalNavGroup

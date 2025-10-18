@@ -1,0 +1,440 @@
+// ============================================
+// TEMPLATE 3: CLEAN SWISS
+// Master Styles - Design Minimalista
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+// GLOBAL
+.landing-page {
+    background: $white;
+    color: $black;
+    font-family: $font-sans;
+
+    * {
+        box-sizing: border-box;
+    }
+}
+
+// HEADER
+.landing-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: $z-header;
+    background: $white;
+    border-bottom: 1px solid $gray-200;
+
+    &__container {
+        @include container;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 80px;
+    }
+
+    &__logo-text {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: $black;
+    }
+
+    &__nav {
+        display: none;
+
+        @include desktop {
+            display: flex;
+            gap: $space-12;
+        }
+    }
+
+    &__nav-link {
+        color: $gray-600;
+        text-decoration: none;
+        transition: color $transition;
+
+        &:hover {
+            color: $black;
+        }
+    }
+
+    &__btn-signup {
+        padding: $space-3 $space-8;
+        background: $black;
+        color: $white;
+        border: none;
+        cursor: pointer;
+        transition: background $transition;
+
+        &:hover {
+            background: $gray-900;
+        }
+    }
+}
+
+// HERO
+.hero-section {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding-top: 80px;
+
+    &__container {
+        @include container;
+    }
+
+    &__content {
+        max-width: 900px;
+        padding: $space-24 0;
+    }
+
+    &__title {
+        @include heading-xl;
+        margin-bottom: $space-8;
+
+        .highlight {
+            color: $green;
+        }
+    }
+
+    &__description {
+        font-size: 1.5rem;
+        color: $gray-600;
+        margin-bottom: $space-12;
+        max-width: 600px;
+    }
+
+    &__btn-primary {
+        padding: $space-4 $space-12;
+        background: $black;
+        color: $white;
+        border: none;
+        font-size: 1.125rem;
+        cursor: pointer;
+        transition: background $transition;
+
+        &:hover {
+            background: $gray-900;
+        }
+    }
+
+    &__stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: $space-12;
+        margin-top: $space-24;
+        padding-top: $space-24;
+        border-top: 1px solid $gray-200;
+    }
+
+    &__stat-number {
+        font-family: $font-mono;
+        font-size: 3rem;
+        font-weight: 700;
+        color: $black;
+    }
+
+    &__stat-label {
+        font-size: 0.875rem;
+        color: $gray-600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+}
+
+// FEATURES
+.features-section {
+    padding: $space-32 0;
+    border-top: 1px solid $gray-200;
+
+    &__container {
+        @include container;
+    }
+
+    &__title {
+        @include heading-lg;
+        margin-bottom: $space-24;
+    }
+
+    &__grid {
+        display: grid;
+        gap: $space-16;
+
+        @include tablet {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @include desktop {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    &__card {
+        border-top: 2px solid $black;
+        padding-top: $space-6;
+
+        &-number {
+            font-family: $font-mono;
+            font-size: 1rem;
+            color: $gray-400;
+            margin-bottom: $space-4;
+        }
+
+        &-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: $space-3;
+            color: $black;
+        }
+
+        &-description {
+            color: $gray-600;
+            line-height: 1.6;
+        }
+    }
+}
+
+// PRICING
+.pricing-section {
+    padding: $space-32 0;
+    border-top: 1px solid $gray-200;
+
+    &__container {
+        @include container;
+    }
+
+    &__title {
+        @include heading-lg;
+        margin-bottom: $space-24;
+    }
+
+    &__grid {
+        display: grid;
+        gap: $space-8;
+        max-width: 400px;
+
+        @include tablet {
+            max-width: none;
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    &__card {
+        border: 1px solid $gray-200;
+        padding: $space-8;
+
+        &--popular {
+            border-color: $black;
+            border-width: 2px;
+        }
+
+        &-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: $space-2;
+        }
+
+        &-price {
+            font-family: $font-mono;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: $space-6;
+        }
+
+        &-features {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 $space-8;
+
+            li {
+                padding: $space-2 0;
+                border-bottom: 1px solid $gray-100;
+                font-size: 0.875rem;
+
+                &::before {
+                    content: '✓ ';
+                    color: $green;
+                }
+            }
+        }
+
+        &-button {
+            width: 100%;
+            padding: $space-3 0;
+            background: $black;
+            color: $white;
+            border: none;
+            cursor: pointer;
+            transition: background $transition;
+
+            &:hover {
+                background: $gray-900;
+            }
+
+            .pricing-section__card--popular & {
+                background: $green;
+
+                &:hover {
+                    background: darken($green, 10%);
+                }
+            }
+        }
+    }
+}
+
+// TESTIMONIALS
+.testimonials-section {
+    padding: $space-32 0;
+    border-top: 1px solid $gray-200;
+
+    &__container {
+        @include container;
+    }
+
+    &__title {
+        @include heading-lg;
+        margin-bottom: $space-24;
+    }
+
+    &__grid {
+        display: grid;
+        gap: $space-12;
+
+        @include tablet {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    &__card {
+        border-left: 2px solid $black;
+        padding-left: $space-6;
+
+        &-quote {
+            font-size: 1.125rem;
+            line-height: 1.6;
+            margin-bottom: $space-6;
+            color: $gray-900;
+        }
+
+        &-name {
+            font-weight: 700;
+            color: $black;
+        }
+
+        &-role {
+            font-size: 0.875rem;
+            color: $gray-600;
+        }
+    }
+}
+
+// FAQ
+.faq-section {
+    padding: $space-32 0;
+    border-top: 1px solid $gray-200;
+
+    &__container {
+        @include container;
+        max-width: 800px;
+    }
+
+    &__title {
+        @include heading-lg;
+        margin-bottom: $space-24;
+    }
+
+    &__item {
+        border-top: 1px solid $gray-200;
+        padding: $space-6 0;
+
+        &:last-child {
+            border-bottom: 1px solid $gray-200;
+        }
+    }
+
+    &__question {
+        @include reset-button;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 1.125rem;
+        font-weight: 600;
+        text-align: left;
+
+        &:hover {
+            opacity: 0.7;
+        }
+    }
+
+    &__answer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+
+        .faq-section__item--active & {
+            max-height: 500px;
+        }
+
+        &-content {
+            padding-top: $space-4;
+            color: $gray-600;
+            line-height: 1.6;
+        }
+    }
+}
+
+// PHASES
+.phases-section {
+    padding: $space-32 0;
+    border-top: 1px solid $gray-200;
+
+    &__container {
+        @include container;
+    }
+
+    &__title {
+        @include heading-lg;
+        margin-bottom: $space-24;
+    }
+
+    &__grid {
+        display: grid;
+        gap: $space-8;
+
+        @include tablet {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+}
+
+// FOOTER
+.landing-footer {
+    border-top: 1px solid $gray-200;
+    padding: $space-16 0;
+
+    &__container {
+        @include container;
+    }
+
+    &__grid {
+        display: grid;
+        gap: $space-12;
+
+        @include desktop {
+            grid-template-columns: 2fr repeat(3, 1fr);
+        }
+    }
+
+    &__copyright {
+        margin-top: $space-16;
+        padding-top: $space-8;
+        border-top: 1px solid $gray-200;
+        font-size: 0.875rem;
+        color: $gray-600;
+        text-align: center;
+    }
+}

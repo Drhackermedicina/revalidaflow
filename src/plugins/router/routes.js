@@ -102,6 +102,14 @@ export const routes = [
         },
       },
       {
+        path: 'descriptive-questions',
+        name: 'descriptive-questions',
+        component: () => import('@/pages/DescriptiveQuestionsList.vue'),
+        meta: {
+          requiresAuth: true,
+        },
+      },
+      {
         // rota 'virtual-agent' removida (página de agente virtual legado)
         // Para restaurar, recupere '@/pages/VirtualAgentView.vue' do histórico Git
         path: 'chat-group',
@@ -179,6 +187,21 @@ export const routes = [
           layout: 'default',
         },
         props: true,
+      },
+      {
+        path: 'descriptive-question/:id',
+        name: 'descriptive-question',
+        component: () => import('@/views/DescriptiveQuestionView.vue'),
+        props: true,
+      },
+      {
+        path: 'admin/descriptive-questions/new',
+        name: 'admin-descriptive-questions-new',
+        component: () => import('@/views/admin/DescriptiveQuestionForm.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true
+        },
       },
       // {
       //   path: 'task-manager',

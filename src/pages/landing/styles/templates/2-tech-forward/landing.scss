@@ -1,0 +1,318 @@
+// ============================================
+// TEMPLATE 2: TECH FORWARD
+// Master Styles - Importa todas as seções
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+// GLOBAL STYLES
+.landing-page {
+    background: $dark-bg;
+    color: $text-light;
+    font-family: $font-body;
+    overflow-x: hidden;
+
+    // Gradient Mesh Background
+    &::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: $gradient-mesh;
+        opacity: 0.3;
+        z-index: 0;
+        animation: gradientMove 20s ease infinite;
+        background-size: 400% 400%;
+    }
+
+    section {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+// HERO SECTION
+.hero-section {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+
+    &__container {
+        @include container;
+        padding: $space-4xl 0;
+    }
+
+    &__content {
+        text-align: center;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    &__badge {
+        @include glass-dark;
+        display: inline-flex;
+        padding: $space-sm $space-lg;
+        border-radius: $radius-full;
+        margin-bottom: $space-xl;
+        animation: glowPulse 3s ease-in-out infinite;
+    }
+
+    &__title {
+        font-family: $font-heading;
+        font-size: clamp(2.5rem, 8vw, 5rem);
+        font-weight: 800;
+        background: $gradient-primary;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: $space-lg;
+        line-height: 1.1;
+    }
+
+    &__description {
+        font-size: 1.25rem;
+        color: $text-muted;
+        margin-bottom: $space-2xl;
+    }
+
+    &__cta {
+        display: flex;
+        gap: $space-md;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    &__btn {
+        @include button-neon;
+    }
+}
+
+// FEATURES SECTION
+.features-section {
+    padding: $space-4xl 0;
+
+    &__container {
+        @include container;
+    }
+
+    &__header {
+        text-align: center;
+        margin-bottom: $space-4xl;
+    }
+
+    &__title {
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        font-weight: 700;
+        background: $gradient-secondary;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: $space-md;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-2xl;
+
+        @include md {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @include lg {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    &__card {
+        @include card-3d;
+        @include glow-border;
+
+        &-icon {
+            width: 64px;
+            height: 64px;
+            background: $gradient-primary;
+            border-radius: $radius-md;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: $space-lg;
+            font-size: 2rem;
+        }
+
+        &-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: $space-md;
+            color: $text-white;
+        }
+
+        &-description {
+            color: $text-muted;
+            line-height: 1.6;
+        }
+    }
+}
+
+// PRICING SECTION
+.pricing-section {
+    padding: $space-4xl 0;
+
+    &__container {
+        @include container;
+    }
+
+    &__header {
+        text-align: center;
+        margin-bottom: $space-4xl;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-xl;
+        max-width: 1200px;
+        margin: 0 auto;
+
+        @include md {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    &__card {
+        @include glass-dark;
+        border-radius: $radius-xl;
+        padding: $space-2xl;
+        transition: $transition-base;
+
+        &--popular {
+            @include glow-border($primary-violet);
+            transform: scale(1.05);
+
+            @include mobile {
+                transform: scale(1);
+            }
+        }
+
+        &:hover {
+            transform: translateY(-8px);
+            box-shadow: $shadow-glow-violet;
+        }
+
+        &-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: $space-md;
+            color: $text-white;
+        }
+
+        &-price {
+            font-size: 3rem;
+            font-weight: 800;
+            background: $gradient-primary;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: $space-xl;
+        }
+
+        &-button {
+            @include button-neon;
+            width: 100%;
+        }
+    }
+}
+
+// SIMPLE SECTIONS
+.testimonials-section,
+.faq-section,
+.phases-section {
+    padding: $space-4xl 0;
+
+    .container {
+        @include container;
+    }
+
+    h2 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        text-align: center;
+        background: $gradient-primary;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: $space-3xl;
+    }
+}
+
+// HEADER
+.landing-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: $z-sticky;
+    @include glass-dark;
+
+    &__container {
+        @include container;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: $space-lg;
+        padding-bottom: $space-lg;
+    }
+
+    &__logo-text {
+        font-size: 1.5rem;
+        font-weight: 800;
+        background: $gradient-primary;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    &__nav {
+        display: none;
+
+        @include lg {
+            display: flex;
+            gap: $space-2xl;
+        }
+    }
+
+    &__nav-link {
+        color: $text-muted;
+        text-decoration: none;
+        transition: $transition-fast;
+
+        &:hover {
+            color: $text-white;
+        }
+    }
+
+    &__btn-signup {
+        @include button-neon;
+    }
+}
+
+// FOOTER
+.landing-footer {
+    background: $surface-darker;
+    padding: $space-4xl 0 $space-xl;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+    &__container {
+        @include container;
+    }
+
+    &__copyright {
+        text-align: center;
+        color: $text-muted;
+        margin-top: $space-2xl;
+    }
+}

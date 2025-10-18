@@ -1,0 +1,245 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Features Section Styles
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+.features-section {
+    position: relative;
+    padding: $section-padding-mobile 0;
+    background: $bg-light;
+
+    @include md {
+        padding: $section-padding-tablet 0;
+    }
+
+    @include lg {
+        padding: $section-padding-desktop 0;
+    }
+
+    &__container {
+        @include container;
+    }
+
+    // Section Header
+    &__header {
+        text-align: center;
+        max-width: 800px;
+        margin: 0 auto $space-4xl;
+    }
+
+    &__subtitle {
+        display: inline-block;
+        font-size: $font-size-sm;
+        font-weight: $weight-semibold;
+        color: $primary-cyan;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: $space-md;
+    }
+
+    &__title {
+        @include heading-2;
+        margin-bottom: $space-lg;
+    }
+
+    &__description {
+        @include body-large;
+    }
+
+    // Bento Grid Layout
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-lg;
+
+        @include md {
+            grid-template-columns: repeat(2, 1fr);
+            gap: $space-xl;
+        }
+
+        @include lg {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, auto);
+            gap: $space-2xl;
+        }
+    }
+
+    // Feature Card
+    &__card {
+        @include card-base;
+        border: $border-width solid $border-light;
+        position: relative;
+        overflow: hidden;
+        transition: $transition-all;
+
+        // Bento Grid Variations
+        &--large {
+            @include lg {
+                grid-row: span 2;
+            }
+        }
+
+        &--wide {
+            @include lg {
+                grid-column: span 2;
+            }
+        }
+
+        // Hover Effect
+        &:hover {
+            transform: translateY(-4px);
+            border-color: $primary-cyan;
+            box-shadow: $shadow-xl, $shadow-cyan;
+
+            .features-section__card-icon-wrapper {
+                transform: scale(1.1);
+            }
+
+            .features-section__card-arrow {
+                transform: translateX(4px);
+                opacity: 1;
+            }
+        }
+
+        // Stagger animation on scroll
+        @for $i from 1 through 6 {
+            &:nth-child(#{$i}) {
+                animation: fadeInUp 0.6s ease-out #{$i * 0.1}s both;
+            }
+        }
+    }
+
+    &__card-icon-wrapper {
+        width: 64px;
+        height: 64px;
+        border-radius: $radius-xl;
+        background: $gradient-cyan;
+        @include flex-center;
+        margin-bottom: $space-lg;
+        transition: transform $transition-base;
+        box-shadow: $shadow-cyan;
+
+        // Color variations
+        &--blue {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            box-shadow: 0 10px 40px -10px rgba(59, 130, 246, 0.3);
+        }
+
+        &--green {
+            background: $gradient-green;
+            box-shadow: $shadow-green;
+        }
+
+        &--purple {
+            background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+            box-shadow: 0 10px 40px -10px rgba(139, 92, 246, 0.3);
+        }
+
+        &--orange {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            box-shadow: 0 10px 40px -10px rgba(245, 158, 11, 0.3);
+        }
+
+        &--red {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            box-shadow: 0 10px 40px -10px rgba(239, 68, 68, 0.3);
+        }
+    }
+
+    &__card-icon {
+        width: 32px;
+        height: 32px;
+        color: white;
+    }
+
+    &__card-badge {
+        display: inline-block;
+        padding: $space-xs $space-md;
+        background: rgba($primary-cyan, 0.1);
+        color: $primary-cyan;
+        border-radius: $radius-full;
+        font-size: $font-size-xs;
+        font-weight: $weight-semibold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: $space-md;
+    }
+
+    &__card-title {
+        @include heading-4;
+        margin-bottom: $space-md;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    &__card-arrow {
+        width: 20px;
+        height: 20px;
+        color: $primary-cyan;
+        opacity: 0;
+        transition: $transition-all;
+    }
+
+    &__card-description {
+        @include body-base;
+        margin-bottom: $space-lg;
+    }
+
+    &__card-features {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+            display: flex;
+            align-items: flex-start;
+            gap: $space-sm;
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            margin-bottom: $space-sm;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+
+            &::before {
+                content: '✓';
+                color: $primary-green;
+                font-weight: $weight-bold;
+                flex-shrink: 0;
+            }
+        }
+    }
+
+    // Decorative Elements
+    &__decoration {
+        position: absolute;
+        pointer-events: none;
+        opacity: 0.05;
+
+        &--top-right {
+            top: -50px;
+            right: -50px;
+            width: 200px;
+            height: 200px;
+            background: $gradient-cyan;
+            border-radius: 50%;
+            filter: blur(60px);
+        }
+
+        &--bottom-left {
+            bottom: -50px;
+            left: -50px;
+            width: 200px;
+            height: 200px;
+            background: $gradient-green;
+            border-radius: 50%;
+            filter: blur(60px);
+        }
+    }
+}

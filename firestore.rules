@@ -74,6 +74,30 @@ service cloud.firestore {
       allow read, write: if request.auth != null && hasFullAccess();
     }
 
+    // === QUESTÕES DESCRITIVAS ===
+    match /descriptiveQuestions/{questionId} {
+      allow read: if request.auth != null; // Qualquer usuário autenticado pode ler
+      allow write: if request.auth != null && hasFullAccess(); // Apenas admins podem escrever
+    }
+
+    // === RESPOSTAS DESCRITIVAS DOS USUÁRIOS ===
+    match /userDescriptiveAnswers/{answerId} {
+      // Usuários autenticados podem ler apenas seus próprios registros
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+
+      // Usuários autenticados podem criar apenas registros para si mesmos
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+
+      // Ninguém pode atualizar registros (imutabilidade para integridade do histórico)
+      allow update: if false;
+
+      // Ninguém pode deletar registros (preservação do histórico)
+      allow delete: if false;
+
+      // Administradores podem ler todos os registros para análise/analytics
+      allow read: if request.auth != null && hasFullAccess();
+    }
+
     // === TESTE DE CONEXÃO ===
     match /test_connection/{docId} {
       allow read, write: if request.auth != null;
@@ -101,8 +125,13 @@ service cloud.firestore {
              request.auth.token.email == 'agent@revalidafacil.com';
     }
 
+    function hasAdminRole() {
+      return request.auth != null &&
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    }
+
     function hasFullAccess() {
-      return isAdmin() || isAgentUser();
+      return isAdmin() || isAgentUser() || hasAdminRole();
     }
   }
 }

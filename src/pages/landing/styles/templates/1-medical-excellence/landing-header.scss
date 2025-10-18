@@ -1,0 +1,214 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Landing Header Styles
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+.landing-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: $z-sticky;
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: $backdrop-blur-md;
+    backdrop-filter: $backdrop-blur-md;
+    border-bottom: $border-width solid $border-light;
+    transition: $transition-all;
+
+    &--scrolled {
+        box-shadow: $shadow-md;
+    }
+
+    &__container {
+        @include container;
+        @include flex-between;
+        padding-top: $space-lg;
+        padding-bottom: $space-lg;
+
+        @include lg {
+            padding-top: $space-xl;
+            padding-bottom: $space-xl;
+        }
+    }
+
+    // Logo
+    &__logo {
+        display: flex;
+        align-items: center;
+        gap: $space-md;
+        text-decoration: none;
+        transition: $transition-transform;
+
+        &:hover {
+            transform: scale(1.05);
+        }
+    }
+
+    &__logo-image {
+        height: 40px;
+        width: auto;
+
+        @include lg {
+            height: 48px;
+        }
+    }
+
+    &__logo-text {
+        font-size: $font-size-xl;
+        font-weight: $weight-extrabold;
+        @include gradient-text;
+
+        @include mobile {
+            display: none;
+        }
+    }
+
+    // Navigation
+    &__nav {
+        display: none;
+
+        @include lg {
+            display: flex;
+            align-items: center;
+            gap: $space-2xl;
+        }
+    }
+
+    &__nav-link {
+        font-size: $font-size-base;
+        font-weight: $weight-medium;
+        color: $text-primary;
+        text-decoration: none;
+        transition: $transition-colors;
+        position: relative;
+
+        &::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: $primary-cyan;
+            transition: width $transition-base;
+        }
+
+        &:hover,
+        &--active {
+            color: $primary-cyan;
+
+            &::after {
+                width: 100%;
+            }
+        }
+    }
+
+    // Actions
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: $space-md;
+    }
+
+    &__btn-login {
+        @include button-ghost;
+        padding: $space-sm $space-lg;
+        font-size: $font-size-sm;
+
+        @include mobile {
+            display: none;
+        }
+    }
+
+    &__btn-signup {
+        @include button-primary;
+        padding: $space-sm $space-lg;
+        font-size: $font-size-sm;
+    }
+
+    // Mobile Menu Toggle
+    &__menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: transparent;
+        border: $border-width solid $border-medium;
+        border-radius: $radius-md;
+        cursor: pointer;
+        transition: $transition-all;
+
+        @include lg {
+            display: none;
+        }
+
+        &:hover {
+            background: $bg-lighter;
+            border-color: $primary-cyan;
+        }
+
+        i {
+            width: 20px;
+            height: 20px;
+            color: $text-primary;
+        }
+    }
+
+    // Mobile Menu
+    &__mobile-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border-bottom: $border-width solid $border-light;
+        box-shadow: $shadow-lg;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+
+        &--open {
+            max-height: 500px;
+        }
+    }
+
+    &__mobile-nav {
+        display: flex;
+        flex-direction: column;
+        padding: $space-lg;
+    }
+
+    &__mobile-link {
+        padding: $space-md;
+        font-size: $font-size-base;
+        font-weight: $weight-medium;
+        color: $text-primary;
+        text-decoration: none;
+        border-radius: $radius-md;
+        transition: $transition-all;
+
+        &:hover,
+        &--active {
+            background: rgba($primary-cyan, 0.1);
+            color: $primary-cyan;
+        }
+    }
+
+    &__mobile-divider {
+        height: $border-width;
+        background: $border-light;
+        margin: $space-md 0;
+    }
+
+    &__mobile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: $space-sm;
+        padding-top: $space-md;
+    }
+}

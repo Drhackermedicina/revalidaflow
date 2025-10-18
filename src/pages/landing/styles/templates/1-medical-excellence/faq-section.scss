@@ -1,0 +1,199 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// FAQ Section Styles
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+.faq-section {
+    position: relative;
+    padding: $section-padding-mobile 0;
+    background: $bg-light;
+
+    @include md {
+        padding: $section-padding-tablet 0;
+    }
+
+    @include lg {
+        padding: $section-padding-desktop 0;
+    }
+
+    &__container {
+        @include container-narrow;
+    }
+
+    &__header {
+        text-align: center;
+        margin-bottom: $space-4xl;
+    }
+
+    &__subtitle {
+        display: inline-block;
+        font-size: $font-size-sm;
+        font-weight: $weight-semibold;
+        color: $primary-cyan;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: $space-md;
+    }
+
+    &__title {
+        @include heading-2;
+        margin-bottom: $space-lg;
+    }
+
+    &__description {
+        @include body-large;
+    }
+
+    // Accordion List
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: $space-md;
+    }
+
+    // Accordion Item
+    &__item {
+        background: white;
+        border: $border-width solid $border-light;
+        border-radius: $radius-xl;
+        overflow: hidden;
+        transition: $transition-all;
+
+        &--active {
+            border-color: $primary-cyan;
+            box-shadow: $shadow-md;
+
+            .faq-section__question-icon {
+                transform: rotate(180deg);
+                color: $primary-cyan;
+            }
+        }
+
+        &:hover {
+            border-color: $border-dark;
+        }
+    }
+
+    // Question Button
+    &__question {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-lg;
+        padding: $space-xl;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        transition: $transition-all;
+
+        &:hover {
+            .faq-section__question-text {
+                color: $primary-cyan;
+            }
+        }
+    }
+
+    &__question-text {
+        font-size: $font-size-lg;
+        font-weight: $weight-semibold;
+        color: $text-primary;
+        line-height: $leading-snug;
+        transition: $transition-colors;
+    }
+
+    &__question-icon {
+        width: 24px;
+        height: 24px;
+        color: $text-secondary;
+        flex-shrink: 0;
+        transition: $transition-all;
+    }
+
+    // Answer Content
+    &__answer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+
+        .faq-section__item--active & {
+            max-height: 500px;
+        }
+    }
+
+    &__answer-content {
+        padding: 0 $space-xl $space-xl;
+        font-size: $font-size-base;
+        line-height: $leading-relaxed;
+        color: $text-secondary;
+
+        p {
+            margin-bottom: $space-md;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+
+        ul {
+            padding-left: $space-lg;
+            margin: $space-md 0;
+
+            li {
+                margin-bottom: $space-sm;
+            }
+        }
+
+        strong {
+            color: $text-primary;
+            font-weight: $weight-semibold;
+        }
+    }
+
+    // CTA Card
+    &__cta {
+        margin-top: $space-4xl;
+        padding: $space-3xl;
+        background: $gradient-dark;
+        border-radius: $radius-2xl;
+        text-align: center;
+        color: white;
+    }
+
+    &__cta-title {
+        font-size: $font-size-3xl;
+        font-weight: $weight-bold;
+        margin-bottom: $space-md;
+
+        @include lg {
+            font-size: $font-size-4xl;
+        }
+    }
+
+    &__cta-description {
+        font-size: $font-size-lg;
+        opacity: 0.9;
+        margin-bottom: $space-2xl;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    &__cta-button {
+        @include button-base;
+        background: white;
+        color: $primary-dark;
+        padding: $space-lg $space-3xl;
+        font-size: $font-size-lg;
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: $shadow-xl;
+        }
+    }
+}

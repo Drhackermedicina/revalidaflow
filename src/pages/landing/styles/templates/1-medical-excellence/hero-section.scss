@@ -1,0 +1,299 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Hero Section Styles
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+.hero-section {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    @include grid-pattern;
+
+    // Diagonal Split Background
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 35%;
+        height: 100%;
+        background: $gradient-dark;
+        clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%);
+        z-index: 0;
+
+        @include mobile {
+            display: none;
+        }
+    }
+
+    // Container
+    &__container {
+        @include container;
+        position: relative;
+        z-index: 1;
+        padding-top: $space-4xl;
+        padding-bottom: $space-4xl;
+
+        @include lg {
+            padding-top: $space-5xl;
+            padding-bottom: $space-5xl;
+        }
+    }
+
+    // Layout Grid
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-3xl;
+        align-items: center;
+
+        @include lg {
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: $space-4xl;
+        }
+    }
+
+    // Content Area
+    &__content {
+        animation: fadeInUp 0.8s ease-out;
+    }
+
+    // Badge
+    &__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: $space-sm;
+        padding: $space-sm $space-lg;
+        background: white;
+        border: $border-width solid $border-light;
+        border-radius: $radius-full;
+        margin-bottom: $space-xl;
+        animation: badgePulse 2s ease-in-out infinite;
+        box-shadow: $shadow-md;
+
+        &-icon {
+            width: 20px;
+            height: 20px;
+            color: $primary-cyan;
+        }
+
+        &-text {
+            font-size: $font-size-sm;
+            font-weight: $weight-semibold;
+            color: $text-primary;
+        }
+
+        &-count {
+            @include gradient-text;
+            font-weight: $weight-bold;
+        }
+    }
+
+    // Heading
+    &__heading {
+        @include heading-1;
+        margin-bottom: $space-lg;
+
+        // Gradient text for emphasis
+        .highlight {
+            @include gradient-text;
+        }
+    }
+
+    // Description
+    &__description {
+        @include body-large;
+        margin-bottom: $space-2xl;
+        max-width: 600px;
+    }
+
+    // CTA Buttons
+    &__cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $space-md;
+        margin-bottom: $space-3xl;
+
+        @include mobile {
+            flex-direction: column;
+        }
+    }
+
+    &__btn-primary {
+        @include button-primary;
+        padding: $space-lg $space-2xl;
+        font-size: $font-size-lg;
+
+        i {
+            margin-left: $space-sm;
+            transition: transform $transition-base;
+        }
+
+        &:hover i {
+            transform: translateX(4px);
+        }
+    }
+
+    &__btn-secondary {
+        @include button-secondary;
+        padding: $space-lg $space-2xl;
+        font-size: $font-size-lg;
+
+        i {
+            margin-right: $space-sm;
+        }
+    }
+
+    // Stats Bar (Floating)
+    &__stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: $space-xl;
+        padding: $space-xl;
+        background: white;
+        border-radius: $radius-xl;
+        box-shadow: $shadow-xl;
+        animation: fadeInUp 1s ease-out 0.3s both;
+
+        @include md {
+            grid-template-columns: repeat(4, 1fr);
+            gap: $space-2xl;
+            padding: $space-2xl $space-3xl;
+        }
+    }
+
+    &__stat {
+        text-align: center;
+
+        &-number {
+            display: block;
+            font-family: $font-mono;
+            font-size: $font-size-3xl;
+            font-weight: $weight-bold;
+            @include gradient-text;
+            margin-bottom: $space-xs;
+
+            @include md {
+                font-size: $font-size-4xl;
+            }
+        }
+
+        &-label {
+            font-size: $font-size-sm;
+            color: $text-secondary;
+            font-weight: $weight-medium;
+        }
+    }
+
+    // Image/Illustration Area
+    &__visual {
+        position: relative;
+        display: none;
+
+        @include lg {
+            display: block;
+            animation: fadeInRight 1s ease-out 0.2s both;
+        }
+    }
+
+    &__mockup {
+        position: relative;
+        width: 100%;
+        max-width: 500px;
+        margin-left: auto;
+
+        img {
+            width: 100%;
+            height: auto;
+            border-radius: $radius-2xl;
+            box-shadow: $shadow-2xl, $shadow-cyan;
+            animation: float 6s ease-in-out infinite;
+        }
+    }
+
+    // Floating Elements
+    &__floating-badge {
+        position: absolute;
+        background: white;
+        padding: $space-md $space-lg;
+        border-radius: $radius-lg;
+        box-shadow: $shadow-xl;
+        animation: float 4s ease-in-out infinite;
+
+        &--top {
+            top: 10%;
+            right: -10%;
+            animation-delay: 0.5s;
+        }
+
+        &--bottom {
+            bottom: 15%;
+            left: -15%;
+            animation-delay: 1s;
+        }
+
+        &-icon {
+            width: 32px;
+            height: 32px;
+            margin-bottom: $space-xs;
+            color: $primary-green;
+        }
+
+        &-text {
+            font-size: $font-size-sm;
+            font-weight: $weight-semibold;
+            color: $text-primary;
+        }
+    }
+
+    // Scroll Indicator
+    &__scroll {
+        position: absolute;
+        bottom: $space-2xl;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: $space-sm;
+        cursor: pointer;
+        animation: bounce 2s ease-in-out infinite;
+
+        @include mobile {
+            display: none;
+        }
+
+        &-text {
+            font-size: $font-size-xs;
+            font-weight: $weight-semibold;
+            color: $text-secondary;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        &-icon {
+            width: 24px;
+            height: 24px;
+            color: $primary-cyan;
+        }
+    }
+}
+
+// Responsive fadeInRight animation
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

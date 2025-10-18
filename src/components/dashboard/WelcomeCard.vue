@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { useDashboardData } from '@/composables/useDashboardData.js'
@@ -155,6 +155,10 @@ const motivationalMessage = computed(() => {
   } else {
     return 'Parabéns pela dedicação excepcional!'
   }
+})
+
+// Lifecycle
+onMounted(() => {
 })
 
 // Navegação

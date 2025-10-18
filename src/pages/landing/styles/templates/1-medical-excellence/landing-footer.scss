@@ -1,0 +1,263 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Landing Footer Styles
+// ============================================
+
+@import './variables';
+@import './mixins';
+@import './animations';
+
+.landing-footer {
+    position: relative;
+    background: $primary-dark;
+    color: white;
+
+    // Main Footer
+    &__main {
+        padding: $space-4xl 0 $space-3xl;
+    }
+
+    &__container {
+        @include container;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-3xl;
+
+        @include md {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @include lg {
+            grid-template-columns: 2fr repeat(3, 1fr);
+            gap: $space-4xl;
+        }
+    }
+
+    // Brand Column
+    &__brand {
+        @include lg {
+            padding-right: $space-2xl;
+        }
+    }
+
+    &__logo {
+        display: flex;
+        align-items: center;
+        gap: $space-md;
+        margin-bottom: $space-lg;
+    }
+
+    &__logo-image {
+        height: 48px;
+        width: auto;
+    }
+
+    &__logo-text {
+        font-size: $font-size-2xl;
+        font-weight: $weight-extrabold;
+        color: white;
+    }
+
+    &__description {
+        font-size: $font-size-base;
+        line-height: $leading-relaxed;
+        color: rgba(white, 0.8);
+        margin-bottom: $space-xl;
+    }
+
+    &__social {
+        display: flex;
+        gap: $space-md;
+    }
+
+    &__social-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: rgba(white, 0.1);
+        border-radius: $radius-md;
+        color: white;
+        text-decoration: none;
+        transition: $transition-all;
+
+        &:hover {
+            background: $primary-cyan;
+            transform: translateY(-2px);
+        }
+
+        i {
+            width: 20px;
+            height: 20px;
+        }
+    }
+
+    &__column-title {
+        font-size: $font-size-lg;
+        font-weight: $weight-semibold;
+        margin-bottom: $space-lg;
+        color: white;
+    }
+
+    &__links {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    &__link-item {
+        margin-bottom: $space-md;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    &__link {
+        font-size: $font-size-base;
+        color: rgba(white, 0.7);
+        text-decoration: none;
+        transition: $transition-colors;
+        display: inline-flex;
+        align-items: center;
+        gap: $space-xs;
+
+        &:hover {
+            color: $primary-cyan;
+            padding-left: $space-xs;
+        }
+
+        i {
+            width: 16px;
+            height: 16px;
+            opacity: 0;
+            transition: $transition-all;
+        }
+
+        &:hover i {
+            opacity: 1;
+        }
+    }
+
+    // Newsletter
+    &__newsletter {
+        &-title {
+            font-size: $font-size-lg;
+            font-weight: $weight-semibold;
+            margin-bottom: $space-md;
+            color: white;
+        }
+
+        &-description {
+            font-size: $font-size-sm;
+            color: rgba(white, 0.7);
+            margin-bottom: $space-lg;
+        }
+
+        &-form {
+            display: flex;
+            gap: $space-sm;
+        }
+
+        &-input {
+            flex-grow: 1;
+            padding: $space-md $space-lg;
+            background: rgba(white, 0.1);
+            border: $border-width solid rgba(white, 0.2);
+            border-radius: $radius-md;
+            color: white;
+            font-size: $font-size-base;
+            outline: none;
+            transition: $transition-all;
+
+            &::placeholder {
+                color: rgba(white, 0.5);
+            }
+
+            &:focus {
+                background: rgba(white, 0.15);
+                border-color: $primary-cyan;
+            }
+        }
+
+        &-button {
+            @include button-base;
+            background: $primary-cyan;
+            color: white;
+            padding: $space-md $space-xl;
+            flex-shrink: 0;
+
+            &:hover {
+                background: $gradient-cyan-end;
+                transform: translateY(-2px);
+            }
+        }
+    }
+
+    // Bottom Bar
+    &__bottom {
+        padding: $space-xl 0;
+        border-top: $border-width solid rgba(white, 0.1);
+    }
+
+    &__bottom-container {
+        @include container;
+        @include flex-between;
+        gap: $space-lg;
+
+        @include mobile {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+
+    &__copyright {
+        font-size: $font-size-sm;
+        color: rgba(white, 0.6);
+    }
+
+    &__bottom-links {
+        display: flex;
+        gap: $space-xl;
+
+        @include mobile {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+
+    &__bottom-link {
+        font-size: $font-size-sm;
+        color: rgba(white, 0.6);
+        text-decoration: none;
+        transition: $transition-colors;
+
+        &:hover {
+            color: $primary-cyan;
+        }
+    }
+
+    // Badge
+    &__badge {
+        margin-top: $space-lg;
+        padding: $space-md;
+        background: rgba($primary-cyan, 0.1);
+        border: $border-width solid rgba($primary-cyan, 0.3);
+        border-radius: $radius-md;
+        text-align: center;
+
+        &-text {
+            font-size: $font-size-xs;
+            color: rgba(white, 0.8);
+
+            strong {
+                color: $primary-cyan;
+                font-weight: $weight-semibold;
+            }
+        }
+    }
+}

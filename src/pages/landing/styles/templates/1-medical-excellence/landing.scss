@@ -1,0 +1,188 @@
+// ============================================
+// TEMPLATE 1: MEDICAL EXCELLENCE
+// Master Landing Page Styles
+// ============================================
+
+// Import Base Files
+@import './variables';
+@import './mixins';
+@import './animations';
+
+// Import Sections
+@import './landing-header';
+@import './hero-section';
+@import './features-section';
+@import './phases-section';
+@import './pricing-section';
+@import './testimonials-section';
+@import './faq-section';
+@import './landing-footer';
+
+// ============================================
+// GLOBAL LANDING PAGE STYLES
+// ============================================
+
+.landing-page {
+    font-family: $font-body;
+    color: $text-primary;
+    background: white;
+    overflow-x: hidden;
+
+    // Reset
+    * {
+        box-sizing: border-box;
+    }
+
+    // Ensure sections are stacked properly
+    section {
+        position: relative;
+    }
+}
+
+// ============================================
+// UTILITY CLASSES
+// ============================================
+
+// Container helpers
+.container {
+    @include container;
+}
+
+.container-narrow {
+    @include container-narrow;
+}
+
+// Text utilities
+.text-center {
+    text-align: center;
+}
+
+.text-gradient {
+    @include gradient-text;
+}
+
+// Spacing utilities
+.mt-0 {
+    margin-top: 0;
+}
+
+.mt-1 {
+    margin-top: $space-sm;
+}
+
+.mt-2 {
+    margin-top: $space-md;
+}
+
+.mt-3 {
+    margin-top: $space-lg;
+}
+
+.mt-4 {
+    margin-top: $space-xl;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+.mb-1 {
+    margin-bottom: $space-sm;
+}
+
+.mb-2 {
+    margin-bottom: $space-md;
+}
+
+.mb-3 {
+    margin-bottom: $space-lg;
+}
+
+.mb-4 {
+    margin-bottom: $space-xl;
+}
+
+// Responsive utilities
+.mobile-only {
+    @include desktop {
+        display: none !important;
+    }
+}
+
+.desktop-only {
+    @include mobile {
+        display: none !important;
+    }
+}
+
+// Loading states
+.skeleton {
+    background: linear-gradient(90deg,
+            $bg-lighter 0%,
+            $bg-light 50%,
+            $bg-lighter 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: $radius-md;
+}
+
+// ============================================
+// ACCESSIBILITY
+// ============================================
+
+// Focus styles
+*:focus-visible {
+    @include focus-ring;
+}
+
+// Skip to main content
+.skip-to-main {
+    position: absolute;
+    top: -100px;
+    left: 0;
+    padding: $space-md $space-lg;
+    background: $primary-cyan;
+    color: white;
+    text-decoration: none;
+    z-index: 9999;
+    transition: top $transition-fast;
+
+    &:focus {
+        top: 0;
+    }
+}
+
+// Screen reader only
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+// ============================================
+// PRINT STYLES
+// ============================================
+
+@media print {
+
+    .landing-header,
+    .landing-footer,
+    .hero-section__cta,
+    .pricing-section__card-button {
+        display: none;
+    }
+
+    .landing-page {
+        background: white;
+    }
+
+    * {
+        box-shadow: none !important;
+    }
+}
