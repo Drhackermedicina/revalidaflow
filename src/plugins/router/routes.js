@@ -96,7 +96,7 @@ export const routes = [
         // Para restaurar, recupere '@/pages/AdminDashboardIA.vue' do histórico Git
         path: 'questoes',
         name: 'questoes',
-        component: () => import('@/pages/questoes.vue'),
+        component: () => import('@/pages/DescriptiveQuestionsList.vue'),
         meta: {
           requiresAuth: true,
         },

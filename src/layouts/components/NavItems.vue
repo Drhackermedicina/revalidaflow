@@ -101,7 +101,7 @@ export default {
       to: '/app/station-list',
     };
 
-    const questoesDescritivasLink = {
+    const questoesLink = {
       title: 'Questões',
       icon: 'ri-edit-box-fill',
       iconColor: '#9c27b0',
@@ -137,7 +137,7 @@ export default {
     return {
       homeLink,
       estacoesLink,
-      questoesDescritivasLink,
+      questoesLink,
       grupoChatLink,
       buscarUsuariosGroup,
       showAdminMenu,
@@ -156,7 +156,7 @@ export default {
   
   <VerticalNavLink :item="homeLink" />
   <VerticalNavLink :item="estacoesLink" />
-  <VerticalNavLink :item="questoesDescritivasLink" />
+  <VerticalNavLink :item="questoesLink" />
   <VerticalNavLink :item="grupoChatLink" />
 
   <VerticalNavGroup
