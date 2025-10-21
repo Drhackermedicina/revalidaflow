@@ -14,8 +14,12 @@
     right: 0;
     z-index: $z-sticky;
     background: rgba(255, 255, 255, 0.95);
-    -webkit-backdrop-filter: $backdrop-blur-md;
-    backdrop-filter: $backdrop-blur-md;
+
+    @supports ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+        -webkit-backdrop-filter: $backdrop-blur-md;
+        backdrop-filter: $backdrop-blur-md;
+    }
+
     border-bottom: $border-width solid $border-light;
     transition: $transition-all;
 

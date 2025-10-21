@@ -1,7 +1,8 @@
 <template>
-  <v-container 
+  <v-container
+    fluid
     :class="[
-      'py-6 chat-group-container',
+      'px-0 py-6 chat-group-container',
       isDarkTheme ? 'chat-group-container--dark' : 'chat-group-container--light'
     ]"
   >

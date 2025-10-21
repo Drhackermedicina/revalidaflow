@@ -1,5 +1,5 @@
 <template>
-  <VContainer class="descriptive-questions-container" fluid>
+  <VContainer class="descriptive-questions-container px-0" fluid>
     <!-- Header da Página -->
     <VRow class="mb-6">
       <VCol cols="12">
@@ -483,8 +483,10 @@ onMounted(() => {
 
 <style scoped>
 .descriptive-questions-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .descriptive-questions-container h1 {

@@ -5,7 +5,7 @@
       isDarkTheme ? 'ranking-view--dark' : 'ranking-view--light'
     ]"
   >
-    <v-container>
+    <v-container fluid class="px-0">
       <v-row>
         <!-- Top 3 Cards -->
         <v-col cols="12">
@@ -19,6 +19,16 @@
               </v-avatar>
               <div class="top3-nome">{{ usuario.nome }} {{ usuario.sobrenome }}</div>
               <div class="top3-pontos">{{ parseInt(usuario.pontos) || 0 }} pts</div>
+              <div class="top3-nivel">
+                <v-icon
+                  v-if="getNivelMeta(usuario).icon"
+                  :icon="getNivelMeta(usuario).icon"
+                  :color="getNivelMeta(usuario).color"
+                  size="18"
+                  class="me-1"
+                />
+                <span>{{ getNivelMeta(usuario).label }}</span>
+              </div>
               <div class="top3-cidade">{{ usuario.cidade }}</div>
             </div>
           </div>
@@ -48,8 +58,17 @@
                   <div class="font-weight-bold">{{ parseInt(meuRanking?.pontos) || 0 }} pontos</div>
                   <div class="d-flex gap-4 mt-2">
                     <span><b>Estações:</b> {{ meuRanking?.estacoesConcluidas || 0 }}</span>
-                    <span><b>Média:</b> {{ formatarNota(meuRanking?.mediaNota) }}</span>
-                    <span><b>Nível:</b> {{ formatarNivel(meuRanking?.nivelHabilidade) }}</span>
+                    <span><b>Media:</b> {{ formatarNota(meuRanking?.mediaNota) }}</span>
+                    <span class="level-cell">
+                      <b>Nivel:</b>
+                      <v-icon
+                        v-if="meuRanking && getNivelMeta(meuRanking).icon"
+                        :icon="getNivelMeta(meuRanking).icon"
+                        :color="getNivelMeta(meuRanking).color"
+                        size="18"
+                      />
+                      {{ formatarNivel(meuRanking?.nivelHabilidade, meuRanking?.nivelProficiencia, meuRanking?.nivelProficienciaKey) }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -87,10 +106,11 @@
               <v-table v-if="!loading && !error">
                 <thead>
                   <tr>
-                    <th class="text-center">Posição</th>
+                    <th class="text-center">Posicao</th>
                     <th class="text-left">Nome</th>
-                    <th class="text-right">Estações</th>
-                    <th class="text-right">Pontuação</th>
+                    <th class="text-left">Nivel</th>
+                    <th class="text-right">Estacoes</th>
+                    <th class="text-right">Pontuacao</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -158,6 +178,7 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query } from 'firebase/firestore'
 import { computed, onMounted, ref } from 'vue'
 import { useTheme } from 'vuetify'
+import { getProficiencyMetadata, getProficiencyFromUser } from '@/utils/proficiencyLevels.js'
 
 // Theme
 const theme = useTheme()
@@ -199,7 +220,7 @@ async function buscarRanking() {
       const userData = doc.data()
       return {
         id: doc.id,
-        nome: userData.nome || 'Usuário',
+        nome: userData.nome || 'Usuario',
         sobrenome: userData.sobrenome || '',
         cidade: userData.cidade || 'Desconhecida',
         paisOrigem: userData.paisOrigem || 'Brasil',
@@ -207,7 +228,9 @@ async function buscarRanking() {
         estacoesConcluidas: Array.isArray(userData.estacoesConcluidas) ? userData.estacoesConcluidas.length : 0,
         mediaNota: userData.nivelHabilidade || 0,
         nivelHabilidade: userData.nivelHabilidade || 0,
-        pontos: userData.ranking || 0
+        pontos: userData.ranking || 0,
+        nivelProficiencia: userData.nivelProficiencia || null,
+        nivelProficienciaKey: userData.nivelProficienciaKey || null
       }
     })
 
@@ -257,13 +280,14 @@ async function buscarMeusDados() {
 // Utilitários
 const formatarNota = (nota) => nota ? (Math.round(nota * 100) / 100).toFixed(2) : '0.00'
 
-const formatarNivel = (nivel) => {
-  if (!nivel) return 'Iniciante'
-  if (nivel >= 9) return 'Expert'
-  if (nivel >= 7.5) return 'Avançado'
-  if (nivel >= 5) return 'Intermediário'
-  return 'Iniciante'
-}
+const formatarNivel = (nivel, label = null, key = null) =>
+  getProficiencyMetadata({
+    score: Number.isFinite(nivel) ? nivel : 0,
+    label,
+    key
+  }).label
+
+const getNivelMeta = usuario => getProficiencyFromUser(usuario)
 
 const obterCorRanking = (posicao) => {
   if (posicao === 1) return 'amber-darken-2'

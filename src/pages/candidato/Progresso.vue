@@ -1,6 +1,6 @@
 <template>
   <div :class="themeClasses.container">
-    <VContainer>
+    <VContainer fluid class="px-0">
       <VRow>
         <VCol cols="12">
           <VCard

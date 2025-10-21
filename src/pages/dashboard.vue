@@ -1,5 +1,5 @@
 <template>
-  <VContainer fluid class="dashboard-container pa-4">
+  <VContainer fluid class="dashboard-container px-0 py-4">
     <!-- Loading Overlay -->
     <div v-if="loading" class="loading-overlay d-flex justify-center align-center">
       <div class="text-center">
@@ -264,8 +264,8 @@ const goToChat = () => {
 <style scoped>
 /* ========== CONTAINER ========== */
 .dashboard-container {
-  max-width: 1600px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   position: relative;
   min-height: calc(100vh - 64px);
 }
@@ -285,10 +285,7 @@ const goToChat = () => {
 /* ========== HEADER MODERNO ========== */
 .dashboard-header-modern {
   animation: fadeSlideDown 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-  margin-left: -16px;
-  margin-right: -16px;
-  margin-top: -16px;
-  margin-bottom: 24px;
+  margin: 0 0 24px 0;
   border-radius: 0;
   overflow: hidden;
 }
@@ -484,8 +481,8 @@ const goToChat = () => {
 /* ========== GRID LAYOUT ========== */
 .dashboard-grid {
   row-gap: 20px;
-  margin-left: -12px;
-  margin-right: -12px;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .dashboard-grid > .v-col {
@@ -525,37 +522,33 @@ const goToChat = () => {
 /* ========== RESPONSIVIDADE ========== */
 @media (max-width: 1280px) {
   .dashboard-container {
-    padding: 12px;
+    padding: 12px 0;
   }
 
   .dashboard-grid {
     row-gap: 16px;
-    margin-left: -12px;
-    margin-right: -12px;
+    margin-left: 0;
+    margin-right: 0;
   }
   
   .dashboard-header-modern {
-    margin-left: -12px;
-    margin-right: -12px;
-    margin-top: -12px;
+    margin: 0 0 24px 0;
   }
 }
 
 @media (max-width: 960px) {
   .dashboard-container {
-    padding: 8px;
+    padding: 8px 0;
   }
 
   .dashboard-grid {
     row-gap: 12px;
-    margin-left: -8px;
-    margin-right: -8px;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .dashboard-header-modern {
-    margin-left: -8px;
-    margin-right: -8px;
-    margin-top: -8px;
+    margin: 0 0 16px 0;
   }
 
   .header-gradient-bg {
@@ -581,20 +574,17 @@ const goToChat = () => {
 
 @media (max-width: 600px) {
   .dashboard-container {
-    padding: 6px;
+    padding: 6px 0;
   }
 
   .dashboard-grid {
     row-gap: 10px;
-    margin-left: -6px;
-    margin-right: -6px;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .dashboard-header-modern {
-    margin-left: -6px;
-    margin-right: -6px;
-    margin-top: -6px;
-    margin-bottom: 16px;
+    margin: 0 0 16px 0;
   }
 
   .header-gradient-bg {

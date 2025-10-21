@@ -332,15 +332,23 @@
 
 @mixin glass {
     background: rgba(255, 255, 255, 0.8);
-    -webkit-backdrop-filter: $backdrop-blur-md;
-    backdrop-filter: $backdrop-blur-md;
+
+    @supports ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+        -webkit-backdrop-filter: $backdrop-blur-md;
+        backdrop-filter: $backdrop-blur-md;
+    }
+
     border: $border-width solid rgba(255, 255, 255, 0.3);
 }
 
 @mixin glass-dark {
     background: rgba(15, 23, 42, 0.8);
-    -webkit-backdrop-filter: $backdrop-blur-md;
-    backdrop-filter: $backdrop-blur-md;
+
+    @supports ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+        -webkit-backdrop-filter: $backdrop-blur-md;
+        backdrop-filter: $backdrop-blur-md;
+    }
+
     border: $border-width solid rgba(255, 255, 255, 0.1);
 }
 
@@ -384,7 +392,11 @@
 }
 
 @mixin aspect-ratio($width, $height) {
-    aspect-ratio: $width / $height;
+    @supports (aspect-ratio: 1 / 1) {
+        & {
+            aspect-ratio: $width / $height;
+        }
+    }
 
     @supports not (aspect-ratio: 1 / 1) {
         &::before {
@@ -402,10 +414,13 @@
 }
 
 @mixin line-clamp($lines) {
-    display: -webkit-box;
-    -webkit-line-clamp: $lines;
-    -webkit-box-orient: vertical;
     overflow: hidden;
+
+    @supports (-webkit-line-clamp: 1) {
+        display: -webkit-box;
+        -webkit-line-clamp: $lines;
+        -webkit-box-orient: vertical;
+    }
 }
 
 // ============================================

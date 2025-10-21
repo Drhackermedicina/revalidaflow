@@ -62,4 +62,8 @@ O frontend se comunica com o backend (Node.js na Cloud Run) para funcionalidades
 
 ## 5. Próximos Passos
 
+- [x] Uniformizar o espaçamento horizontal das páginas internas aplicando `v-container` `fluid` + `px-0` (ChatGroup, módulos do candidato, Ranking, Descriptive Questions).
+- [ ] Revisar telas administrativas e landing pages para harmonizar o mesmo guideline de layout.
+- [ ] Documentar o padrão de contêineres no design system (componentes de layout / storybook).
+
 Este documento será atualizado conforme o desenvolvimento do frontend avança e novos desafios surgem ou são resolvidos.

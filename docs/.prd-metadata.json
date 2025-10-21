@@ -1,14 +1,14 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2025-10-16T19:40:06.725Z",
+  "lastUpdated": "2025-10-21T05:15:10.190Z",
   "lastFullReview": "2025-01-12",
   "nextReviewDate": "2025-04-12",
   "sections": {
     "features": {
-      "lastModified": "2025-10-16",
-      "componentCount": 40,
+      "lastModified": "2025-10-21",
+      "componentCount": 42,
       "pageCount": 27,
-      "composableCount": 42,
+      "composableCount": 45,
       "serviceCount": 9,
       "storeCount": 3
     },
@@ -35,11 +35,11 @@
   ],
   "statistics": {
     "totalPages": 27,
-    "totalComponents": 40,
-    "totalComposables": 42,
+    "totalComponents": 42,
+    "totalComposables": 45,
     "totalServices": 9,
     "totalStores": 3,
-    "estimatedLinesOfCode": 15600
+    "estimatedLinesOfCode": 16200
   },
   "changelog": {
     "totalEntries": 1,
