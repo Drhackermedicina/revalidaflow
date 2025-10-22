@@ -14,7 +14,7 @@
     "build:icons": "tsx src/plugins/iconify/build-icons.js",
     "postinstall": "npm run build:icons",
     "build:revalida-companion": "vite build --outDir=dist-revalida-companion",
-    "build:revalidafacilapp": "vite build --outDir=dist-revalidafacilapp",
+    "build:revalidaflowapp": "vite build --outDir=dist-revalidaflowapp",
     "build:webapp": "vite build --outDir=dist-webapp",
     "backend:local": "cd backend && npm start",
     "backend:deploy": "cd backend && ./deploy-optimized.sh",

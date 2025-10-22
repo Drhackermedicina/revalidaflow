@@ -1,7 +1,7 @@
 {
   "projects": {
     "default": "revalida-companion",
-    "revalidafacil": "revalida-companion"
+    "revalidaflow": "revalida-companion"
   },
   "etags": {}
 }

@@ -131,7 +131,7 @@ service cloud.firestore {
 
     function isAgentUser() {
       return request.auth != null &&
-             request.auth.token.email == 'agent@revalidafacil.com';
+             request.auth.token.email == 'agent@revalidaflow.com';
     }
 
     function hasAdminRole() {

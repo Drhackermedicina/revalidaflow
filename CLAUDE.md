@@ -34,7 +34,7 @@ npm run build                 # Main build
 npm run build:local           # Development build
 npm run build:prod            # Production build
 npm run build:revalida-companion    # Companion app build
-npm run build:revalidafacilapp      # Facil app build
+npm run build:revalidaflowapp       # RevalidaFlow build
 npm run build:webapp          # Web app build
 
 # Backend operations
