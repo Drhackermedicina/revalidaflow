@@ -256,58 +256,16 @@ docs/analysis/
 
 These fixes take **3.5 hours** and provide immediate value:
 
-### 1. Fix Cache Collection Names (15 min)
-**File**: `backend/cache.js` lines 148, 159, 170, 213
+1. **Gerar bundle report**  
+   - `vite build --config config/vite.config.js --mode production --profile`.  
+   - Adicionar resumo em `docs/analysis/bundle-report.md`.
 
-```javascript
-// BEFORE (broken):
-const userDoc = await firestore.collection('users').doc(userId).get();
-const stationDoc = await firestore.collection('stations').doc(stationId).get();
+2. **Feedback de reconexão**  
+   - Mostrar aviso/estado ao perder ou retomar conexão Socket.IO na SimulationView.  
+   - Atualizar testes Playwright simulando perda de rede.
 
-// AFTER (working):
-const userDoc = await firestore.collection('usuarios').doc(userId).get();
-const stationDoc = await firestore.collection('estacoes_clinicas').doc(stationId).get();
-```
-
-**Impact**: Cache will actually work (currently 100% miss rate)
-
-### 2. Remove Unused Files (20 min)
-
-```bash
-rm backend/config/firebase.js        # Redundant
-rm backend/routes/gemini.js          # Empty
-rm backend/fix-cors-cloud-run.js     # Duplicate
-```
-
-**Impact**: Cleaner codebase, less confusion
-
-### 3. Apply Rate Limiters (1 hour)
-**File**: `backend/server.js` after line 100
-
-```javascript
-const { generalLimiter, aiLimiter, uploadLimiter } = require('./config/rateLimiter');
-
-app.use('/api/', generalLimiter);
-app.use('/api/ai-chat/', aiLimiter);
-app.use('/api/admin/upload/', uploadLimiter);
-```
-
-**Impact**: Immediate abuse protection (still needs auth, but limits damage)
-
-### 4. Production Logger (2 hours)
-**File**: `src/utils/logger.js` (new)
-
-```javascript
-export const logger = {
-  log: (...args) => import.meta.env.DEV && console.log(...args),
-  error: (...args) => console.error('[ERROR]', ...args),
-  warn: (...args) => import.meta.env.DEV && console.warn(...args)
-};
-
-// Then replace console.log → logger.log in all files
-```
-
-**Impact**: Clean production console, easier debugging
+3. **Testes de resiliência**  
+   - Adicionar cenários Vitest/Playwright verificando persistência (Pinia) e retomada do timer/sequência após reconexão.
 
 ---
 

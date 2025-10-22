@@ -5,7 +5,8 @@ import { useTheme } from 'vuetify'
 // Imagens e Logo
 import authV1MaskDark from '@images/pages/auth-v1-mask-dark.png'
 import authV1MaskLight from '@images/pages/auth-v1-mask-light.png'
-import revalidaFacilLogo from '@images/revalidafacillogo.png'
+
+const revalidaFlowLogo = '/image.png'
 
 const vuetifyTheme = useTheme()
 const { loading, error, loginComGoogle } = useLoginAuth()
@@ -28,12 +29,12 @@ const authThemeMask = computed(() => {
           class="d-flex align-center gap-3"
         >
           <img
-            :src="revalidaFacilLogo"
-            alt="Revalida Fácil Logo"
+            :src="revalidaFlowLogo"
+            alt="Revalida Flow Logo"
             style="block-size: 40px;"
           >
           <h2 class="font-weight-medium text-2xl text-uppercase">
-            REVALIDA FÁCIL
+            REVALIDA FLOW
           </h2>
         </RouterLink>
       </VCardItem>

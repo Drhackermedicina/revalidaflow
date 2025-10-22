@@ -3,12 +3,15 @@
 
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="/botao_rf_small.svg" type="image/svg+xml" />
   <link rel="icon" href="/favicon.ico" />
+  <link rel="icon" href="/botao rf.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/botao rf.png" />
   <meta name="google-translate-customization"
     content="a9f7c6c6b0c9b6c6-9f7c6c6b0c9b6c6/a9f7c6c6b0c9b6c6-9f7c6c6b0c9b6c6" />
   <meta name="google" content="notranslate" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>REVALIDA FÁCIL</title>
+  <title>REVALIDA FLOW</title>
   <link rel="stylesheet" type="text/css" href="/loader.css" />
   <!-- Importa Remix Icon para ícones 'ri-...' -->
   <link href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css" rel="stylesheet" />
@@ -32,7 +35,15 @@
       </div>
     </div>
   </div>
-  <script type="module" src="src/main.js"></script>
+  <script type="module" defer src="/src/main.js"></script>
+  <script nomodule>
+    document.body.innerHTML =
+      '<div style="font-family:system-ui,sans-serif;padding:2rem;max-width:540px;margin:10vh auto;text-align:center">' +
+      '<h1>Atualize seu navegador</h1>' +
+      '<p>O REVALIDAFLOW usa tecnologias modernas que não são compatíveis com esta versão do navegador.</p>' +
+      '<p>Instale a versão mais recente do Chrome, Edge, Firefox ou Safari para continuar.</p>' +
+      '</div>'
+  </script>
   <script>
     const loaderColor = localStorage.getItem('materio-initial-loader-bg') || '#FFFFFF'
     const primaryColor = localStorage.getItem('materio-initial-loader-color') || '#9155FD'

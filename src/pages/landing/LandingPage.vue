@@ -47,6 +47,6 @@ watch(currentUser, (newUser, oldUser) => {
   </div>
 </template>
 
-<style scoped lang="scss">
-@import './styles/templates/2-tech-forward/landing.scss';
+<style lang="scss">
+@import './styles/landing.scss';
 </style>

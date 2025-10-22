@@ -24,6 +24,7 @@ VITE_APP_VERSION=1.0.0
 ```bash
 # No arquivo backend/.env, adicione:
 SENTRY_DSN=https://your-backend-dsn@sentry.io/project-id
+SENTRY_TRACES_SAMPLE_RATE=0.1   # Opcional: ajustar taxa de amostragem
 ```
 
 ## 3. Monitoramento Configurado

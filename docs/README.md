@@ -122,17 +122,9 @@ Esta pasta contém toda a documentação viva do projeto, incluindo PRD (Product
 ### Quick Wins (Fazer Hoje)
 
 ```bash
-# 1. Corrigir collections no cache (15 min)
-# backend/cache.js: 'users' → 'usuarios', 'stations' → 'estacoes_clinicas'
-
-# 2. Aplicar rate limiters (1 hora)
-# backend/server.js: adicionar generalLimiter, aiLimiter
-
-# 3. Remover arquivos não usados (20 min)
-rm backend/config/firebase.js backend/routes/gemini.js
-
-# 4. Logger de produção (2 horas)
-# Criar src/utils/logger.js e substituir console.log
+# 1. Gerar relatório de bundle (vite --profile) e anexar em docs/analysis (1h)
+# 2. Implementar feedback visual de reconexão na SimulationView (1h)
+# 3. Estender testes Playwright simulando perda de conexão + retomada (2h)
 ```
 
 ### Métricas de Sucesso
