@@ -1,9 +1,10 @@
 import { aplicarMascaraCPF, validarCPF } from '@/@core/utils/cpf'
 import { db, firebaseAuth } from '@/plugins/firebase'
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
-import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore'
+import { collection, doc, getDocs, query, setDoc, where, Timestamp } from 'firebase/firestore'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { redeemInvite } from '@/services/accessControlService.js'
 
 export function useRegister() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export function useRegister() {
     cidade: '',
     paisOrigem: '',
     aceitouTermos: false,
+    inviteCode: ''
   })
 
   watch(usuarioGoogle, (novoValor) => {
@@ -52,6 +54,8 @@ export function useRegister() {
       const snapshot = await getDocs(q)
       if (!snapshot.empty) throw new Error('Já existe um usuário cadastrado com este CPF')
       // Schema padronizado para consistência
+      const trialDays = Number.parseInt(import.meta.env.VITE_TRIAL_DAYS || '14', 10)
+      const trialExpiresAt = Timestamp.fromDate(new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000))
       const userData = {
         // Dados pessoais obrigatórios
         nome: form.value.nome,
@@ -65,9 +69,15 @@ export function useRegister() {
         dataCadastro: new Date(),
         dataUltimaAtualizacao: new Date(),
         ultimoLogin: new Date(),
-        trialExpiraEm: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        trialExpiraEm: trialExpiresAt,
         plano: 'trial',
-        planoExpiraEm: null,
+        planoExpiraEm: trialExpiresAt,
+        accessStatus: 'trial',
+        accessSource: 'register',
+        accessExpiresAt: trialExpiresAt,
+        accessInviteCode: form.value.inviteCode ? form.value.inviteCode.trim().toUpperCase() : null,
+        subscriptionPlan: null,
+        accessUpdatedAt: Timestamp.now(),
 
         // Arrays de atividades
         estacoesConcluidas: [],
@@ -124,6 +134,16 @@ export function useRegister() {
       }
 
       await setDoc(doc(db, 'usuarios', user.uid), userData)
+
+      if (form.value.inviteCode) {
+        try {
+          await redeemInvite(form.value.inviteCode.trim())
+        } catch (inviteError) {
+          console.error('[Register] Erro ao resgatar convite:', inviteError)
+          throw new Error(inviteError.message || 'Não foi possível validar o convite fornecido.')
+        }
+      }
+
       router.push('/app/dashboard')
     } catch (e) {
       error.value = e.message

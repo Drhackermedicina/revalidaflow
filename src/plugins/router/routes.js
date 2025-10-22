@@ -24,6 +24,12 @@ export const routes = [
         name: 'error',
         component: () => import('@/pages/[...error].vue'),
       },
+      {
+        path: 'pagamento',
+        name: 'pagamento',
+        component: () => import('@/pages/pagamento.vue'),
+        meta: { requiresAuth: true },
+      },
     ],
   },
   // Demais rotas protegidas com layout global
@@ -89,6 +95,15 @@ export const routes = [
         meta: {
           requiresAuth: true,
           requiresAdmin: true, // Adicionar verificação de admin se implementada
+        },
+      },
+      {
+        path: 'admin-invites',
+        name: 'admin-invites',
+        component: () => import('@/pages/AdminInvites.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
         },
       },
       {
@@ -258,3 +273,4 @@ export const routes = [
   //   props: true,
   // },
 ]
+

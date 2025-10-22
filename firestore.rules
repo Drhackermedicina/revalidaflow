@@ -59,6 +59,15 @@ service cloud.firestore {
          request.auth.uid == resource.data.senderUid);
     }
 
+    // === CONVITES DE ACESSO ===
+    match /accessInvites/{inviteId} {
+      allow read: if request.auth != null && (
+        hasFullAccess() ||
+        (resource.data.redeemedByUid != null && request.auth.uid == resource.data.redeemedByUid)
+      );
+      allow create, update, delete: if request.auth != null && hasFullAccess();
+    }
+
     // === CHAT PRIVADO ===
     match /{chatCollection}/{messageId} {
       allow read, write: if request.auth != null &&

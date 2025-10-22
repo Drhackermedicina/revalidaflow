@@ -51,6 +51,11 @@ const state = reactive({
   users: [], // Lista de usuários online
   loadingUsers: false,
   errorUsers: '',
+  accessStatus: 'trial',
+  accessSource: null,
+  accessExpiresAt: null,
+  accessInviteCode: null,
+  subscriptionPlan: null,
 });
 
 // Computed properties para fácil acesso aos dados do usuário
@@ -92,6 +97,11 @@ function clearUserRole() {
   state.permissions = getDefaultPermissions('user');
   state.roleLoading = false;
   state.roleError = '';
+  state.accessStatus = 'trial';
+  state.accessSource = null;
+  state.accessExpiresAt = null;
+  state.accessInviteCode = null;
+  state.subscriptionPlan = null;
 }
 
 // Função para buscar role e permissões do usuário
@@ -339,3 +349,5 @@ function useUserStore() {
 
 export default userStore;
 export { useUserStore };
+
+

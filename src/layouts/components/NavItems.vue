@@ -191,6 +191,7 @@ export default {
     <VerticalNavLink :item="{ title: 'Painel Admin', icon: 'ri-dashboard-fill', iconColor: '#1976d2', to: '/app/admin', }" />
     <VerticalNavLink :item="{ title: 'Upload Estações', icon: 'ri-upload-2-fill', iconColor: '#388e3c', to: '/app/admin-upload', }" />
     <VerticalNavLink :item="{ title: 'Reset Usuários', icon: 'ri-refresh-fill', iconColor: '#f57c00', to: '/app/admin-reset-users', }" />
+    <VerticalNavLink :item="{ title: 'Convites', icon: 'ri-ticket-2-fill', iconColor: '#512da8', to: '/app/admin-invites', }" />
     <VerticalNavLink :item="{ title: 'Diagnóstico Ranking', icon: 'ri-search-fill', iconColor: '#9c27b0', to: '/app/diagnostico-ranking', }" />
     <!-- Admin IA links removidos -->
   </VerticalNavGroup>

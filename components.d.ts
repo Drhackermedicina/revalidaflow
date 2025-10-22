@@ -23,6 +23,7 @@ declare module 'vue' {
     CardStatisticsWithImages: typeof import('./src/@core/components/cards/CardStatisticsWithImages.vue')['default']
     ChatNotificationFloat: typeof import('./src/components/ChatNotificationFloat.vue')['default']
     ChatQuickAccessCard: typeof import('./src/components/dashboard/ChatQuickAccessCard.vue')['default']
+    CustomEyeIcon: typeof import('./src/components/CustomEyeIcon.vue')['default']
     DescriptiveFeedback: typeof import('./src/components/DescriptiveFeedback.vue')['default']
     ErrorBoundary: typeof import('./src/components/ErrorBoundary.vue')['default']
     ErrorHeader: typeof import('./src/components/ErrorHeader.vue')['default']

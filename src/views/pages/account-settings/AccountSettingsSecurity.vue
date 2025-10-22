@@ -1,4 +1,7 @@
 <script setup>
+import { ref } from 'vue'
+import CustomEyeIcon from '@/components/CustomEyeIcon.vue'
+
 const isCurrentPasswordVisible = ref(false)
 const isNewPasswordVisible = ref(false)
 const isConfirmPasswordVisible = ref(false)
@@ -130,15 +133,25 @@ const recentDevices = [
                 md="6"
               >
                 <!-- 👉 current password -->
-                <VTextField
-                  v-model="currentPassword"
-                  :type="isCurrentPasswordVisible ? 'text' : 'password'"
-                  :append-inner-icon="isCurrentPasswordVisible ? 'ri-eye-off-line' : 'ri-eye-line'"
-                  autocomplete="on"
-                  label="Current Password"
-                  placeholder="············"
-                  @click:append-inner="isCurrentPasswordVisible = !isCurrentPasswordVisible"
-                />
+                <div class="password-input-wrapper">
+                  <VTextField
+                    v-model="currentPassword"
+                    :type="isCurrentPasswordVisible ? 'text' : 'password'"
+                    :append-inner-icon="null"
+                    autocomplete="on"
+                    label="Current Password"
+                    placeholder="············"
+                  >
+                    <template #append-inner>
+                      <CustomEyeIcon
+                        :is-open="isCurrentPasswordVisible"
+                        :size="32"
+                        class="cursor-pointer"
+                        @click="isCurrentPasswordVisible = !isCurrentPasswordVisible"
+                      />
+                    </template>
+                  </VTextField>
+                </div>
               </VCol>
             </VRow>
 
@@ -149,15 +162,25 @@ const recentDevices = [
                 md="6"
               >
                 <!-- 👉 new password -->
-                <VTextField
-                  v-model="newPassword"
-                  :type="isNewPasswordVisible ? 'text' : 'password'"
-                  :append-inner-icon="isNewPasswordVisible ? 'ri-eye-off-line' : 'ri-eye-line'"
-                  label="New Password"
-                  autocomplete="on"
-                  placeholder="············"
-                  @click:append-inner="isNewPasswordVisible = !isNewPasswordVisible"
-                />
+                <div class="password-input-wrapper">
+                  <VTextField
+                    v-model="newPassword"
+                    :type="isNewPasswordVisible ? 'text' : 'password'"
+                    :append-inner-icon="null"
+                    label="New Password"
+                    autocomplete="on"
+                    placeholder="············"
+                  >
+                    <template #append-inner>
+                      <CustomEyeIcon
+                        :is-open="isNewPasswordVisible"
+                        :size="32"
+                        class="cursor-pointer"
+                        @click="isNewPasswordVisible = !isNewPasswordVisible"
+                      />
+                    </template>
+                  </VTextField>
+                </div>
               </VCol>
 
               <VCol
@@ -165,15 +188,25 @@ const recentDevices = [
                 md="6"
               >
                 <!-- 👉 confirm password -->
-                <VTextField
-                  v-model="confirmPassword"
-                  :type="isConfirmPasswordVisible ? 'text' : 'password'"
-                  :append-inner-icon="isConfirmPasswordVisible ? 'ri-eye-off-line' : 'ri-eye-line'"
-                  autocomplete="on"
-                  label="Confirm New Password"
-                  placeholder="············"
-                  @click:append-inner="isConfirmPasswordVisible = !isConfirmPasswordVisible"
-                />
+                <div class="password-input-wrapper">
+                  <VTextField
+                    v-model="confirmPassword"
+                    :type="isConfirmPasswordVisible ? 'text' : 'password'"
+                    :append-inner-icon="null"
+                    autocomplete="on"
+                    label="Confirm New Password"
+                    placeholder="············"
+                  >
+                    <template #append-inner>
+                      <CustomEyeIcon
+                        :is-open="isConfirmPasswordVisible"
+                        :size="32"
+                        class="cursor-pointer"
+                        @click="isConfirmPasswordVisible = !isConfirmPasswordVisible"
+                      />
+                    </template>
+                  </VTextField>
+                </div>
               </VCol>
             </VRow>
           </VCardText>
@@ -353,6 +386,20 @@ const recentDevices = [
               </span>
             </div>
           </template>
+          
+          <style scoped>
+          .password-input-wrapper {
+            position: relative;
+          }
+          
+          .password-input-wrapper :deep(.v-field__append-inner) {
+            padding-inline-start: 8px;
+          }
+          
+          .cursor-pointer {
+            cursor: pointer;
+          }
+          </style>
           <!-- TODO Refactor this after vuetify provides proper solution for removing default footer -->
           <template #bottom />
         </VDataTable>

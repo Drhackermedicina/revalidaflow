@@ -1,5 +1,6 @@
 <script setup>
 import PepSideView from '@/components/PepSideView.vue'
+import CustomEyeIcon from '@/components/CustomEyeIcon.vue'
 import {
   formatActorText,
   formatIdentificacaoPaciente,
@@ -215,9 +216,9 @@ const openImageZoom = (src, title) => {
               @click="togglePepViewHandler"
               :title="pepViewState.isVisible ? 'Ocultar PEP' : 'Mostrar PEP'"
             >
-              <VIcon 
-                :icon="pepViewState.isVisible ? 'ri-eye-off-line' : 'ri-eye-line'" 
-                size="24"
+              <CustomEyeIcon
+                :is-open="pepViewState.isVisible"
+                :size="32"
               />
             </VBtn>
           </div>
@@ -306,9 +307,14 @@ const openImageZoom = (src, title) => {
             <VBtn
               @click="toggleActorImpressoVisibility(impresso.idImpresso)"
               :color="actorVisibleImpressoContent[impresso.idImpresso] ? 'primary' : 'info'"
-              :prepend-icon="actorVisibleImpressoContent[impresso.idImpresso] ? 'ri-eye-off-line' : 'ri-eye-line'"
-              class="impresso-btn"
+              class="impresso-btn d-flex align-center"
             >
+              <CustomEyeIcon
+                :is-open="actorVisibleImpressoContent[impresso.idImpresso]"
+                :size="32"
+                :color="actorVisibleImpressoContent[impresso.idImpresso] ? 'primary' : 'info'"
+                class="me-2"
+              />
               {{ impresso.tituloImpresso }}
             </VBtn>
             <VBtn icon variant="tonal" size="small" @click="releaseData(impresso.idImpresso)" :disabled="!!actorReleasedImpressoIds[impresso.idImpresso]">

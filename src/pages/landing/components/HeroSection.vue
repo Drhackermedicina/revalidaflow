@@ -1,21 +1,24 @@
 <template>
   <div class="landing-page">
     <!-- Hero Section -->
-    <section class="hero-section">
+    <section class="hero-section" id="home">
       <nav class="navbar">
         <div class="container nav-content">
           <div class="logo">
-            <svg class="logo-icon" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2"/>
-              <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <span class="logo-text">RevalidaFlow</span>
+            <img
+              src="/botaosemfundo.png"
+              alt="RevalidaFlow Logo"
+              class="logo-image"
+            />
+            <span class="logo-text">REVALIDAFLOW</span>
           </div>
           <div class="nav-links">
-            <router-link to="/recursos">Recursos</router-link>
-            <router-link to="/como-funciona">Como Funciona</router-link>
-            <router-link to="/estacoes">Estações</router-link>
-            <router-link to="/precos">Preços</router-link>
+            <button type="button" class="nav-link" @click="scrollToSection('home')">Início</button>
+            <button type="button" class="nav-link" @click="scrollToSection('features')">Recursos</button>
+            <button type="button" class="nav-link" @click="scrollToSection('how-it-works')">Como Funciona</button>
+            <button type="button" class="nav-link" @click="scrollToSection('testimonials')">Depoimentos</button>
+            <button type="button" class="nav-link" @click="scrollToSection('pricing')">Preços</button>
+            <button type="button" class="nav-link" @click="scrollToSection('faq')">FAQ</button>
             <button @click="navigateToLogin" class="btn-primary">Fazer Login</button>
             <button @click="navigateToRegister" class="btn-secondary">Cadastrar</button>
           </div>
@@ -32,7 +35,7 @@
             Avaliação em tempo real por IA com feedback detalhado e atores profissionais.
           </p>
           <div class="hero-actions">
-            <button @click="navigateToRegister" class="btn-primary-large">
+            <button @click="openWhatsAppGroup" class="btn-primary-large">
               Começar Gratuitamente
               <svg class="icon" viewBox="0 0 24 24" fill="none">
                 <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -453,6 +456,24 @@ const navigateToRegister = () => {
   router.push('/register');
 };
 
+const openWhatsAppGroup = () => {
+  window.open('https://chat.whatsapp.com/FFLmJNeB1MeDW83YloCvcA?mode=wwt', '_blank', 'noopener');
+};
+
+const scrollToSection = sectionId => {
+  const target = document.getElementById(sectionId);
+  if (!target) return;
+
+  const headerOffset = 120;
+  const targetPosition = target.getBoundingClientRect().top + window.pageYOffset;
+  const offsetPosition = targetPosition - headerOffset;
+
+  window.scrollTo({
+    top: offsetPosition < 0 ? 0 : offsetPosition,
+    behavior: 'smooth'
+  });
+};
+
 const scrollToDemo = () => {
   document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
 };
@@ -478,54 +499,107 @@ const scrollToDemo = () => {
   top: 0;
   left: 0;
   right: 0;
-  background: rgba(15, 23, 42, 0.95);
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.9)),
+    url('/header-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 0;
   z-index: 1000;
-  padding: 1rem 0;
+  padding: 1.5rem 0;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);
 }
 
 .nav-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 96px;
+  gap: 3rem;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1.25rem;
 }
 
-.logo-icon {
-  width: 32px;
-  height: 32px;
-  color: #3b82f6;
+.logo-image {
+  height: 72px;
+  width: auto;
+  filter:
+    brightness(1.15)
+    contrast(1.35)
+    saturate(1.25)
+    drop-shadow(0 0 12px rgba(96, 165, 250, 0.65))
+    drop-shadow(0 6px 12px rgba(37, 99, 235, 0.55));
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.logo-image:hover {
+  filter:
+    brightness(1.25)
+    contrast(1.45)
+    saturate(1.35)
+    drop-shadow(0 0 18px rgba(147, 197, 253, 0.85))
+    drop-shadow(0 8px 16px rgba(37, 99, 235, 0.6));
+  transform: translateY(-2px);
 }
 
 .logo-text {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary-color) !important;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #93c5fd 0%, #60a5fa 35%, #2563eb 70%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 6px 24px rgba(37, 99, 235, 0.35);
+  font-family: 'Inter', sans-serif;
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 2.5rem;
 }
 
-.nav-links a {
+.nav-links .nav-link {
+  background: none;
+  border: none;
   color: rgba(255, 255, 255, 0.9) !important;
-  text-decoration: none;
   transition: color 0.3s;
   font-weight: 500;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 1rem;
+  padding: 0.6rem 0;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: 0.01em;
 }
 
-.nav-links a:hover {
+.nav-links .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.8), rgba(37, 99, 235, 0.9));
+  transition: width 0.3s ease;
+}
+
+.nav-links .nav-link:hover {
   color: white !important;
+}
+
+.nav-links .nav-link:hover::after {
+  width: 100%;
 }
 
 .btn-primary, .btn-secondary {
@@ -613,13 +687,31 @@ const scrollToDemo = () => {
 }
 
 .btn-primary-large {
-  background: var(--gradient-primary);
+  background: linear-gradient(135deg, #ff6a3d 0%, #f43f5e 25%, #7c3aed 65%, #2563eb 100%);
   color: white !important;
+  box-shadow: 0 18px 40px rgba(124, 58, 237, 0.45);
+  position: relative;
+  overflow: hidden;
+  transform: translateY(0);
 }
 
 .btn-primary-large:hover {
   transform: translateY(-3px);
-  box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 22px 45px rgba(124, 58, 237, 0.55);
+}
+
+.btn-primary-large::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.btn-primary-large:hover::after {
+  opacity: 1;
 }
 
 .btn-secondary-large {

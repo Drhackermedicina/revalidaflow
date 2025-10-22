@@ -31,7 +31,8 @@
     "./src/components/ChatSettings.vue",
     "./src/components/CorrecaoEditores.vue",
     "./src/pages/PerformanceView.vue",
-    "./src/pages/ChatGroupView_Modern_Part1.vue"
+    "./src/pages/ChatGroupView_Modern_Part1.vue",
+    "./src/pages/landing/components/HeroHighlights.vue"
   ],
   "compilerOptions": {
     "target": "esnext",

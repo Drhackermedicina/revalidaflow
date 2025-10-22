@@ -72,7 +72,7 @@
                           color="medium-emphasis"
                           @click="viewSimulationDetails(simulation.id)"
                         >
-                          <VIcon icon="ri-eye-line" />
+                          <CustomEyeIcon :is-open="true" :size="32" />
                         </VBtn>
                       </td>
                     </tr>
@@ -100,6 +100,7 @@
 import { computed, onMounted } from 'vue'
 import { useThemeConfig } from '@/composables/useThemeConfig'
 import { useFirebaseData } from '@/composables/useFirebaseData'
+import CustomEyeIcon from '@/components/CustomEyeIcon.vue'
 
 const { themeClasses } = useThemeConfig()
 const { loading, userData, fetchUserStats } = useFirebaseData()

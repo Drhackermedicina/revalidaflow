@@ -58,6 +58,16 @@ const {
                 @input="form.cpf = aplicarMascaraCPF(form.cpf)"
               />
             </v-col>
+            <v-col cols="12" sm="12">
+              <v-text-field
+                v-model="form.inviteCode"
+                label="Código de convite (opcional)"
+                prepend-inner-icon="mdi-ticket-account"
+                hint="Informe o código recebido para liberar 30 dias de acesso"
+                persistent-hint
+                maxlength="16"
+              />
+            </v-col>
             <v-col cols="12" sm="6">
               <v-text-field v-model="form.cidade" label="Cidade" prepend-inner-icon="mdi-city" />
             </v-col>
