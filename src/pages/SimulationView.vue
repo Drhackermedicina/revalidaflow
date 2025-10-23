@@ -264,6 +264,8 @@ const {
   showNotification
 });
 
+const autoSubmitTriggered = ref(false);
+
 // Inicializa composable de preload de imagens
 const {  zoomedImageSrc,
   zoomedImageAlt,
@@ -284,6 +286,42 @@ const {
 // Aliases para manter compatibilidade com template (funções já têm debounce interno)
 const debouncedToggleParagraphMark = toggleParagraphMark;
 const debouncedToggleScriptContext = toggleScriptContext;
+
+const tryAutoSubmitEvaluation = async () => {
+  if (
+    autoSubmitTriggered.value ||
+    userRole.value !== 'candidate' ||
+    !simulationEnded.value ||
+    simulationWasManuallyEndedEarly.value ||
+    evaluationSubmittedByCandidate.value
+  ) {
+    return;
+  }
+
+  if (!socketRef.value?.connected || !sessionId.value) {
+    return;
+  }
+
+  const candidateScores = candidateReceivedScores.value || {};
+  const evaluatorScores = evaluationScores.value || {};
+
+  const hasScores =
+    (candidateScores && Object.keys(candidateScores).length > 0) ||
+    (evaluatorScores && Object.keys(evaluatorScores).length > 0);
+
+  if (!hasScores) {
+    return;
+  }
+
+  autoSubmitTriggered.value = true;
+
+  try {
+    await submitEvaluation();
+  } catch (error) {
+    autoSubmitTriggered.value = false;
+    console.error('[AUTO_SUBMIT] Falha ao submeter avaliação automaticamente:', error);
+  }
+};
 
 // Função handler para atualização de scores de avaliação
 function handleEvaluationScoreUpdate({ itemId, score }) {
@@ -903,6 +941,8 @@ function setupSession() {
   pepReleasedToCandidate.value = false;
   candidateReceivedScores.value = {};
   candidateReceivedTotalScore.value = 0;
+  evaluationSubmittedByCandidate.value = false;
+  autoSubmitTriggered.value = false;
 
   // Limpa cache de imagens ao reiniciar sessão
   clearImageCache();
@@ -1051,6 +1091,23 @@ watch(simulationEnded, (newValue) => {
   }
 });
 
+watch(
+  [simulationEnded, simulationWasManuallyEndedEarly, evaluationSubmittedByCandidate],
+  () => {
+    tryAutoSubmitEvaluation();
+  }
+);
+
+watch(
+  [candidateReceivedScores, evaluationScores],
+  () => {
+    if (simulationEnded.value) {
+      tryAutoSubmitEvaluation();
+    }
+  },
+  { deep: true }
+);
+
 onUnmounted(() => {
   document.removeEventListener('toggleMark', (e) => handleClick(e.detail));
 });
@@ -1090,6 +1147,7 @@ if (socketRef.value) {
 watch(connectionStatus, (status) => {
   if (status === 'Conectado' && socketRef.value?.connected) {
     requestOnlineUsers('candidate');
+    tryAutoSubmitEvaluation();
   }
 });
 
@@ -1283,7 +1341,6 @@ function toggleCollapse() {
                 :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
                 :is-actor-or-evaluator="isActorOrEvaluator"
                 :is-candidate="isCandidate"
-                @release-pep-to-candidate="releasePepToCandidate"
                 @toggle-pep-item-mark="togglePepItemMark"
                 @update:evaluation-scores="handleEvaluationScoreUpdate"
                 @submit-evaluation="submitEvaluation"
@@ -1414,7 +1471,6 @@ function toggleCollapse() {
                  :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
                  :is-actor-or-evaluator="false"
                  :is-candidate="true"
-                 @release-pep-to-candidate="releasePepToCandidate"
                  @toggle-pep-item-mark="togglePepItemMark"
                  @update:evaluation-scores="handleEvaluationScoreUpdate"
                  @submit-evaluation="submitEvaluation"

@@ -1431,65 +1431,83 @@ function processAIEvaluation(evaluationData) {
 
 // Fallback para formato simples (compatibilidade)
 function processAIEvaluationSimple(evaluationText) {
+  if (!evaluationText || !checklistData.value?.itensAvaliacao?.length) {
+    console.warn('⚠️ Fallback simples sem dados suficientes para avaliar.')
+    submittingEvaluation.value = false
+    return
+  }
+
   console.log('🔄 Usando fallback simples com texto:', evaluationText.substring(0, 200))
 
-  const items = evaluationText.split(',')
+  const evaluationChunks = evaluationText
+    .split(/\r?\n|,/)
+    .map(chunk => chunk.trim())
+    .filter(chunk => chunk.length > 0)
 
-  checklistData.value.itensAvaliacao.forEach(item => {
+  checklistData.value.itensAvaliacao.forEach((item, index) => {
     if (!markedPepItems.value[item.idItem]) {
       markedPepItems.value[item.idItem] = []
     }
 
-    const itemEvaluation = items.find(evalText =>
-      evalText.toLowerCase().includes(`item ${index + 1}`) ||
-      evalText.toLowerCase().includes(`${index + 1}:`)
-    )
+    const itemEvaluation = evaluationChunks.find(evalText => {
+      const lower = evalText.toLowerCase()
+      const itemLabel = `item ${index + 1}`
+      const startsWithIndex = lower.startsWith(`${index + 1}:`) || lower.startsWith(`${index + 1} -`)
+      return lower.includes(itemLabel) || startsWithIndex
+    })
+
+    const adequadoPts = item.pontuacoes?.adequado?.pontos ?? 5
+    const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos ?? Math.max(adequadoPts / 2, 1)
+    const inadequadoPts = item.pontuacoes?.inadequado?.pontos ?? 0
+
+    let score = inadequadoPts
+    let nivel = 'INADEQUADO'
+    let justificativa = 'Avaliação automática: desempenho insuficiente (fallback).'
 
     if (itemEvaluation) {
       const evalLower = itemEvaluation.toLowerCase()
-      let score
-      let nivel
 
-      // Buscar pontuações reais do PEP
-      const adequadoPts = item.pontuacoes?.adequado?.pontos || 5
-      const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos || 3
-      const inadequadoPts = item.pontuacoes?.inadequado?.pontos || 0
-
-      // Detectar nível baseado na resposta da IA
-      if (evalLower.includes('não consta') ||
-          evalLower.includes('nao consta') ||
-          evalLower.includes('não realizou') ||
-          evalLower.includes('não fez') ||
-          evalLower.includes('não') && evalLower.includes('script')) {
-        // "Não consta no script" = INADEQUADO
+      if (
+        evalLower.includes('não consta') ||
+        evalLower.includes('nao consta') ||
+        evalLower.includes('não realizou') ||
+        evalLower.includes('não fez') ||
+        (evalLower.includes('não') && evalLower.includes('script'))
+      ) {
         score = inadequadoPts
         nivel = 'INADEQUADO'
-      } else if (evalLower.includes('sim') ||
-                 evalLower.includes('adequado') ||
-                 evalLower.includes('realizou') ||
-                 evalLower.includes('correto')) {
-        // "SIM" ou "adequado" = ADEQUADO
-        score = adequadoPts
-        nivel = 'ADEQUADO'
-      } else if (evalLower.includes('parcial')) {
-        // "parcial" = PARCIALMENTE ADEQUADO
+        justificativa = 'Avaliado automaticamente: item não foi realizado segundo a IA (fallback).'
+      } else if (
+        evalLower.includes('parcial') ||
+        evalLower.includes('parcialmente') ||
+        evalLower.includes('incompleto')
+      ) {
         score = parcialPts
         nivel = 'PARCIALMENTE ADEQUADO'
-      } else {
-        // Padrão = INADEQUADO
-        score = inadequadoPts
-        nivel = 'INADEQUADO'
+        justificativa = 'Avaliado automaticamente: execução parcial identificada (fallback).'
+      } else if (
+        evalLower.includes('sim') ||
+        evalLower.includes('adequado') ||
+        evalLower.includes('realizou') ||
+        evalLower.includes('correto') ||
+        evalLower.includes('completo')
+      ) {
+        score = adequadoPts
+        nivel = 'ADEQUADO'
+        justificativa = 'Avaliado automaticamente: item realizado corretamente (fallback).'
       }
 
-      markedPepItems.value[item.idItem] = [{
-        pontuacao: score,
-        observacao: `Avaliado automaticamente pela IA: ${nivel}`,
-        timestamp: new Date().toISOString()
-      }]
-
-      console.log(`✅ Item ${index + 1} (${item.descricaoItem?.substring(0, 40)}...): ${nivel} (${score} pts)`)
-      console.log(`   Texto avaliação: "${itemEvaluation.substring(0, 80)}..."`)
+      console.log(`✅ Fallback item ${index + 1} (${item.descricaoItem?.substring(0, 40)}...): ${nivel} (${score} pts)`)
+      console.log(`   Texto avaliação: "${itemEvaluation.substring(0, 120)}..."`)
+    } else {
+      console.warn(`⚠️ Fallback não encontrou menção explícita ao item ${index + 1}; marcando como inadequado.`)
     }
+
+    markedPepItems.value[item.idItem] = [{
+      pontuacao: Number(score),
+      observacao: justificativa,
+      timestamp: new Date().toISOString()
+    }]
   })
 
   evaluationSubmittedByCandidate.value = true
@@ -1505,17 +1523,34 @@ function autoEvaluatePEPFallback() {
     msg.sender === 'candidate' || msg.role === 'candidate'
   )
 
+  const totalMessages = candidateMessages.length
+
   checklistData.value.itensAvaliacao.forEach(item => {
     if (!markedPepItems.value[item.idItem]) {
       markedPepItems.value[item.idItem] = []
     }
 
-    // Avaliação básica: se participou minimamente, considera adequado
-    const score = candidateMessages.length >= 3 ? 3 : 1 // Regular ou Inadequado
+    const adequadoPts = item.pontuacoes?.adequado?.pontos ?? 5
+    const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos ?? Math.max(adequadoPts / 2, 1)
+    const inadequadoPts = item.pontuacoes?.inadequado?.pontos ?? 0
+
+    const adequateThreshold = 6
+    const partialThreshold = 3
+
+    let score = inadequadoPts
+    let observacao = 'Avaliação automática (fallback): participação insuficiente detectada.'
+
+    if (totalMessages >= adequateThreshold) {
+      score = adequadoPts
+      observacao = 'Avaliação automática (fallback): participação consistente detectada.'
+    } else if (totalMessages >= partialThreshold) {
+      score = parcialPts
+      observacao = 'Avaliação automática (fallback): participação parcial detectada.'
+    }
 
     markedPepItems.value[item.idItem] = [{
-      pontuacao: score,
-      observacao: `Avaliação automática: ${candidateMessages.length >= 3 ? 'Participação adequada' : 'Participação insuficiente'}`,
+      pontuacao: Number(score),
+      observacao,
       timestamp: new Date().toISOString()
     }]
   })
@@ -1681,7 +1716,7 @@ onMounted(async () => {
     </v-main>
 
     <!-- Tela de preparação - antes do início -->
-    <v-main v-else-if="!simulationStarted" class="d-flex align-center justify-center">
+    <v-main v-else-if="!simulationStarted && !simulationEnded" class="d-flex align-center justify-center">
       <v-container class="text-center">
         <v-row justify="center">
           <v-col cols="12" md="8" lg="6">
@@ -2691,4 +2726,3 @@ onMounted(async () => {
 
 /* DIAGNÓSTICO URGENTE: Usando apenas estilos inline no template */
 </style>
-

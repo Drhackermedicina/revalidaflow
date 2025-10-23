@@ -34,16 +34,25 @@ export function useStationFilteringOptimized(stations) {
    * Verifica se a estação é do INEP
    */
   const isINEPStation = (station) => {
-    const idEstacao = station.idEstacao || ''
-    return idEstacao.startsWith('INEP') || (idEstacao.startsWith('REVALIDA_') && !idEstacao.startsWith('REVALIDA_FACIL'))
+    const idEstacao = (station.idEstacao || '').toUpperCase()
+    if (!idEstacao.startsWith('REVALIDA_')) {
+      return idEstacao.startsWith('INEP')
+    }
+    return (
+      !idEstacao.startsWith('REVALIDA_FACIL') &&
+      !idEstacao.startsWith('REVALIDA_FLOW')
+    )
   }
 
   /**
    * Verifica se a estação é do Revalida Fácil
    */
   const isRevalidaFacilStation = (station) => {
-    const idEstacao = station.idEstacao || ''
-    return idEstacao.startsWith('REVALIDA_FACIL')
+    const idEstacao = (station.idEstacao || '').toUpperCase()
+    return (
+      idEstacao.startsWith('REVALIDA_FACIL') ||
+      idEstacao.startsWith('REVALIDA_FLOW')
+    )
   }
 
   /**

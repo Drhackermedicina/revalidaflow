@@ -156,7 +156,7 @@ export default {
   
   <VerticalNavLink :item="homeLink" />
   <VerticalNavLink :item="estacoesLink" />
-  <VerticalNavLink :item="questoesLink" />
+  <!-- <VerticalNavLink :item="questoesLink" /> --> <!-- Temporariamente desabilitado -->
   <VerticalNavLink :item="grupoChatLink" />
 
   <VerticalNavGroup

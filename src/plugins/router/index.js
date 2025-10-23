@@ -178,9 +178,7 @@ router.beforeEach(async (to, from, next) => {
       !user?.aceitouTermos ||
       !user?.cpf ||
       !user?.nome ||
-      !user?.sobrenome ||
-      !user?.cidade ||
-      !user?.paisOrigem
+      !user?.sobrenome
     ) {
       // Redirecione para /register se cadastro incompleto
       updateAuthCheck({ isAuthenticated: true, isProfileComplete: false, hasActiveAccess: false, role: userRole })

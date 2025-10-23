@@ -2,7 +2,7 @@
   <div class="landing-page">
     <!-- Hero Section -->
     <section class="hero-section" id="home">
-      <nav class="navbar">
+      <nav class="navbar" :class="{ 'menu-open': isMobileMenuOpen }">
         <div class="container nav-content">
           <div class="logo">
             <img
@@ -12,17 +12,48 @@
             />
             <span class="logo-text">REVALIDAFLOW</span>
           </div>
-          <div class="nav-links">
-            <button type="button" class="nav-link" @click="scrollToSection('home')">Início</button>
-            <button type="button" class="nav-link" @click="scrollToSection('features')">Recursos</button>
-            <button type="button" class="nav-link" @click="scrollToSection('how-it-works')">Como Funciona</button>
-            <button type="button" class="nav-link" @click="scrollToSection('testimonials')">Depoimentos</button>
-            <button type="button" class="nav-link" @click="scrollToSection('pricing')">Preços</button>
-            <button type="button" class="nav-link" @click="scrollToSection('faq')">FAQ</button>
-            <button @click="navigateToLogin" class="btn-primary">Fazer Login</button>
-            <button @click="navigateToRegister" class="btn-secondary">Cadastrar</button>
+          <button
+            type="button"
+            class="mobile-menu-toggle"
+            @click="toggleMobileMenu"
+            :aria-expanded="isMobileMenuOpen"
+            aria-label="Alternar navegação"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div class="nav-actions-inline">
+            <button type="button" class="nav-inline-button" @click="navigateToLogin">
+              Entrar
+            </button>
+            <button type="button" class="nav-inline-button nav-inline-button--solid" @click="navigateToRegister">
+              Cadastrar
+            </button>
+          </div>
+          <div class="nav-links" :class="{ 'is-open': isMobileMenuOpen }">
+            <div class="nav-links-list">
+              <button
+                v-for="item in navItems"
+                :key="item.label"
+                type="button"
+                class="nav-link"
+                @click="scrollToSection(item.target)"
+              >
+                {{ item.label }}
+              </button>
+            </div>
+            <div class="nav-actions">
+              <button type="button" @click="navigateToLogin" class="btn-primary">Fazer Login</button>
+              <button type="button" @click="navigateToRegister" class="btn-secondary">Cadastrar</button>
+            </div>
           </div>
         </div>
+        <div
+          v-if="isMobileMenuOpen"
+          class="nav-overlay"
+          @click="closeMobileMenu"
+        ></div>
       </nav>
 
       <div class="container hero-content">
@@ -41,12 +72,8 @@
                 <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
-            <button @click="scrollToDemo" class="btn-secondary-large">
-              <svg class="icon" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                <polygon points="10,8 16,12 10,16" fill="currentColor"/>
-              </svg>
-              Ver Demonstração
+            <button @click="navigateToRegister" class="btn-secondary-large">
+              Registrar
             </button>
           </div>
           <div class="stats">
@@ -317,10 +344,35 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+
+const navItems = ref([
+  { label: 'In\u00edcio', target: 'home' },
+  { label: 'Recursos', target: 'features' },
+  { label: 'Como Funciona', target: 'how-it-works' },
+  { label: 'Depoimentos', target: 'testimonials' },
+  { label: 'Pre\u00e7os', target: 'pricing' },
+  { label: 'FAQ', target: 'faq' }
+]);
+
+const isMobileMenuOpen = ref(false);
+
+const toggleMobileMenu = () => {
+  isMobileMenuOpen.value = !isMobileMenuOpen.value;
+};
+
+const closeMobileMenu = () => {
+  isMobileMenuOpen.value = false;
+};
+
+const handleResize = () => {
+  if (window.innerWidth >= 1024 && isMobileMenuOpen.value) {
+    isMobileMenuOpen.value = false;
+  }
+};
 
 const features = ref([
   {
@@ -449,10 +501,12 @@ const testimonials = ref([
 ]);
 
 const navigateToLogin = () => {
+  closeMobileMenu();
   router.push('/login');
 };
 
 const navigateToRegister = () => {
+  closeMobileMenu();
   router.push('/register');
 };
 
@@ -462,6 +516,7 @@ const openWhatsAppGroup = () => {
 
 const scrollToSection = sectionId => {
   const target = document.getElementById(sectionId);
+  closeMobileMenu();
   if (!target) return;
 
   const headerOffset = 120;
@@ -474,9 +529,14 @@ const scrollToSection = sectionId => {
   });
 };
 
-const scrollToDemo = () => {
-  document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-};
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+});
 </script>
 
 <style scoped>
@@ -566,6 +626,240 @@ const scrollToDemo = () => {
   display: flex;
   align-items: center;
   gap: 2.5rem;
+}
+
+.nav-links-list {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-actions-inline {
+  display: none;
+}
+
+.nav-inline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: rgba(255, 255, 255, 0.92);
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  white-space: nowrap;
+}
+
+.nav-inline-button:hover {
+  background: rgba(59, 130, 246, 0.55);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.nav-inline-button--solid {
+  background: var(--gradient-primary);
+  border: none;
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.35);
+  color: white;
+}
+
+.nav-inline-button--solid:hover {
+  box-shadow: 0 16px 32px rgba(59, 130, 246, 0.45);
+}
+
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.45rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(18px);
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+  position: relative;
+  z-index: 1200;
+}
+
+.mobile-menu-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.mobile-menu-toggle:hover {
+  transform: translateY(-1px);
+  background: rgba(59, 130, 246, 0.45);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.navbar.menu-open .mobile-menu-toggle span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.navbar.menu-open .mobile-menu-toggle span:nth-child(2) {
+  opacity: 0;
+}
+
+.navbar.menu-open .mobile-menu-toggle span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+@media (max-width: 1200px) {
+  .nav-content {
+    gap: 2rem;
+  }
+
+  .nav-links {
+    gap: 2rem;
+  }
+
+  .nav-links-list {
+    gap: 2rem;
+  }
+
+  .nav-actions {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .nav-content {
+    gap: 1.5rem;
+  }
+
+  .nav-links {
+    gap: 1.25rem;
+  }
+
+  .nav-links-list {
+    gap: 1.25rem;
+  }
+
+  .nav-actions .btn-primary,
+  .nav-actions .btn-secondary {
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 960px) {
+  .navbar {
+    padding: 1rem 0;
+  }
+
+  .nav-content {
+    min-height: 76px;
+    gap: 1rem;
+    justify-content: flex-start;
+  }
+
+  .mobile-menu-toggle {
+    display: flex;
+    margin-left: 0.75rem;
+    order: 3;
+  }
+
+  .nav-links {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2.5rem;
+    padding: 6rem 2rem 3rem;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.97) 0%, rgba(15, 23, 42, 0.9) 100%);
+    backdrop-filter: blur(24px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-12px);
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+    z-index: 1100;
+    overflow-y: auto;
+    order: 4;
+  }
+
+  .nav-links.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .nav-links-list {
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  .nav-links .nav-link {
+    font-size: 1.125rem;
+  }
+
+  .nav-actions {
+    flex-direction: column;
+    gap: 1rem;
+    width: min(320px, 80%);
+  }
+
+  .nav-actions .btn-primary,
+  .nav-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.95rem;
+    padding: 0.75rem 1.5rem;
+  }
+
+  .nav-actions-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+    order: 2;
+  }
+
+  .logo {
+    order: 1;
+  }
+
+  .logo-image {
+    height: 60px;
+  }
+
+  .logo-text {
+    font-size: 1.3rem;
+    letter-spacing: 0.18em;
+  }
+
+  .nav-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    z-index: 1040;
+    cursor: pointer;
+  }
 }
 
 .nav-links .nav-link {
@@ -1450,8 +1744,50 @@ const scrollToDemo = () => {
     grid-template-columns: 1fr;
   }
 
+  .navbar {
+    padding: 0.75rem 0;
+  }
+
+  .nav-content {
+    min-height: 70px;
+  }
+
   .nav-links {
-    display: none;
+    padding: 5.5rem 1.5rem 2.5rem;
+    gap: 2rem;
+  }
+
+  .nav-actions-inline {
+    gap: 0.6rem;
+  }
+
+  .nav-inline-button {
+    padding: 0.45rem 0.95rem;
+    font-size: 0.8rem;
+  }
+
+  .nav-links .nav-link {
+    font-size: 1.05rem;
+  }
+
+  .nav-actions {
+    width: min(280px, 85%);
+  }
+
+  .mobile-menu-toggle {
+    width: 2.75rem;
+    height: 2.75rem;
+    gap: 0.35rem;
+    margin-left: 0.65rem;
+  }
+
+  .logo-image {
+    height: 52px;
+  }
+
+  .logo-text {
+    font-size: 1.15rem;
+    letter-spacing: 0.16em;
   }
 
   .hero-actions,
@@ -1464,4 +1800,39 @@ const scrollToDemo = () => {
     gap: 1.5rem;
   }
 }
+@media (max-width: 600px) {
+  .nav-links {
+    padding: 4.75rem 1.25rem 2rem;
+    gap: 1.75rem;
+  }
+
+  .nav-actions {
+    width: 100%;
+  }
+
+  .mobile-menu-toggle {
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-left: 0.5rem;
+  }
+
+  .mobile-menu-toggle span {
+    width: 18px;
+  }
+
+  .nav-inline-button {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.78rem;
+  }
+
+  .logo-image {
+    height: 48px;
+  }
+
+  .logo-text {
+    font-size: 1.05rem;
+    letter-spacing: 0.14em;
+  }
+}
 </style>
+

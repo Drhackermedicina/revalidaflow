@@ -9,7 +9,6 @@ const props = defineProps({
   simulationEnded: { type: Boolean, default: false },
   simulationWasManuallyEndedEarly: { type: Boolean, default: false },
   isChecklistVisibleForCandidate: { type: Boolean, default: false },
-  pepReleasedToCandidate: { type: Boolean, default: false },
   markedPepItems: { type: [Object], default: () => ({}) },
   evaluationScores: { type: Object, default: () => ({}) },
   candidateReceivedScores: { type: Object, default: () => ({}) },
@@ -21,7 +20,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
-  'releasePepToCandidate',
   'togglePepItemMark',
   'update:evaluationScores',
   'submitEvaluation'
@@ -39,7 +37,6 @@ const isMarked = (itemId, subIndex) => {
 }
 
 // Handlers
-const handleReleasePepToCandidate = () => emit('releasePepToCandidate')
 const handleTogglePepItemMark = (itemId, subIndex) => emit('togglePepItemMark', itemId, subIndex)
 const handleEvaluationScoreUpdate = (itemId, score) => emit('update:evaluationScores', { itemId, score })
 const handleSubmitEvaluation = () => emit('submitEvaluation')
@@ -71,31 +68,12 @@ const getEvaluationLabel = (item, score) => {
     ]"
   >
     <VCardItem>
-      <VCardTitle class="d-flex align-center justify-space-between">
+      <VCardTitle class="d-flex align-center">
         <div class="d-flex align-center">
           <VIcon color="black" icon="ri-file-list-3-fill" size="large" class="me-2" />
           Checklist de Avaliação (PEP)
         </div>
       </VCardTitle>
-      <!-- Botão centralizado e grande -->
-      <div class="pep-liberado-btn-wrapper">
-        <VBtn
-          color="info"
-          @click="handleReleasePepToCandidate"
-          :disabled="pepReleasedToCandidate || !simulationEnded"
-          variant="tonal"
-          size="large"
-          class="pep-liberado-btn"
-        >
-          {{ pepReleasedToCandidate ? 'PEP Liberado' : 'Liberar PEP' }}
-        </VBtn>
-        <!-- Indicador visual quando o botão está desabilitado -->
-        <div v-if="!simulationEnded && !pepReleasedToCandidate" class="mt-2">
-          <VChip color="warning" size="small" variant="outlined">
-            ⏳ Disponível após encerrar a estação
-          </VChip>
-        </div>
-      </div>
     </VCardItem>
     <VTable class="pep-table">
       <thead>
