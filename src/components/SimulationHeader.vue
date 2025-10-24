@@ -279,7 +279,7 @@ function handleToggleCollapse() {
             <v-select
               v-model="localSelectedDurationMinutes"
               label="Duração"
-              :items="[5, 6, 7, 8, 9, 10].map(n => ({ title: `${n} min`, value: n }))"
+              :items="[7, 8, 9, 10, 11, 12].map(n => ({ title: `${n} min`, value: n }))"
               density="compact"
               hide-details
               @update:model-value="handleTimerSelectionUpdate"

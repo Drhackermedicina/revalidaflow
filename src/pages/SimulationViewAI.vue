@@ -53,6 +53,7 @@ const {
   candidateReadyButtonEnabled,
   simulationStarted,
   simulationEnded,
+  startSimulation,
   manuallyEndSimulation,
   sendReady,
   updateTimerDisplayFromSelection,
@@ -61,7 +62,7 @@ const {
   simulationTimeSeconds,
   timerDisplay,
   selectedDurationMinutes,
-  autoStartOnReady: true
+  autoStartOnReady: false
 })
 
 // Refs para dados da simulação - seguindo mesmo padrão
@@ -98,10 +99,15 @@ const isSpeaking = ref(false)
 const speechSynthesis = ref(null)
 const speechEnabled = ref(true) // Controle se speech está habilitado
 const speechTimeout = ref(null) // Timeout para parar gravação automaticamente
-const autoRecordMode = ref(false) // Modo automático de gravação (VAD - Voice Activity Detection)
+const autoRecordMode = ref(true) // Modo automático de gravação (VAD) ativo por padrão
 const silenceTimeout = ref(null) // Timeout para detectar silêncio
 const lastSpeechTime = ref(null) // Timestamp da última fala detectada
 const selectedVoice = ref(null) // Voz selecionada baseada no paciente
+
+// Contagem regressiva antes de iniciar
+const countdownActive = ref(false)
+const countdownValue = ref(3)
+let countdownInterval = null
 
 // Refs para controle de painéis expandidos
 const expandedPanels = ref(['materials']) // Materiais sempre expandidos por padrão
@@ -188,7 +194,44 @@ function initializeLocalAISession() {
 
 function toggleReadyState() {
   if (!candidateReadyButtonEnabled.value) return
+  const wasReady = myReadyState.value
   sendReady()
+
+  if (!wasReady && myReadyState.value) {
+    startSimulationCountdown()
+  } else if (wasReady && !myReadyState.value) {
+    cancelCountdown()
+    if (isListening.value) {
+      stopListening()
+    }
+  }
+}
+
+function startSimulationCountdown() {
+  cancelCountdown()
+  countdownValue.value = 3
+  countdownActive.value = true
+
+  countdownInterval = setInterval(() => {
+    if (countdownValue.value <= 1) {
+      cancelCountdown()
+      startSimulation()
+      if (autoRecordMode.value && !isListening.value) {
+        startListening()
+      }
+    } else {
+      countdownValue.value -= 1
+    }
+  }, 1000)
+}
+
+function cancelCountdown() {
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+  countdownActive.value = false
+  countdownValue.value = 3
 }
 
 // Enviar mensagem para IA
@@ -1301,6 +1344,19 @@ watch(selectedDurationMinutes, () => {
   updateTimerDisplayFromSelection()
 })
 
+watch(simulationStarted, (newValue) => {
+  if (newValue) {
+    if (autoRecordMode.value && !isListening.value) {
+      startListening()
+    }
+  } else {
+    cancelCountdown()
+    if (isListening.value) {
+      stopListening()
+    }
+  }
+})
+
 // Watcher para liberar PEP automaticamente ao final da simulação (mesma lógica do SimulationView.vue)
 watch(simulationEnded, (newValue) => {
   if (newValue) {
@@ -1309,6 +1365,7 @@ watch(simulationEnded, (newValue) => {
     // Liberar PEP automaticamente quando a simulação termina
     pepReleasedToCandidate.value = true
     isChecklistVisibleForCandidate.value = true
+    stopListening()
 
     console.log('✅ PEP liberado automaticamente:', {
       pepReleasedToCandidate: pepReleasedToCandidate.value,
@@ -1606,6 +1663,8 @@ onMounted(async () => {
     document.removeEventListener('keydown', handleEscKey)
     resetWorkflowState()
     finalizeAISimulation()
+    cancelCountdown()
+    stopListening()
   })
 
   // Inicializar reconhecimento de voz
@@ -1647,6 +1706,18 @@ onMounted(async () => {
 
 <template>
   <div class="simulation-container">
+    <v-overlay
+      :model-value="countdownActive"
+      class="countdown-overlay"
+      :scrim="'rgba(9, 17, 43, 0.8)'"
+      persistent
+    >
+      <div class="countdown-content">
+        <div class="countdown-number">{{ countdownValue }}</div>
+        <div class="text-subtitle-1 mt-2 text-center">Preparando a simulação...</div>
+      </div>
+    </v-overlay>
+
     <!-- Header da simulação -->
     <!-- <v-app-bar color="primary" density="comfortable" elevation="2">
       <v-btn
@@ -1744,10 +1815,12 @@ onMounted(async () => {
                     color="primary"
                     variant="outlined"
                   >
-                    <v-btn :value="5">5 min</v-btn>
+                    <v-btn :value="7">7 min</v-btn>
+                    <v-btn :value="8">8 min</v-btn>
+                    <v-btn :value="9">9 min</v-btn>
                     <v-btn :value="10">10 min</v-btn>
-                    <v-btn :value="15">15 min</v-btn>
-                    <v-btn :value="20">20 min</v-btn>
+                    <v-btn :value="11">11 min</v-btn>
+                    <v-btn :value="12">12 min</v-btn>
                   </v-btn-toggle>
                 </div>
 
@@ -2084,6 +2157,17 @@ onMounted(async () => {
               </v-card-title>
 
               <v-divider />
+
+              <v-alert
+                v-if="!simulationStarted"
+                variant="tonal"
+                color="primary"
+                class="mx-4 my-4 pre-sim-alert"
+                density="comfortable"
+              >
+                <strong>Instruções:</strong>
+                Fale em voz alta, claramente e não faça pausas prolongadas. Após terminar de falar aguarde de 1 a 2 segundos para que sua fala seja transcrita e enviada. Cada fala tem um tempo limite de 30 segundos; após isso a gravação da voz é finalizada. Faça um resumo do solicitado e aguarde meu comando para prosseguir.
+              </v-alert>
 
               <!-- Histórico de conversa -->
               <div
@@ -2700,6 +2784,31 @@ onMounted(async () => {
   background-color: rgba(var(--v-theme-primary), 0.1);
 }
 
+.countdown-overlay .v-overlay__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.countdown-content {
+  background-color: rgba(var(--v-theme-surface), 0.92);
+  padding: 32px 48px;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgba(12, 22, 58, 0.45);
+  text-align: center;
+}
+
+.countdown-number {
+  font-size: 4rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary));
+}
+
+.pre-sim-alert {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 /* Responsividade */
 @media (max-width: 960px) {
   .message-candidate .message-content,
@@ -2726,3 +2835,4 @@ onMounted(async () => {
 
 /* DIAGNÓSTICO URGENTE: Usando apenas estilos inline no template */
 </style>
+

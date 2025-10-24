@@ -27,8 +27,6 @@ vi.mock('firebase-admin', () => ({
 }))
 
 describe('👑 Endpoints de Administração', () => {
-  let server
-
   beforeEach(async () => {
     // Configurar ambiente de teste
     process.env.NODE_ENV = 'test'

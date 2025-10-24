@@ -4,10 +4,9 @@
  * Composable para gerenciar dados de usuários e permissões
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { db } from '@/plugins/firebase.js'
 import { doc, getDoc } from 'firebase/firestore'
-import { currentUser } from '@/plugins/auth.js'
 import { useUserStore } from '@/stores/userStore'
 import Logger from '@/utils/logger';
 const logger = new Logger('useUserManagement');

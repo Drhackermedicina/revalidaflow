@@ -1,7 +1,7 @@
 // src/stores/userStore.js
 import { db } from '@/plugins/firebase'; // Importa a instância do Firestore
-import { collection, limit, orderBy, query, where, getDocs, doc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
-import { reactive, computed, watch, onUnmounted } from 'vue';
+import { collection, limit, orderBy, query, where, getDocs, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { reactive, computed, watch } from 'vue';
 import { currentUser } from '@/plugins/auth';
 import Logger from '@/utils/logger';
 

@@ -135,7 +135,7 @@ const route = useRoute()
 const router = useRouter()
 
 const { loading, error, question, fetchQuestion } = useDescriptiveQuestion()
-const { loading: evaluationLoading, error: evaluationError, feedback, evaluateAnswer } = useDescriptiveEvaluation()
+const { error: evaluationError, feedback, evaluateAnswer } = useDescriptiveEvaluation()
 
 // Lifecycle
 onMounted(async () => {

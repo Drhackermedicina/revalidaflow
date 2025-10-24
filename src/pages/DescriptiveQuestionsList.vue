@@ -285,7 +285,7 @@
 <script setup>
 import { useUserStore } from '@/stores/userStore'
 import { db } from '@/plugins/firebase'
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
+import { collection, getDocs } from 'firebase/firestore'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 

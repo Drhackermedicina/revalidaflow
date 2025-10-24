@@ -44,7 +44,6 @@ const mockApp = {
 vi.mock('../../backend/server.js', () => mockApp)
 
 describe('Testes Críticos de Endpoints da API', () => {
-  let testServer
   let baseURL
 
   beforeEach(async () => {
@@ -499,7 +498,7 @@ describe('Testes Críticos de Endpoints da API', () => {
     })
 
     it('deve handle concorrência em endpoints de admin', async () => {
-      const promises = Array(5).fill().map((_, index) =>
+      const promises = Array(5).fill().map(() =>
         axios.get(`${baseURL}/api/admin/users`, {
           headers: { Authorization: 'Bearer admin-token' }
         })

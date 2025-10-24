@@ -122,10 +122,7 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid in [
         'KiSITAxXMAY5uU3bOPW5JMQPent2',  // Taís Zocche
         'RtfNENOqMUdw7pvgeeaBVSuin662',  // Usuário atual
-        'anmxavJdQdgZ16bDsKKEKuaM4FW2',  // Admin 2
-        'gb8MEg8UMmOOUhiBu1A2EY6GkX52',  // Admin 3
-        'lNwhdYgMwLhS1ZyufRzw9xLD10y1',  // stefferson ferraz
-        'CUdflZgyx5SOROyjbvZ1WpIVT2w2'   // Usuário especial para agentes VS Code
+        'Iehedj0FJtN36tGfDyIojpdiJGi2'  // Stefferon
       ];
     }
 

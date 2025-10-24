@@ -91,7 +91,7 @@ export function useSimulationSession() {
       stationData.value = { id: stationSnap.id, ...stationDataRaw }
 
       // Configuração de duração
-      const validOptions = [5, 6, 7, 8, 9, 10]
+      const validOptions = [7, 8, 9, 10, 11, 12]
 
       const stationDefaultMinutes = stationData.value?.tempoDuracaoMinutos
       if (stationDefaultMinutes && validOptions.includes(stationDefaultMinutes)) {
@@ -184,7 +184,7 @@ export function useSimulationSession() {
    */
   function setupDuration(routeQuery) {
     const durationFromQuery = routeQuery.duration ? parseInt(routeQuery.duration) : null
-    const validOptions = [5, 6, 7, 8, 9, 10]
+    const validOptions = [7, 8, 9, 10, 11, 12]
 
     if (durationFromQuery && validOptions.includes(durationFromQuery)) {
       selectedDurationMinutes.value = durationFromQuery
@@ -241,7 +241,7 @@ export function useSimulationSession() {
    * Atualiza duração selecionada e timer
    */
   function updateDuration(minutes) {
-    const validOptions = [5, 6, 7, 8, 9, 10]
+    const validOptions = [7, 8, 9, 10, 11, 12]
     if (validOptions.includes(minutes)) {
       selectedDurationMinutes.value = minutes
       simulationTimeSeconds.value = minutes * 60

@@ -350,7 +350,7 @@ export function useSimulationWorkflow({
                 // Resetar o dropdown para o valor correto caso o usuário mude e tente iniciar de novo.
                 // O `selectedDurationMinutes` deve ser o que foi usado para gerar o link (que é o que está no timerDisplay)
                 const currentDurationInMinutes = Math.round(simulationTimeSeconds.value / 60)
-                const validOptions = [5, 6, 7, 8, 9, 10]
+                const validOptions = [7, 8, 9, 10, 11, 12]
 
                 if (
                     selectedDurationMinutes.value !== currentDurationInMinutes &&

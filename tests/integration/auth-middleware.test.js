@@ -6,8 +6,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { app } from '../../backend/server.js'
-
 // Mock do Firebase Admin SDK
 const mockAuth = {
   verifyIdToken: vi.fn(),
