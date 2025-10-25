@@ -145,8 +145,7 @@ import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { currentUser } from '@/plugins/auth'
-import { db } from '@/plugins/firebase'
-import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'
+import { deleteInviteFromFirestore } from '@/utils/simulationInviteCleanup.js'
 
 const router = useRouter()
 const { notify } = useNotificationStore()
@@ -171,35 +170,6 @@ let notificationTimeout = null
 
 // Computed para verificar se é convite
 const isInvite = computed(() => notification.value.isInvite)
-
-// 🗑️ Função para deletar convite do Firestore
-const deleteInviteFromFirestore = async (candidateUid, senderUid, stationTitle) => {
-  try {
-    const invitesRef = collection(db, 'simulationInvites')
-    const q = query(
-      invitesRef,
-      where('candidateUid', '==', candidateUid),
-      where('senderUid', '==', senderUid),
-      where('stationTitle', '==', stationTitle),
-      where('status', '==', 'pending')
-    )
-    
-    const querySnapshot = await getDocs(q)
-    
-    const deletePromises = querySnapshot.docs.map(docSnapshot => 
-      deleteDoc(doc(db, 'simulationInvites', docSnapshot.id))
-    )
-    
-    await Promise.all(deletePromises)
-    
-    // Log apenas em desenvolvimento
-    if (querySnapshot.docs.length > 0 && process.env.NODE_ENV === 'development') {
-      // console.log(`🗑️ ${querySnapshot.docs.length} convite(s) deletado(s) do Firestore`)
-    }
-  } catch (error) {
-    console.error('Erro ao deletar convite do Firestore:', error)
-  }
-}
 
 // Função unificada para tratar notificações de chat privado
 const handlePrivateChatNotification = (event) => {
@@ -242,11 +212,12 @@ const handlePrivateChatNotification = (event) => {
       notificationTimeout = setTimeout(async () => {
         // 🗑️ Se for convite e expirar, deletar do Firestore
         if (isInvite.value && notification.value.inviteData) {
-          await deleteInviteFromFirestore(
-            notification.value.inviteData.candidateUid,
-            notification.value.senderId,
-            notification.value.inviteData.stationTitle
-          )
+          await deleteInviteFromFirestore({
+            candidateUid: notification.value.inviteData.candidateUid,
+            senderUid: notification.value.senderId,
+            stationTitle: notification.value.inviteData.stationTitle,
+            inviteLink: notification.value.inviteData.inviteLink
+          })
         }
 
         showNotification.value = false
@@ -267,11 +238,12 @@ const handlePrivateChatNotification = (event) => {
 const closeNotification = async () => {
   // 🗑️ Se for convite, deletar do Firestore quando recusado
   if (isInvite.value && notification.value.inviteData) {
-    await deleteInviteFromFirestore(
-      notification.value.inviteData.candidateUid,
-      notification.value.senderId,
-      notification.value.inviteData.stationTitle
-    )
+    await deleteInviteFromFirestore({
+      candidateUid: notification.value.inviteData.candidateUid,
+      senderUid: notification.value.senderId,
+      stationTitle: notification.value.inviteData.stationTitle,
+      inviteLink: notification.value.inviteData.inviteLink
+    })
   }
   
   showNotification.value = false
@@ -302,11 +274,12 @@ const acceptInvite = async () => {
   
   try {
     // 🗑️ Deletar convite do Firestore quando aceito
-    await deleteInviteFromFirestore(
-      notification.value.inviteData.candidateUid,
-      notification.value.senderId,
-      notification.value.inviteData.stationTitle
-    )
+    await deleteInviteFromFirestore({
+      candidateUid: notification.value.inviteData.candidateUid,
+      senderUid: notification.value.senderId,
+      stationTitle: notification.value.inviteData.stationTitle,
+      inviteLink: notification.value.inviteData.inviteLink
+    })
     
     // Redirecionar para o link da simulação
     window.location.href = notification.value.inviteData.inviteLink

@@ -49,6 +49,7 @@ import { useSimulationPEP } from '@/composables/useSimulationPEP.js'
 import { useInternalInvites } from '@/composables/useInternalInvites.js'
 import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.js'
 import { useInviteLinkGeneration } from '@/composables/useInviteLinkGeneration.js'
+import { deleteInviteFromFirestore } from '@/utils/simulationInviteCleanup.js'
 
 // Utils de Formatação
 
@@ -180,6 +181,31 @@ const router = useRouter();
 
 // Candidato selecionado para simulação
 const selectedCandidateForSimulation = ref(null);
+
+watch(simulationStarted, async started => {
+  if (!started) {
+    return;
+  }
+
+  if (!isActorOrEvaluator.value) {
+    return;
+  }
+
+  if (!selectedCandidateForSimulation.value?.uid || !currentUser.value?.uid) {
+    return;
+  }
+
+  try {
+    await deleteInviteFromFirestore({
+      candidateUid: selectedCandidateForSimulation.value.uid,
+      senderUid: currentUser.value.uid,
+      stationTitle: stationData.value?.tituloEstacao || null,
+      inviteLink: inviteLinkToShow.value || null
+    });
+  } catch (error) {
+    console.error('[SimulationView] Erro ao remover convite pendente após início da simulação:', error);
+  }
+});
 
 // Google Meet integration
 const {

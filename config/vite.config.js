@@ -162,8 +162,9 @@ export default defineConfig({
     },
     server: {
         headers: {
-            'Cross-Origin-Opener-Policy': 'unsafe-none',
-            'Cross-Origin-Embedder-Policy': 'unsafe-none'
+            // Removido Cross-Origin-Opener-Policy para evitar erros no login Google
+            // 'Cross-Origin-Opener-Policy': 'unsafe-none',
+            // 'Cross-Origin-Embedder-Policy': 'unsafe-none'
         }
     }
 })

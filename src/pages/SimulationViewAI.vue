@@ -53,7 +53,6 @@ const {
   candidateReadyButtonEnabled,
   simulationStarted,
   simulationEnded,
-  startSimulation,
   manuallyEndSimulation,
   sendReady,
   updateTimerDisplayFromSelection,
@@ -62,7 +61,7 @@ const {
   simulationTimeSeconds,
   timerDisplay,
   selectedDurationMinutes,
-  autoStartOnReady: false
+  autoStartOnReady: true
 })
 
 // Refs para dados da simulação - seguindo mesmo padrão
@@ -104,10 +103,10 @@ const silenceTimeout = ref(null) // Timeout para detectar silêncio
 const lastSpeechTime = ref(null) // Timestamp da última fala detectada
 const selectedVoice = ref(null) // Voz selecionada baseada no paciente
 
-// Contagem regressiva antes de iniciar
-const countdownActive = ref(false)
+// Refs para contagem regressiva antes da simulação
+const isCountdownActive = ref(false)
 const countdownValue = ref(3)
-let countdownInterval = null
+const countdownInterval = ref(null)
 
 // Refs para controle de painéis expandidos
 const expandedPanels = ref(['materials']) // Materiais sempre expandidos por padrão
@@ -207,93 +206,91 @@ function toggleReadyState() {
   }
 }
 
+// Funções para contagem regressiva antes da simulação
 function startSimulationCountdown() {
-  cancelCountdown()
+  isCountdownActive.value = true
   countdownValue.value = 3
-  countdownActive.value = true
 
-  countdownInterval = setInterval(() => {
-    if (countdownValue.value <= 1) {
+  countdownInterval.value = setInterval(() => {
+    countdownValue.value--
+    if (countdownValue.value <= 0) {
       cancelCountdown()
-      startSimulation()
-      if (autoRecordMode.value && !isListening.value) {
-        startListening()
-      }
-    } else {
-      countdownValue.value -= 1
+      // A simulação já é iniciada automaticamente pelo workflow
     }
   }, 1000)
 }
 
 function cancelCountdown() {
-  if (countdownInterval) {
-    clearInterval(countdownInterval)
-    countdownInterval = null
+  if (countdownInterval.value) {
+    clearInterval(countdownInterval.value)
+    countdownInterval.value = null
   }
-  countdownActive.value = false
+  isCountdownActive.value = false
   countdownValue.value = 3
 }
 
-// Enviar mensagem para IA
-async function sendMessage() {
-  if (!canSendMessage.value) return
+const contextKeywordMap = {
+  physical_exam: [
+    'exame físico', 'exame fisico', 'semiologia', 'propedêutica', 'propedeutica',
+    'abdome', 'abdômen', 'abdominal', 'neurológico', 'neurologico', 'respiratório', 'respiratorio',
+    'cardíaco', 'cardiaco', 'musculoesquelético', 'musculo esquelético', 'osteoarticular', 'dermatológico',
+    'otorrinolaringológico', 'ginecológico', 'urológico'
+  ],
+  vitals: [
+    'sinais vitais', 'ssvv', 'pressão arterial', 'pa', 'temperatura', 'pulso', 'frequência cardíaca',
+    'frequencia cardiaca', 'frequência respiratória', 'frequencia respiratoria', 'oximetria', 'saturação',
+    'saturacao', 'glicemia capilar'
+  ],
+  lab: [
+    'exame', 'exames', 'teste', 'testes', 'laboratorial', 'laboratoriais', 'dosagem', 'dosagens',
+    'marcador', 'marcadores', 'sorologia', 'sorologias', 'imunológico', 'bioquímica', 'hemograma',
+    'hemograma completo', 'hemograma total', 'coagulograma', 'perfil', 'lipidograma', 'hepatograma',
+    'renal', 'eletrólitos', 'elelitros', 'gases arteriais', 'beta hcg', 'bhcg', 'pcr', 'vhs', 'urina',
+    'urocultura', 'coleta', 'resultado', 'painel', 'dosagem hormonal'
+  ],
+  imaging: [
+    'imagem', 'raio-x', 'raio x', 'rx', 'radiografia', 'tomografia', 'tc', 'ressonância', 'ressonancia',
+    'rm', 'ultrassom', 'ultrassonografia', 'usg', 'ecografia', 'mamografia', 'angiografia', 'cintilografia',
+    'densitometria', 'colonoscopia', 'endoscopia', 'broncoscopia', 'ectoscopia', 'enema', 'artrografia',
+    'histerossalpingografia', 'videolaringoscopia', 'retossigmoidoscopia'
+  ]
+}
 
-  const message = currentMessage.value.trim()
-  currentMessage.value = ''
-  isProcessingMessage.value = true
+function getContextOption(value) {
+  return requestContextOptions.find(option => option.value === value) || null
+}
 
-  // Adicionar mensagem do candidato ao histórico
-  conversationHistory.value.push({
-    role: 'candidate',
-    content: message,
-    timestamp: new Date()
-  })
+function setRequestContext(newContext) {
+  const normalized = newContext || null
+  const previous = requestContext.value
 
-  await nextTick()
-  scrollToBottom()
-
-  try {
-    // Processar resposta da IA baseada no script (sem backend)
-    const aiResponse = await processAIResponse(message)
-
-    // Adicionar resposta da IA ao histórico
-    conversationHistory.value.push({
-      role: 'ai_actor',
-      content: aiResponse,
-      timestamp: new Date()
-    })
-
-    await nextTick()
-    scrollToBottom()
-
-    // Falar a resposta se speech estiver habilitado
-    if (speechEnabled.value && speechSynthesis) {
-      speakText(aiResponse)
-    } else {
-      // Se síntese de voz está desabilitada mas modo automático está ativo, reiniciar gravação
-      if (autoRecordMode.value && !isListening.value) {
-        console.log('🎤 IA respondeu (sem síntese de voz) - reiniciando gravação automática...')
-        setTimeout(() => {
-          if (autoRecordMode.value && !isListening.value) {
-            startListening()
-          }
-        }, 500)
-      }
+  if (previous === normalized) {
+    requestContext.value = null
+    if (previous) {
+      resetCategoryState(previous)
+      conversationHistory.value.push({
+        role: 'system',
+        content: 'Contexto de solicitação removido. Você pode continuar normalmente.',
+        timestamp: new Date(),
+        isSystemMessage: true
+      })
     }
+    return
+  }
 
-    // Atualizar contador de mensagens
-    aiStats.value.messageCount++
+  requestContext.value = normalized
+  if (normalized) {
+    resetCategoryState(normalized)
+  }
 
-  } catch (error) {
-    console.error('❌ Erro ao processar mensagem da IA:', error)
+  const option = getContextOption(normalized)
+  if (option) {
     conversationHistory.value.push({
       role: 'system',
       content: 'Desculpe, houve um erro. Tente novamente.',
       timestamp: new Date(),
       isError: true
     })
-  } finally {
-    isProcessingMessage.value = false
   }
 }
 
@@ -924,6 +921,61 @@ function goBack() {
   router.push('/app/station-list')
 }
 
+// Função para enviar mensagem para IA
+async function sendMessage() {
+  if (!canSendMessage.value) return
+
+  const message = currentMessage.value.trim()
+  currentMessage.value = ''
+  isProcessingMessage.value = true
+
+  // Adicionar mensagem do candidato ao histórico
+  conversationHistory.value.push({
+    role: 'candidate',
+    content: message,
+    timestamp: new Date()
+  })
+
+  await nextTick()
+  scrollToBottom()
+
+  try {
+    // Processar resposta da IA
+    const aiResponse = await processAIResponse(message)
+
+    // Adicionar resposta da IA ao histórico
+    conversationHistory.value.push({
+      role: 'ai_actor',
+      content: aiResponse,
+      timestamp: new Date()
+    })
+
+    await nextTick()
+    scrollToBottom()
+
+    // Fazer a IA falar a resposta se speech estiver habilitado
+    if (speechEnabled.value) {
+      speakText(aiResponse)
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao enviar mensagem:', error)
+
+    // Adicionar mensagem de erro ao histórico
+    conversationHistory.value.push({
+      role: 'system',
+      content: 'Desculpe, houve um erro. Tente novamente.',
+      timestamp: new Date(),
+      isError: true
+    })
+
+    await nextTick()
+    scrollToBottom()
+  } finally {
+    isProcessingMessage.value = false
+  }
+}
+
 function handleKeyPress(event) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
@@ -1269,7 +1321,8 @@ function speakText(text) {
     // Aplicar rate e pitch baseado na idade
     const { age } = extractPatientDemographics()
     const { rate, pitch } = getVoiceParametersForAge(age)
-    utterance.rate = rate
+    const acceleratedRate = Math.min(rate * 1.2, 2)
+    utterance.rate = acceleratedRate
     utterance.pitch = pitch
 
     utterance.onstart = () => {
@@ -1365,7 +1418,6 @@ watch(simulationEnded, (newValue) => {
     // Liberar PEP automaticamente quando a simulação termina
     pepReleasedToCandidate.value = true
     isChecklistVisibleForCandidate.value = true
-    stopListening()
 
     console.log('✅ PEP liberado automaticamente:', {
       pepReleasedToCandidate: pepReleasedToCandidate.value,
@@ -1663,8 +1715,6 @@ onMounted(async () => {
     document.removeEventListener('keydown', handleEscKey)
     resetWorkflowState()
     finalizeAISimulation()
-    cancelCountdown()
-    stopListening()
   })
 
   // Inicializar reconhecimento de voz
@@ -1706,18 +1756,6 @@ onMounted(async () => {
 
 <template>
   <div class="simulation-container">
-    <v-overlay
-      :model-value="countdownActive"
-      class="countdown-overlay"
-      :scrim="'rgba(9, 17, 43, 0.8)'"
-      persistent
-    >
-      <div class="countdown-content">
-        <div class="countdown-number">{{ countdownValue }}</div>
-        <div class="text-subtitle-1 mt-2 text-center">Preparando a simulação...</div>
-      </div>
-    </v-overlay>
-
     <!-- Header da simulação -->
     <!-- <v-app-bar color="primary" density="comfortable" elevation="2">
       <v-btn
@@ -2143,6 +2181,7 @@ onMounted(async () => {
             cols="12"
             md="4"
             class="d-flex flex-column chat-column"
+            style="height: calc(100vh - 60px);"
           >
             <!-- Cenário da estação -->
             <v-card class="flex-1-1 d-flex flex-column ma-2 chat-card" flat>
@@ -2157,17 +2196,6 @@ onMounted(async () => {
               </v-card-title>
 
               <v-divider />
-
-              <v-alert
-                v-if="!simulationStarted"
-                variant="tonal"
-                color="primary"
-                class="mx-4 my-4 pre-sim-alert"
-                density="comfortable"
-              >
-                <strong>Instruções:</strong>
-                Fale em voz alta, claramente e não faça pausas prolongadas. Após terminar de falar aguarde de 1 a 2 segundos para que sua fala seja transcrita e enviada. Cada fala tem um tempo limite de 30 segundos; após isso a gravação da voz é finalizada. Faça um resumo do solicitado e aguarde meu comando para prosseguir.
-              </v-alert>
 
               <!-- Histórico de conversa -->
               <div
@@ -2297,6 +2325,21 @@ onMounted(async () => {
                   @click="stopSpeaking"
                 >
                   <v-icon>ri-volume-mute-line</v-icon>
+                </v-btn>
+
+                <!-- Botão para controlar voz da IA -->
+                <v-btn
+                  :color="speechEnabled ? 'success' : 'grey'"
+                  variant="tonal"
+                  size="large"
+                  class="ml-2"
+                  :aria-label="speechEnabled ? 'Desativar voz da IA' : 'Ativar voz da IA'"
+                  @click="speechEnabled = !speechEnabled"
+                >
+                  <v-icon>{{ speechEnabled ? 'ri-volume-up-line' : 'ri-volume-mute-line' }}</v-icon>
+                  <v-tooltip activator="parent" location="top">
+                    {{ speechEnabled ? 'Voz da IA ativada (clique para desativar)' : 'Voz da IA desativada (clique para ativar)' }}
+                  </v-tooltip>
                 </v-btn>
 
                 <!-- Botão de enviar -->
@@ -2506,6 +2549,23 @@ onMounted(async () => {
       </v-card>
     </v-dialog>
   </div>
+
+  <!-- Overlay de contagem regressiva -->
+  <v-overlay
+    v-model="isCountdownActive"
+    class="countdown-overlay align-center justify-center"
+    persistent
+    opacity="0.9"
+  >
+    <div class="countdown-container">
+      <div class="countdown-number">
+        {{ countdownValue }}
+      </div>
+      <div class="countdown-text">
+        Preparando simulação...
+      </div>
+    </div>
+  </v-overlay>
 </template>
 
 <style scoped>
@@ -2784,31 +2844,6 @@ onMounted(async () => {
   background-color: rgba(var(--v-theme-primary), 0.1);
 }
 
-.countdown-overlay .v-overlay__content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.countdown-content {
-  background-color: rgba(var(--v-theme-surface), 0.92);
-  padding: 32px 48px;
-  border-radius: 20px;
-  box-shadow: 0 12px 40px rgba(12, 22, 58, 0.45);
-  text-align: center;
-}
-
-.countdown-number {
-  font-size: 4rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-primary));
-}
-
-.pre-sim-alert {
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
 /* Responsividade */
 @media (max-width: 960px) {
   .message-candidate .message-content,
@@ -2833,6 +2868,44 @@ onMounted(async () => {
   }
 }
 
+/* Estilos para contagem regressiva */
+.countdown-overlay {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+.countdown-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+}
+
+.countdown-number {
+  font-size: 8rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  animation: countdownPulse 1s ease-in-out infinite;
+}
+
+.countdown-text {
+  font-size: 1.5rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+@keyframes countdownPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
 /* DIAGNÓSTICO URGENTE: Usando apenas estilos inline no template */
 </style>
-

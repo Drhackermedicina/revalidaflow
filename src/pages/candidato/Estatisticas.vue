@@ -111,8 +111,8 @@ const especialidadeNomes = {
 
 // Computed properties simplificadas
 const averageScore = computed(() => {
-  const nivel = userData.value?.nivelHabilidade;
-  return nivel !== undefined ? Math.round(nivel * 10) : 0;
+  const media = userData.value?.statistics?.geral?.mediaNotas
+  return media !== undefined ? Number(media).toFixed(1) : '0.0'
 });
 
 const bestScore = computed(() => {
@@ -129,12 +129,12 @@ const performanceByArea = computed(() => {
     .filter(([key]) => key !== 'geral' && especialidadeNomes[key])
     .map(([key, dados]) => ({
       name: especialidadeNomes[key],
-      score: Math.min(Math.round((dados.mediaNotas || 0) * 10), 100)
+      score: Math.min(Math.round((dados.mediaNotas || 0) * 10) / 10, 10).toFixed(1)
     }));
 
   return areas.length ? areas : Object.values(especialidadeNomes).map(nome => ({
     name: nome,
-    score: 0
+    score: '0.0'
   }));
 });
 
@@ -160,7 +160,7 @@ const averageScoreChartOptions = computed(() => ({
           offsetY: 5,
           fontSize: '22px',
           fontWeight: 600,
-          formatter: (val) => `${val}%`,
+          formatter: (val) => `${val}/10`,
           color: isDarkTheme.value
             ? vuetifyTheme.current.value.colors.onSurface
             : vuetifyTheme.current.value.colors.onSurface,
@@ -205,7 +205,7 @@ const bestScoreChartOptions = computed(() => ({
           offsetY: 5,
           fontSize: '22px',
           fontWeight: 600,
-          formatter: (val) => `${val}%`,
+          formatter: (val) => `${val}/10`,
           color: isDarkTheme.value
             ? vuetifyTheme.current.value.colors.onSurface
             : vuetifyTheme.current.value.colors.onSurface,
@@ -248,7 +248,7 @@ const performanceByAreaChartOptions = computed(() => ({
   },
   dataLabels: {
     enabled: true,
-    formatter: (val) => `${val}%`,
+    formatter: (val) => `${val}/10`,
     offsetX: 30,
     style: {
       fontSize: '12px',
@@ -259,9 +259,9 @@ const performanceByAreaChartOptions = computed(() => ({
   },
   xaxis: {
     categories: performanceByArea.value.map(area => area.name),
-    max: 100,
+    max: 10,
     labels: {
-      formatter: (val) => `${val}%`,
+      formatter: (val) => `${val}/10`,
       style: {
         colors: isDarkTheme.value
           ? vuetifyTheme.current.value.colors.onSurface
@@ -298,7 +298,7 @@ const performanceByAreaChartOptions = computed(() => ({
   tooltip: {
     theme: isDarkTheme.value ? 'dark' : 'light',
     y: {
-      formatter: (val) => `${val}%`,
+      formatter: (val) => `${val}/10`,
     },
   },
   theme: {

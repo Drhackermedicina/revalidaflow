@@ -75,7 +75,6 @@
 
         <VCol cols="12" lg="3" md="4" class="d-flex">
           <RankingCard
-            class="fill-height"
             :loading="loading" 
             :error="error" 
             :loadDashboardData="loadDashboardData"
@@ -83,7 +82,6 @@
             :rankingScore="rankingScore"
             :top3Users="top3Users"
             :userData="userData"
-            :rankingProgress="rankingProgress"
             :pointsToNextLevel="pointsToNextLevel"
             :nextRankingMilestone="nextRankingMilestone"
             :rankingHistory="rankingHistory"
@@ -211,7 +209,6 @@ const {
 
 // Stats derivadas
 const {
-  rankingProgress,
   pointsToNextLevel,
   nextRankingMilestone,
   rankingHistory

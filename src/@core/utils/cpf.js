@@ -1,5 +1,5 @@
 // Validação de CPF
-export function validarCPF(cpf: string): boolean {
+export function validarCPF(cpf) {
   cpf = cpf.replace(/\D/g, '')
   if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false
   let soma = 0, resto
@@ -16,7 +16,7 @@ export function validarCPF(cpf: string): boolean {
 }
 
 // Máscara de CPF
-export function aplicarMascaraCPF(valor: string): string {
+export function aplicarMascaraCPF(valor) {
   valor = valor.replace(/\D/g, '')
   valor = valor.replace(/(\d{3})(\d)/, '$1.$2')
   valor = valor.replace(/(\d{3})(\d)/, '$1.$2')

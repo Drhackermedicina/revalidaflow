@@ -38,7 +38,7 @@ export async function registrarConclusaoEstacao({ uid, idEstacao, nota, data, us
         idEstacao,
         nota,
         data: data instanceof Date ? Timestamp.fromDate(data) : data,
-        nomeEstacao: estacaoData.titulo || 'Estação sem título',
+        nomeEstacao: estacaoData.tituloEstacao || 'Estação sem título',
         especialidade: estacaoData.especialidade || 'Não especificada',
         origem: estacaoData.origem || 'Desconhecida'
       };
@@ -128,7 +128,7 @@ export async function registrarConclusaoEstacao({ uid, idEstacao, nota, data, us
         idEstacao, 
         nota, 
         data: data instanceof Date ? Timestamp.fromDate(data) : data,
-        nomeEstacao: estacaoDataTx.titulo || 'Estação sem título',
+        nomeEstacao: estacaoDataTx.tituloEstacao || 'Estação sem título',
         especialidade: estacaoDataTx.especialidade || 'Não especificada',
         origem: estacaoDataTx.origem || 'Desconhecida'
       }];
@@ -183,7 +183,7 @@ export async function registrarConclusaoEstacao({ uid, idEstacao, nota, data, us
           idEstacao, 
           nota, 
           data: data instanceof Date ? Timestamp.fromDate(data) : data,
-          nomeEstacao: estacaoDataTx.titulo || 'Estação sem título',
+          nomeEstacao: estacaoDataTx.tituloEstacao || 'Estação sem título',
           especialidade: estacaoDataTx.especialidade || 'Não especificada',
           origem: estacaoDataTx.origem || 'Desconhecida'
         }),

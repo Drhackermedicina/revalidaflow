@@ -4,6 +4,7 @@ import { collection, limit, orderBy, query, where, getDocs, doc, onSnapshot, upd
 import { reactive, computed, watch } from 'vue';
 import { currentUser } from '@/plugins/auth';
 import Logger from '@/utils/logger';
+import validationLogger from '@/utils/validationLogger';
 
 const logger = new Logger('userStore');
 
@@ -58,6 +59,10 @@ const state = reactive({
   subscriptionPlan: null,
 });
 
+// Flag global para controlar concorrência de fetchUserRole
+let isFetchingRole = false;
+let currentRoleUnsubscribe = null;
+
 // Computed properties para fácil acesso aos dados do usuário
 const uid = computed(() => state.user?.uid || null);
 const email = computed(() => state.user?.email || '');
@@ -80,7 +85,10 @@ function setUser(user) {
 
   // Se usuário mudou, buscar role e permissões
   if (user) {
-    fetchUserRole();
+    // Controle de concorrência: só chamar fetchUserRole se não estiver em execução
+    if (!isFetchingRole) {
+      fetchUserRole('setUser');
+    }
   } else {
     clearUserRole();
   }
@@ -102,72 +110,139 @@ function clearUserRole() {
   state.accessExpiresAt = null;
   state.accessInviteCode = null;
   state.subscriptionPlan = null;
+
+  // Resetar flags de concorrência
+  isFetchingRole = false;
 }
 
-// Função para buscar role e permissões do usuário
-function fetchUserRole() {
+// Função para buscar role e permissões do usuário com retry e backoff
+function fetchUserRole(source = 'unknown') {
   if (!currentUser.value?.uid) {
-    logger.warn('fetchUserRole: No current user UID');
+    if (import.meta.env.DEV) {
+      logger.warn('fetchUserRole: No current user UID');
+    }
     return;
   }
 
+  const userUid = currentUser.value.uid;
+
+  // Controle de concorrência: se já está buscando, ignorar chamada
+  if (isFetchingRole) {
+    return;
+  }
+
+  // Limpar listener anterior se existir
+  if (currentRoleUnsubscribe) {
+    currentRoleUnsubscribe();
+    currentRoleUnsubscribe = null;
+  }
+
+  isFetchingRole = true;
   state.roleLoading = true;
   state.roleError = '';
 
+  // Cache temporário com dados básicos do usuário
+  const tempUserData = {
+    uid: currentUser.value.uid,
+    email: currentUser.value.email,
+    displayName: currentUser.value.displayName,
+    role: 'user',
+    permissions: getDefaultPermissions('user')
+  };
+
+  // Usar dados temporários enquanto aguarda documento
+  state.role = tempUserData.role;
+  state.permissions = tempUserData.permissions;
+
   try {
-    const userDocRef = doc(db, 'usuarios', currentUser.value.uid);
+    const userDocRef = doc(db, 'usuarios', userUid);
 
-    // Listener em tempo real para mudanças de role
-    const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        const userData = docSnapshot.data();
-        const role = userData.role || 'user';
-        const permissions = userData.permissions || getDefaultPermissions(role);
+    // Função de retry com exponential backoff
+    const retryFetch = (attempt = 0, maxAttempts = 5) => {
+      const delay = attempt === 0 ? 500 : Math.min(500 * Math.pow(2, attempt - 1), 8000); // 500ms inicial, depois backoff até 8s
 
-        // Log apenas em caso de erro ou mudanças importantes
-        if (import.meta.env.DEV && role !== state.role) {
-          logger.info('User role changed:', {
-            uid: currentUser.value.uid,
-            from: state.role,
-            to: role
-          });
-        }
+      setTimeout(() => {
+        // Listener em tempo real para mudanças de role
+        const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const userData = docSnapshot.data();
+            const role = userData.role || 'user';
+            const permissions = userData.permissions || getDefaultPermissions(role);
 
-        state.role = role;
-        state.permissions = permissions;
-      } else {
-        // Usuário não existe no Firestore, usar defaults
-        logger.warn('User document not found in Firestore, using defaults');
-        state.role = 'user';
-        state.permissions = getDefaultPermissions('user');
-      }
+            // Log apenas em desenvolvimento para mudanças de role
+            if (import.meta.env.DEV && role !== state.role) {
+              logger.info('User role changed:', {
+                uid: userUid,
+                from: state.role,
+                to: role
+              });
+            }
 
-      state.roleLoading = false;
-      state.roleError = '';
-    }, (error) => {
-      logger.error('Error fetching user role:', error);
-      state.roleError = 'Erro ao carregar permissões do usuário';
-      state.roleLoading = false;
+            state.role = role;
+            state.permissions = permissions;
+            state.roleLoading = false;
+            state.roleError = '';
 
-      // Em caso de erro, usar defaults
-      state.role = 'user';
-      state.permissions = getDefaultPermissions('user');
-    });
+            // Finalizar busca - limpar flags
+            isFetchingRole = false;
+            currentRoleUnsubscribe = unsubscribe;
+          } else {
+            if (attempt < maxAttempts) {
+              retryFetch(attempt + 1, maxAttempts);
+            } else {
+              if (import.meta.env.DEV) {
+                logger.warn(`fetchUserRole: Máximo de tentativas atingido para UID ${userUid}, usando dados temporários`);
+              }
+              state.roleLoading = false;
+              state.roleError = '';
 
-    // Retornar função de cleanup
-    return unsubscribe;
+              // Finalizar busca mesmo em falha
+              isFetchingRole = false;
+              currentRoleUnsubscribe = unsubscribe;
+            }
+          }
+        }, (error) => {
+          if (attempt < maxAttempts) {
+            retryFetch(attempt + 1, maxAttempts);
+          } else {
+            state.roleError = 'Erro ao carregar permissões do usuário';
+            state.roleLoading = false;
+            // Manter dados temporários em caso de erro persistente
+
+            // Finalizar busca mesmo em erro
+            isFetchingRole = false;
+            currentRoleUnsubscribe = unsubscribe;
+
+            // Log apenas em desenvolvimento para erros críticos
+            if (import.meta.env.DEV) {
+              logger.error(`fetchUserRole: Erro persistente para UID ${userUid}:`, error);
+            }
+          }
+        });
+
+        // Retornar função de cleanup
+        return unsubscribe;
+      }, delay);
+    };
+
+    // Iniciar primeira tentativa com delay inicial
+    return retryFetch();
   } catch (error) {
-    logger.error('Error setting up role listener:', error);
     state.roleError = 'Erro ao configurar listener de permissões';
     state.roleLoading = false;
-    state.role = 'user';
-    state.permissions = getDefaultPermissions('user');
+    isFetchingRole = false;
+    // Manter dados temporários
+
+    // Log apenas em desenvolvimento
+    if (import.meta.env.DEV) {
+      logger.error(`fetchUserRole: Erro ao configurar listener para UID ${userUid}:`, error);
+    }
   }
 }
 
 // Watch para mudanças no currentUser e atualizar role
-let roleUnsubscribe = null;
 let lastUser = null;
+let debounceTimer = null;
 
 watch(currentUser, (newUser) => {
   const newUserUid = newUser?.uid;
@@ -179,26 +254,53 @@ watch(currentUser, (newUser) => {
 
   lastUser = newUser;
 
-  // Limpar listener anterior
-  if (roleUnsubscribe) {
-    roleUnsubscribe();
-    roleUnsubscribe = null;
+  // Limpar debounce anterior
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
   }
 
-  if (newUser) {
-    // Configurar novo listener para role
-    roleUnsubscribe = fetchUserRole();
-  } else {
-    clearUserRole();
-  }
+  // Debounce aumentado para 500ms e verificação adicional para evitar chamadas duplicadas
+  debounceTimer = setTimeout(() => {
+    // Verificação adicional: se já está buscando role, não fazer nada
+    if (isFetchingRole) {
+      debounceTimer = null;
+      return;
+    }
+
+    // Limpar listener anterior
+    if (currentRoleUnsubscribe) {
+      currentRoleUnsubscribe();
+      currentRoleUnsubscribe = null;
+    }
+
+    if (newUser) {
+      // Configurar novo listener para role
+      fetchUserRole('watch'); // Não armazena unsubscribe aqui, pois fetchUserRole já o faz
+    } else {
+      clearUserRole();
+    }
+
+    debounceTimer = null;
+  }, 500); // Aumentado de 300ms para 500ms
 }, { immediate: true });
 
 // Função para fazer cleanup manual quando necessário
 function cleanupRoleListener() {
-  if (roleUnsubscribe) {
-    roleUnsubscribe();
-    roleUnsubscribe = null;
+  // Limpar debounce timer
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
   }
+
+  // Limpar listener atual
+  if (currentRoleUnsubscribe) {
+    currentRoleUnsubscribe();
+    currentRoleUnsubscribe = null;
+  }
+
+  // Resetar flags
+  isFetchingRole = false;
 }
 
 // Função para buscar usuários online do Firestore (otimizada para reduzir custos)
@@ -240,12 +342,14 @@ function fetchUsers() {
 
     state.loadingUsers = false;
 
-    if (typeof window !== 'undefined' && import.meta.env.DEV) {
-    }
+    // Removido log desnecessário
   }).catch((error) => {
     state.errorUsers = 'Erro ao buscar usuários: ' + error.message;
     state.loadingUsers = false;
-    console.error("Erro ao buscar usuários:", error);
+    // Log apenas em desenvolvimento
+    if (import.meta.env.DEV) {
+      console.error("Erro ao buscar usuários:", error);
+    }
   });
 }
 
@@ -262,10 +366,16 @@ async function updateUserRole(userId, newRole, updatedBy) {
       roleUpdatedBy: updatedBy
     });
 
-    logger.info('User role updated successfully:', { userId, newRole, updatedBy });
+    // Log apenas em desenvolvimento
+    if (import.meta.env.DEV) {
+      logger.info('User role updated successfully:', { userId, newRole, updatedBy });
+    }
     return true;
   } catch (error) {
-    logger.error('Error updating user role:', error);
+    // Log apenas em desenvolvimento
+    if (import.meta.env.DEV) {
+      logger.error('Error updating user role:', error);
+    }
     throw error;
   }
 }

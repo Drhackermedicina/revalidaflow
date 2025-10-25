@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useTheme } from 'vuetify'
 
 const props = defineProps({
   station: {
@@ -47,6 +48,10 @@ const emit = defineEmits([
   'edit-station',
   'start-ai-training'
 ])
+
+// Detectar tema atual
+const theme = useTheme()
+const isDarkTheme = computed(() => theme.global.name.value === 'dark')
 
 const scoreColor = computed(() => {
   if (!props.userScore) return 'default'
@@ -108,7 +113,7 @@ const handleCardClick = () => {
         class="user-score-chip"
       >
         <v-icon start size="16">ri-star-fill</v-icon>
-        {{ userScore.score }}/{{ userScore.maxScore }} ({{ userScore.percentage }}%)
+        {{ userScore.score }}/{{ userScore.maxScore }}
       </v-chip>
     </div>
 
@@ -150,13 +155,14 @@ const handleCardClick = () => {
         <!-- Botão IA -->
         <v-btn
           color="primary"
-          variant="text"
-          size="small"
-          icon="ri-robot-line"
+          variant="tonal"
+          size="default"
           @click.stop="emit('start-ai-training', station.id)"
-          class="me-2 sequential-selection-btn"
+          :class="['me-2 ai-training-btn', { 'dark-theme': isDarkTheme }]"
           aria-label="Treinar com IA"
-        />
+        >
+          🤖
+        </v-btn>
       </div>
     </template>
   </v-list-item>
@@ -199,5 +205,44 @@ const handleCardClick = () => {
 .sequential-indicator {
   font-weight: 600;
   pointer-events: none;
+}
+
+/* Estilos específicos para o botão de treinamento com IA */
+.ai-training-btn {
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  font-size: 18px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  padding: 0 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.ai-training-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Garantir visibilidade do emoji no tema escuro */
+.ai-training-btn {
+  color: rgb(var(--v-theme-primary)) !important;
+  filter: brightness(1.1) !important;
+}
+
+/* Ajustes específicos para tema escuro */
+.dark-theme.ai-training-btn {
+  background-color: rgba(var(--v-theme-primary), 0.25) !important;
+  border: 1px solid rgba(var(--v-theme-primary), 0.6) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+  filter: brightness(1.3) !important;
+}
+
+.dark-theme.ai-training-btn:hover {
+  background-color: rgba(var(--v-theme-primary), 0.35) !important;
+  border-color: rgba(var(--v-theme-primary), 0.8) !important;
+  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.4) !important;
+  filter: brightness(1.4) !important;
 }
 </style>

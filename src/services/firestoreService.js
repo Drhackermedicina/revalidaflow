@@ -1,12 +1,18 @@
 // src/services/firestoreService.js
 
 import { updateDoc, getDoc, setDoc } from 'firebase/firestore'
-import { db, handleFirestoreError, isOnline } from '@/plugins/firebase'
+import { db, handleFirestoreError, isOnline, isOfflineMode } from '@/plugins/firebase'
+import validationLogger from '@/utils/validationLogger'
 
 // Wrapper para operações de update com retry automático
 export async function updateDocumentWithRetry(docRef, data, operationName = 'update') {
   if (!db) {
     console.warn('⚠️ Firestore não disponível (modo simulado ou não inicializado)');
+    return false;
+  }
+
+  if (isOfflineMode) {
+    console.warn(`📡 ${operationName} pulada - modo offline ativo`);
     return false;
   }
 
@@ -16,22 +22,33 @@ export async function updateDocumentWithRetry(docRef, data, operationName = 'upd
   while (attempts < maxAttempts) {
     try {
       await updateDoc(docRef, data);
+      validationLogger.logFirestoreRecovered(operationName, {
+        operationType: 'update',
+        attempts: 1,
+        success: true
+      });
       return true;
     } catch (error) {
       attempts++;
       const errorInfo = handleFirestoreError(error, operationName);
 
+      // Verificar se estamos em modo offline após o erro
+      if (errorInfo.offlineMode) {
+        console.warn(`📡 ${operationName} abortada - modo offline ativado devido a erros persistentes`);
+        return false;
+      }
+
       if (errorInfo.shouldRetry && attempts < maxAttempts) {
-        // Aguardar um tempo exponencial antes de tentar novamente
-        const delay = Math.pow(2, attempts) * 1000; // 2s, 4s, 8s
-        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+        // Usar o backoff delay calculado pela handleFirestoreError
+        const delay = errorInfo.backoffDelay || Math.pow(2, attempts) * 1000;
+        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa (${attempts}/${maxAttempts})...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       } else {
         console.error(`❌ Falha em ${operationName} após ${attempts} tentativas:`, error);
 
         // Se estivermos offline, notificar o usuário
-        if (!isOnline) {
+        if (!isOnline || errorInfo.offlineMode) {
           console.warn('📡 Operação falhará quando a conectividade for restaurada');
         }
 
@@ -50,20 +67,36 @@ export async function getDocumentWithRetry(docRef, operationName = 'leitura') {
     return null;
   }
 
+  if (isOfflineMode) {
+    console.warn(`📡 ${operationName} pulada - modo offline ativo`);
+    return null;
+  }
+
   let attempts = 0;
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
     try {
       const docSnap = await getDoc(docRef);
+      validationLogger.logFirestoreRecovered(operationName, {
+        operationType: 'read',
+        attempts: 1,
+        success: true
+      });
       return docSnap;
     } catch (error) {
       attempts++;
       const errorInfo = handleFirestoreError(error, operationName);
 
+      // Verificar se estamos em modo offline após o erro
+      if (errorInfo.offlineMode) {
+        console.warn(`📡 ${operationName} abortada - modo offline ativado devido a erros persistentes`);
+        return null;
+      }
+
       if (errorInfo.shouldRetry && attempts < maxAttempts) {
-        const delay = Math.pow(2, attempts) * 1000;
-        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+        const delay = errorInfo.backoffDelay || Math.pow(2, attempts) * 1000;
+        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa (${attempts}/${maxAttempts})...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       } else {
@@ -83,6 +116,11 @@ export async function setDocumentWithRetry(docRef, data, operationName = 'escrit
     return false;
   }
 
+  if (isOfflineMode) {
+    console.warn(`📡 ${operationName} pulada - modo offline ativo`);
+    return false;
+  }
+
   let attempts = 0;
   const maxAttempts = 3;
 
@@ -90,14 +128,25 @@ export async function setDocumentWithRetry(docRef, data, operationName = 'escrit
     try {
       await setDoc(docRef, data);
       console.log(`✅ ${operationName} realizada com sucesso`);
+      validationLogger.logFirestoreRecovered(operationName, {
+        operationType: 'write',
+        attempts: 1,
+        success: true
+      });
       return true;
     } catch (error) {
       attempts++;
       const errorInfo = handleFirestoreError(error, operationName);
 
+      // Verificar se estamos em modo offline após o erro
+      if (errorInfo.offlineMode) {
+        console.warn(`📡 ${operationName} abortada - modo offline ativado devido a erros persistentes`);
+        return false;
+      }
+
       if (errorInfo.shouldRetry && attempts < maxAttempts) {
-        const delay = Math.pow(2, attempts) * 1000;
-        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+        const delay = errorInfo.backoffDelay || Math.pow(2, attempts) * 1000;
+        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa (${attempts}/${maxAttempts})...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       } else {
@@ -119,6 +168,13 @@ export function checkFirestoreConnectivity() {
     };
   }
 
+  if (isOfflineMode) {
+    return {
+      available: false,
+      reason: 'Modo offline ativo devido a erros de conectividade persistentes'
+    };
+  }
+
   if (!isOnline) {
     return {
       available: false,
@@ -136,6 +192,7 @@ export function logFirestoreStatus() {
     available: status.available,
     reason: status.reason || 'Conectado',
     online: isOnline,
+    offlineMode: isOfflineMode,
     timestamp: new Date().toISOString()
   });
 }

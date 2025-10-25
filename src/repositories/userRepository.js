@@ -6,14 +6,14 @@
  */
 
 import { db } from '@/plugins/firebase'
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
   limit,
   updateDoc,
   setDoc,
@@ -41,11 +41,11 @@ class UserRepository {
       async () => {
         const docRef = doc(db, COLLECTION_NAME, userId)
         const docSnap = await getDoc(docRef)
-        
+
         if (!docSnap.exists()) {
           throw new Error(`Usuário ${userId} não encontrado`)
         }
-        
+
         return {
           uid: docSnap.id,
           ...docSnap.data()
@@ -69,7 +69,7 @@ class UserRepository {
       `users_online_${minutesAgo}_${maxResults}`,
       async () => {
         const timeAgo = new Date(Date.now() - minutesAgo * 60 * 1000)
-        
+
         const q = query(
           collection(db, COLLECTION_NAME),
           where('status', 'in', statusFilter),
@@ -77,10 +77,10 @@ class UserRepository {
           orderBy('lastActive', 'desc'),
           limit(maxResults)
         )
-        
+
         const snapshot = await getDocs(q)
         const users = []
-        
+
         snapshot.forEach(docSnap => {
           const data = docSnap.data()
           users.push({
@@ -93,14 +93,14 @@ class UserRepository {
             lastActive: data.lastActive
           })
         })
-        
+
         // Filtra apenas usuários realmente online (2 minutos)
         const twoMinutesAgo = Date.now() - 2 * 60 * 1000
         return users.filter(user => {
-          const lastActive = user.lastActive 
-            ? (user.lastActive instanceof Timestamp 
-                ? user.lastActive.toDate().getTime() 
-                : new Date(user.lastActive).getTime())
+          const lastActive = user.lastActive
+            ? (user.lastActive instanceof Timestamp
+              ? user.lastActive.toDate().getTime()
+              : new Date(user.lastActive).getTime())
             : 0
           return lastActive > twoMinutesAgo
         })
@@ -116,18 +116,18 @@ class UserRepository {
     if (!userId) return
 
     const docRef = doc(db, COLLECTION_NAME, userId)
-    
+
     try {
       await updateDoc(docRef, {
         status,
         lastActive: serverTimestamp(),
         isOnline: status !== 'offline'
       })
-      
+
       // Invalida cache do usuário
       invalidateCache(`user_${userId}`)
       invalidateCache('users_online')
-      
+
       return { success: true }
     } catch (error) {
       console.error('Erro ao atualizar presença:', error)
@@ -148,7 +148,7 @@ class UserRepository {
       async () => {
         const userDoc = await this.getById(userId)
         const estacoesConcluidas = userDoc.estacoesConcluidas || []
-        
+
         const scores = {}
         estacoesConcluidas.forEach(estacao => {
           if (estacao.idEstacao && estacao.nota !== undefined) {
@@ -164,7 +164,7 @@ class UserRepository {
             }
           }
         })
-        
+
         return scores
       },
       { cacheType: 'scores' }
@@ -180,7 +180,7 @@ class UserRepository {
     }
 
     const docRef = doc(db, COLLECTION_NAME, userId)
-    
+
     const scoreData = {
       idEstacao: stationData.idEstacao,
       nomeEstacao: stationData.nomeEstacao,
@@ -189,18 +189,18 @@ class UserRepository {
       data: serverTimestamp(),
       origem: stationData.origem || 'simulation'
     }
-    
+
     await updateDoc(docRef, {
       estacoesConcluidas: arrayUnion(scoreData),
       totalPontos: increment(stationData.nota),
       estacoesCompletadas: increment(1),
       ultimaAtividade: serverTimestamp()
     })
-    
+
     // Invalida caches relacionados
     invalidateCache(`user_${userId}`)
     invalidateCache(`user_scores_${userId}`)
-    
+
     return { success: true }
   }
 
@@ -210,7 +210,7 @@ class UserRepository {
   async getRanking(options = {}) {
     const {
       limit: maxResults = 100,
-      orderByField = 'totalPontos'
+      orderByField = 'ranking'
     } = options
 
     return getCachedData(
@@ -221,11 +221,11 @@ class UserRepository {
           orderBy(orderByField, 'desc'),
           limit(maxResults)
         )
-        
+
         const snapshot = await getDocs(q)
         const ranking = []
         let position = 1
-        
+
         snapshot.forEach(docSnap => {
           const data = docSnap.data()
           ranking.push({
@@ -235,12 +235,12 @@ class UserRepository {
             sobrenome: data.sobrenome,
             displayName: data.displayName,
             photoURL: data.photoURL,
-            totalPontos: data.totalPontos || 0,
+            totalPontos: data.ranking || 0,
             estacoesCompletadas: data.estacoesCompletadas || 0,
-            nivel: this._calculateLevel(data.totalPontos || 0)
+            nivel: this._calculateLevel(data.ranking || 0)
           })
         })
-        
+
         return ranking
       },
       { cacheType: 'users', ttl: 5 * 60 * 1000 } // Cache de 5 minutos
@@ -260,7 +260,7 @@ class UserRepository {
       async () => {
         const userDoc = await this.getById(userId)
         const estacoesConcluidas = userDoc.estacoesConcluidas || []
-        
+
         const stats = {
           totalEstacoes: estacoesConcluidas.length,
           totalPontos: userDoc.totalPontos || 0,
@@ -272,16 +272,16 @@ class UserRepository {
           streak: 0,
           nivel: this._calculateLevel(userDoc.totalPontos || 0)
         }
-        
+
         // Calcula estatísticas
         let somaNotas = 0
         estacoesConcluidas.forEach(estacao => {
           const nota = estacao.nota || 0
           somaNotas += nota
-          
+
           if (nota > stats.melhorNota) stats.melhorNota = nota
           if (nota < stats.piorNota) stats.piorNota = nota
-          
+
           // Por especialidade
           if (estacao.especialidade) {
             if (!stats.porEspecialidade[estacao.especialidade]) {
@@ -295,17 +295,17 @@ class UserRepository {
             stats.porEspecialidade[estacao.especialidade].soma += nota
           }
         })
-        
+
         // Calcula médias
         if (stats.totalEstacoes > 0) {
           stats.mediaNotas = somaNotas / stats.totalEstacoes
-          
+
           Object.keys(stats.porEspecialidade).forEach(esp => {
             const data = stats.porEspecialidade[esp]
             data.media = data.soma / data.total
           })
         }
-        
+
         return stats
       },
       { cacheType: 'users', ttl: 10 * 60 * 1000 } // Cache de 10 minutos
@@ -321,17 +321,17 @@ class UserRepository {
     }
 
     const docRef = doc(db, COLLECTION_NAME, userId)
-    
+
     const updateData = {
       ...profileData,
       atualizadoEm: serverTimestamp()
     }
-    
+
     await updateDoc(docRef, updateData)
-    
+
     // Invalida cache do usuário
     invalidateCache(`user_${userId}`)
-    
+
     return { success: true }
   }
 
@@ -344,10 +344,10 @@ class UserRepository {
     }
 
     const docRef = doc(db, COLLECTION_NAME, userId)
-    
+
     // Verifica se usuário existe
     const docSnap = await getDoc(docRef)
-    
+
     if (docSnap.exists()) {
       // Atualiza usuário existente
       await updateDoc(docRef, {
@@ -368,10 +368,10 @@ class UserRepository {
         status: 'disponivel'
       })
     }
-    
+
     // Invalida cache
     invalidateCache(`user_${userId}`)
-    
+
     return { success: true, isNew: !docSnap.exists() }
   }
 

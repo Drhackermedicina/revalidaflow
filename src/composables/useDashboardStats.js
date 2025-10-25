@@ -39,17 +39,23 @@ export const useDashboardStats = (userData) => {
     })
 
     /**
-     * Progresso até o próximo nível de ranking (%)
+     * Pontuação total real do ranking baseada nas estações concluídas
      */
-    const rankingProgress = computed(() => {
-        const current = userData.value?.ranking || 0
-        if (current === 0) return 0
+    const realRankingScore = computed(() => {
+        const stations = userData.value?.estacoesConcluidas || []
+        if (stations.length === 0) return 0
 
-        // Calcular próximo milestone (a cada 100 pontos)
-        const _nextMilestone = Math.ceil(current / 100) * 100
-        const progress = ((current % 100) / 100) * 100
+        // Calcular pontuação total: soma de todas as notas das estações
+        const totalScore = stations.reduce((sum, station) => sum + (station.nota || 0), 0)
 
-        return Math.round(progress)
+        // Calcular média das notas
+        const averageScore = totalScore / stations.length
+
+        // Fórmula de ranking: pontuação total + (média * número de estações * peso)
+        // Isso dá mais valor para usuários que fazem mais estações com boas notas
+        const rankingScore = totalScore + (averageScore * stations.length * 0.5)
+
+        return Math.round(rankingScore)
     })
 
     /**
@@ -132,11 +138,11 @@ export const useDashboardStats = (userData) => {
     return {
         accuracyRate,
         topSpecialty,
-        rankingProgress,
         nextRankingMilestone,
         pointsToNextLevel,
         rankingHistory,
         skillLevel,
+        realRankingScore,
         miniStats
     }
 }

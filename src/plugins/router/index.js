@@ -169,9 +169,17 @@ router.beforeEach(async (to, from, next) => {
   // Só verifica dados do usuário se ele estiver realmente autenticado E a rota requer autenticação
   // Evita tentar acessar Firestore quando o usuário acabou de fazer logout
   try {
-    const userDoc = await getDocumentWithRetry(doc(db, 'usuarios', currentUser.value.uid), 'verificação de usuário')
+    const userUid = currentUser.value?.uid;
+    
+    const userDoc = await getDocumentWithRetry(doc(db, 'usuarios', userUid), 'verificação de usuário')
     const user = userDoc.data()
     const userRole = (user?.role || 'user').toLowerCase()
+    
+    // Log apenas em desenvolvimento para diagnóstico
+    if (import.meta.env.DEV) {
+      console.log(`[Router] Verificando usuário ${userUid} para rota ${to.name}`);
+    }
+    
     // Checagem de cadastro completo: documento existe e campos obrigatórios preenchidos
     if (
       !userDoc.exists() ||
@@ -181,12 +189,18 @@ router.beforeEach(async (to, from, next) => {
       !user?.sobrenome
     ) {
       // Redirecione para /register se cadastro incompleto
+      if (import.meta.env.DEV) {
+        console.log(`[Router] Cadastro incompleto, redirecionando para /register`);
+      }
       updateAuthCheck({ isAuthenticated: true, isProfileComplete: false, hasActiveAccess: false, role: userRole })
       next('/register')
       return
     }
 
     if (userRole === 'admin') {
+      if (import.meta.env.DEV) {
+        console.log(`[Router] Usuário ADMIN detectado, acesso liberado`);
+      }
       updateAuthCheck({
         isAuthenticated: true,
         isProfileComplete: true,
@@ -198,6 +212,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const accessState = computeAccessStatus(user)
+    
     updateAuthCheck({
       isAuthenticated: true,
       isProfileComplete: true,
@@ -206,13 +221,31 @@ router.beforeEach(async (to, from, next) => {
     })
 
     if (!accessState.active && !isRouteAllowedWithoutAccess(to)) {
+      if (import.meta.env.DEV) {
+        console.log(`[Router] Acesso negado, redirecionando para pagamento`);
+      }
       next({ name: 'pagamento' })
       return
+    }
+    
+    if (import.meta.env.DEV) {
+      console.log(`[Router] Acesso liberado, continuando navegação`);
     }
   } catch (error) {
     // Se não conseguir acessar dados do usuário, redireciona para login
     // Isso acontece quando o usuário fez logout mas ainda tem currentUser definido
-    console.warn('[beforeEach] Não foi possível verificar dados do usuário, redirecionando para login:', error.message)
+    
+    // Log apenas em desenvolvimento para erros críticos
+    if (import.meta.env.DEV) {
+      console.error('[Router] Erro ao verificar usuário:', error);
+      
+      // Detectar erros específicos de conexão
+      if (error.message?.includes('ERR_TUNNEL_CONNECTION_FAILED') ||
+          error.message?.includes('ERR_PROXY_CONNECTION_FAILED')) {
+        console.error('[Router] Erro de proxy/tunnel detectado - possível proxy corporativo bloqueando Firestore');
+      }
+    }
+    
     updateAuthCheck({ isAuthenticated: false, isProfileComplete: false, hasActiveAccess: false, role: null })
     next('/login')
     return
@@ -224,7 +257,10 @@ router.beforeEach(async (to, from, next) => {
     import('@/composables/useUserPresence').then(({ initUserPresence }) => {
       initUserPresence()
     }).catch(error => {
-      console.warn('[Router] Erro ao inicializar sistema de presença:', error)
+      // Log apenas em desenvolvimento
+      if (import.meta.env.DEV) {
+        console.warn('[Router] Erro ao inicializar sistema de presença:', error)
+      }
     })
   }
 

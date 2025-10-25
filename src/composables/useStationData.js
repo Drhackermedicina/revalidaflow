@@ -158,7 +158,7 @@ export function useStationData() {
             if (!scores[estacao.idEstacao] || estacao.nota > scores[estacao.idEstacao].score) {
               scores[estacao.idEstacao] = {
                 score: estacao.nota,
-                maxScore: 100,
+                maxScore: 10,
                 date: estacao.data?.toDate ? estacao.data.toDate() : estacao.data,
                 nomeEstacao: estacao.nomeEstacao,
                 especialidade: estacao.especialidade,

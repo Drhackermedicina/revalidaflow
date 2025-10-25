@@ -80,7 +80,7 @@
             <div class="text-end">
               <div class="text-caption text-medium-emphasis mb-1">Pontuação</div>
               <div class="text-h4 font-weight-bold" style="color: rgb(var(--v-theme-primary))">
-                {{ rankingScore.toLocaleString('pt-BR') }}
+                {{ realRankingScore.value.toLocaleString('pt-BR') }}
               </div>
               <div class="text-caption text-medium-emphasis">pontos</div>
             </div>
@@ -207,10 +207,12 @@
 </template>
 
 <script setup>
-import { computed, toRefs } from 'vue'
+import { computed, ref, toRefs } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { currentUser } from '@/plugins/auth'
+import { useDashboardStats } from '@/composables/useDashboardStats'
+import { useThemeConfig } from '@/composables/useThemeConfig'
 
 const props = defineProps({
   loading: { type: Boolean, default: false },
@@ -220,13 +222,12 @@ const props = defineProps({
   rankingScore: { type: Number, default: 0 },
   top3Users: { type: Array, default: () => [] },
   userData: { type: Object, default: null },
-  rankingProgress: { type: Number, default: 0 },
   pointsToNextLevel: { type: Number, default: 0 },
   nextRankingMilestone: { type: Number, default: 0 },
   rankingHistory: { type: Array, default: () => [] }
 })
 
-const { loadDashboardData: loadData } = props
+const { themeClasses } = useThemeConfig()
 
 const {
   loading,
@@ -234,11 +235,20 @@ const {
   rankingPosition,
   rankingScore,
   top3Users,
+  userData,
   rankingProgress,
   pointsToNextLevel,
   nextRankingMilestone,
   rankingHistory
 } = toRefs(props)
+
+const realRankingScore = computed(() => {
+  if (userData.value) {
+    const stats = useDashboardStats(userData.value)
+    return stats.realRankingScore
+  }
+  return ref(0)
+})
 
 const router = useRouter()
 const theme = useTheme()

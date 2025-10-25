@@ -32,7 +32,8 @@
                   <thead class="table-header">
                     <tr>
                       <th class="text-uppercase">Data</th>
-                      <th class="text-uppercase">Tipo de Simulação</th>
+                      <th class="text-uppercase">Título da Estação</th>
+                      <th class="text-uppercase">Especialidade</th>
                       <th class="text-uppercase">Pontuação</th>
                       <th class="text-uppercase">Status</th>
                       <th class="text-uppercase">Ações</th>
@@ -45,7 +46,8 @@
                       class="table-row"
                     >
                       <td>{{ simulation.date }}</td>
-                      <td>{{ simulation.type }}</td>
+                      <td>{{ simulation.title }}</td>
+                      <td>{{ simulation.especialidade }}</td>
                       <td>
                         <VChip
                           :color="getScoreColor(simulation.score)"
@@ -97,13 +99,19 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useThemeConfig } from '@/composables/useThemeConfig'
 import { useFirebaseData } from '@/composables/useFirebaseData'
 import CustomEyeIcon from '@/components/CustomEyeIcon.vue'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '@/plugins/firebase'
 
 const { themeClasses } = useThemeConfig()
 const { loading, userData, fetchUserStats } = useFirebaseData()
+
+// Cache para títulos de estações
+const stationTitleCache = new Map()
+const isLoadingTitles = ref(false)
 
 // Mapeamento de especialidades
 const especialidadeNomes = {
@@ -114,21 +122,115 @@ const especialidadeNomes = {
   'medicina-preventiva': 'Medicina Preventiva',
 }
 
+// Função para buscar o título real de uma estação pelo ID
+async function fetchStationTitleById(stationId) {
+  if (!stationId) return null
+
+  // Verificar cache primeiro
+  if (stationTitleCache.has(stationId)) {
+    return stationTitleCache.get(stationId)
+  }
+
+  try {
+    const docRef = doc(db, 'estacoes_clinicas', stationId)
+    const docSnap = await getDoc(docRef)
+
+    if (docSnap.exists()) {
+      const title = docSnap.data().tituloEstacao || 'Estação sem título'
+      stationTitleCache.set(stationId, title)
+      return title
+    }
+  } catch (error) {
+    console.warn('Erro ao buscar título da estação:', stationId, error)
+  }
+
+  return null
+}
+
+// Função para obter o título da estação (com fallbacks)
+async function getStationTitle(estacaoConcluida) {
+  // Tentar usar nomeEstacao primeiro (pode ter sido salvo corretamente)
+  if (estacaoConcluida.nomeEstacao &&
+      estacaoConcluida.nomeEstacao !== 'Estação sem título' &&
+      estacaoConcluida.nomeEstacao.trim() !== '') {
+    return estacaoConcluida.nomeEstacao
+  }
+
+  // Buscar o título real no Firestore pelo ID da estação
+  if (estacaoConcluida.idEstacao) {
+    return await fetchStationTitleById(estacaoConcluida.idEstacao)
+  }
+
+  return null
+}
+
+// Lista reativa para armazenar títulos carregados
+const simulationTitles = ref(new Map())
+
+// Função para carregar títulos das simulações
+async function loadSimulationTitles() {
+  if (!userData.value?.estacoesConcluidas) return
+
+  isLoadingTitles.value = true
+
+  try {
+    const concluidas = userData.value.estacoesConcluidas
+    const titlePromises = concluidas.map(async (estacao, index) => {
+      const simId = estacao.estacaoId || `sim_${index}`
+      const title = await getStationTitle(estacao)
+      return { simId, title }
+    })
+
+    const titles = await Promise.all(titlePromises)
+    const newTitleMap = new Map()
+
+    titles.forEach(({ simId, title }) => {
+      newTitleMap.set(simId, title)
+    })
+
+    simulationTitles.value = newTitleMap
+  } catch (error) {
+    console.error('Erro ao carregar títulos das simulações:', error)
+  } finally {
+    isLoadingTitles.value = false
+  }
+}
+
 // Computed properties simplificadas
 const simulations = computed(() => {
   const concluidas = userData.value?.estacoesConcluidas || []
 
-  return concluidas.map((estacao, index) => ({
-    id: estacao.estacaoId || `sim_${index}`,
-    date: formatDate(estacao.timestamp || estacao.dataRealizacao),
-    type: especialidadeNomes[estacao.especialidade] || 'Simulação Geral',
-    score: estacao.nota || 0,
-    status: 'Concluída'
-  })).sort((a, b) => {
-    // Ordenar por data (mais recente primeiro)
-    const dateA = new Date(a.date.split('/').reverse().join('-'))
-    const dateB = new Date(b.date.split('/').reverse().join('-'))
-    return dateB - dateA
+  return concluidas.map((estacao, index) => {
+    const simId = estacao.estacaoId || `sim_${index}`
+
+    // Tentar obter título do cache carregado, senão usar fallback
+    const cachedTitle = simulationTitles.value.get(simId)
+    const title = cachedTitle ||
+                 estacao.nomeEstacao ||
+                 `Estação ${index + 1}`
+
+    return {
+      id: simId,
+      date: formatDate(estacao.data),
+      title: title,
+      especialidade: especialidadeNomes[estacao.especialidade] || estacao.especialidade || 'Não definida',
+      score: estacao.nota || estacao.pontuacao || 0,
+      status: 'Concluída'
+    }
+  }).sort((a, b) => {
+    // Ordenar por data (mais recente primeiro) - usando o campo 'data' diretamente
+    const dataA = concluidas.find(e => (e.estacaoId || `estacao_${concluidas.indexOf(e)}`) === a.id)?.data
+    const dataB = concluidas.find(e => (e.estacaoId || `estacao_${concluidas.indexOf(e)}`) === b.id)?.data
+
+    if (!dataA || !dataB) return 0
+
+    try {
+      const dateA = dataA.toDate ? dataA.toDate() : new Date(dataA)
+      const dateB = dataB.toDate ? dataB.toDate() : new Date(dataB)
+      return dateB - dateA // Mais recente primeiro
+    } catch {
+      return 0
+    }
   })
 })
 
@@ -138,16 +240,58 @@ const formatDate = (timestamp) => {
 
   try {
     let date
+
+    // Handle Firestore Timestamp
     if (timestamp.toDate) {
       date = timestamp.toDate()
-    } else if (timestamp instanceof Date) {
+    }
+    // Handle if it's already a Date object
+    else if (timestamp instanceof Date) {
       date = timestamp
-    } else {
+    }
+    // Handle if it's a string in various formats
+    else if (typeof timestamp === 'string') {
+      // Try different date formats
+      if (timestamp.includes('/')) {
+        // DD/MM/YYYY format
+        const parts = timestamp.split('/')
+        if (parts.length === 3) {
+          date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`)
+        }
+      } else if (timestamp.includes('-')) {
+        // ISO format or YYYY-MM-DD
+        date = new Date(timestamp)
+      } else {
+        // Try as is
+        date = new Date(timestamp)
+      }
+    }
+    // Handle if it's a number (timestamp)
+    else if (typeof timestamp === 'number') {
+      date = new Date(timestamp)
+    }
+    // Handle as object with seconds (Firestore format)
+    else if (timestamp.seconds) {
+      date = new Date(timestamp.seconds * 1000 + (timestamp.nanoseconds || 0) / 1000000)
+    }
+    // Fallback
+    else {
       date = new Date(timestamp)
     }
 
-    return date.toLocaleDateString('pt-BR')
+    // Validate the date
+    if (isNaN(date.getTime())) {
+      console.warn('Data inválida:', timestamp)
+      return 'Data inválida'
+    }
+
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
   } catch (error) {
+    console.warn('Erro ao formatar data:', timestamp, error)
     return 'Data inválida'
   }
 }
@@ -170,8 +314,13 @@ const viewSimulationDetails = (id) => {
 }
 
 // Lifecycle hooks
-onMounted(() => {
-  fetchUserStats()
+onMounted(async () => {
+  await fetchUserStats()
+
+  // Carregar títulos das simulações após carregar dados do usuário
+  if (userData.value?.estacoesConcluidas) {
+    await loadSimulationTitles()
+  }
 })
 </script>
 

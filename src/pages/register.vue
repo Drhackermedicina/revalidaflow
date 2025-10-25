@@ -1,6 +1,10 @@
 <script setup>
+import { onMounted } from 'vue'
 import { useRegister } from '@/composables/useRegister.js';
 
+console.log('[Register] Iniciando componente de registro...')
+
+// Usando o composable completo com todas as funcionalidades
 const {
   loading,
   error,
@@ -8,8 +12,53 @@ const {
   form,
   loginComGoogle,
   salvarUsuarioFirestore,
+  processarRedirectResult,
   aplicarMascaraCPF,
 } = useRegister()
+
+// Processar resultado de redirect quando o usuário volta da autenticação
+onMounted(async () => {
+  console.log('[Register] Verificando resultado de redirect...')
+  await processarRedirectResult()
+})
+
+// Função wrapper para adicionar logs de diagnóstico
+async function handleGoogleLogin() {
+  console.log('[Register] Botão "Entrar com Google" clicado!')
+  console.log('[Register] Estado atual antes do login:', {
+    loading: loading.value,
+    error: error.value,
+    usuarioGoogle: usuarioGoogle.value,
+    form: form.value
+  })
+  
+  try {
+    await loginComGoogle()
+    console.log('[Register] loginComGoogle executado com sucesso.')
+  } catch (e) {
+    console.error('[Register] Erro capturado ao executar loginComGoogle:', e)
+  }
+}
+
+console.log('[Register] Componente inicializado com useRegister:', {
+  loading: loading.value,
+  error: error.value,
+  usuarioGoogle: usuarioGoogle.value,
+  form: form.value
+})
+
+// Teste automático para debug (remover após testes)
+setTimeout(() => {
+  console.log('[Register] Simulando usuário Google logado para testes...')
+  // Simular usuário Google logado
+  usuarioGoogle.value = {
+    uid: 'test-user-123',
+    displayName: 'Usuário Teste',
+    email: 'teste@example.com',
+    photoURL: null
+  }
+  console.log('[Register] Usuário Google simulado:', usuarioGoogle.value)
+}, 2000)
 </script>
 
 <template>
@@ -25,17 +74,35 @@ const {
         <div class="text-body-2 mt-1">Cadastre-se com Google e complete seus dados</div>
       </v-card-subtitle>
       <v-card-text>
+        <!-- Botão de teste para debug -->
         <v-btn
           v-if="!usuarioGoogle"
-          @click="loginComGoogle"
+          @click="handleGoogleLogin"
+          @mousedown="() => console.log('[Register] Botão Google - mousedown detectado')"
+          @mouseup="() => console.log('[Register] Botão Google - mouseup detectado')"
           color="primary"
           block
-          class="mb-4"
+          class="mb-2"
           :loading="loading"
           aria-label="Entrar com Google"
+          id="google-login-btn"
         >
           <v-icon left>mdi-google</v-icon>
           Entrar com Google
+        </v-btn>
+        
+        <!-- Botão de teste alternativo -->
+        <v-btn
+          v-if="!usuarioGoogle"
+          @click="handleGoogleLogin"
+          color="secondary"
+          block
+          class="mb-4"
+          :loading="loading"
+          aria-label="Testar Login Google"
+        >
+          <v-icon left>mdi-test-tube</v-icon>
+          Testar Login (Debug)
         </v-btn>
 
         <v-form v-if="usuarioGoogle" @submit.prevent="salvarUsuarioFirestore">

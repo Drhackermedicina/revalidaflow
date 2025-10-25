@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted, computed } from 'vue'
 import { useLoginAuth } from '@/composables/useLoginAuth.js'
 import { useTheme } from 'vuetify'
 
@@ -9,7 +10,12 @@ import authV1MaskLight from '@images/pages/auth-v1-mask-light.png'
 const revalidaFlowLogo = '/image.png'
 
 const vuetifyTheme = useTheme()
-const { loading, error, loginComGoogle } = useLoginAuth()
+const { loading, error, loginComGoogle, processarRedirectResult } = useLoginAuth()
+
+// Processar resultado de redirect quando o usuário volta da autenticação
+onMounted(async () => {
+  await processarRedirectResult()
+})
 
 const authThemeMask = computed(() => {
   return vuetifyTheme.global.name.value === 'light' ? authV1MaskLight : authV1MaskDark
