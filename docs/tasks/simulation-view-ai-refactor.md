@@ -1,69 +1,100 @@
-# SimulationViewAI.vue Refactor Tasks
+# Plano de Refatoração Acionável: SimulationViewAI.vue
 
-## Objetivos
-- Reduzir `src/pages/SimulationViewAI.vue` para menos de 500 linhas sem perda de funcionalidades.
-- Reaproveitar ao máximo a infraestrutura já consolidada em `SimulationView.vue` (composables e componentes).
-- Melhorar manutenibilidade, desempenho e cobertura de testes das funcionalidades críticas (chat, voz, PEP, liberação de materiais).
+## 1. Objetivo
 
-## Principais Problemas Observados
-- Componente monolítico (~3 000 linhas) concentrando carregamento de dados, fluxo, IA, voz, UI e estilos em um único arquivo (`src/pages/SimulationViewAI.vue:1`).
-- Duplicação de lógica já existente nos composables do fluxo “humano” (`useSimulationSession`, `useSimulationWorkflow`, `useEvaluation`, `useSimulationPEP`, `useSimulationData`) (`src/pages/SimulationViewAI.vue:83-224`, `src/pages/SimulationView.vue:18-276`).
-- Histórico do chat mistura formatos (`role`, `sender`, `message`), dificultando reutilização e estilização (`src/pages/SimulationViewAI.vue:260`, `src/pages/SimulationViewAI.vue:429`).
-- Heurísticas/dicionários médicos recriados a cada chamada de liberação de material (`src/pages/SimulationViewAI.vue:459-770`).
-- Bloco de voz e VAD espalhado sem guards e com timeouts não rastreados, tornando difícil testes ou SSR (`src/pages/SimulationViewAI.vue:1271-1654`).
-- Template/CSS replicam componentes já disponíveis (`CandidateContentPanel`, `CandidateChecklist`, `CandidateImpressosPanel`, `SimulationSidebar`) e usam `document.write` para pré-visualização (`src/pages/SimulationViewAI.vue:1047-2660`).
-- Logs de debug verbosos (`??`, `?`) despejados em produção (`src/pages/SimulationViewAI.vue:138-1985`).
+Reduzir o componente `src/pages/SimulationViewAI.vue` de ~2.700 linhas para menos de 500, extraindo lógicas complexas para composables reutilizáveis e testáveis, e componentizando a UI.
 
-## Status Atual (jun/2024)
-- [x] `SimulationViewAI.vue` já consome `useSimulationSession` para carregar estação, checklist, duração e estado base.
-- [x] Variante `useSimulationWorkflowStandalone` criada (`src/composables/useSimulationWorkflowStandalone.js`) e integrada ao componente IA, garantindo timer local e flags do fluxo.
-- [ ] Demais extrações (chat IA, voz/VAD, PEP, template) ainda residem no SFC principal; arquivos utilitários não foram criados.
-- [ ] Logs verbosos permanecem no código; nenhum teste novo cobre o fluxo IA.
-- [x] Requisitos mais recentes: manter layout atual do chat/impressos, melhorar apenas ícones do modo de gravação, exibir o timer na UI, ampliar o timeout de escuta automática para 30 s e fixar o cabeçalho “Chat” com timer destacado.
+## 2. Status Atual (Verificado em 26/10/2025)
 
-## Plano de Refatoração
+-   **[✅ FEITO]** A lógica de sessão (`useSimulationSession`) e o fluxo de trabalho standalone (`useSimulationWorkflowStandalone`) já foram extraídos e estão em uso.
+-   **[❌ PENDENTE]** A lógica principal continua monolítica dentro do componente. As seguintes funcionalidades ainda precisam ser extraídas:
+    -   Gerenciamento do chat com a IA.
+    -   Reconhecimento e síntese de voz (Speech-to-Text e Text-to-Speech).
+    -   Heurísticas para liberação de materiais (impressos).
+    -   Avaliação automática do PEP (checklist).
+-   **[❌ PENDENTE]** O template continua com HTML duplicado em vez de usar componentes existentes.
+-   **[❌ PENDENTE]** Logs de debug (`console.log`) ainda estão espalhados pelo código.
+-   **[❌ PENDENTE]** Não há testes unitários ou de integração para o fluxo de IA.
 
-### 1. Reuso de Composables Existentes
-- Estado atual: refs duplicadas para `stationData`, `checklistData`, `simulationTimeSeconds`, `timerDisplay`, `selectedDurationMinutes`, `sessionId`, `stationId`, flags de carregamento e erros (`src/pages/SimulationViewAI.vue:30-120`). Todas essas estruturas são fornecidas diretamente por `useSimulationSession`.
-- [x] Substituir refs e métodos manuais por `useSimulationSession`, configurando `userRole` como `candidate` e adicionando suporte opcional a "parceiro IA" no composable quando não houver WebSocket (`src/pages/SimulationViewAI.vue:40-140`, `src/composables/useSimulationSession.js`). **Status:** concluído, componente usa o composable compartilhado.
-- Diagnóstico `useSimulationWorkflow`: depende de `socketRef` conectado para `sendReady`, `handleStartSimulationClick`, `activateBackend` e eventos de timer; exige `partner.value` real e marca `bothParticipantsReady` com base nisso; dispara alertas de erro de socket e atualiza o timer a partir de mensagens do servidor (`src/composables/useSimulationWorkflow.js:45-407`).
-- Ajustes necessários para IA:
-  - Permitir modo `standalone` sem socket (no-op para `sendReady`, `activateBackend` e handlers).
-  - Fornecer parceiro virtual e `partnerReadyState` inicializado como `true`.
-  - Garantir que o timer funcione via `setInterval` local quando não houver eventos do backend.
-  - Tornar opcionais alertas UI relacionados a falhas de socket/backend.
-- [x] Criar variante `useSimulationWorkflowStandalone` específica para o fluxo IA, encapsulando timer local, `sendReady` e `manuallyEndSimulation` (`src/composables/useSimulationWorkflowStandalone.js`, `src/pages/SimulationViewAI.vue:40-210`). **Status:** concluído e já instanciado no componente.
-- [ ] Integrar `useSimulationWorkflow` (ou adaptar variante standalone) para gerenciar `myReadyState`, `simulationStarted`, `simulationEnded` e timer, fornecendo adaptador que cria um parceiro virtual sempre pronto e elimina watchers manuais (`src/composables/useSimulationWorkflow.js`).
-- [ ] Reutilizar `useSimulationPEP` e `useEvaluation` para marcação do PEP e submissão de notas, extraindo dependências de socket para permitir operação local/IA (ex.: método `submitEvaluationLocal`) (`src/pages/SimulationViewAI.vue:1728-1934`, `src/composables/useSimulationPEP.js`, `src/composables/useEvaluation.js`).
-- [ ] Ajustar `useSimulationData` para aceitar uma estratégia de liberação “local” (sem `socket.emit`) e adotá-lo no fluxo IA para manter `releasedData`, `isChecklistVisibleForCandidate` e contadores (`src/pages/SimulationViewAI.vue:394-873`, `src/composables/useSimulationData.js`).
-- [ ] Reaproveitar `useImagePreloading` e `ImageZoomModal` para zoom/cache de imagens, removendo implementação paralela e `document.write` (`src/pages/SimulationViewAI.vue:886-1140`, `src/composables/useImagePreloading.js`, `src/components/ImageZoomModal.vue`).
+---
 
-### 2. Composable Específico da IA
-- [ ] Consolidar apenas a lógica diferenciadora da IA (histórico, chamadas Gemini, heurísticas de material, controle de fala) em um novo composable `useSimulationAiChat` que dependa dos composables compartilhados para estado base (`src/pages/SimulationViewAI.vue:252-882`).
-- [ ] Padronizar o modelo de mensagem com interface única (`role`, `content`, `timestamp`, `meta`) e migrar todas as inserções/leitura do histórico para essa estrutura (`src/pages/SimulationViewAI.vue:260-305`, `src/pages/SimulationViewAI.vue:429-799`).
-- [ ] Externalizar `sendMessage`, `processAIResponse`, `shouldReleaseSimple`, `findSpecificMaterial` para módulos testáveis, mantendo dicionários/heurísticas em cache configurável (`src/pages/SimulationViewAI.vue:252-770`).
+## 3. Plano de Refatoração Sequencial
 
-### 3. Voz e Áudio
-- [ ] Isolar reconhecimento e síntese de fala (`initSpeechRecognition`, `startListening`, `stopListening`, `selectVoiceForPatient`, `speakText`) em um composable `useSpeechInteraction`, com guards para ambientes sem `window` e limpeza centralizada de timeouts/VAD (`src/pages/SimulationViewAI.vue:1271-1654`).
-- [ ] Injetar callbacks do composable de voz no fluxo IA para retomar gravação automática após respostas e permitir testes com mocks (`src/pages/SimulationViewAI.vue:274-305`, `src/pages/SimulationViewAI.vue:1309-1418`).
-- [x] Ajustar timeout da captura automática de voz para 30 s e atualizar ícones/feedbacks visuais de modo automático/manual sem alterar o layout geral.
+A refatoração será dividida em 5 passos sequenciais para minimizar riscos e garantir progresso incremental.
 
-### 4. PEP e Avaliação Automática
-- [ ] Mover `aiEvaluatePEP`, `autoEvaluatePEPFallback`, `getClassificacaoFromPontuacao` para serviço dedicado reutilizado por `useEvaluation`, validando payload com schema (Zod ou similar) e padronizando mensagens de erro (`src/pages/SimulationViewAI.vue:1728-1934`).
-- [ ] Expor API de marcação programática no `useSimulationPEP` (ex.: `setPepItemMarks`) para que a IA aplique as avaliações usando o mesmo mecanismo dos avaliadores reais (`src/composables/useSimulationPEP.js:36-86`).
+### Passo 1: Isolar a Lógica de Voz
 
-### 5. Interface e Componentização
-- [ ] Substituir markup duplicada por componentes existentes: `CandidateContentPanel`, `CandidateChecklist`, `CandidateImpressosPanel`, `SimulationSidebar`, conectando-os ao estado proveniente dos composables (`src/pages/SimulationViewAI.vue:2060-2660`, `src/components/*.vue`).
-- [ ] Reaproveitar `SimulationControls`/`SimulationHeader` sempre que possível, ocultando apenas ações específicas do ator humano (convites, Google Meet) (`src/components/SimulationControls.vue`, `src/components/SimulationHeader.vue`).
-- [ ] Remover `window.open` + `document.write`, utilizando modais de pré-visualização já existentes ou rotas dedicadas (`src/pages/SimulationViewAI.vue:1047-1140`).
-- [ ] Externalizar estilos restantes para módulos SCSS compartilhados ou estender `simulation-view.scss`, mantendo tokens de design alinhados (`src/pages/SimulationViewAI.vue:2792-3055`).
+**Objetivo:** Mover toda a interação com as APIs de `SpeechRecognition` e `SpeechSynthesis` para um composable dedicado.
 
-### 6. Observabilidade e Limpeza
-- [ ] Substituir logs de debug soltos por `Logger` (mesma abordagem dos composables) e condicionar saída a `import.meta.env.DEV` (`src/pages/SimulationViewAI.vue:138-1985`, `src/utils/logger.js`).
-- [ ] Padronizar feedbacks visuais (snackbars/alerts) reaproveitando `showNotification` e padrões de `SimulationView.vue` (`src/pages/SimulationView.vue:185-204`, `src/pages/SimulationViewAI.vue:303-312`).
-- [ ] Documentar fluxo IA atualizado em `docs/guides`, destacando diferenças em relação à simulação com ator humano e instruções de teste.
+-   [ ] **Criar o arquivo `src/composables/useSpeechInteraction.js`.**
+-   [ ] **Mover as seguintes `refs` e funções de `SimulationViewAI.vue` para `useSpeechInteraction.js`:**
+    -   `refs`: `isListening`, `speechRecognition`, `isSpeaking`, `speechSynthesis`, `speechTimeout`, `autoRecordMode`, `silenceTimeout`, `lastSpeechTime`, `selectedVoice`.
+    -   `funções`: `initSpeechRecognition`, `startListening`, `stopListening`, `extractPatientDemographics`, `selectVoiceForPatient`, `getVoiceParametersForAge`, `speakText`, `stopSpeaking`, `toggleVoiceRecording`, `toggleAutoRecordMode`.
+-   [ ] **Expor uma API simplificada:** O novo composable deve expor um estado reativo e funções simples.
+    ```javascript
+    // Exemplo da API do novo composable
+    export function useSpeechInteraction() {
+      const isListening = ref(false);
+      const isSpeaking = ref(false);
+      const recognizedText = ref('');
 
-### 7. Testes e Garantia de Qualidade
-- [ ] Cobrir novos composables com testes unitários (`tests/unit/composables/useSimulationAiChat.spec.ts`, `useSpeechInteraction.spec.ts`, etc.).
-- [ ] Criar testes de integração validando início automático da simulação IA, chat, liberação de material e avaliação automática (`tests/integration/simulationViewAi.spec.ts`).
-- [ ] Atualizar `tests/setup.js` e mocks para APIs de voz/navegador e endpoints Gemini antes de habilitar o pipeline CI.
+      function start() { /* ... */ }
+      function stop() { /* ... */ }
+      function speak(text, patientProfile) { /* ... */ }
+
+      return { isListening, isSpeaking, recognizedText, start, stop, speak };
+    }
+    ```
+-   [ ] **Substituir a lógica em `SimulationViewAI.vue`:** Remover todas as funções e refs de voz e usar o novo composable `useSpeechInteraction()`.
+
+### Passo 2: Isolar a Lógica de Chat e Liberação de Materiais
+
+**Objetivo:** Mover o gerenciamento da conversa com a IA e a complexa lógica de liberação de impressos para um composable.
+
+-   [ ] **Criar o arquivo `src/composables/useAiChat.js`.**
+-   [ ] **Mover as seguintes `refs` e funções para `useAiChat.js`:**
+    -   `refs`: `conversationHistory`, `currentMessage`, `isProcessingMessage`.
+    -   `funções`: `sendMessage`, `processAIResponse`, `shouldReleaseSimple`, `releaseSpecificMaterial`, `findSpecificMaterial`, `releaseMaterialById`.
+    -   Mover também o `medicalDictionary` e a função `calculateMatchScore` para dentro deste novo arquivo ou para um utilitário.
+-   [ ] **Padronizar o formato do histórico:** Garantir que `conversationHistory` use um formato de objeto único e consistente (ex: `{ id, role, content, timestamp, metadata }`).
+-   [ ] **Substituir a lógica em `SimulationViewAI.vue`:** Usar o novo composable `useAiChat()`, que receberá `stationData` como dependência e retornará o histórico e as funções de interação.
+
+### Passo 3: Isolar a Lógica de Avaliação Automática (PEP)
+
+**Objetivo:** Extrair a funcionalidade que usa a IA para avaliar o checklist.
+
+-   [ ] **Criar o arquivo `src/composables/useAiEvaluation.js`.**
+-   [ ] **Mover as seguintes funções para `useAiEvaluation.js`:**
+    -   `aiEvaluatePEP`, `processAIEvaluation`, `processAIEvaluationSimple`, `autoEvaluatePEPFallback`, `getClassificacaoFromPontuacao`.
+-   [ ] **Conectar com o backend:** O composable será responsável pela chamada ao endpoint `POST /ai-chat/evaluate-pep`.
+-   [ ] **Substituir a lógica em `SimulationViewAI.vue`:** Chamar a função principal do `useAiEvaluation()` quando a simulação terminar.
+
+### Passo 4: Componentizar a Interface (UI)
+
+**Objetivo:** Limpar o template do `SimulationViewAI.vue` substituindo blocos de HTML por componentes reutilizáveis.
+
+-   [ ] **Analisar o template de `SimulationView.vue` (versão humana) e identificar componentes reutilizáveis.**
+-   [ ] **Substituir o HTML em `SimulationViewAI.vue` pelos seguintes componentes (se aplicável):**
+    -   `CandidateContentPanel`: Para exibir o cenário e as tarefas.
+    -   `CandidateImpressosPanel`: Para listar e exibir os impressos liberados.
+    -   `CandidateChecklist`: Para exibir o PEP (checklist) no final.
+    -   `ImageZoomModal`: Para a funcionalidade de zoom em imagens, removendo a implementação com `document.write`.
+-   [ ] **Passar os dados reativos (refs) dos composables como `props` para esses componentes filhos.**
+
+### Passo 5: Limpeza, Documentação e Testes
+
+**Objetivo:** Finalizar a refatoração, garantindo a qualidade e a manutenibilidade do código.
+
+-   [ ] **Substituir todos os `console.log` e `console.error` por um `Logger` padronizado**, que só exibe logs em ambiente de desenvolvimento.
+-   [ ] **Adicionar testes unitários (Vitest) para os novos composables:**
+    -   `tests/unit/composables/useSpeechInteraction.spec.js`
+    -   `tests/unit/composables/useAiChat.spec.js`
+    -   `tests/unit/composables/useAiEvaluation.spec.js`
+-   [ ] **Revisar e remover qualquer código não utilizado** que tenha sobrado em `SimulationViewAI.vue`.
+-   [ ] **Atualizar esta documentação** marcando os itens como concluídos.
+
+---
+
+## 4. Resultado Esperado
+
+Ao final desta refatoração, o arquivo `SimulationViewAI.vue` será drasticamente menor e atuará principalmente como um **orquestrador**, conectando os diferentes composables e componentes, sem conter lógica de negócio complexa. O código resultante será mais limpo, mais fácil de testar e muito mais simples de manter ou estender no futuro.

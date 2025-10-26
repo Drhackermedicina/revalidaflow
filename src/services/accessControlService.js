@@ -4,11 +4,11 @@ import { getAuthHeadersAsync } from '@/utils/authHeaders.js'
 async function authFetch(path, options = {}) {
   const timestamp = new Date().toISOString()
   const fetchId = Math.random().toString(36).substr(2, 9)
-  
+
   console.log(`[${timestamp}] authFetch: [${fetchId}] 🚀 INICIANDO requisição para ${path}`)
   console.log(`[${timestamp}] authFetch: [${fetchId}] 🔍 Ambiente: ${import.meta.env.MODE}`)
   console.log(`[${timestamp}] authFetch: [${fetchId}] 🔍 Backend URL: ${backendUrl}`)
-  
+
   const headers = await getAuthHeadersAsync()
 
   console.log(`[${timestamp}] authFetch: [${fetchId}] Headers iniciais:`, Object.keys(headers))
@@ -62,21 +62,24 @@ async function authFetch(path, options = {}) {
     console.log(`[${timestamp}] authFetch: [${fetchId}] URL completa: ${backendUrl}${path}${query}`)
     console.log(`[${timestamp}] authFetch: [${fetchId}] Método: ${method}`)
     console.log(`[${timestamp}] authFetch: [${fetchId}] Headers finais:`, headers)
-    
+
     const startTime = Date.now()
     const response = await fetch(`${backendUrl}${path}${query}`, fetchOptions)
     const endTime = Date.now()
-    
+
     console.log(`[${timestamp}] authFetch: [${fetchId}] 📥 Response recebida em ${endTime - startTime}ms`)
     console.log(`[${timestamp}] authFetch: [${fetchId}] Status: ${response.status}`)
     console.log(`[${timestamp}] authFetch: [${fetchId}] Headers:`, [...response.headers.entries()])
-    
-    const data = await response.json().catch((jsonError) => {
+
+    let data
+    try {
+      data = await response.json()
+    } catch (jsonError) {
       console.log(`[${timestamp}] authFetch: [${fetchId}] ❌ Erro ao fazer parse do JSON:`, jsonError)
       console.log(`[${timestamp}] authFetch: [${fetchId}] Response text:`, await response.text())
-      return {}
-    })
-    
+      data = {}
+    }
+
     console.log(`[${timestamp}] authFetch: [${fetchId}] 📄 Response data:`, data)
 
     if (!response.ok) {
@@ -85,14 +88,14 @@ async function authFetch(path, options = {}) {
       error.status = response.status
       error.details = data.details
       console.log(`[${timestamp}] authFetch: [${fetchId}] ❌ Erro na requisição:`, error)
-      
+
       // Detectar erros específicos de conexão
       if (data.message?.includes('ERR_CONNECTION_REFUSED') ||
-          data.message?.includes('ECONNREFUSED')) {
+        data.message?.includes('ECONNREFUSED')) {
         console.error(`[${timestamp}] authFetch: [${fetchId}] 🚨 ERRO DE CONEXÃO COM BACKEND!`);
         console.error(`[${timestamp}] authFetch: [${fetchId}] 🔍 Backend está rodando? Verifique: npm run backend:local`);
       }
-      
+
       throw error
     }
 
@@ -105,14 +108,14 @@ async function authFetch(path, options = {}) {
       message: fetchError.message,
       stack: fetchError.stack
     })
-    
+
     // Detectar erros de proxy/tunnel
     if (fetchError.message?.includes('ERR_TUNNEL_CONNECTION_FAILED') ||
-        fetchError.message?.includes('ERR_PROXY_CONNECTION_FAILED')) {
+      fetchError.message?.includes('ERR_PROXY_CONNECTION_FAILED')) {
       console.error(`[${timestamp}] authFetch: [${fetchId}] 🚨 ERRO DE PROXY/TUNNEL DETECTADO!`);
       console.error(`[${timestamp}] authFetch: [${fetchId}] 🔍 Possíveis causas: Proxy corporativo, firewall, VPN`);
     }
-    
+
     throw fetchError
   }
 }

@@ -4,7 +4,6 @@ import { collection, limit, orderBy, query, where, getDocs, doc, onSnapshot, upd
 import { reactive, computed, watch } from 'vue';
 import { currentUser } from '@/plugins/auth';
 import Logger from '@/utils/logger';
-import validationLogger from '@/utils/validationLogger';
 
 const logger = new Logger('userStore');
 
@@ -79,6 +78,10 @@ const canViewAnalytics = computed(() => state.permissions.canViewAnalytics);
 const canManageRoles = computed(() => state.permissions.canManageRoles);
 const canAccessAdminPanel = computed(() => state.permissions.canAccessAdminPanel);
 
+// Computed properties para estado de carregamento e erro
+const roleLoading = computed(() => state.roleLoading);
+const roleError = computed(() => state.roleError);
+
 function setUser(user) {
   state.user = user;
   state.isAuthenticated = !!user;
@@ -116,7 +119,7 @@ function clearUserRole() {
 }
 
 // Função para buscar role e permissões do usuário com retry e backoff
-function fetchUserRole(source = 'unknown') {
+function fetchUserRole(_source = 'unknown') {
   if (!currentUser.value?.uid) {
     if (import.meta.env.DEV) {
       logger.warn('fetchUserRole: No current user UID');
@@ -448,6 +451,8 @@ const userStore = {
   canViewAnalytics,
   canManageRoles,
   canAccessAdminPanel,
+  roleLoading,
+  roleError,
 
   // Utilities
   getDefaultPermissions
