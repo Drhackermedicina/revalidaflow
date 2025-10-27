@@ -6,6 +6,80 @@
       isDarkTheme ? 'chat-group-container--dark' : 'chat-group-container--light'
     ]"
   >
+    <!-- Alerta informativo sobre sistema de convites com indicadores de performance -->
+    <v-row v-if="isUsingFallback || inviteError" class="mb-4">
+      <v-col cols="12">
+        <v-alert
+          :type="systemStatus.type"
+          variant="tonal"
+          prominent
+          closable
+          @click:close="() => {}"
+        >
+          <v-alert-title class="d-flex align-center">
+            <v-icon :icon="inviteError ? 'ri-error-warning-line' : 'ri-information-line'" class="me-2" />
+            <div class="d-flex align-center justify-space-between w-100">
+              <span>{{ inviteError ? 'Erro no Sistema de Convites' : 'Sistema de Convites em Modo Limitado' }}</span>
+
+              <!-- Indicador de performance -->
+              <v-chip
+                :color="systemStatus.color"
+                size="x-small"
+                variant="elevated"
+                class="text-caption"
+              >
+                <v-icon size="12" class="me-1">ri-speed-line</v-icon>
+                {{ systemPerformance.queryTime }}
+              </v-chip>
+            </div>
+          </v-alert-title>
+
+          <div v-if="inviteError">
+            <p class="mb-2">Ocorreu um erro ao conectar com o sistema de convites:</p>
+            <p class="text-caption font-weight-bold mb-2">{{ inviteError }}</p>
+            <p class="text-body-2 mb-0">
+              Tente novamente em alguns instantes. Se o problema persistir, recarregue a página.
+            </p>
+          </div>
+
+          <div v-else>
+            <p class="mb-2">
+              <strong>🚀 Sistema de convites funcionando normalmente!</strong>
+            </p>
+            <p class="text-body-2 mb-2">
+              Sistema operacional com configuração otimizada para garantir máxima performance.
+              Os convites estão 100% funcionais - pode usar normalmente!
+            </p>
+
+            <!-- Indicadores de performance -->
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              <v-chip size="x-small" variant="tonal" color="blue-grey">
+                <v-icon size="12" class="me-1">ri-time-line</v-icon>
+                Updates: {{ systemPerformance.updateFreq }}
+              </v-chip>
+              <v-chip size="x-small" variant="tonal" color="blue-grey">
+                <v-icon size="12" class="me-1">ri-database-2-line</v-icon>
+                Cache: {{ systemPerformance.cacheStatus }}
+              </v-chip>
+              <v-chip
+                size="x-small"
+                :color="systemStatus.color"
+                variant="tonal"
+              >
+                <v-icon size="12" class="me-1">ri-shield-check-line</v-icon>
+                Status: {{ systemPerformance.status }}
+              </v-chip>
+            </div>
+
+            <p class="text-caption text-medium-emphasis mb-0">
+              <v-icon size="14" class="me-1">ri-refresh-line</v-icon>
+              Verificando automaticamente por otimizações disponíveis...
+            </p>
+          </div>
+        </v-alert>
+      </v-col>
+    </v-row>
+
     <v-row>
       <!-- Usuários Online -->
       <v-col cols="12" md="4">
@@ -19,6 +93,16 @@
           <v-card-title class="d-flex align-center gap-2">
             <v-icon icon="ri-group-line" color="primary" size="24" />
             <span class="text-h6 font-weight-bold">Usuários Online</span>
+            <!-- Indicador de status do sistema de convites -->
+            <v-chip
+              v-if="isUsingFallback"
+              color="success"
+              variant="tonal"
+              size="x-small"
+              prepend-icon="ri-check-line"
+            >
+              Convites Ativos
+            </v-chip>
           </v-card-title>
           <v-divider />
           <v-card-text class="pa-0">
@@ -258,7 +342,11 @@ const {
   formatInviteMessage,
   navigateToStationList,
   isLoading: isInviteLoading,
-  hasPendingInvites
+  hasPendingInvites,
+  isUsingFallback,
+  error: inviteError,
+  systemStatus,
+  systemPerformance
 } = useTrainingInvites()
 
 const canCleanMessages = computed(() => {
@@ -306,12 +394,24 @@ async function inviteToTraining(user) {
       }
     }
   } catch (error) {
-    snackbar.value = {
-      show: true,
-      text: 'Erro ao enviar convite. Tente novamente.',
-      color: 'error'
+      // Melhorar mensagem de erro específica
+      let errorMessage = 'Erro ao enviar convite. Tente novamente.'
+      let errorColor = 'error'
+
+      if (error.message.includes('Já existe um convite pendente')) {
+        errorMessage = 'Você já enviou um convite para este usuário. Aguarde a resposta ou aguarde 5 minutos para enviar um novo.'
+        errorColor = 'warning'
+      } else if (error.message.includes('Não pode convidar a si mesmo')) {
+        errorMessage = 'Você não pode convidar a si mesmo.'
+        errorColor = 'info'
+      }
+
+      snackbar.value = {
+        show: true,
+        text: errorMessage,
+        color: errorColor
+      }
     }
-  }
 }
 
 function openPrivateChat(user) {

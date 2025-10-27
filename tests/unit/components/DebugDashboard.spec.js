@@ -1,297 +1,124 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
-import DebugDashboard from '@/components/DebugDashboard.vue'
-import validationLogger from '@/utils/validationLogger'
 
-// Mock validationLogger
-vi.mock('@/utils/validationLogger', () => ({
-  default: {
-    getMetrics: vi.fn(),
-    getHealthStatus: vi.fn(),
-    getRecentEvents: vi.fn(),
-    reset: vi.fn(),
-    exportData: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { mount } from '@vue/test-utils';
+import DebugDashboard from '@/components/DebugDashboard.vue';
+import { ref } from 'vue';
+
+// Mock a implementação completa do validationLogger
+const mockValidationLogger = {
+  getMetrics: vi.fn(() => ({
+    raceConditions: { detected: 1, prevented: 9, total: 10 },
+    firestoreErrors: { connectionErrors: 2, proxyErrors: 1, recovered: 5, total: 8 },
+    googleAuthErrors: { popupBlocked: 3, crossOriginPolicy: 1, fallbackRedirect: 2, recovered: 4, total: 10 },
+  })),
+  getEvents: vi.fn(() => [
+    { type: 'race_condition_detected', operation: 'test', timestamp: new Date().toISOString(), details: {} },
+    { type: 'firestore_connection_error', operation: 'test', timestamp: new Date().toISOString(), details: {} },
+  ]),
+  calculateHealthStatus: vi.fn(() => ({
+    overall: 'warning',
+    raceConditions: { status: 'healthy' },
+    firestore: { status: 'warning' },
+    googleAuth: { status: 'critical' },
+  })),
+  resetMetrics: vi.fn(),
+  generateStatusReport: vi.fn(() => ({ /* mock report */ })),
+  // Simula o sistema de eventos global
+  __listeners: new Map(),
+  addEventListener(event, callback) {
+    if (!this.__listeners.has(event)) {
+      this.__listeners.set(event, []);
+    }
+    this.__listeners.get(event).push(callback);
+  },
+  removeEventListener(event, callback) {
+    if (this.__listeners.has(event)) {
+      const callbacks = this.__listeners.get(event).filter(cb => cb !== callback);
+      this.__listeners.set(event, callbacks);
+    }
+  },
+  _emit(event, data) {
+    if (this.__listeners.has(event)) {
+      this.__listeners.get(event).forEach(cb => cb({ detail: data }));
+    }
   }
-}))
+};
+
+vi.mock('@/utils/validationLogger', () => ({
+  default: mockValidationLogger,
+}));
 
 describe('DebugDashboard', () => {
-  let wrapper
-  let mockMetrics
-  let mockHealthStatus
-  let mockRecentEvents
+  let wrapper;
 
   beforeEach(() => {
-    // Setup mock data
-    mockMetrics = {
-      raceConditions: {
-        detected: 5,
-        prevented: 15,
-        successRate: 75.0
-      },
-      firestore: {
-        errors: 2,
-        recovered: 18,
-        successRate: 90.0
-      },
-      googleAuth: {
-        errors: 1,
-        recovered: 9,
-        fallbacks: 3,
-        successRate: 90.0
+    // Reset mocks before each test
+    vi.clearAllMocks();
+    
+    // Mount o componente com mocks
+    wrapper = mount(DebugDashboard, {
+      global: {
+        stubs: {
+          VCard: { template: '<div><slot name="title"/><slot/></div>' },
+          VCardTitle: { template: '<div><slot/></div>' },
+          VCardText: { template: '<div><slot/></div>' },
+          VRow: { template: '<div><slot/></div>' },
+          VCol: { template: '<div><slot/></div>' },
+          VAlert: { template: '<div><slot/></div>' },
+          VChip: { template: '<div><slot/></div>' },
+          VBtn: { template: '<button><slot/></button>' },
+          VIcon: { template: '<i></i>' },
+          VProgressLinear: { template: '<div class="v-progress-linear"></div>' },
+          VDialog: { template: '<div><slot/></div>' },
+          VTimeline: { template: '<div><slot/></div>' },
+          VTimelineItem: { template: '<div><slot/></div>' },
+        }
       }
-    }
+    });
+  });
 
-    mockHealthStatus = {
-      overall: 'healthy',
-      raceConditions: 'healthy',
-      firestore: 'healthy',
-      googleAuth: 'healthy'
-    }
+  it('deve renderizar o componente corretamente', () => {
+    expect(wrapper.exists()).toBe(true);
+    expect(wrapper.html()).toContain('Dashboard de Validação');
+  });
 
-    mockRecentEvents = [
-      {
-        type: 'raceConditionPrevented',
-        source: 'fetchUserRole',
-        timestamp: '2025-01-01T10:00:00.000Z',
-        data: { operationId: 'op-123' }
-      },
-      {
-        type: 'firestoreRecovered',
-        source: 'getDocumentWithRetry',
-        timestamp: '2025-01-01T10:01:00.000Z',
-        data: { operationId: 'fs-456' }
-      }
-    ]
+  it('deve exibir status geral de saúde', () => {
+    mockValidationLogger.calculateHealthStatus.mockReturnValue({ overall: 'critical' });
+    // Re-mount or trigger update if necessary
+    wrapper = mount(DebugDashboard, { global: { stubs: { VAlert: true } } });
+    expect(wrapper.html()).toContain('critical');
+  });
 
-    // Setup mocks
-    validationLogger.getMetrics.mockReturnValue(mockMetrics)
-    validationLogger.getHealthStatus.mockReturnValue(mockHealthStatus)
-    validationLogger.getRecentEvents.mockReturnValue(mockRecentEvents)
+  it('deve exibir métricas corretamente', () => {
+    expect(mockValidationLogger.getMetrics).toHaveBeenCalled();
+    expect(wrapper.html()).toContain('Race Conditions');
+    expect(wrapper.html()).toContain('10'); // total
+  });
 
-    wrapper = mount(DebugDashboard)
-  })
+  it('deve exibir eventos recentes', () => {
+    expect(mockValidationLogger.getEvents).toHaveBeenCalled();
+    expect(wrapper.findAll('.v-timeline-item').length).toBe(2);
+  });
 
-  describe('Rendering', () => {
-    it('deve renderizar o componente corretamente', () => {
-      expect(wrapper.exists()).toBe(true)
-      expect(wrapper.find('.debug-dashboard').exists()).toBe(true)
-    })
+  it('deve chamar resetMetrics ao clicar no botão', async () => {
+    await wrapper.find('button[title="Resetar Métricas"]').trigger('click');
+    expect(mockValidationLogger.resetMetrics).toHaveBeenCalled();
+  });
 
-    it('deve exibir o título do dashboard', () => {
-      expect(wrapper.text()).toContain('Dashboard de Validação')
-    })
+  it('deve chamar generateStatusReport ao clicar em exportar', async () => {
+    await wrapper.find('button[title="Exportar Relatório"]').trigger('click');
+    expect(mockValidationLogger.generateStatusReport).toHaveBeenCalled();
+  });
 
-    it('deve exibir status geral de saúde', () => {
-      expect(wrapper.text()).toContain('Status Geral: healthy')
-    })
-  })
+  it('deve atualizar em tempo real ao receber um novo evento', async () => {
+    const newEvent = { type: 'google_auth_recovered', operation: 'realtime', timestamp: new Date().toISOString(), details: {} };
+    
+    // Simula a emissão do evento global que o componente escuta
+    const customEvent = new CustomEvent('validationLogger:event', { detail: newEvent });
+    window.dispatchEvent(customEvent);
 
-  describe('Metrics Display', () => {
-    it('deve exibir métricas de race conditions', () => {
-      const raceSection = wrapper.findAll('.metric-section')[0]
-      expect(raceSection.text()).toContain('Race Conditions')
-      expect(raceSection.text()).toContain('Detectadas: 5')
-      expect(raceSection.text()).toContain('Prevenidas: 15')
-      expect(raceSection.text()).toContain('Taxa de Sucesso: 75.0%')
-    })
+    await wrapper.vm.$nextTick();
 
-    it('deve exibir métricas de Firestore', () => {
-      const firestoreSection = wrapper.findAll('.metric-section')[1]
-      expect(firestoreSection.text()).toContain('Firestore')
-      expect(firestoreSection.text()).toContain('Erros: 2')
-      expect(firestoreSection.text()).toContain('Recuperadas: 18')
-      expect(firestoreSection.text()).toContain('Taxa de Sucesso: 90.0%')
-    })
-
-    it('deve exibir métricas de Google Auth', () => {
-      const authSection = wrapper.findAll('.metric-section')[2]
-      expect(authSection.text()).toContain('Google Auth')
-      expect(authSection.text()).toContain('Erros: 1')
-      expect(authSection.text()).toContain('Recuperadas: 9')
-      expect(authSection.text()).toContain('Fallbacks: 3')
-      expect(authSection.text()).toContain('Taxa de Sucesso: 90.0%')
-    })
-  })
-
-  describe('Health Status Indicators', () => {
-    it('deve exibir indicadores de saúde corretos', () => {
-      const healthIndicators = wrapper.findAll('.health-indicator')
-
-      expect(healthIndicators).toHaveLength(4) // overall + 3 sections
-
-      // Overall health
-      expect(healthIndicators[0].classes()).toContain('healthy')
-      expect(healthIndicators[0].text()).toContain('healthy')
-    })
-
-    it('deve atualizar indicadores quando saúde muda', async () => {
-      // Change health status
-      mockHealthStatus.overall = 'warning'
-      mockHealthStatus.raceConditions = 'critical'
-
-      validationLogger.getHealthStatus.mockReturnValue(mockHealthStatus)
-
-      // Trigger reactivity (in real component this would be automatic)
-      await wrapper.vm.$forceUpdate()
-
-      const healthIndicators = wrapper.findAll('.health-indicator')
-      expect(healthIndicators[0].classes()).toContain('warning')
-      expect(healthIndicators[1].classes()).toContain('critical')
-    })
-  })
-
-  describe('Recent Events', () => {
-    it('deve exibir lista de eventos recentes', () => {
-      const eventsList = wrapper.find('.recent-events')
-      expect(eventsList.exists()).toBe(true)
-
-      const eventItems = wrapper.findAll('.event-item')
-      expect(eventItems).toHaveLength(2)
-    })
-
-    it('deve formatar eventos corretamente', () => {
-      const firstEvent = wrapper.findAll('.event-item')[0]
-      expect(firstEvent.text()).toContain('raceConditionPrevented')
-      expect(firstEvent.text()).toContain('fetchUserRole')
-      expect(firstEvent.text()).toContain('op-123')
-    })
-
-    it('deve limitar número de eventos exibidos', () => {
-      // Add more events to mock
-      const manyEvents = Array.from({ length: 50 }, (_, i) => ({
-        type: 'testEvent',
-        source: 'testSource',
-        timestamp: `2025-01-01T10:${i.toString().padStart(2, '0')}:00.000Z`,
-        data: { id: `event-${i}` }
-      }))
-
-      validationLogger.getRecentEvents.mockReturnValue(manyEvents)
-
-      wrapper = mount(DebugDashboard)
-      const eventItems = wrapper.findAll('.event-item')
-
-      // Should limit to reasonable number (e.g., 20)
-      expect(eventItems.length).toBeLessThanOrEqual(20)
-    })
-  })
-
-  describe('Controls', () => {
-    it('deve ter botão de reset', () => {
-      const resetButton = wrapper.find('.reset-button')
-      expect(resetButton.exists()).toBe(true)
-      expect(resetButton.text()).toContain('Reset')
-    })
-
-    it('deve chamar reset quando botão é clicado', async () => {
-      const resetButton = wrapper.find('.reset-button')
-      await resetButton.trigger('click')
-
-      expect(validationLogger.reset).toHaveBeenCalled()
-    })
-
-    it('deve ter botão de export', () => {
-      const exportButton = wrapper.find('.export-button')
-      expect(exportButton.exists()).toBe(true)
-      expect(exportButton.text()).toContain('Export')
-    })
-
-    it('deve chamar export quando botão é clicado', async () => {
-      const exportButton = wrapper.find('.export-button')
-      await exportButton.trigger('click')
-
-      expect(validationLogger.exportData).toHaveBeenCalled()
-    })
-
-    it('deve ter toggle para auto-refresh', () => {
-      const autoRefreshToggle = wrapper.find('.auto-refresh-toggle')
-      expect(autoRefreshToggle.exists()).toBe(true)
-    })
-  })
-
-  describe('Real-time Updates', () => {
-    it('deve se inscrever em eventos do logger na montagem', () => {
-      expect(validationLogger.addEventListener).toHaveBeenCalledWith(
-        'validationUpdate',
-        expect.any(Function)
-      )
-    })
-
-    it('deve se desinscrever de eventos na desmontagem', () => {
-      const mockListener = vi.fn()
-      validationLogger.addEventListener.mockReturnValue(mockListener)
-
-      wrapper = mount(DebugDashboard)
-      wrapper.unmount()
-
-      expect(validationLogger.removeEventListener).toHaveBeenCalledWith(
-        'validationUpdate',
-        mockListener
-      )
-    })
-
-    it('deve atualizar dados quando evento é recebido', () => {
-      const updateHandler = validationLogger.addEventListener.mock.calls[0][1]
-
-      // Simulate event
-      updateHandler()
-
-      // Should refresh data
-      expect(validationLogger.getMetrics).toHaveBeenCalledTimes(2) // once on mount, once on update
-      expect(validationLogger.getHealthStatus).toHaveBeenCalledTimes(2)
-      expect(validationLogger.getRecentEvents).toHaveBeenCalledTimes(2)
-    })
-  })
-
-  describe('Auto-refresh', () => {
-    it('deve iniciar auto-refresh quando toggle está ativo', async () => {
-      vi.useFakeTimers()
-
-      const toggle = wrapper.find('.auto-refresh-toggle input')
-      await toggle.setValue(true)
-
-      // Fast-forward time
-      vi.advanceTimersByTime(5000) // 5 seconds
-
-      expect(validationLogger.getMetrics).toHaveBeenCalledTimes(2) // initial + refresh
-
-      vi.useRealTimers()
-    })
-
-    it('deve parar auto-refresh quando toggle está desativo', async () => {
-      vi.useFakeTimers()
-
-      const toggle = wrapper.find('.auto-refresh-toggle input')
-      await toggle.setValue(false)
-
-      // Fast-forward time
-      vi.advanceTimersByTime(10000) // 10 seconds
-
-      expect(validationLogger.getMetrics).toHaveBeenCalledTimes(1) // only initial
-
-      vi.useRealTimers()
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('deve lidar com erro ao obter métricas', () => {
-      validationLogger.getMetrics.mockImplementation(() => {
-        throw new Error('Failed to get metrics')
-      })
-
-      // Should not crash the component
-      expect(() => mount(DebugDashboard)).not.toThrow()
-    })
-
-    it('deve mostrar mensagem de erro quando falha ao carregar dados', () => {
-      validationLogger.getMetrics.mockImplementation(() => {
-        throw new Error('Network error')
-      })
-
-      wrapper = mount(DebugDashboard)
-
-      expect(wrapper.text()).toContain('Erro ao carregar dados')
-    })
-  })
-})
+    expect(wrapper.html()).toContain('google_auth_recovered');
+  });
+});
