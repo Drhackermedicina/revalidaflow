@@ -30,6 +30,7 @@ import { useSequentialMode } from '@/composables/useSequentialMode'
 import { useCandidateSearch } from '@/composables/useCandidateSearch'
 import { useUserManagement } from '@/composables/useUserManagement'
 import { useStationNavigation } from '@/composables/useStationNavigation'
+import { useTrainingInvites } from '@/composables/useTrainingInvites.js'
 import { currentUser } from '@/plugins/auth.js'
 
 // 🔹 Data Management
@@ -108,9 +109,19 @@ const {
   expandCorrectSection
 } = useStationNavigation()
 
+// 🔹 Sistema de Convites para Treino
+const {
+  initializeInviteListeners,
+  hasPendingInvites
+} = useTrainingInvites()
+
 // 🔹 Local State
 const selectedStation = ref(null)
 const inepPeriods = ['2025.1', '2024.2', '2024.1', '2023.2', '2023.1', '2022.2', '2022.1', '2021', '2020', '2017', '2016', '2015', '2014', '2013', '2012', '2011']
+
+// 🔹 Estados para convites aceitos
+const inviteAcceptedData = ref(null)
+const showInviteNotification = ref(false)
 
 // Ref para scroll infinito
 const loadMoreSentinel = ref(null)
@@ -138,6 +149,69 @@ function findStation(stationId) {
 function clearSearchFields() {
   selectedStation.value = null
   globalSearchQuery.value = ''
+}
+
+// Processa dados de convite aceito vindo da URL
+function processAcceptedInviteFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search)
+
+  if (urlParams.get('inviteAccepted') === 'true') {
+    const invitedBy = urlParams.get('invitedBy')
+    const invitedByName = urlParams.get('invitedByName')
+    const inviteId = urlParams.get('inviteId')
+
+    if (invitedBy && invitedByName) {
+      inviteAcceptedData.value = {
+        invitedBy,
+        invitedByName,
+        inviteId
+      }
+
+      // Auto-preencher candidato com dados do convite
+      const candidate = {
+        uid: invitedBy,
+        name: invitedByName,
+        displayName: invitedByName
+      }
+
+      selectedCandidate.value = candidate
+      showInviteNotification.value = true
+
+      // Limpar URL para não mostrar parâmetros novamente
+      const cleanUrl = window.location.pathname
+      window.history.replaceState({}, '', cleanUrl)
+
+      // Auto-rolar para área de seleção de estações
+      setTimeout(() => {
+        const stationSection = document.querySelector('.v-expansion-panels')
+        if (stationSection) {
+          stationSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 500)
+
+      // Auto-expand primeira seção com estações
+      setTimeout(() => {
+        expandCorrectSection({
+          tituloEstacao: '',
+          tipoEstacao: 'revalida_facil'
+        }, accordionRefs, isINEPStation, isRevalidaFacilStation, getRevalidaFacilSpecialty)
+      }, 800)
+    }
+  }
+}
+
+// Fecha a notificação de convite aceito
+function closeInviteNotification() {
+  showInviteNotification.value = false
+  inviteAcceptedData.value = null
+}
+
+// Limpa seleção de candidato (se já existir a função, mantém)
+if (typeof clearCandidateSelection !== 'function') {
+  function clearCandidateSelection() {
+    selectedCandidate.value = null
+    closeInviteNotification()
+  }
 }
 
 function handleStartSimulation(stationId) {
@@ -185,11 +259,19 @@ function toggleCollapse() {
 // 🔹 Lifecycle
 onMounted(async () => {
   document.documentElement.classList.add('station-list-page-active')
-  
+
+  // Processar convite aceito da URL (antes de carregar estações)
+  processAcceptedInviteFromUrl()
+
+  // Inicializar listeners de convites se o usuário estiver logado
+  if (currentUser.value?.uid) {
+    initializeInviteListeners(currentUser.value.uid)
+  }
+
   // Carregar primeira página
   await fetchStations()
   clearSearchFields()
-  
+
   // Carregar automaticamente mais 2 páginas para garantir conteúdo nas seções
   // Isso totaliza ~600 estações iniciais (3 x 200)
   if (hasMoreStations.value) {
@@ -198,7 +280,7 @@ onMounted(async () => {
       await fetchStations(true) // Terceira página
     }
   }
-  
+
   // Configurar scroll infinito para páginas adicionais
   if (loadMoreSentinel.value) {
     intersectionObserver = new IntersectionObserver(
@@ -208,12 +290,12 @@ onMounted(async () => {
           fetchStations(true)
         }
       },
-      { 
+      {
         rootMargin: '200px', // Começar a carregar 200px antes de chegar no fim
-        threshold: 0.1 
+        threshold: 0.1
       }
     )
-    
+
     intersectionObserver.observe(loadMoreSentinel.value)
   }
 })
@@ -271,6 +353,51 @@ watch(currentUser, (newUser) => {
       <v-col cols="12" md="12" class="mx-auto">
         <!-- Admin Upload Card -->
         <AdminUploadCard v-if="isAdmin" @navigate-to-upload="goToAdminUpload" />
+
+        <!-- Notificação de Convite Aceito -->
+        <VAlert
+          v-if="showInviteNotification && inviteAcceptedData"
+          type="success"
+          variant="tonal"
+          prominent
+          class="mb-6 invite-accepted-alert"
+          closable
+          @click:close="closeInviteNotification"
+        >
+          <VAlertTitle class="d-flex align-center">
+            <VIcon icon="ri-handshake-line" size="24" class="me-2" />
+            Convite Aceito!
+          </VAlertTitle>
+
+          <div class="invite-accepted-content">
+            <p class="mb-3">
+              <strong>{{ inviteAcceptedData.invitedByName }}</strong> aceitou seu convite para treinar!
+            </p>
+
+            <p class="text-body-2 mb-4">
+              O candidato já foi selecionado automaticamente. Agora selecione uma estação clínica abaixo para iniciar a simulação.
+            </p>
+
+            <div class="d-flex align-center gap-3">
+              <VChip
+                color="success"
+                variant="elevated"
+                prepend-icon="ri-user-line"
+              >
+                {{ selectedCandidate?.name || 'Candidato selecionado' }}
+              </VChip>
+
+              <VBtn
+                size="small"
+                variant="text"
+                @click="clearCandidateSelection"
+              >
+                <VIcon size="16" class="me-1">ri-refresh-line</VIcon>
+                Trocar candidato
+              </VBtn>
+            </div>
+          </div>
+        </VAlert>
 
         <!-- Sequential Config Panel -->
         <SequentialConfigPanel
@@ -580,5 +707,50 @@ watch(currentUser, (newUser) => {
 
 .v-btn[variant="tonal"].sequential-selection-btn .v-icon {
   color: #2E7D32 !important;
+}
+
+/* ========== NOTIFICAÇÃO DE CONVITE ACEITO ========== */
+.invite-accepted-alert {
+  border-left: 6px solid rgb(var(--v-theme-success)) !important;
+  background: linear-gradient(135deg, rgba(var(--v-theme-success), 0.08) 0%, rgba(var(--v-theme-primary), 0.04) 100%) !important;
+  animation: slideInRight 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.invite-accepted-content {
+  padding: 4px 0;
+}
+
+.invite-accepted-alert .v-alert-title {
+  color: rgb(var(--v-theme-success)) !important;
+  font-weight: 700 !important;
+}
+
+.invite-accepted-alert .v-chip {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Destaque quando há convite aceito */
+.invite-accepted-alert + .v-expansion-panels {
+  border: 2px dashed rgb(var(--v-theme-success));
+  border-radius: 12px;
+  padding: 8px;
+  transition: all 0.3s ease;
+}
+
+.invite-accepted-alert + .v-expansion-panels:hover {
+  border-color: rgba(var(--v-theme-success), 0.6);
+  background: rgba(var(--v-theme-success), 0.02);
 }
 </style>

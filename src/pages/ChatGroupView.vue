@@ -53,10 +53,29 @@
                     <v-avatar :image="getUserAvatar(user)" size="40" class="user-avatar elevation-2" />
                   </v-badge>
                 </template>
-                <v-list-item-title class="font-weight-medium">
-                  <span class="user-name-link" @click="openPrivateChat(user)" style="cursor:pointer; color:#7b1fa2; text-decoration:underline;">
+                <v-list-item-title class="font-weight-medium d-flex align-center">
+                  <span
+                    class="user-name-link"
+                    @click="openPrivateChat(user)"
+                    style="cursor:pointer; color:#7b1fa2; text-decoration:underline;"
+                  >
                     {{ (user.nome && user.sobrenome) ? user.nome + ' ' + user.sobrenome : user.displayName || 'Usuário sem nome' }}
                   </span>
+                  <!-- Botão de convite para treino -->
+                  <v-btn
+                    v-if="user.uid !== currentUser?.uid"
+                    icon="ri-add-line"
+                    size="x-small"
+                    variant="text"
+                    color="success"
+                    class="ms-2 invite-btn"
+                    :loading="isInviteLoading"
+                    :disabled="isInviteLoading || user.status !== 'disponivel'"
+                    @click.stop="inviteToTraining(user)"
+                    title="Convidar para treino"
+                  >
+                    <v-icon size="16">ri-add-line</v-icon>
+                  </v-btn>
                 </v-list-item-title>
                 <v-list-item-subtitle class="text-caption text-medium-emphasis">
                   {{ user.status === 'disponivel' ? 'Disponível' : user.status === 'ausente' ? 'Ausente' : 'Treinando' }}
@@ -188,6 +207,7 @@ import { useChatUsers } from '@/composables/useChatUsers.js'
 import { useChatMessages, formatTime } from '@/composables/useChatMessages.js'
 import { useChatInput } from '@/composables/useChatInput.js'
 import { useMessageCleanup } from '@/composables/useMessageCleanup.js'
+import { useTrainingInvites } from '@/composables/useTrainingInvites.js'
 
 const router = useRouter()
 const theme = useTheme()
@@ -232,11 +252,68 @@ const { canDeleteMessages } = useUserStore()
 // Inicializar limpeza automática e acesso manual controlado
 const { cleanOldMessages: runMessageCleanup } = useMessageCleanup()
 
+// Inicializar sistema de convites para treino
+const {
+  sendTrainingInvite,
+  formatInviteMessage,
+  navigateToStationList,
+  isLoading: isInviteLoading,
+  hasPendingInvites
+} = useTrainingInvites()
+
 const canCleanMessages = computed(() => {
   return canDeleteMessages.value
 })
 
 // Funções do componente
+async function inviteToTraining(user) {
+  if (!user.uid || user.uid === currentUser.value?.uid) {
+    snackbar.value = {
+      show: true,
+      text: 'Não pode convidar a si mesmo!',
+      color: 'error'
+    }
+    return
+  }
+
+  if (isInviteLoading.value) {
+    snackbar.value = {
+      show: true,
+      text: 'Processando convite, aguarde...',
+      color: 'info'
+    }
+    return
+  }
+
+  try {
+    // Enviar convite
+    const result = await sendTrainingInvite(user)
+
+    if (result.success) {
+      // Abrir chat privado automaticamente
+      openPrivateChat(user)
+
+      snackbar.value = {
+        show: true,
+        text: result.message || 'Convite enviado com sucesso!',
+        color: 'success'
+      }
+    } else {
+      snackbar.value = {
+        show: true,
+        text: result.error || 'Erro ao enviar convite',
+        color: 'error'
+      }
+    }
+  } catch (error) {
+    snackbar.value = {
+      show: true,
+      text: 'Erro ao enviar convite. Tente novamente.',
+      color: 'error'
+    }
+  }
+}
+
 function openPrivateChat(user) {
   if (!user.uid || user.uid === currentUser.value?.uid) return
   router.push({ name: 'ChatPrivateView', params: { uid: user.uid } })
@@ -468,10 +545,32 @@ const cleanOldMessages = async () => {
   }
 }
 
+/* ========== BOTÃO DE CONVITE ========== */
+.invite-btn {
+  opacity: 0;
+  transition: opacity var(--transition-normal), transform var(--transition-normal);
+}
+
+.invite-btn:hover {
+  transform: scale(1.1);
+}
+
+.user-list-item:hover .invite-btn {
+  opacity: 1;
+}
+
+.invite-btn.v-btn--disabled {
+  opacity: 0.5 !important;
+}
+
 /* ========== RESPONSIVIDADE ========== */
 @media (max-width: 900px) {
   :root {
     --card-radius: 8px;
+  }
+
+  .invite-btn {
+    opacity: 1; /* Sempre visível em telas menores */
   }
 }
 
@@ -488,6 +587,10 @@ const cleanOldMessages = async () => {
   .chat-messages {
     min-height: 180px;
     max-height: 220px;
+  }
+
+  .invite-btn {
+    opacity: 1; /* Sempre visível em mobile */
   }
 }
 </style>

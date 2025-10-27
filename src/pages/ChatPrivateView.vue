@@ -25,11 +25,57 @@
           <v-card-text class="chat-messages flex-grow-1 pa-4">
             <div v-for="message in messages" :key="message.id" class="message-bubble d-flex mb-4" :class="{ 'justify-end': message.senderId === currentUser?.uid }">
               <v-avatar v-if="message.senderPhotoURL" :image="message.senderPhotoURL" size="32" class="me-2" />
-              <div class="message-content pa-3 rounded-lg" :class="message.senderId === currentUser?.uid ? 'bg-primary text-white my-message' : 'bg-grey-lighten-4 other-message'">
+              <div
+                class="message-content pa-3 rounded-lg"
+                :class="[
+                  message.senderId === currentUser?.uid ? 'bg-primary text-white my-message' : 'bg-grey-lighten-4 other-message',
+                  { 'training-invite': isTrainingInviteMessage(message) }
+                ]"
+              >
                 <div class="font-weight-medium text-body-2 mb-1" :class="{ 'text-right': message.senderId === currentUser?.uid }">
                   {{ message.senderName }}
                 </div>
                 <div class="text-body-1 mb-1" v-html="formatMessageText(message.text)"></div>
+
+                <!-- Botões de convite para treino -->
+                <div v-if="isTrainingInviteMessage(message)" class="invite-buttons mt-3">
+                  <v-btn
+                    size="small"
+                    color="success"
+                    variant="elevated"
+                    class="me-2"
+                    :loading="isInviteLoading"
+                    @click="acceptInvite(message.inviteData)"
+                  >
+                    <v-icon size="16" class="me-1">ri-check-line</v-icon>
+                    Sim, quero treinar!
+                  </v-btn>
+                  <v-btn
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    :loading="isInviteLoading"
+                    @click="rejectInvite(message.inviteData)"
+                  >
+                    <v-icon size="16" class="me-1">ri-close-line</v-icon>
+                    Não, obrigado
+                  </v-btn>
+                </div>
+
+                <!-- Indicador de processamento para convites já respondidos -->
+                <div v-else-if="message.inviteData && message.inviteStatus !== 'pending'" class="invite-status mt-2">
+                  <v-chip
+                    :color="message.inviteStatus === 'accepted' ? 'success' : 'error'"
+                    size="x-small"
+                    variant="tonal"
+                  >
+                    <v-icon size="12" class="me-1">
+                      {{ message.inviteStatus === 'accepted' ? 'ri-check-line' : 'ri-close-line' }}
+                    </v-icon>
+                    {{ message.inviteStatus === 'accepted' ? 'Aceito' : 'Rejeitado' }}
+                  </v-chip>
+                </div>
+
                 <div v-if="hasLinks(message.text)" class="d-flex justify-end mt-2">
                   <v-btn
                     size="x-small"
@@ -87,6 +133,9 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useTheme } from 'vuetify';
 
+// Importar composable de convites
+import { useTrainingInvites } from '@/composables/useTrainingInvites.js';
+
 const route = useRoute();
 const theme = useTheme();
 
@@ -100,6 +149,22 @@ const newMessage = ref('');
 const messagesEnd = ref(null);
 let unsubscribe = null;
 let listenerInitialized = false;
+
+// Sistema de convites para treino
+const {
+  respondToInvite,
+  formatInviteMessage,
+  formatResponseMessage,
+  navigateToStationList,
+  initializeInviteListeners,
+  isLoading: isInviteLoading,
+  error: inviteError,
+  invites
+} = useTrainingInvites();
+
+// Estado para mensagens de convite
+const inviteMessages = ref([]);
+const processedInvites = ref(new Set()); // Para evitar duplicação
 
 // Busca nome do usuário alvo (corrigido para API v9)
 async function fetchUserName() {
@@ -154,6 +219,11 @@ function initializeMessageListener() {
 
 onMounted(() => {
   fetchUserName();
+
+  // Inicializar listeners de convites
+  if (currentUser.value?.uid) {
+    initializeInviteListeners(currentUser.value.uid);
+  }
 });
 
 // Watch para inicializar listener quando currentUser estiver disponível
@@ -210,13 +280,82 @@ const scrollToEnd = () => {
   }
 };
 
+// Funções para processar convites de treino
+async function acceptInvite(invite) {
+  if (!invite?.id) return;
+
+  try {
+    const result = await respondToInvite(invite.id, true);
+
+    if (result.success && result.redirectData) {
+      // Adicionar mensagem de aceitação ao chat
+      const responseMessage = formatResponseMessage(invite, true);
+
+      // Simular envio da mensagem de resposta
+      await addDoc(collection(db, `chatPrivado_${[currentUser.value.uid, otherUserId].sort().join('_')}`), {
+        ...responseMessage,
+        timestamp: serverTimestamp()
+      });
+
+      // Navegar para StationList após breve delay
+      setTimeout(() => {
+        navigateToStationList(result.redirectData);
+      }, 1500);
+    }
+  } catch (error) {
+    console.error('Erro ao aceitar convite:', error);
+  }
+}
+
+async function rejectInvite(invite) {
+  if (!invite?.id) return;
+
+  try {
+    const result = await respondToInvite(invite.id, false);
+
+    if (result.success) {
+      // Adicionar mensagem de rejeição ao chat
+      const responseMessage = formatResponseMessage(invite, false);
+
+      // Simular envio da mensagem de resposta
+      await addDoc(collection(db, `chatPrivado_${[currentUser.value.uid, otherUserId].sort().join('_')}`), {
+        ...responseMessage,
+        timestamp: serverTimestamp()
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao rejeitar convite:', error);
+  }
+}
+
+// Verifica se uma mensagem é um convite de treino
+function isTrainingInviteMessage(message) {
+  return message.type === 'training_invite_received' &&
+         message.inviteData &&
+         message.showButtons &&
+         !processedInvites.value.has(message.inviteData.id);
+}
+
+// Processa links especiais para redirecionamento
+function processSpecialLinks(text) {
+  if (!text) return text;
+
+  // Detectar link para StationList em respostas aceitas
+  const stationListRegex = /\[Selecionar Estação para Treinar\]/g;
+
+  return text.replace(stationListRegex, '<a href="/app/station-list" class="station-link">[Selecionar Estação para Treinar]</a>');
+}
+
 // Função para detectar e formatar links no texto
 const formatMessageText = (text) => {
   if (!text) return '';
-  
+
+  // Primeiro processar links especiais
+  text = processSpecialLinks(text);
+
   // Regex para detectar URLs (http/https)
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  
+
   return text.replace(urlRegex, (url) => {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="message-link">${url}</a>`;
   }).replace(/\n/g, '<br>');
@@ -389,19 +528,110 @@ const copyMessageLinks = async (text) => {
 .chat-input {
   border-radius: 8px;
 }
+
+/* ========== CONVITES PARA TREINO ========== */
+.training-invite {
+  border: 2px solid rgb(var(--v-theme-success)) !important;
+  background: linear-gradient(135deg, rgba(var(--v-theme-success), 0.1) 0%, rgba(var(--v-theme-info), 0.1) 100%) !important;
+  box-shadow: 0 4px 16px rgba(var(--v-theme-success), 0.15) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.training-invite::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, rgb(var(--v-theme-success)), rgb(var(--v-theme-info)));
+}
+
+.invite-buttons {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0 4px 0;
+  border-top: 1px solid rgba(var(--v-theme-outline), 0.2);
+  margin-top: 8px;
+}
+
+.invite-buttons .v-btn {
+  font-weight: 600;
+  min-width: 120px;
+  transition: all 0.3s ease;
+}
+
+.invite-buttons .v-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.2);
+}
+
+.invite-status {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  border-top: 1px solid rgba(var(--v-theme-outline), 0.15);
+  margin-top: 8px;
+}
+
+/* Links especiais para StationList */
+.message-content :deep(.station-link) {
+  color: rgb(var(--v-theme-success)) !important;
+  text-decoration: underline;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.message-content :deep(.station-link):hover {
+  color: rgba(var(--v-theme-success), 0.8) !important;
+}
+
+/* Animações para convites */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.training-invite {
+  animation: pulse 2s infinite ease-in-out;
+}
+
 .animate-fade-in {
   animation: fadeInUp 0.7s cubic-bezier(.55,0,.1,1);
 }
+
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
 @media (max-width: 900px) {
   .chat-card { border-radius: 8px; }
+
+  .invite-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .invite-buttons .v-btn {
+    width: 100%;
+    min-width: auto;
+  }
 }
+
 @media (max-width: 600px) {
   .chat-private-container { padding: 0 2px; }
   .chat-card { border-radius: 4px; }
   .chat-messages { min-height: 180px; max-height: 220px; }
+
+  .invite-buttons {
+    flex-direction: column;
+  }
+
+  .training-invite {
+    animation: none; /* Remover animação em mobile para melhor performance */
+  }
 }
 </style>
