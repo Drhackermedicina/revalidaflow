@@ -505,6 +505,9 @@ Uma plataforma que oferece:
 - Logging detalhado
 
 ### 8.2 Casos de Uso da IA
+
+**Nota de Implementação (Out/2025):** A arquitetura do `SimulationViewAI.vue` foi completamente refatorada. A lógica de negócio, incluindo interações de voz, gerenciamento de chat e avaliação automática, foi extraída para composables dedicados (`useSpeechInteraction`, `useAiChat`, `useAiEvaluation`). Isso reduziu drasticamente a complexidade do componente, melhorou a manutenibilidade e abriu caminho para testes unitários robustos.
+
 1. **Edição de Estações**:
    - Melhorar descrições
    - Gerar roteiros de ator

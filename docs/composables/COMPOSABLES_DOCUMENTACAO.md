@@ -206,6 +206,69 @@ const socketApi = useSimulationSocket({
 
 ---
 
+### 8. `useSpeechInteraction.js`
+**Função:** Interação por Voz
+
+**Descrição:** Encapsula a lógica para reconhecimento de voz (Speech-to-Text) e síntese de voz (Text-to-Speech) usando as APIs do navegador.
+
+**Retorno:**
+```javascript
+{
+  isListening,        // Ref<boolean> - true se o microfone está capturando áudio.
+  isSpeaking,         // Ref<boolean> - true se a IA está falando.
+  autoRecordMode,     // Ref<boolean> - true se a gravação é ativada por detecção de silêncio.
+  start,              // Function - Inicia a captura de áudio.
+  stop,               // Function - Para a captura de áudio.
+  speak,              // Function - Faz a IA falar um texto.
+  stopSpeaking,       // Function - Interrompe a fala da IA.
+  toggleAutoRecordMode// Function - Alterna o modo de gravação.
+}
+```
+
+**Páginas que usam:** SimulationViewAI.vue
+
+---
+
+### 9. `useAiChat.js`
+**Função:** Gerenciamento de Chat com IA
+
+**Descrição:** Controla o fluxo da conversa com a IA, incluindo o histórico de mensagens, o envio de novas mensagens para o backend e a complexa lógica de liberação de materiais (impressos).
+
+**Retorno:**
+```javascript
+{
+  conversationHistory,  // Ref<Array> - O histórico de mensagens do chat.
+  currentMessage,       // Ref<string> - A mensagem atual no campo de input.
+  isProcessingMessage,  // Ref<boolean> - true enquanto a IA está processando uma resposta.
+  releasedData,         // Ref<object> - Objeto com os materiais que foram liberados pela IA.
+  canSendMessage,       // Computed<boolean> - true se uma mensagem pode ser enviada.
+  sendMessage,          // Function - Envia a mensagem atual para a IA.
+  handleKeyPress        // Function - Handler para enviar mensagem com a tecla Enter.
+}
+```
+
+**Páginas que usam:** SimulationViewAI.vue
+
+---
+
+### 10. `useAiEvaluation.js`
+**Função:** Avaliação Automática com IA
+
+**Descrição:** Gerencia o processo de avaliação automática do checklist (PEP) ao final da simulação. Envia o histórico da conversa para o backend e processa a avaliação retornada pela IA.
+
+**Retorno:**
+```javascript
+{
+  isEvaluating,         // Ref<boolean> - true enquanto a avaliação está em andamento.
+  evaluationCompleted,  // Ref<boolean> - true após a avaliação ser concluída.
+  runAiEvaluation       // Function - Inicia o processo de avaliação.
+}
+```
+
+**Páginas que usam:** SimulationViewAI.vue
+
+---
+
 ## 🎯 Padrões de Implementação
 
 ### Estrutura Comum

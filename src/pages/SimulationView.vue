@@ -314,11 +314,20 @@ const debouncedToggleParagraphMark = toggleParagraphMark;
 const debouncedToggleScriptContext = toggleScriptContext;
 
 const tryAutoSubmitEvaluation = async () => {
+  // Calcular tempo decorrido (tempo total - tempo restante)
+  const totalDurationSeconds = selectedDurationMinutes.value * 60;
+  const elapsedSeconds = totalDurationSeconds - simulationTimeSeconds.value;
+  const hasMinimumTime = elapsedSeconds >= 300; // Pelo menos 5 minutos (300 segundos)
+
+  // Permitir submissão se:
+  // 1. Terminou naturalmente, OU
+  // 2. Terminou manualmente MAS passou pelo menos 5 minutos
+  const canSubmit = simulationEnded.value || (simulationWasManuallyEndedEarly.value && hasMinimumTime);
+
   if (
     autoSubmitTriggered.value ||
     userRole.value !== 'candidate' ||
-    !simulationEnded.value ||
-    simulationWasManuallyEndedEarly.value ||
+    !canSubmit ||
     evaluationSubmittedByCandidate.value
   ) {
     return;

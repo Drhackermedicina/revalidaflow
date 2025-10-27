@@ -37,10 +37,10 @@
 
 ## ⚠️ Principais Riscos e Débts
 
-1. **Páginas gigantes**  
-   - `SimulationViewAI.vue` **2 694** linhas; `SimulationView.vue` **1 588** linhas.  
-   - Consequência: manutenção onerosa e divergência entre fluxos IA/humano.  
-   - Ação: executar plano em `docs/tasks/simulation-view-ai-refactor.md`.
+1. **Páginas gigantes**
+   - `SimulationViewAI.vue` **2 694 → ~400 linhas (✅ REATORADO)**; `SimulationView.vue` **1 588** linhas.
+   - Consequência: Manutenção do `SimulationViewAI` agora é significativamente mais simples. O débito técnico principal foi resolvido, embora `SimulationView.vue` continue grande.
+   - Ação: Aplicar o mesmo padrão de refatoração para `SimulationView.vue`.
 
 2. **Dependência de `sessionStorage`**  
    - Usado para `sequentialSession`, `selectedCandidate`, timers.  

@@ -60,7 +60,10 @@
       "Read(//c/Users/helli/.claude/**)",
       "Bash(npm test)",
       "Bash(npm test:*)",
-      "Bash(cmd:*)"
+      "Bash(cmd:*)",
+      "Bash(tree:*)",
+      "Bash(rd:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
