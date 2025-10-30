@@ -45,7 +45,7 @@ function onStationSelected(stationId) {
   <v-card class="mb-4" elevation="2" rounded>
     <v-card-title class="d-flex align-center">
       <v-icon class="me-2" color="primary">ri-search-line</v-icon>
-      <span class="text-h6">Buscar Estação Globalmente ({{ totalStations }})</span>
+      <span class="text-h6">Buscar Estação</span>
     </v-card-title>
     <v-card-text>
       <v-autocomplete

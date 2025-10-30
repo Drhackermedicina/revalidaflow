@@ -6,18 +6,17 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 
 const loading = ref(false)
-const router = useRouter()
 
-// Mostra loader durante navegação
-router.beforeEach((to, from, next) => {
-  loading.value = true
-  next()
-})
-router.afterEach(() => {
-  loading.value = false
+// Export method para ser controlado externamente pelo router guard principal
+function setLoading(value) {
+  loading.value = value
+}
+
+// Expor método para uso externo
+defineExpose({
+  setLoading
 })
 </script>
 

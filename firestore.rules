@@ -118,12 +118,18 @@ service cloud.firestore {
     }
 
     // === FUNÇÕES DE CONTROLE ===
+    // ✅ RECOMENDADO: Usar hasAdminRole() para novos desenvolvimentos
     function isAdmin() {
-      return request.auth != null && request.auth.uid in [
-        'KiSITAxXMAY5uU3bOPW5JMQPent2',  // Taís Zocche
-        'RtfNENOqMUdw7pvgeeaBVSuin662',  // Usuário atual
-        'Iehedj0FJtN36tGfDyIojpdiJGi2'  // Stefferon
-      ];
+      // Método preferencial: role-based access
+      return hasAdminRole() || (
+        // ⚠️ FALLBACK: UIDs hardcoded (DEPRECADO - para compatibilidade apenas)
+        request.auth != null && request.auth.uid in [
+          'KiSITAxXMAY5uU3bOPW5JMQPent2',  // Taís Zocche - DEPRECADO
+          'RtfNENOqMUdw7pvgeeaBVSuin662',  // Usuário atual - DEPRECADO
+          'J1Q8Zn9DuXaPmx7GMKHCQZ0NhUH3',  // alexandre - DEPRECADO
+          'Iehedj0FJtN36tGfDyIojpdiJGi2'  // Stefferon - DEPRECADO
+        ]
+      );
     }
 
     function isAgentUser() {

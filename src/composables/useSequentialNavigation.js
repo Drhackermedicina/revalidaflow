@@ -103,6 +103,7 @@ export function useSequentialNavigation({
           const routeData = router.resolve({
             path: `/app/station-list`,
             query: {
+              mode: 'simulation',
               sequential: 'true',
               sequenceId: sequenceId.value,
               sequenceIndex: nextIndex,
@@ -117,7 +118,7 @@ export function useSequentialNavigation({
         } else {
           alert('Simulação sequencial concluída!')
           sessionStorage.removeItem('sequentialSession')
-          router.push('/app/station-list')
+          router.push({ path: '/app/station-list', query: { mode: 'simulation' } })
           return
         }
       }
@@ -178,7 +179,7 @@ export function useSequentialNavigation({
       logger.debug('[SEQUENTIAL] Reached end of sequence')
       alert('Simulação sequencial concluída!')
       sessionStorage.removeItem('sequentialSession')
-      router.push('/app/station-list')
+      router.push({ path: '/app/station-list', query: { mode: 'simulation' } })
     }
   }
 
@@ -221,7 +222,7 @@ export function useSequentialNavigation({
    */
   function exitSequentialMode() {
     sessionStorage.removeItem('sequentialSession')
-    router.push('/app/station-list')
+    router.push({ path: '/app/station-list', query: { mode: 'simulation' } })
   }
 
   /**

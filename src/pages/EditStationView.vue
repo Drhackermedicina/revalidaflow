@@ -6,6 +6,7 @@ const props = defineProps({
 
 import { currentUser } from '@/plugins/auth.js';
 import { db, storage, testStorageConnection } from '@/plugins/firebase.js';
+import { logger } from '@/utils/logger.js';
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import imageCompression from 'browser-image-compression';
@@ -165,14 +166,14 @@ function saveSnapshot(force = false) {
 
 // Função para fazer undo com reatividade profunda
 function undo() {
-   console.log('🔄 UNDO: Iniciando undo. Stack size antes:', undoStack.value.length);
+   logger.debug('🔄 UNDO: Iniciando undo. Stack size antes:', undoStack.value.length);
    if (undoStack.value.length === 0) {
-     console.warn('⚠️ Não há estados para reverter');
+     logger.warn('⚠️ Não há estados para reverter');
      return false;
    }
 
    const previousState = undoStack.value.pop();
-   console.log('🔄 UNDO: Estado anterior recuperado do stack. Stack size agora:', undoStack.value.length);
+   logger.debug('🔄 UNDO: Estado anterior recuperado do stack. Stack size agora:', undoStack.value.length);
 
    // Restauração profunda para garantir reatividade em arrays e objetos aninhados
    restoreFormData(previousState);
@@ -180,14 +181,14 @@ function undo() {
    // Atualizar hash do último snapshot
    lastSnapshotHash.value = generateStateHash(formData.value);
 
-   console.log('✅ UNDO: Undo realizado com sucesso. Stack size final:', undoStack.value.length);
+   logger.debug('✅ UNDO: Undo realizado com sucesso. Stack size final:', undoStack.value.length);
    return true;
 }
 
 // Função auxiliar para restauração profunda do formData
 function restoreFormData(state) {
-  console.log('🔄 restoreFormData: Iniciando restauração do estado', 'timestamp:', new Date().toISOString());
-  console.log('🔄 restoreFormData: Estado a restaurar:', {
+  logger.debug('🔄 restoreFormData: Iniciando restauração do estado', 'timestamp:', new Date().toISOString());
+  logger.debug('🔄 restoreFormData: Estado a restaurar:', {
     tituloEstacao: state.tituloEstacao
   });
 
@@ -205,8 +206,8 @@ function restoreFormData(state) {
     }
   });
 
-  console.log('✅ restoreFormData: Restauração concluída', 'timestamp:', new Date().toISOString());
-  console.log('✅ restoreFormData: Estado atual do formData:', {
+  logger.debug('✅ restoreFormData: Restauração concluída', 'timestamp:', new Date().toISOString());
+  logger.debug('✅ restoreFormData: Estado atual do formData:', {
     tituloEstacao: formData.value.tituloEstacao
   });
 }
@@ -442,7 +443,7 @@ async function normalizarHistoricoEdicao(stationData) {
     dataUltimaAtualizacao: stationData.dataUltimaAtualizacao
   };
   
-  console.log('✅ Normalização concluída:', {
+  logger.debug('✅ Normalização concluída:', {
     hasBeenEdited: normalizedData.hasBeenEdited,
     totalEdits: normalizedData.totalEdits,
     editHistoryLength: normalizedData.editHistory.length
@@ -485,7 +486,7 @@ async function loadOrGenerateStationContext() {
         }
       }
     } catch (errLoad) {
-      console.warn('⚠️ Não foi possível carregar contexto salvo da estação:', errLoad.message || errLoad);
+      logger.warn('⚠️ Não foi possível carregar contexto salvo da estação:', errLoad.message || errLoad);
     }
 
     // 2) Carregar prompts salvos na coleção 'ia_prompts' (ex: prompts utilizados previamente)
@@ -499,17 +500,17 @@ async function loadOrGenerateStationContext() {
       if (savedPrompts.length > 0) {
         const joined = savedPrompts.map(p => p.prompt || p.text || JSON.stringify(p)).join('\n---\n');
         stationContext.value = (stationContext.value || '') + `\nPrompts salvos:\n${joined}`;
-        console.log('ℹ️ Prompts salvos carregados para contexto IA:', savedPrompts.length);
+        logger.debug('ℹ️ Prompts salvos carregados para contexto IA:', savedPrompts.length);
       }
     } catch (errPrompts) {
-      console.warn('⚠️ Falha ao carregar prompts salvos:', errPrompts.message || errPrompts);
+      logger.warn('⚠️ Falha ao carregar prompts salvos:', errPrompts.message || errPrompts);
     }
 
     // 3) Gerar contexto a partir do formData e do geminiService, passando o contexto parcial que já consolidamos
     const generatedContext = await geminiService.generateStationContext(formData.value, { baseContext: stationContext.value });
     if (generatedContext) {
       stationContext.value = generatedContext;
-      console.log('✅ Contexto da estação gerado pelo geminiService');
+      logger.debug('✅ Contexto da estação gerado pelo geminiService');
     }
   } catch (error) {
     // Contexto padrão se falhar
@@ -521,14 +522,14 @@ async function loadOrGenerateStationContext() {
 
 // Função para lidar com atualização de campo pela IA INTEGRADA
 function handleAIFieldUpdate({ field, value, index }) {
-  console.log('🤖 Campo atualizado pela IA integrada:', { 
+  logger.debug('🤖 Campo atualizado pela IA integrada:', { 
     field, 
     value: value?.substring(0, 50) + '...', 
     index 
   })
   
   if (!field || !formData.value) {
-    console.error('❌ Dados insuficientes para atualização:', { field: !!field, formData: !!formData.value })
+    logger.error('❌ Dados insuficientes para atualização:', { field: !!field, formData: !!formData.value })
     return
   }
   
@@ -537,16 +538,16 @@ function handleAIFieldUpdate({ field, value, index }) {
     // Esta função é apenas para logging e notificações
     
     if (typeof index === 'number') {
-      console.log('✅ Item de array atualizado via IA integrada:', { field, index })
+      logger.debug('✅ Item de array atualizado via IA integrada:', { field, index })
     } else {
-      console.log('✅ Campo simples atualizado via IA integrada:', { field })
+      logger.debug('✅ Campo simples atualizado via IA integrada:', { field })
     }
     
     // Mostrar sucesso
     showAISuccess('Campo atualizado pela IA!')
     
   } catch (error) {
-    console.error('❌ Erro ao processar atualização da IA:', error)
+    logger.error('❌ Erro ao processar atualização da IA:', error)
   }
 }
 
@@ -555,7 +556,7 @@ async function onAISuggestRequested(payload) {
   try {
     const { fieldName, currentValue, respond } = payload || {};
     if (!fieldName) {
-      console.warn('onAISuggestRequested sem fieldName');
+      logger.warn('onAISuggestRequested sem fieldName');
       return;
     }
 
@@ -579,7 +580,7 @@ async function onAISuggestRequested(payload) {
       aiLoading.value = { ...aiLoading.value, [fieldName]: false };
     }
   } catch (err) {
-    console.error('Erro em onAISuggestRequested:', err);
+    logger.error('Erro em onAISuggestRequested:', err);
   }
 }
 
@@ -597,7 +598,7 @@ function showAISuccess(message) {
 // Função para carregar estação do Firestore
 async function fetchStationData() {
   if (!stationId.value) {
-    console.error('❌ Nenhum ID de estação fornecido');
+    logger.error('❌ Nenhum ID de estação fornecido');
     errorMessage.value = "Nenhum ID de estação fornecido para edição.";
     isLoading.value = false;
     return;
@@ -687,7 +688,7 @@ const convertTimestampToDate = (timestamp) => {
       errorMessage.value = "Estação não encontrada.";
     }
   } catch (error) {
-    console.error("Erro ao buscar estação:", error);
+    logger.error("Erro ao buscar estação:", error);
     errorMessage.value = `Falha ao carregar estação: ${error.message}`;
   } finally {
     isLoading.value = false;
@@ -1033,7 +1034,7 @@ async function uploadImageToStorage(file, impressoIndex) {
     setTimeout(() => { successMessage.value = ''; }, 4000);
 
   } catch (error) {
-    console.error('❌ Erro durante o upload:', error);
+    logger.error('❌ Erro durante o upload:', error);
     errorMessage.value = `Falha no upload: ${error.message}`;
     setTimeout(() => { errorMessage.value = ''; }, 8000);
 
@@ -1071,7 +1072,7 @@ async function saveStationChanges() {
   try {
     const estacaoAtualizada = construirObjetoEstacao();
     
-    console.log('💾 Salvando estação:', {
+    logger.debug('💾 Salvando estação:', {
       titulo: estacaoAtualizada.tituloEstacao,
       usuario: currentUser.value?.uid,
       timestamp: new Date().toISOString()
@@ -1148,7 +1149,7 @@ async function saveStationChanges() {
 
     await updateDoc(stationDocRef, dataToSave);
 
-    console.log('✅ Estação salva com sucesso:', {
+    logger.debug('✅ Estação salva com sucesso:', {
       coleção: 'estacoes_clinicas',
       campos_alterados: changedFields.length,
       timestamp: new Date().toISOString()
@@ -1159,7 +1160,7 @@ async function saveStationChanges() {
     hasUnsavedChanges.value = false;
     lastSnapshotHash.value = generateStateHash(formData.value);
 
-    console.log('🔄 UNDO/REDO: Sistema de undo resetado após salvamento');
+    logger.debug('🔄 UNDO/REDO: Sistema de undo resetado após salvamento');
 
     // Atualizar status de edição local
     if (editHistoryEntry) {
@@ -1178,7 +1179,7 @@ async function saveStationChanges() {
     setTimeout(() => { successMessage.value = ''; }, 5000);
 
   } catch (error) {
-    console.error("Erro ao salvar alterações da estação:", error);
+    logger.error("Erro ao salvar alterações da estação:", error);
     let detalheErro = error.message;
     if (error.code === 'permission-denied') {
       detalheErro += " (ERRO DE PERMISSÃO DO FIRESTORE - Verifique as regras de segurança e o UID do admin)";
@@ -1221,7 +1222,7 @@ async function deleteStation() {
     }, 1500);
     
   } catch (error) {
-    console.error("Erro ao excluir estação:", error);
+    logger.error("Erro ao excluir estação:", error);
     errorMessage.value = `Falha ao excluir: ${error.message}`;
     isSaving.value = false;
   }
@@ -1295,7 +1296,7 @@ async function downloadCurrentStationJSON() {
     }, 3000);
 
   } catch (error) {
-    console.error('❌ Erro no download:', error);
+    logger.error('❌ Erro no download:', error);
     errorMessage.value = `Falha no download: ${error.message}`;
     downloadMessage.value = '';
   } finally {
@@ -1366,7 +1367,7 @@ async function downloadAllStationsJSON() {
     }, 4000);
 
   } catch (error) {
-    console.error('❌ Erro no download completo:', error);
+    logger.error('❌ Erro no download completo:', error);
     errorMessage.value = `Falha no download: ${error.message}`;
     downloadMessage.value = '';
   } finally {
@@ -1790,10 +1791,10 @@ onMounted(async () => {
       const storageOK = await testStorageConnection();
 
       if (!storageOK) {
-        console.warn('⚠️ Storage pode estar com problemas de conectividade');
+        logger.warn('⚠️ Storage pode estar com problemas de conectividade');
       }
     } catch (error) {
-      console.error('❌ Erro no teste de conectividade:', error);
+      logger.error('❌ Erro no teste de conectividade:', error);
     }
   }
 

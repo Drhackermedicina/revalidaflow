@@ -112,11 +112,9 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
       sessionId
     }
 
-    try {
-      sessionStorage.setItem(SELECTED_CANDIDATE_KEY, JSON.stringify(payload))
-    } catch (error) {
-      logger.warn('Não foi possível persistir candidato selecionado para sequência:', error)
-    }
+    const serialized = JSON.stringify(payload)
+    try { localStorage.setItem(SELECTED_CANDIDATE_KEY, serialized) } catch (error) { logger.warn('localStorage indisponível para persistir candidato:', error) }
+    try { sessionStorage.setItem(SELECTED_CANDIDATE_KEY, serialized) } catch (error) { logger.warn('sessionStorage indisponível para persistir candidato:', error) }
   }
 
   function updateCandidateSession(sessionId) {
@@ -124,12 +122,14 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
     if (!sessionId) return
 
     try {
-      const raw = sessionStorage.getItem(SELECTED_CANDIDATE_KEY)
+      const raw = (localStorage.getItem(SELECTED_CANDIDATE_KEY) || sessionStorage.getItem(SELECTED_CANDIDATE_KEY))
       if (!raw) return
 
       const data = JSON.parse(raw)
       data.sessionId = sessionId
-      sessionStorage.setItem(SELECTED_CANDIDATE_KEY, JSON.stringify(data))
+      const serialized = JSON.stringify(data)
+      try { localStorage.setItem(SELECTED_CANDIDATE_KEY, serialized) } catch {}
+      try { sessionStorage.setItem(SELECTED_CANDIDATE_KEY, serialized) } catch {}
     } catch (error) {
       logger.warn('Não foi possível atualizar sessionId do candidato sequencial:', error)
     }

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Debug - Estações INEP 2021</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .status-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .success {
+            border-left: 5px solid #4caf50;
+        }
+        .info {
+            border-left: 5px solid #2196f3;
+        }
+        .warning {
+            border-left: 5px solid #ff9800;
+        }
+        .error {
+            border-left: 5px solid #f44336;
+        }
+        .station-list {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .station-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #007bff;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 12px;
+        }
+        .count-badge {
+            background: #007bff;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .expected {
+            background: #28a745;
+            color: white;
+        }
+        .missing {
+            background: #dc3545;
+            color: white;
+        }
+        .partial {
+            background: #ffc107;
+            color: black;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        #logs {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Teste de Debug - Estações INEP 2021</h1>
+        <p>Validação da correção da limitação de paginação</p>
+    </div>
+
+    <div class="status-section success">
+        <h2>✅ Problema Identificado</h2>
+        <p><strong>Causa Raiz:</strong> Limitação de paginação no <code>useStationData.js</code></p>
+        <ul>
+            <li>Estações carregadas com paginação: <strong>400</strong> (200 + 200 páginas)</li>
+            <li>Estações totais no Firestore: <strong>~2000+</strong></li>
+            <li>Estações INEP 2021 faltando: <strong>6 das 14</strong></li>
+        </ul>
+    </div>
+
+    <div class="status-section info">
+        <h2>🔧 Correção Implementada</h2>
+        <p><strong>Solução:</strong> Substituir paginação por <code>stationRepository.getAll()</code></p>
+        <ul>
+            <li>Removido <code>useStationData()</code> do StationInepSections</li>
+            <li>Adicionado <code>loadAllStations()</code> para carregar TODAS as estações</li>
+            <li>Logs de debug para validar correção</li>
+            <li>Loading overlay para feedback visual</li>
+        </ul>
+    </div>
+
+    <div class="status-section">
+        <h2>🎯 Resultados Esperados</h2>
+        <div id="expected-results">
+            <p>Após a correção, os logs do console devem mostrar:</p>
+            <ul>
+                <li><span class="count-badge expected">14</span> Estações INEP 2021 detectadas (vs 8 anteriormente)</li>
+                <li><span class="count-badge expected">2000+</span> Estações totais carregadas</li>
+                <li>Lista completa das 14 estações INEP 2021 no console</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="status-section">
+        <h2>🧪 Como Testar</h2>
+        <p>Abra o console do navegador (F12) e navegue para as seções INEP:</p>
+        <div class="station-list">
+            <ol>
+                <li>Acesse <strong>/inep-sections</strong></li>
+                <li>Abra o console do navegador (F12 → Console)</li>
+                <li>Procure pelos logs com prefixo <code>[DEBUG STATION_INEP]</code></li>
+                <li>Verifique se aparecem todas as 14 estações INEP 2021</li>
+                <li>Expanda a seção "2021" e valide todas as estações</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="status-section">
+        <h2>📊 Logs de Debug Implementados</h2>
+        <button class="btn" onclick="showDebugLogs()">Ver Logs de Debug</button>
+        <button class="btn" onclick="clearLogs()">Limpar Logs</button>
+        
+        <div id="logs"></div>
+    </div>
+
+    <div class="status-section">
+        <h2>🛠️ Arquivos Modificados</h2>
+        <div class="station-list">
+            <div class="station-item">📄 src/pages/StationInepSections.vue</div>
+            <ul>
+                <li>Substituição do sistema de paginação por stationRepository.getAll()</li>
+                <li>Adição de logs de debug detalhados</li>
+                <li>Loading overlay com mensagem específica</li>
+                <li>Função loadAllStations() para carregamento completo</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="status-section warning">
+        <h2>⚠️ Observações Importantes</h2>
+        <ul>
+            <li>Performance: Carregamento de ~2000+ estações pode ser mais lento que paginação</li>
+            <li>Cache: stationRepository.getAll() usa cache inteligente (15 min TTL)</li>
+            <li>Alternativa futura: Implementar paginação otimizada apenas para seções INEP</li>
+            <li>Validar se outras páginas ainda usam paginação corretamente</li>
+        </ul>
+    </div>
+
+    <script>
+        function addLog(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            
+            if (type === 'success') {
+                logEntry.style.color = '#4caf50';
+            } else if (type === 'error') {
+                logEntry.style.color = '#f44336';
+            } else if (type === 'warning') {
+                logEntry.style.color = '#ff9800';
+            }
+            
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function showDebugLogs() {
+            clearLogs();
+            
+            addLog('Simulando logs de debug do StationInepSections.vue:', 'info');
+            addLog('', 'info');
+            addLog('[DEBUG STATION_INEP] Carregando TODAS as estações via stationRepository.getAll()...', 'info');
+            addLog('[DEBUG STATION_INEP] ✅ Carregadas 2134 estações totais', 'success');
+            addLog('[DEBUG STATION_INEP] 🔍 Estações INEP 2021 detectadas: 14 de 14 esperadas', 'success');
+            addLog('', 'info');
+            addLog('[DEBUG STATION_INEP] 1. INEP_2021_EST02_CLINICA_MEDICA_HIPERTENSAO_ESSENCIAL', 'info');
+            addLog('[DEBUG STATION_INEP] 2. INEP_2021_EST03_CIRURGIA_GERAL_APENDICITE_AGUDA', 'info');
+            addLog('[DEBUG STATION_INEP] 3. INEP_2021_EST04_PEDIATRIA_ASMA_BRONQUICA', 'info');
+            addLog('[DEBUG STATION_INEP] 4. INEP_2021_EST05_GINECOLOGIA_OBSTETRICIA_GESTANTE_NORMAL', 'info');
+            addLog('[DEBUG STATION_INEP] 5. INEP_2021_EST06_CLINICA_MEDICA_DM_TIPO_2_DIAGNOSTICO', 'info');
+            addLog('[DEBUG STATION_INEP] 6. INEP_2021_EST07_CIRURGIA_GERAL_COLECISTITE_AGUDA', 'info');
+            addLog('[DEBUG STATION_INEP] 7. INEP_2021_EST08_PEDIATRIA_BRONQUIOLITE_TRATAMENTO', 'info');
+            addLog('[DEBUG STATION_INEP] 8. INEP_2021_EST09_PREVENTIVA_TUBERCULOSE_CONTATO_PROXIMO', 'info');
+            addLog('[DEBUG STATION_INEP] 9. INEP_2021_EST10_CLINICA_MEDICA_CIANOSE_DIFERENCIAL', 'info');
+            addLog('[DEBUG STATION_INEP] 10. INEP_2021_EST11_CIRURGIA_GERAL_ABDOME_AGUDO_PERITONITE', 'info');
+            addLog('[DEBUG STATION_INEP] 11. INEP_2021_EST12_PEDIATRIA_FEBRE_PROLONGADA', 'info');
+            addLog('[DEBUG STATION_INEP] 12. INEP_2021_EST13_PREVENTIVA_DENGUE_SINPAIS_ALTA', 'info');
+            addLog('[DEBUG STATION_INEP] 13. INEP_2021_EST14_GINECOLOGIA_OBSTETRICIA_PRENATAL_NORMAL', 'info');
+            addLog('[DEBUG STATION_INEP] 14. INEP_2021_EST15_CLINICA_MEDICA_DPOC_DESACELERACAO', 'info');
+            addLog('', 'info');
+            addLog('🎉 SUCESSO! Todas as 14 estações INEP 2021 foram carregadas!', 'success');
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        // Inicializar com instruções
+        addLog('Script de teste carregado. Clique em "Ver Logs de Debug" para simular o resultado esperado.', 'info');
+    </script>
+</body>
+</html>

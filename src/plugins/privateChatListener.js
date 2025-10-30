@@ -94,7 +94,8 @@ export function usePrivateChatNotification() {
                       stationTitle: invite.stationTitle,
                       inviteLink: invite.inviteLink,
                       meetLink: invite.meetLink,
-                      duration: invite.duration
+                      duration: invite.duration,
+                      senderName: invite.senderName
                     }
                   }
                 }));

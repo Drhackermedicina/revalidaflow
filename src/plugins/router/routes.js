@@ -145,7 +145,31 @@ export const routes = [
         path: 'station-list',
         name: 'station-list',
         component: () => import('@/pages/StationList.vue'),
-        meta: { requiresAuth: false }, // Temporariamente desabilitado para depuração
+        meta: { requiresAuth: true }, // Corrigido: deve requerer autenticação pois está sob /app
+      },
+      {
+        path: 'stations',
+        name: 'stations-hub',
+        component: () => import('../../pages/StationSectionsHub.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: 'stations/inep',
+        name: 'stations-inep',
+        component: () => import('../../pages/StationInepSections.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: 'stations/revalida',
+        name: 'stations-revalida',
+        component: () => import('../../pages/StationRevalidaSections.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: 'ai-training',
+        name: 'ai-training',
+        component: () => import('@/pages/AITrainingHub.vue'),
+        meta: { requiresAuth: true }, // Corrigido: deve requerer autenticação pois está sob /app
       },
       {
         path: 'edit-station/:id',
@@ -217,6 +241,12 @@ export const routes = [
           requiresAuth: true,
           requiresAdmin: true
         },
+      },
+      {
+        path: 'candidate-selection',
+        name: 'candidate-selection',
+        component: () => import('@/pages/CandidateSelection.vue'),
+        meta: { requiresAuth: true },
       },
       // {
       //   path: 'task-manager',

@@ -9,6 +9,7 @@ service firebase.storage {
         request.auth.uid == 'RtfNENOqMUdw7pvgeeaBVSuin662' ||
         request.auth.uid == 'KiSITAxXMAY5uU3bOPW5JMQPent2' ||
         request.auth.uid == 'Iehedj0FJtN36tGfDyIojpdiJGi2' ||
+        request.auth.uid == 'J1Q8Zn9DuXaPmx7GMKHCQZ0NhUH3' ||
         request.auth.token.email != null // Adiciona esta linha para Service Accounts
       );
     }

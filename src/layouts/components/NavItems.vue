@@ -101,6 +101,13 @@ export default {
       to: '/app/station-list',
     };
 
+    const aiTrainingLink = {
+      title: 'Treinamento IA',
+      icon: 'ri-robot-line',
+      iconColor: '#7c4dff',
+      to: '/app/ai-training',
+    };
+
     const questoesLink = {
       title: 'Questões',
       icon: 'ri-edit-box-fill',
@@ -137,6 +144,7 @@ export default {
     return {
       homeLink,
       estacoesLink,
+      aiTrainingLink,
       questoesLink,
       grupoChatLink,
       buscarUsuariosGroup,
@@ -153,9 +161,10 @@ export default {
 </script>
 
 <template>
-  
+
   <VerticalNavLink :item="homeLink" />
   <VerticalNavLink :item="estacoesLink" />
+  <VerticalNavLink :item="aiTrainingLink" />
   <!-- <VerticalNavLink :item="questoesLink" /> --> <!-- Temporariamente desabilitado -->
   <VerticalNavLink :item="grupoChatLink" />
 

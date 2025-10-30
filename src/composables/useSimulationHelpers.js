@@ -1,7 +1,6 @@
 // src/composables/useSimulationHelpers.ts
 
 import { ref } from 'vue'
-import { useSimulationInvites } from '@/composables/useSimulationInvites.js'
 import Logger from '@/utils/logger';
 const logger = new Logger('useSimulationHelpers');
 
@@ -67,6 +66,22 @@ export function useSimulationHelpers(options) {
     }
   }
 
+  
+  /**
+   * Copia link de convite para clipboard
+   */
+  async function copyInviteLink() {
+    if (!inviteLinkToShow.value) return
+
+    try {
+      await navigator.clipboard.writeText(inviteLinkToShow.value)
+      copySuccess.value = true
+      setTimeout(() => copySuccess.value = false, 2000)
+    } catch (e) {
+      alert('Falha ao copiar.')
+    }
+  }
+
   /**
    * Envia link de convite via chat privado para o candidato selecionado
    */
@@ -89,47 +104,44 @@ export function useSimulationHelpers(options) {
     chatSentSuccess.value = false
 
     try {
-      const { sendSimulationInvite } = useSimulationInvites(reloadListeners)
+      // Envia mensagem de chat simples sem usar o sistema complexo de convites
+      const chatId = [currentUser.value?.uid, selectedCandidateForSimulation.value.uid].sort().join('_')
+      const chatMessage = `🎯 CONVITE PARA SIMULAÇÃO\n\n‍⚕️ Convidado por: ${currentUser.value?.displayName || 'Avaliador'}\n\n✨ Link da simulação: ${inviteLinkToShow.value}`
 
-      const result = await sendSimulationInvite({
-        candidateUid: selectedCandidateForSimulation.value.uid,
-        candidateName: selectedCandidateForSimulation.value.name,
-        inviteLink: inviteLinkToShow.value,
-        stationTitle: stationData.value?.tituloEstacao || 'Estação',
-        duration: selectedDurationMinutes.value || 10,
-        meetLink: getMeetLinkForInvite(),
+      // Importar funções do Firebase diretamente
+      const { addDoc, collection, serverTimestamp } = await import('firebase/firestore')
+      const { db } = await import('@/plugins/firebase.js')
+
+      await addDoc(collection(db, `chatPrivado_${chatId}`), {
+        senderId: currentUser.value?.uid,
         senderName: currentUser.value?.displayName || 'Avaliador',
-        senderUid: currentUser.value?.uid
+        senderPhotoURL: '',
+        text: chatMessage,
+        timestamp: serverTimestamp(),
+        type: 'simulation_invite',
+        metadata: {
+          candidateUid: selectedCandidateForSimulation.value.uid,
+          stationTitle: stationData.value?.tituloEstacao || 'Estação',
+          inviteLink: inviteLinkToShow.value,
+          meetLink: null, // Simplificado - sem suporte a Meet no momento
+          duration: selectedDurationMinutes.value || 10,
+          isInvite: true
+        }
       })
 
-      if (result.success) {
-        chatSentSuccess.value = true
-        setTimeout(() => {
-          chatSentSuccess.value = false
-        }, 3000)
-      } else {
-        throw new Error(result.error?.message || 'Falha ao enviar convite')
+      if (reloadListeners && typeof reloadListeners === 'function') {
+        reloadListeners()
       }
+
+      chatSentSuccess.value = true
+      setTimeout(() => {
+        chatSentSuccess.value = false
+      }, 3000)
 
     } catch (error) {
       logger.error('Erro ao enviar convite:', error)
     } finally {
       sendingChat.value = false
-    }
-  }
-
-  /**
-   * Copia link de convite para clipboard
-   */
-  async function copyInviteLink() {
-    if (!inviteLinkToShow.value) return
-
-    try {
-      await navigator.clipboard.writeText(inviteLinkToShow.value)
-      copySuccess.value = true
-      setTimeout(() => copySuccess.value = false, 2000)
-    } catch (e) {
-      alert('Falha ao copiar.')
     }
   }
 

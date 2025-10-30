@@ -29,6 +29,7 @@ const logger = new Logger('useEvaluation');
  * @property {Ref<any>} stationData
  * @property {Ref<any>} checklistData
  * @property {Ref<boolean>} simulationEnded
+ * @property {Ref<any>} markedPepItems
  * @property {function(string, string): void} showNotification
  */
 
@@ -41,6 +42,7 @@ export function useEvaluation({
   stationData,
   checklistData,
   simulationEnded,
+  markedPepItems,
   showNotification
 }) {
 
@@ -211,16 +213,16 @@ export function useEvaluation({
     socket.value.emit('ACTOR_RELEASE_PEP', payload)
 
     // SINCRONIZAÇÃO: Força envio das avaliações atuais imediatamente após liberação
+    
     setTimeout(() => {
-      if (Object.keys(currentScores).length > 0) {
-        logger.debug('[PEP_RELEASE] 📤 Enviando scores para candidato');
-        socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
-          sessionId: sessionId.value,
-          scores: currentScores,
-          totalScore: currentTotal,
-          forceSync: true // Flag especial para sincronização forçada
-        })
-      }
+      logger.debug('[PEP_RELEASE] 📤 Enviando scores e marcações PEP para candidato');
+      socket.value.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', {
+        sessionId: sessionId.value,
+        scores: currentScores,
+        markedPepItems: markedPepItems.value,
+        totalScore: currentTotal,
+        forceSync: true // Flag especial para sincronização forçada
+      })
     }, 100) // Pequeno delay para garantir que o PEP foi liberado primeiro
 
     pepReleasedToCandidate.value = true

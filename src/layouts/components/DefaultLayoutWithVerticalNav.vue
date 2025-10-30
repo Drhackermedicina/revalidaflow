@@ -9,7 +9,8 @@ import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 /* GlobalAgentAssistant (legado) removido durante limpeza do agente */
 
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 // Estado do chat Gemini
 const showGeminiChat = ref(false)
@@ -17,6 +18,12 @@ const showGeminiChat = ref(false)
 function openGeminiIA() {
   showGeminiChat.value = true
 }
+
+const route = useRoute()
+const hideMobileNavButton = computed(() => {
+  const routeName = route.name
+  return routeName === 'station-list' || routeName === 'stations-index'
+})
 </script>
 
 <template>
@@ -24,7 +31,7 @@ function openGeminiIA() {
     <template #navbar="{ toggleVerticalOverlayNavActive }">
   <div class="d-flex h-100 align-center w-100 justify-space-between header-bg">
         <!-- Menu hamburguer mobile -->
-        <VTooltip location="right">
+        <VTooltip v-if="!hideMobileNavButton" location="right">
           <template #activator="{ props }">
             <IconBtn
               class="ms-n3 d-lg-none"

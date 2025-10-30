@@ -109,6 +109,22 @@ export function useCandidateSearch(currentUser) {
     showCandidateSuggestions.value = false
 
     await fetchCandidateScores(candidate.uid)
+
+    // Persistir seleção para outras páginas (sessionStorage – mesma aba)
+    try {
+      const fullName = `${candidate.nome || ''} ${candidate.sobrenome || ''}`.trim()
+      const payload = {
+        uid: candidate.uid,
+        nome: candidate.nome || '',
+        sobrenome: candidate.sobrenome || '',
+        name: fullName || candidate.displayName || candidate.email || 'Participante',
+        email: candidate.email || '',
+        photoURL: candidate.photoURL || candidate.photoUrl || candidate.fotoUrl || ''
+      }
+      sessionStorage.setItem('selectedCandidate', JSON.stringify(payload))
+    } catch (error) {
+      logger.warn('Não foi possível persistir candidato selecionado:', error)
+    }
   }
 
   /**
@@ -171,6 +187,9 @@ export function useCandidateSearch(currentUser) {
     candidateSearchQuery.value = ''
     selectedCandidateScores.value = {}
     showCandidateSuggestions.value = false
+    try { sessionStorage.removeItem('selectedCandidate') } catch (error) {
+      logger.warn('Não foi possível limpar candidato selecionado:', error)
+    }
   }
 
   /**

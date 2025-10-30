@@ -5,6 +5,9 @@ import { updateDocumentWithRetry, checkFirestoreConnectivity } from '@/services/
 import Logger from '@/utils/logger';
 const logger = new Logger('useUserPresence');
 
+// 🔍 DEBUG: Log de inicialização
+logger.debug('[DEBUG] useUserPresence.js - Módulo carregado')
+
 
 class UserPresenceManager {
     constructor() {
@@ -143,6 +146,14 @@ class UserPresenceManager {
     async updateStatus(status) {
         if (!currentUser.value?.uid || !db) return
 
+        // 🔍 DEBUG: Log de tentativa de atualização do Presence
+        logger.debug('[DEBUG] useUserPresence - Tentando atualizar status:', {
+            status,
+            userId: currentUser.value.uid,
+            isIdle: this.isIdle,
+            lastActivityTime: this.lastActivityTime
+        })
+
         try {
             const connectivity = checkFirestoreConnectivity()
             if (!connectivity.available) return
@@ -155,8 +166,13 @@ class UserPresenceManager {
             )
             this.lastPresenceUpdate = Date.now()
             logger.debug(`[Presence] Status: ${status}`)
+            
+            // 🔍 DEBUG: Log de sucesso do Presence
+            logger.debug('[DEBUG] useUserPresence - Status atualizado com SUCESSO:', status)
         } catch (error) {
             logger.warn('[Presence] Erro ao atualizar status:', error)
+            // 🔍 DEBUG: Log de erro do Presence
+            logger.debug('[DEBUG] useUserPresence - ERRO ao atualizar status:', error.message)
         }
     }
 

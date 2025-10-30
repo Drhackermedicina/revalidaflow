@@ -2,6 +2,7 @@ import App from './App.vue'
 import { registerPlugins } from '@core/utils/plugins'
 import { createApp } from 'vue'
 import { initSentry } from './plugins/sentry.js'
+import { envValidator } from './utils/envValidator.js'
 
 // O plugin de autenticação não precisa mais ser importado aqui
 
@@ -32,6 +33,19 @@ if (import.meta.env.DEV) {
 
 // Preload frequently used icons to reduce API calls
 preloadIcons().catch(console.warn)
+
+// Validar ambiente antes de iniciar o aplicativo
+const envValidation = envValidator.validateEnvironment()
+
+if (!envValidation.isValid) {
+  console.error('❌ Erros críticos de configuração:')
+  envValidation.errors.forEach(error => console.error('  ', error))
+
+  if (import.meta.env.DEV) {
+    console.warn('⚠️ Avisos de configuração:')
+    envValidation.warnings.forEach(warning => console.warn('  ', warning))
+  }
+}
 
 const app = createApp(App)
 

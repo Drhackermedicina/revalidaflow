@@ -104,7 +104,7 @@ function handleFileUpload(event) {
     } catch (error) {
       mensagemStatusUpload.value = `Erro ao processar JSON: ${error.message}`;
       tipoMensagemUpload.value = 'erro';
-      console.error("Erro no JSON:", error);
+      logger.error("Erro no JSON:", error);
       estacaoCarregadaDoJson.value = null;
     }
   };
@@ -164,7 +164,7 @@ function handleFileUploadQuestoes(event) {
     } catch (error) {
       mensagemStatusUpload.value = `Erro ao processar JSON: ${error.message}`;
       tipoMensagemUpload.value = 'erro';
-      console.error("Erro no JSON:", error);
+      logger.error("Erro no JSON:", error);
       questaoCarregadaDoJson.value = null;
     }
   };
@@ -202,21 +202,21 @@ function validarEstruturaEstacao(estacao) {
 function validarEstruturaQuestao(questao) {
   // Verifica se a questão é um objeto válido
   if (!questao || typeof questao !== 'object') {
-    console.error('validarEstruturaQuestao: Questão não é um objeto válido:', questao);
+    logger.error('validarEstruturaQuestao: Questão não é um objeto válido:', questao);
     return false;
   }
 
   // Valida campos obrigatórios básicos
   if (!questao.id || typeof questao.id !== 'string' || questao.id.trim() === '') {
-    console.error('validarEstruturaQuestao: Campo ID inválido:', questao.id);
+    logger.error('validarEstruturaQuestao: Campo ID inválido:', questao.id);
     return false;
   }
   if (!questao.banca || typeof questao.banca !== 'string' || questao.banca.trim() === '') {
-    console.error('validarEstruturaQuestao: Campo banca inválido:', questao.banca);
+    logger.error('validarEstruturaQuestao: Campo banca inválido:', questao.banca);
     return false;
   }
   if (!questao.enunciado || typeof questao.enunciado !== 'string' || questao.enunciado.trim() === '') {
-    console.error('validarEstruturaQuestao: Campo enunciado inválido:', questao.enunciado);
+    logger.error('validarEstruturaQuestao: Campo enunciado inválido:', questao.enunciado);
     return false;
   }
   // Valida o campo 'respostaCorreta' - pode ser string ou convertido de string
@@ -225,21 +225,21 @@ function validarEstruturaQuestao(questao) {
     // Se for null/undefined, verificar nas opções qual seria a resposta padrão (primeira opção)
     if (questao.opcoes && Array.isArray(questao.opcoes) && questao.opcoes.length > 0) {
       respostaCorreta = questao.opcoes[0].letra;
-      console.warn('validarEstruturaQuestao: respostaCorreta era null, usando primeira opção:', respostaCorreta);
+      logger.warn('validarEstruturaQuestao: respostaCorreta era null, usando primeira opção:', respostaCorreta);
     } else {
-      console.error('validarEstruturaQuestao: Campo respostaCorreta inválido:', questao.respostaCorreta);
+      logger.error('validarEstruturaQuestao: Campo respostaCorreta inválido:', questao.respostaCorreta);
       return false;
     }
   }
   
   if (!respostaCorreta || typeof respostaCorreta !== 'string' || respostaCorreta.trim() === '') {
-    console.error('validarEstruturaQuestao: Campo respostaCorreta inválido após processamento:', respostaCorreta);
+    logger.error('validarEstruturaQuestao: Campo respostaCorreta inválido após processamento:', respostaCorreta);
     return false;
   }
 
   // Valida o campo 'ano' - deve ser um número
   if (!questao.ano || typeof questao.ano !== 'number' || isNaN(questao.ano)) {
-    console.error('validarEstruturaQuestao: Campo ano inválido:', questao.ano);
+    logger.error('validarEstruturaQuestao: Campo ano inválido:', questao.ano);
     return false;
   }
 
@@ -252,7 +252,7 @@ function validarEstruturaQuestao(questao) {
 
   // Valida o campo 'opcoes' - deve ser um objeto (array ou objeto simples) e ter pelo menos uma opção
   if (!questao.opcoes || typeof questao.opcoes !== 'object') {
-    console.error('validarEstruturaQuestao: Campo opcoes inválido:', questao.opcoes);
+    logger.error('validarEstruturaQuestao: Campo opcoes inválido:', questao.opcoes);
     return false;
   }
 
@@ -260,7 +260,7 @@ function validarEstruturaQuestao(questao) {
   const opcoes = questao.opcoes;
   let opcoesValidas = false;
 
-  console.log('validarEstruturaQuestao: Validando opções:', {
+  logger.debug('validarEstruturaQuestao: Validando opções:', {
     tipo: Array.isArray(opcoes) ? 'array' : 'objeto',
     opcoes: opcoes
   });
@@ -268,7 +268,7 @@ function validarEstruturaQuestao(questao) {
   // Formato novo: array de objetos [{letra: "A", texto: "texto"}, ...]
   if (Array.isArray(opcoes)) {
     if (opcoes.length === 0) {
-      console.error('validarEstruturaQuestao: Array de opções vazio');
+      logger.error('validarEstruturaQuestao: Array de opções vazio');
       return false; // Deve ter pelo menos uma opção
     }
     // Verifica se cada opção tem os campos necessários
@@ -281,14 +281,14 @@ function validarEstruturaQuestao(questao) {
       typeof opcao.texto === 'string'
     );
     if (!opcoesValidas) {
-      console.error('validarEstruturaQuestao: Opções em formato de array inválidas:', opcoes);
+      logger.error('validarEstruturaQuestao: Opções em formato de array inválidas:', opcoes);
     }
   }
   // Formato antigo: objeto simples {A: "texto", B: "texto", ...}
   else {
     const keys = Object.keys(opcoes);
     if (keys.length === 0) {
-      console.error('validarEstruturaQuestao: Objeto de opções vazio');
+      logger.error('validarEstruturaQuestao: Objeto de opções vazio');
       return false; // Deve ter pelo menos uma opção
     }
     // Verifica se todos os valores são strings
@@ -297,7 +297,7 @@ function validarEstruturaQuestao(questao) {
       typeof opcoes[key] === 'string'
     );
     if (!opcoesValidas) {
-      console.error('validarEstruturaQuestao: Opções em formato de objeto inválidas:', opcoes);
+      logger.error('validarEstruturaQuestao: Opções em formato de objeto inválidas:', opcoes);
     }
   }
 
@@ -382,7 +382,7 @@ async function processarEstacaoDoJson() {
     estacaoCarregadaDoJson.value = null; 
     limparInputArquivo();
   } catch (error) {
-    console.error("Erro CRÍTICO ao salvar estação do JSON no Firestore:", error);
+    logger.error("Erro CRÍTICO ao salvar estação do JSON no Firestore:", error);
     let detalheErro = error.message;
     if (error.code === 'permission-denied') {
         detalheErro += " (ERRO DE PERMISSÃO DO FIRESTORE - Verifique as regras de segurança e o UID do admin)";
@@ -433,7 +433,7 @@ async function processarQuestaoDoJson() {
   try {
     // Verificar se o Firestore está em modo mock antes de tentar salvar
     if (typeof window !== 'undefined' && window.firebaseMockMode) {
-      console.warn("Firestore está em modo mock. A questão não será salva.");
+      logger.warn("Firestore está em modo mock. A questão não será salva.");
       mensagemStatusUpload.value = `Questão "${questionTitleForMessage}" validada com sucesso, mas não foi salva pois o Firestore está em modo mock.`;
       tipoMensagemUpload.value = 'info';
       questaoCarregadaDoJson.value = null;
@@ -460,7 +460,7 @@ async function processarQuestaoDoJson() {
     questaoCarregadaDoJson.value = null;
     limparInputArquivoQuestoes();
   } catch (error) {
-    console.error("Erro CRÍTICO ao salvar questão do JSON no Firestore:", error);
+    logger.error("Erro CRÍTICO ao salvar questão do JSON no Firestore:", error);
     let detalheErro = error.message;
     if (error.code === 'permission-denied') {
         detalheErro += " (ERRO DE PERMISSÃO DO FIRESTORE - Verifique as regras de segurança e o UID do admin)";
@@ -530,7 +530,7 @@ async function processarBatchQuestions() {
     // Chamar a função existente onBatchQuestionsJsonUpload
     await onBatchQuestionsJsonUpload(event);
   } catch (error) {
-    console.error("Erro ao processar questões em batch:", error);
+    logger.error("Erro ao processar questões em batch:", error);
     mensagemStatusUpload.value = `Erro ao processar questões: ${error.message}`;
     tipoMensagemUpload.value = 'erro';
   } finally {
@@ -704,7 +704,7 @@ function carregarJsonParaFormularioDeEdicao() {
         tipoMensagemManual.value = 'info';
         mensagemStatusUpload.value = '';
     } catch (error) {
-        console.error("Erro ao mapear JSON para formulário:", error);
+        logger.error("Erro ao mapear JSON para formulário:", error);
         mensagemStatusManual.value = "Ocorreu um erro ao tentar carregar os dados do JSON para o formulário de edição.";
         tipoMensagemManual.value = 'erro';
     }
@@ -948,7 +948,7 @@ async function salvarEstacaoManualmente() {
     }
     mensagemStatusManual.value = `Erro ao salvar estação manualmente no Firestore: ${detalheErro}`;
     tipoMensagemManual.value = 'erro';
-    console.error("Erro ao salvar manualmente no Firestore:", error);
+    logger.error("Erro ao salvar manualmente no Firestore:", error);
   } finally {
     estaSalvandoManualmente.value = false;
   }
@@ -975,7 +975,7 @@ async function onBatchQuestionsJsonUpload(event) {
     try {
       // Validar a estrutura da questão
       if (!validarEstruturaQuestao(question)) {
-        console.error('Questão inválida:', question);
+        logger.error('Questão inválida:', question);
         falha++;
         continue;
       }
@@ -986,14 +986,14 @@ async function onBatchQuestionsJsonUpload(event) {
       // Verificar se a resposta correta está presente nas opções
       const opcoesDisponiveis = question.opcoes.map(opcao => opcao.letra);
       if (!opcoesDisponiveis.includes(question.respostaCorreta)) {
-        console.error(`A resposta correta "${question.respostaCorreta}" não está presente nas opções disponíveis.`, question);
+        logger.error(`A resposta correta "${question.respostaCorreta}" não está presente nas opções disponíveis.`, question);
         falha++;
         continue;
       }
       
       // Verificar se o Firestore está em modo mock antes de tentar salvar
       if (typeof window !== 'undefined' && window.firebaseMockMode) {
-        console.warn("Firestore está em modo mock. A questão não será salva.");
+        logger.warn("Firestore está em modo mock. A questão não será salva.");
         falha++;
         continue;
       }
@@ -1011,7 +1011,7 @@ async function onBatchQuestionsJsonUpload(event) {
       sucesso++;
     } catch (e) {
       falha++;
-      console.error('Falha ao salvar questão:', question, e);
+      logger.error('Falha ao salvar questão:', question, e);
     }
   }
   
@@ -1441,7 +1441,7 @@ async function onBatchQuestionsJsonUpload(event) {
     ],
     respostaCorreta: "C"
   };
-  console.log("Teste 1 - Formato novo válido:", validarEstruturaQuestao(questaoValidaFormatoNovo)); // Deve retornar true
+  logger.debug("Teste 1 - Formato novo válido:", validarEstruturaQuestao(questaoValidaFormatoNovo)); // Deve retornar true
 
   // Teste 2: Questão válida no formato antigo (objeto de opções)
   const questaoValidaFormatoAntigo = {
@@ -1458,7 +1458,7 @@ async function onBatchQuestionsJsonUpload(event) {
     },
     respostaCorreta: "B"
   };
-  console.log("Teste 2 - Formato antigo válido:", validarEstruturaQuestao(questaoValidaFormatoAntigo)); // Deve retornar true
+  logger.debug("Teste 2 - Formato antigo válido:", validarEstruturaQuestao(questaoValidaFormatoAntigo)); // Deve retornar true
 
   // Teste 3: Questão inválida (faltando campos obrigatórios)
   const questaoInvalidaFaltandoCampos = {
@@ -1473,7 +1473,7 @@ async function onBatchQuestionsJsonUpload(event) {
     ],
     respostaCorreta: "A"
   };
-  console.log("Teste 3 - Faltando campos:", validarEstruturaQuestao(questaoInvalidaFaltandoCampos)); // Deve retornar false
+  logger.debug("Teste 3 - Faltando campos:", validarEstruturaQuestao(questaoInvalidaFaltandoCampos)); // Deve retornar false
 
   // Teste 4: Questão inválida (formato de opções incorreto)
   const questaoInvalidaFormatoOpcoes = {
@@ -1489,7 +1489,7 @@ async function onBatchQuestionsJsonUpload(event) {
     ],
     respostaCorreta: "B"
   };
-  console.log("Teste 4 - Formato de opções incorreto:", validarEstruturaQuestao(questaoInvalidaFormatoOpcoes)); // Deve retornar false
+  logger.debug("Teste 4 - Formato de opções incorreto:", validarEstruturaQuestao(questaoInvalidaFormatoOpcoes)); // Deve retornar false
 
   // Teste 5: Questão inválida (opções vazias)
   const questaoInvalidaOpcoesVazias = {
@@ -1501,5 +1501,5 @@ async function onBatchQuestionsJsonUpload(event) {
     opcoes: [],
     respostaCorreta: "A"
   };
-  console.log("Teste 5 - Opções vazias:", validarEstruturaQuestao(questaoInvalidaOpcoesVazias)); // Deve retornar false
+  logger.debug("Teste 5 - Opções vazias:", validarEstruturaQuestao(questaoInvalidaOpcoesVazias)); // Deve retornar false
 -->

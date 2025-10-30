@@ -81,6 +81,42 @@ const props = defineProps({
   errorMessage: {
     type: String,
     default: ''
+  },
+  // Referência ao socket
+  socketRef: {
+    type: Object,
+    default: null
+  },
+  // Session info
+  sessionId: {
+    type: String,
+    default: ''
+  },
+  userRole: {
+    type: String,
+    default: ''
+  },
+  // Timer local (frontend-only) - passado do SimulationView
+  isLocallyPaused: {
+    type: Boolean,
+    default: false
+  },
+  toggleLocalPause: {
+    type: Function,
+    default: () => {}
+  },
+  clearLocalTimer: {
+    type: Function,
+    default: () => {}
+  },
+  // Gravação contínua
+  isRecording: {
+    type: Boolean,
+    default: false
+  },
+  recordingTime: {
+    type: Number,
+    default: 0
   }
 })
 
@@ -91,6 +127,9 @@ const localSelectedDurationMinutes = ref(props.selectedDurationMinutes)
 watch(() => props.selectedDurationMinutes, (newValue) => {
   localSelectedDurationMinutes.value = newValue
 })
+
+// Workflow da simulação para controle do timer local (usando props do SimulationView)
+// Estes valores vêm do componente pai para garantir sincronia
 
 // Funções para emitir eventos
 function handlePreviousStation() {
@@ -124,6 +163,13 @@ function handleManuallyEndSimulation() {
 
 function handleToggleCollapse() {
   emit('toggleCollapse')
+}
+
+// Função para formatar tempo de gravação
+function formatRecordingTime(seconds) {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 </script>
 
@@ -292,6 +338,34 @@ function handleToggleCollapse() {
             {{ timerDisplay }}
           </div>
 
+          <!-- Indicador de Gravação Contínua -->
+          <v-chip
+            v-if="isRecording"
+            color="error"
+            variant="tonal"
+            size="small"
+            class="recording-indicator"
+          >
+            <v-icon
+              icon="ri-mic-line"
+              class="recording-icon pulse me-1"
+            />
+            {{ formatRecordingTime(recordingTime) }}
+          </v-chip>
+
+          <!-- Botão de Pausar/Continuar (apenas para ator/avaliador) -->
+          <SimulationPauseButton
+            v-if="isActorOrEvaluator"
+            :simulation-started="simulationStarted"
+            :simulation-ended="simulationEnded"
+            :session-id="sessionId"
+            :socket-ref="socketRef"
+            :user-role="userRole"
+            :is-locally-paused="isLocallyPaused"
+            :toggle-local-pause="toggleLocalPause"
+            :clear-local-timer="clearLocalTimer"
+          />
+
           <!-- Botão de Encerramento Manual -->
           <v-btn
             v-if="isActorOrEvaluator && simulationStarted && !simulationEnded"
@@ -314,4 +388,32 @@ function handleToggleCollapse() {
 
 <style scoped>
 /* Estilos específicos do componente podem ser adicionados aqui */
+
+.recording-indicator {
+  animation: recording-pulse 1.5s ease-in-out infinite;
+}
+
+.recording-icon.pulse {
+  animation: icon-pulse 1s ease-in-out infinite;
+}
+
+@keyframes recording-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes icon-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
 </style>

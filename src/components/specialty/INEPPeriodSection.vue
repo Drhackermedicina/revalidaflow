@@ -49,8 +49,7 @@ const emit = defineEmits([
   'station-click',
   'add-to-sequence',
   'remove-from-sequence',
-  'edit-station',
-  'start-ai-training'
+  'edit-station'
 ])
 </script>
 
@@ -74,8 +73,8 @@ const emit = defineEmits([
       <v-virtual-scroll
         :items="stations"
         :item-height="140"
-        :height="Math.min(stations.length * 140, 700)"
-        style="overflow-y: auto;"
+        :height="stations.length * 140"
+        class="station-list-scroll"
       >
         <template #default="{ item: station }">
           <StationListItem
@@ -91,7 +90,6 @@ const emit = defineEmits([
             @add-to-sequence="emit('add-to-sequence', $event)"
             @remove-from-sequence="emit('remove-from-sequence', $event)"
             @edit-station="emit('edit-station', $event)"
-            @start-ai-training="emit('start-ai-training', $event)"
           />
         </template>
       </v-virtual-scroll>
@@ -102,5 +100,16 @@ const emit = defineEmits([
 <style scoped>
 .virtual-scroll-panel-text {
   padding: 0 !important;
+}
+
+.station-list-scroll {
+  overflow-y: auto !important;
+  max-height: 700px !important;
+}
+
+/* Força a exibição de todos os items na lista */
+:deep(.v-virtual-scroll__container) {
+  transform: none !important;
+  position: relative !important;
 }
 </style>

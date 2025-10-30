@@ -94,7 +94,7 @@
 
 | Task ID | Task | File(s) | Effort | Dependencies | Status |
 |---------|------|---------|--------|--------------|--------|
-| **P1-F01** | Extract 3 composables from SimulationView | src/composables/ | 24h | None | ✅ DONE |
+| **P1-F01** | Extract 3 composables from SimulationView | src/composables/ | 24h | None | ⚠️ PARTIAL - Composables extracted but SimulationView still 2.366 lines |
 | **P1-F02** | Migrate sessionStorage to Pinia | Multiple files | 16h | None | ❌ TODO |
 | **P1-F03** | Add Socket.IO reconnection logic | src/composables/useSocket.js | 12h | None | ❌ TODO |
 | **P1-F04** | Create centralized error notification | src/services/errorService.js | 8h | None | ❌ TODO |
@@ -285,7 +285,7 @@
 ### After Sprint 8 (Week 8):
 - [ ] No files >600 lines
 - [ ] server.js <400 lines (from 1275)
-- [ ] SimulationView.vue <500 lines (from 1175)
+- [ ] SimulationView.vue <500 lines (from 2.366 - CRÍTICO)
 - [ ] Code climate maintainability A
 
 ### After Sprint 10 (Week 10):
@@ -678,8 +678,10 @@ Track these weekly:
 
 #### **Plano Atual (MASTER_REFACTORING_TASKS.md)**
 - **P1-F01**: "Extract 3 composables from SimulationView" (24h) - ❌ PENDENTE
-- **Meta**: SimulationView.vue <500 linhas (atual: 1.509)
-- **Status**: Apenas planejamento, sem implementação
+- **Meta**: SimulationView.vue <500 linhas (atual: 2.366 linhas - CRÍTICO)
+- **Status**: Composables extraídos mas componente ainda muito grande - URGENTE refatorar
+- **Adicional**: SimulationViewAI.vue: 1.424 linhas (não documentado)
+- **Adicional**: AdminUpload.vue: 1.505 linhas (não documentado)
 
 #### **Plano SimulationViewAI (simulation-view-ai-refactor.md)**
 - **Foco**: SimulationViewAI.vue (2.700 → 500 linhas)

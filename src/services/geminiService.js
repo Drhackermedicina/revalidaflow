@@ -6,17 +6,25 @@
 class GeminiService {
   constructor() {
     // 🔑 API Keys para Gemini (Google AI Studio)
-    // Usar variável de ambiente ou fallback para desenvolvimento
+    // Carrega chaves APENAS das variáveis de ambiente (nenhuma chave hardcoded)
+
+    // Tentar VITE_GEMINI_API_KEY primeiro
     const apiKeyFromEnv = import.meta.env.VITE_GEMINI_API_KEY;
 
-    this.apiKeys = apiKeyFromEnv
-      ? [apiKeyFromEnv]
-      : [
-        'AIzaSyB6Lj_5p11hJKbZAnb3oRK5h3lxgVZIl8U', // Chave principal
-        'AIzaSyAlvMR2zOJDZbwBBpP0sl1JHp2fb9uQiy4', // Chave fallback 1
-        'AIzaSyDBBrr3WWQqQMQGdXPTELZYhYrbW_CfgRA', // Chave fallback 2
-        'AIzaSyDnv2FGgXC1bKZ7Sfrsz4RBjwfsu5h3J_I', // Chave fallback 3
-      ];
+    // Se não tiver VITE_GEMINI_API_KEY, usar as VITE_GOOGLE_API_KEY_X como fallbacks
+    this.apiKeys = [];
+
+    if (apiKeyFromEnv) {
+      this.apiKeys.push(apiKeyFromEnv);
+    } else {
+      // Carregar chaves VITE_GOOGLE_API_KEY_1 até _12
+      for (let i = 1; i <= 12; i++) {
+        const key = import.meta.env[`VITE_GOOGLE_API_KEY_${i}`];
+        if (key) {
+          this.apiKeys.push(key);
+        }
+      }
+    }
 
     // Configurações do modelo - atualizado para Gemini 2.5 Flash
     this.model = 'gemini-2.5-flash';

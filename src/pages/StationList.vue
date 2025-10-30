@@ -1,30 +1,22 @@
 <script setup>
-/**
- * StationList.vue - VERSÃO REFATORADA
- *
- * Página principal de listagem de estações clínicas
- * Reduzida de ~2.300 linhas para ~600 linhas através de:
- * - Extração de 7 composables
- * - Criação de 6 componentes reutilizáveis
- * - Consolidação de CSS duplicado
- */
-
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { watchDebounced } from '@vueuse/core'
+import { useRoute, useRouter } from 'vue-router'
 
-// Componentes
 import inepIcon from '@/assets/images/inep.png'
 import SpecialtySection from '@/components/specialty/SpecialtySection.vue'
 import INEPPeriodSection from '@/components/specialty/INEPPeriodSection.vue'
 import SearchBar from '@/components/search/SearchBar.vue'
 import CandidateSearchBar from '@/components/search/CandidateSearchBar.vue'
 import SequentialConfigPanel from '@/components/sequential/SequentialConfigPanel.vue'
+import ModeSelectionCard from '@/components/station/ModeSelectionCard.vue'
+import SectionHeroCard from '@/components/station/SectionHeroCard.vue'
+import StationListHeader from '@/components/station/StationListHeader.vue'
 import AdminUploadCard from '@/components/admin/AdminUploadCard.vue'
-import StationSkeleton from '@/components/StationSkeleton.vue'
+import stationRepository from '@/repositories/stationRepository'
 
-// Composables
 import { useStationData } from '@/composables/useStationData'
-import { useStationFilteringOptimized } from '@/composables/useStationFilteringOptimized' // OTIMIZADO!
+import { useStationFilteringOptimized } from '@/composables/useStationFilteringOptimized'
 import { useStationCategorization } from '@/composables/useStationCategorization'
 import { useSequentialMode } from '@/composables/useSequentialMode'
 import { useCandidateSearch } from '@/composables/useCandidateSearch'
@@ -32,10 +24,8 @@ import { useUserManagement } from '@/composables/useUserManagement'
 import { useStationNavigation } from '@/composables/useStationNavigation'
 import { currentUser } from '@/plugins/auth.js'
 
-// 🔹 Data Management
 const {
   stations,
-  isLoadingStations,
   fetchUserScores,
   fetchStations,
   loadFullStation,
@@ -44,7 +34,6 @@ const {
   isLoadingMoreStations
 } = useStationData()
 
-// 🔹 Filtering & Search - USANDO VERSÃO OTIMIZADA
 const {
   globalSearchQuery,
   isINEPStation,
@@ -64,13 +53,8 @@ const {
   globalAutocompleteItems
 } = useStationFilteringOptimized(stations)
 
-// 🔹 Categorization & Colors
-const {
-  getStationBackgroundColor,
-  getStationArea
-} = useStationCategorization()
+const { getStationBackgroundColor, getStationArea } = useStationCategorization()
 
-// 🔹 Sequential Mode
 const {
   showSequentialConfig,
   selectedStationsSequence,
@@ -83,7 +67,6 @@ const {
   startSequentialSimulation
 } = useSequentialMode(loadFullStation, getCleanStationTitle, getStationArea)
 
-// 🔹 Candidate Search
 const {
   selectedCandidate,
   candidateSearchQuery,
@@ -95,28 +78,28 @@ const {
   clearCandidateSelection
 } = useCandidateSearch(currentUser)
 
-// 🔹 User Management
 const { isAdmin } = useUserManagement()
 
-// 🔹 Navigation
 const {
   creatingSessionForStationId,
   startSimulationAsActor,
-  startAITraining,
   goToEditStation,
   goToAdminUpload,
   expandCorrectSection
 } = useStationNavigation()
 
-// 🔹 Local State
+const route = useRoute()
+const router = useRouter()
+
+const currentState = ref('initial') // initial, candidate-selected, simple-training, simulation
+const selectedMode = ref(null)
+
 const selectedStation = ref(null)
 const inepPeriods = ['2025.1', '2024.2', '2024.1', '2023.2', '2023.1', '2022.2', '2022.1', '2021', '2020', '2017', '2016', '2015', '2014', '2013', '2012', '2011']
 
-// Ref para scroll infinito
 const loadMoreSentinel = ref(null)
 let intersectionObserver = null
 
-// Refs para controle dos accordions
 const accordionRefs = {
   showPreviousExamsSection: ref(false),
   showRevalidaFacilClinicaMedica: ref(false),
@@ -127,10 +110,40 @@ const accordionRefs = {
   showRevalidaFacilProcedimentos: ref(false)
 }
 
-// 🔹 Computed
-// (nenhum computed adicional necessário no momento)
+// Removido: não abrimos mais os painéis nesta página; usamos páginas dedicadas
 
-// 🔹 Methods
+const shouldShowCandidateSearch = computed(() => currentState.value === 'initial')
+const shouldShowModeSelection = computed(() => currentState.value === 'candidate-selected')
+const shouldShowStationList = computed(() => ['simple-training', 'simulation'].includes(currentState.value))
+const isSimulationModeActive = computed(() => selectedMode.value === 'simulation')
+
+const modeInfoMap = {
+  'simple-training': {
+    title: 'Treinamento Simples',
+    description: 'Treine uma estação por vez, no seu próprio ritmo.',
+    icon: 'ri-user-follow-line',
+    color: 'success',
+    duration: 'Aprox. 15 min por estação'
+  },
+  simulation: {
+    title: 'Simulação Completa',
+    description: 'Monte uma sequência e percorra várias estações em sequência.',
+    icon: 'ri-play-list-line',
+    color: 'primary',
+    duration: 'Aprox. 60-90 min'
+  }
+}
+
+const modeInfo = computed(() => {
+  if (!selectedMode.value) return null
+  return modeInfoMap[selectedMode.value]
+})
+
+// Totais por seção calculados a partir de todas as estações (via cache do repositório)
+const allStationsForCounts = ref([])
+const inepTotalAll = computed(() => (allStationsForCounts.value || []).filter(s => isINEPStation(s)).length)
+const revalidaTotalAll = computed(() => (allStationsForCounts.value || []).filter(s => isRevalidaFacilStation(s)).length)
+
 function findStation(stationId) {
   return stations.value.find(s => s.id === stationId)
 }
@@ -141,34 +154,28 @@ function clearSearchFields() {
 }
 
 function handleStartSimulation(stationId) {
-  startSimulationAsActor(stationId, {
-    loadFullStation,
-    expandCorrectSection: (station) => expandCorrectSection(
-      station,
-      accordionRefs,
-      isINEPStation,
-      isRevalidaFacilStation,
-      getRevalidaFacilSpecialty
-    ),
-    findStation,
-    selectedCandidate,
-    clearSearchFields
-  })
-}
+  const mode = selectedMode.value
 
-function handleStartAITraining(stationId) {
-  startAITraining(stationId, {
-    loadFullStation,
-    expandCorrectSection: (station) => expandCorrectSection(
-      station,
-      accordionRefs,
-      isINEPStation,
-      isRevalidaFacilStation,
-      getRevalidaFacilSpecialty
-    ),
-    findStation,
-    clearSearchFields
-  })
+  if (mode === 'simple-training') {
+    startSimulationAsActor(stationId, {
+      loadFullStation,
+      expandCorrectSection: station => expandCorrectSection(
+        station,
+        accordionRefs,
+        isINEPStation,
+        isRevalidaFacilStation,
+        getRevalidaFacilSpecialty
+      ),
+      findStation,
+      selectedCandidate,
+      clearSearchFields
+    })
+  } else if (mode === 'simulation') {
+    const station = findStation(stationId)
+    if (station && !isStationInSequence(stationId)) {
+      addToSequence(station)
+    }
+  }
 }
 
 function handleStartSequentialSimulation() {
@@ -177,103 +184,305 @@ function handleStartSequentialSimulation() {
   })
 }
 
-function toggleCollapse() {
-  const wrapper = document.querySelector('.layout-wrapper')
-  wrapper?.classList.toggle('layout-vertical-nav-collapsed')
+function handleModeSelection(mode) {
+  selectedMode.value = mode
+
+  if (mode === 'simulation') {
+    resetSequentialConfig()
+    showSequentialConfig.value = true
+  } else {
+    showSequentialConfig.value = false
+    resetSequentialConfig()
+  }
+
+  currentState.value = mode
+  setModeQuery(mode)
+
+  // Expandir primeira seção relevante após escolher o modo
+  setTimeout(() => {
+    expandFirstSection()
+  }, 200)
 }
 
-// 🔹 Lifecycle
+function handleBackToModeSelection() {
+  currentState.value = 'candidate-selected'
+  selectedMode.value = null
+  showSequentialConfig.value = false
+  resetSequentialConfig()
+  setModeQuery()
+}
+
+// Novas ações: navegação para páginas dedicadas
+function openInepSection() {
+  const mode = selectedMode.value || 'simple-training'
+  router.push({ name: 'stations-inep', query: { mode } })
+}
+
+function openRevalidaSection() {
+  const mode = selectedMode.value || 'simple-training'
+  router.push({ name: 'stations-revalida', query: { mode } })
+}
+
+// Botão central: Apenas visualizar as estações
+function viewStationsDirectly() {
+  router.push({ name: 'stations-hub' })
+}
+
+function handleChangeCandidate() {
+  clearCandidateSelection()
+  currentState.value = 'initial'
+  selectedMode.value = null
+  showSequentialConfig.value = false
+  resetSequentialConfig()
+  setModeQuery()
+}
+
+function expandFirstSection() {
+  if (filteredINEPStations.value.length > 0) {
+    accordionRefs.showPreviousExamsSection.value = true
+    return
+  }
+
+  const orderedRevalidaGroups = [
+    filteredStationsRevalidaFacilClinicaMedica,
+    filteredStationsRevalidaFacilCirurgia,
+    filteredStationsRevalidaFacilPediatria,
+    filteredStationsRevalidaFacilGO,
+    filteredStationsRevalidaFacilPreventiva,
+    filteredStationsRevalidaFacilProcedimentos
+  ]
+
+  const accordionSlots = [
+    'showRevalidaFacilClinicaMedica',
+    'showRevalidaFacilCirurgia',
+    'showRevalidaFacilPediatria',
+    'showRevalidaFacilGO',
+    'showRevalidaFacilPreventiva',
+    'showRevalidaFacilProcedimentos'
+  ]
+
+  orderedRevalidaGroups.some((group, index) => {
+    if ((group.value || []).length > 0) {
+      accordionRefs[accordionSlots[index]].value = true
+      return true
+    }
+    return false
+  })
+}
+
 onMounted(async () => {
   document.documentElement.classList.add('station-list-page-active')
-  
-  // Carregar primeira página
+
   await fetchStations()
   clearSearchFields()
-  
-  // Carregar automaticamente mais 2 páginas para garantir conteúdo nas seções
-  // Isso totaliza ~600 estações iniciais (3 x 200)
+
   if (hasMoreStations.value) {
-    await fetchStations(true) // Segunda página
+    await fetchStations(true)
     if (hasMoreStations.value) {
-      await fetchStations(true) // Terceira página
+      await fetchStations(true)
     }
   }
-  
-  // Configurar scroll infinito para páginas adicionais
+
   if (loadMoreSentinel.value) {
     intersectionObserver = new IntersectionObserver(
-      (entries) => {
+      entries => {
         if (entries[0].isIntersecting && hasMoreStations.value && !isLoadingMoreStations.value) {
-          // Carregar mais estações quando o sentinel ficar visível
           fetchStations(true)
         }
       },
-      { 
-        rootMargin: '200px', // Começar a carregar 200px antes de chegar no fim
-        threshold: 0.1 
+      {
+        rootMargin: '200px',
+        threshold: 0.1
       }
     )
-    
+
     intersectionObserver.observe(loadMoreSentinel.value)
   }
+
+  await restoreCandidateFromSession()
+  applyRouteState()
+  // Carrega todas as estações para contadores precisos por prefixo (INEP x REVALIDA)
+  try {
+    allStationsForCounts.value = await stationRepository.getAll(true)
+  } catch {}
 })
 
 onUnmounted(() => {
   document.documentElement.classList.remove('station-list-page-active')
   const wrapper = document.querySelector('.layout-wrapper')
   wrapper?.classList.remove('layout-vertical-nav-collapsed')
-  
-  // Limpar observer
+
   if (intersectionObserver) {
     intersectionObserver.disconnect()
     intersectionObserver = null
   }
 })
 
-// 🔹 Watchers
+watch(selectedCandidate, newCandidate => {
+  if (newCandidate) {
+    if (selectedMode.value) {
+      currentState.value = selectedMode.value
+      if (selectedMode.value === 'simulation') {
+        showSequentialConfig.value = true
+        setTimeout(() => {
+          expandFirstSection()
+        }, 200)
+      }
+    } else {
+      currentState.value = 'candidate-selected'
+    }
+  } else {
+    currentState.value = 'initial'
+    selectedMode.value = null
+    showSequentialConfig.value = false
+    resetSequentialConfig()
+    setModeQuery()
+  }
+})
+
 watchDebounced(
   globalSearchQuery,
   () => {
-    // Debounced search query - filtros já estão em computed properties
+    // filtros já são réativos
   },
   { debounce: 300 }
 )
 
-watch(currentUser, (newUser) => {
+watch(currentUser, newUser => {
   if (newUser && stations.value.length > 0) {
     fetchUserScores()
   }
 }, { immediate: true })
+
+watch(
+  () => route.query.mode,
+  () => {
+    applyRouteState()
+  }
+)
+
+function setModeQuery(mode) {
+  const currentMode = route.query.mode
+  if ((!mode && !currentMode) || mode === currentMode) {
+    return
+  }
+
+  const newQuery = { ...route.query }
+  if (mode) {
+    newQuery.mode = mode
+  } else {
+    delete newQuery.mode
+  }
+  router.replace({ query: newQuery }).catch(() => {})
+}
+
+async function restoreCandidateFromSession() {
+  if (selectedCandidate.value || typeof window === 'undefined') return
+
+  const stored = sessionStorage.getItem('selectedCandidate')
+  if (!stored) return
+
+  try {
+    const candidate = JSON.parse(stored)
+    if (candidate?.uid) {
+      const nameParts = (candidate.name || '').trim().split(/\s+/).filter(Boolean)
+      const normalizedCandidate = {
+        ...candidate,
+        nome: candidate.nome || nameParts[0] || '',
+        sobrenome: candidate.sobrenome || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''),
+      }
+      await selectCandidate(normalizedCandidate)
+    }
+  } catch (error) {
+    sessionStorage.removeItem('selectedCandidate')
+  }
+}
+
+function applyRouteState() {
+  const modeFromRoute = route.query.mode
+
+  if (modeFromRoute === 'simple-training' || modeFromRoute === 'simulation') {
+    selectedMode.value = modeFromRoute
+    showSequentialConfig.value = modeFromRoute === 'simulation'
+    currentState.value = selectedCandidate.value ? modeFromRoute : 'initial'
+    if (modeFromRoute === 'simulation' && selectedCandidate.value) {
+      expandFirstSection()
+    }
+    return
+  }
+
+  selectedMode.value = null
+  showSequentialConfig.value = false
+  if (selectedCandidate.value) {
+    currentState.value = 'candidate-selected'
+  } else {
+    currentState.value = 'initial'
+  }
+}
 </script>
 
 <template>
   <v-container fluid class="pa-0 main-content-container">
-    <!-- Botão de toggle do menu lateral -->
-    <v-tooltip location="right">
-      <template #activator="{ props }">
-        <v-btn
-          icon
-          fixed
-          top
-          left
-          @click="toggleCollapse"
-          class="ma-3 z-index-5"
-          v-bind="props"
-          aria-label="Abrir/Fechar menu lateral"
-        >
-          <v-icon aria-hidden="false" role="img" aria-label="Menu de navegação">ri-menu-line</v-icon>
-        </v-btn>
-      </template>
-      Abrir/Fechar menu lateral
-    </v-tooltip>
-
     <v-row>
       <v-col cols="12" md="12" class="mx-auto">
-        <!-- Admin Upload Card -->
         <AdminUploadCard v-if="isAdmin" @navigate-to-upload="goToAdminUpload" />
 
-        <!-- Sequential Config Panel -->
+        <div v-if="shouldShowCandidateSearch">
+          <CandidateSearchBar
+            v-model="candidateSearchQuery"
+            v-model:show-suggestions="showCandidateSuggestions"
+            :suggestions="candidateSearchSuggestions"
+            :loading="isLoadingCandidateSearch"
+            :selected-candidate="selectedCandidate"
+            @search="searchCandidates"
+            @select-candidate="selectCandidate"
+            @clear-selection="clearCandidateSelection"
+          />
+
+          <div class="d-flex justify-center mt-4">
+            <v-btn color="primary" variant="elevated" @click="viewStationsDirectly">
+              Ir para a Lista de estações sem selecionar candidato
+            </v-btn>
+          </div>
+        </div>
+
+        <div v-if="shouldShowModeSelection" class="mode-selection-container">
+          <v-row>
+            <v-col cols="12" md="6" class="mb-4">
+              <ModeSelectionCard
+                title="Treinamento Simples"
+                description="Treine uma estação por vez, no seu próprio ritmo"
+                icon="ri-user-follow-line"
+                color="success"
+                duration="Aprox. 15 min por estação"
+                @select="handleModeSelection('simple-training')"
+              />
+            </v-col>
+            <v-col cols="12" md="6" class="mb-4">
+              <ModeSelectionCard
+                title="Simulação Completa"
+                description="Simulação sequencial de múltiplas estações"
+                icon="ri-play-list-line"
+                color="primary"
+                duration="Aprox. 60-90 min"
+                @select="handleModeSelection('simulation')"
+              />
+            </v-col>
+          </v-row>
+        </div>
+
+        <StationListHeader
+          v-if="shouldShowStationList"
+          :selected-candidate="selectedCandidate"
+          :selected-mode="selectedMode"
+          :mode-title="modeInfo?.title"
+          :mode-description="modeInfo?.description"
+          @back-to-mode-selection="handleBackToModeSelection"
+          @change-candidate="handleChangeCandidate"
+        />
+
         <SequentialConfigPanel
+          v-if="isSimulationModeActive && shouldShowStationList"
           :show="showSequentialConfig"
           :selected-stations="selectedStationsSequence"
           @toggle="toggleSequentialConfig"
@@ -283,286 +492,111 @@ watch(currentUser, (newUser) => {
           @reset="resetSequentialConfig"
         />
 
-        <!-- Candidate Search -->
-        <CandidateSearchBar
-          v-model="candidateSearchQuery"
-          v-model:show-suggestions="showCandidateSuggestions"
-          :suggestions="candidateSearchSuggestions"
-          :loading="isLoadingCandidateSearch"
-          :selected-candidate="selectedCandidate"
-          @search="searchCandidates"
-          @select-candidate="selectCandidate"
-          @clear-selection="clearCandidateSelection"
-        />
+        
 
-        <!-- Global Search -->
-        <SearchBar
-          v-model="globalSearchQuery"
-          v-model:selected-station="selectedStation"
-          :items="globalAutocompleteItems"
-          :total-stations="stations.length"
-          @station-selected="handleStartSimulation"
-        />
+        <!-- Cards altos e estreitos para abrir as seções principais (após selecionar o modo) -->
+        <v-row v-if="shouldShowStationList" class="mt-6 mb-8" justify="center" align="stretch">
+          <v-col cols="12" sm="6" md="4" lg="3" class="d-flex justify-center mb-4">
+            <SectionHeroCard
+              title="INEP — Provas Anteriores"
+              subtitle="Acesse estações por período"
+              :image="inepIcon"
+              :badge-count="inepTotalAll"
+              color="primary"
+              gradient-start="#ECF4FF"
+              gradient-end="#F7FAFF"
+              @click="openInepSection"
+            />
+          </v-col>
+          <v-col cols="12" sm="6" md="4" lg="3" class="d-flex justify-center mb-4">
+            <SectionHeroCard
+              title="REVALIDA FLOW"
+              subtitle="Estações por especialidade"
+              image="/botaosemfundo.png"
+              :badge-count="revalidaTotalAll"
+              color="success"
+              gradient-start="#E9F7EF"
+              gradient-end="#F5FBF7"
+              @click="openRevalidaSection"
+            />
+          </v-col>
+        </v-row>
 
-        <!-- Estações por categoria -->
-        <v-expansion-panels variant="accordion" class="mb-6">
-          <!-- INEP Revalida -->
-          <v-expansion-panel class="contained-panel">
-            <v-expansion-panel-title class="text-h6 font-weight-bold rounded-button-title">
-              <template #default>
-                <v-row no-gutters align="center" class="w-100">
-                  <v-col cols="auto">
-                    <v-img :src="inepIcon" style="height: 80px; width: 80px; margin-right: 24px;" />
-                  </v-col>
-                  <v-col class="d-flex flex-column">
-                    <div class="text-h6 font-weight-bold">INEP Revalida – Provas Anteriores</div>
-                  </v-col>
-                  <v-col cols="auto">
-                    <v-badge :content="filteredINEPStations.length" color="primary" inline />
-                  </v-col>
-                </v-row>
-              </template>
-            </v-expansion-panel-title>
-            <v-expansion-panel-text>
-              <v-expansion-panels variant="accordion" class="mt-4">
-                <INEPPeriodSection
-                  v-for="period in inepPeriods"
-                  :key="period"
-                  v-show="filteredStationsByInepPeriod[period]?.length > 0"
-                  :period="period"
-                  :stations="filteredStationsByInepPeriod[period] || []"
-                  :show-sequential-config="showSequentialConfig"
-                  :is-admin="isAdmin"
-                  :get-user-station-score="getUserStationScore"
-                  :get-station-background-color="getStationBackgroundColor"
-                  :get-specialty="getSpecialty"
-                  :is-station-in-sequence="isStationInSequence"
-                  :creating-session-for-station-id="creatingSessionForStationId"
-                  @station-click="handleStartSimulation"
-                  @add-to-sequence="addToSequence"
-                  @remove-from-sequence="removeFromSequence"
-                  @edit-station="goToEditStation"
-                  @start-ai-training="handleStartAITraining"
-                />
-              </v-expansion-panels>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
+        <!-- Seções antigas removidas desta página -->
 
-          <!-- REVALIDA FÁCIL -->
-          <v-expansion-panel class="contained-panel">
-            <v-expansion-panel-title class="text-h6 font-weight-bold rounded-button-title">
-              <template #default>
-                <v-row no-gutters align="center" class="w-100">
-                  <v-col cols="auto">
-                    <v-img src="/botaosemfundo.png" style="height: 80px; width: 80px; margin-right: 24px;" />
-                  </v-col>
-                  <v-col class="d-flex flex-column">
-                    <div class="text-h6 font-weight-bold">REVALIDA FLOW</div>
-                  </v-col>
-                  <v-col cols="auto">
-                    <v-badge :content="filteredRevalidaFacilStations.length" color="primary" inline />
-                  </v-col>
-                </v-row>
-              </template>
-            </v-expansion-panel-title>
-            <v-expansion-panel-text>
-              <v-expansion-panels variant="accordion" class="mt-4">
-                <!-- Clínica Médica -->
-                <SpecialtySection
-                  v-if="filteredStationsRevalidaFacilClinicaMedica.length > 0"
-                  title="Clínica Médica"
-                  :stations="filteredStationsRevalidaFacilClinicaMedica"
-                  icon="ri-stethoscope-line"
-                  color="info"
-                  specialty="clinica-medica"
-                  :show-sequential-config="showSequentialConfig"
-                  :is-admin="isAdmin"
-                  :get-user-station-score="getUserStationScore"
-                  :get-station-background-color="getStationBackgroundColor"
-                  :is-station-in-sequence="isStationInSequence"
-                  :creating-session-for-station-id="creatingSessionForStationId"
-                  @station-click="handleStartSimulation"
-                  @add-to-sequence="addToSequence"
-                  @remove-from-sequence="removeFromSequence"
-                  @edit-station="goToEditStation"
-                  @start-ai-training="handleStartAITraining"
-                />
+        <div v-if="shouldShowStationList" ref="loadMoreSentinel" class="load-more-sentinel" style="height: 1px; margin-top: 20px;" />
 
-                <!-- Cirurgia -->
-                <SpecialtySection
-                  v-if="filteredStationsRevalidaFacilCirurgia.length > 0"
-                  title="Cirurgia"
-                  :stations="filteredStationsRevalidaFacilCirurgia"
-                  icon="ri-knife-line"
-                  color="primary"
-                  specialty="cirurgia"
-                  :show-sequential-config="showSequentialConfig"
-                  :is-admin="isAdmin"
-                  :get-user-station-score="getUserStationScore"
-                  :get-station-background-color="getStationBackgroundColor"
-                  :is-station-in-sequence="isStationInSequence"
-                  :creating-session-for-station-id="creatingSessionForStationId"
-                  @station-click="handleStartSimulation"
-                  @add-to-sequence="addToSequence"
-                  @remove-from-sequence="removeFromSequence"
-                  @edit-station="goToEditStation"
-                  @start-ai-training="handleStartAITraining"
-                />
-
-                <!-- Pediatria -->
-                <SpecialtySection
-                  v-if="filteredStationsRevalidaFacilPediatria.length > 0"
-                  title="Pediatria"
-                  :stations="filteredStationsRevalidaFacilPediatria"
-                  icon="ri-bear-smile-line"
-                  color="success"
-                  specialty="pediatria"
-                  :show-sequential-config="showSequentialConfig"
-                  :is-admin="isAdmin"
-                  :get-user-station-score="getUserStationScore"
-                  :get-station-background-color="getStationBackgroundColor"
-                  :is-station-in-sequence="isStationInSequence"
-                  :creating-session-for-station-id="creatingSessionForStationId"
-                  @station-click="handleStartSimulation"
-                  @add-to-sequence="addToSequence"
-                  @remove-from-sequence="removeFromSequence"
-                  @edit-station="goToEditStation"
-                  @start-ai-training="handleStartAITraining"
-                />
-
-                <!-- Ginecologia e Obstetrícia -->
-                <SpecialtySection
-                  v-if="filteredStationsRevalidaFacilGO.length > 0"
-                  title="Ginecologia e Obstetrícia"
-                  :stations="filteredStationsRevalidaFacilGO"
-                  icon="ri-women-line"
-                  color="error"
-                  specialty="ginecologia"
-                  :show-sequential-config="showSequentialConfig"
-                  :is-admin="isAdmin"
-                  :get-user-station-score="getUserStationScore"
-                  :get-station-background-color="getStationBackgroundColor"
-                  :is-station-in-sequence="isStationInSequence"
-                  :creating-session-for-station-id="creatingSessionForStationId"
-                  @station-click="handleStartSimulation"
-                  @add-to-sequence="addToSequence"
-                  @remove-from-sequence="removeFromSequence"
-                  @edit-station="goToEditStation"
-                  @start-ai-training="handleStartAITraining"
-                />
-
-                <!-- Preventiva -->
-                <SpecialtySection
-                  v-if="filteredStationsRevalidaFacilPreventiva.length > 0"
-                  title="Preventiva"
-                  :stations="filteredStationsRevalidaFacilPreventiva"
-                  icon="ri-shield-cross-line"
-                  color="warning"
-                  specialty="preventiva"
-                  :show-sequential-config="showSequentialConfig"
-                  :is-admin="isAdmin"
-                  :get-user-station-score="getUserStationScore"
-                  :get-station-background-color="getStationBackgroundColor"
-                  :is-station-in-sequence="isStationInSequence"
-                  :creating-session-for-station-id="creatingSessionForStationId"
-                  @station-click="handleStartSimulation"
-                  @add-to-sequence="addToSequence"
-                  @remove-from-sequence="removeFromSequence"
-                  @edit-station="goToEditStation"
-                  @start-ai-training="handleStartAITraining"
-                />
-
-                <!-- Procedimentos -->
-                <SpecialtySection
-                  v-if="filteredStationsRevalidaFacilProcedimentos.length > 0"
-                  title="Procedimentos"
-                  :stations="filteredStationsRevalidaFacilProcedimentos"
-                  icon="ri-syringe-line"
-                  color="#A52A2A"
-                  specialty="procedimentos"
-                  :show-sequential-config="showSequentialConfig"
-                  :is-admin="isAdmin"
-                  :get-user-station-score="getUserStationScore"
-                  :get-station-background-color="getStationBackgroundColor"
-                  :is-station-in-sequence="isStationInSequence"
-                  :creating-session-for-station-id="creatingSessionForStationId"
-                  @station-click="handleStartSimulation"
-                  @add-to-sequence="addToSequence"
-                  @remove-from-sequence="removeFromSequence"
-                  @edit-station="goToEditStation"
-                  @start-ai-training="handleStartAITraining"
-                />
-              </v-expansion-panels>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-        </v-expansion-panels>
-
-        <!-- Sentinel para scroll infinito -->
-        <div 
-          ref="loadMoreSentinel" 
-          class="load-more-sentinel"
-          style="height: 1px; margin-top: 20px;"
-        />
-
-        <!-- Loading mais estações -->
-        <v-row v-if="isLoadingMoreStations" class="mt-4">
+        <v-row v-if="shouldShowStationList && isLoadingMoreStations" class="mt-4">
           <v-col cols="12" class="text-center">
             <v-progress-circular indeterminate color="primary" />
             <div class="mt-2">Carregando mais estações...</div>
           </v-col>
         </v-row>
 
-        <!-- Indicador de fim de lista -->
-        <v-row v-if="!hasMoreStations && stations.length > 0" class="mt-4">
-          <v-col cols="12" class="text-center text-grey">
-            <v-icon>ri-check-line</v-icon>
-            <div class="mt-2">Todas as estações carregadas</div>
-          </v-col>
-        </v-row>
-      </v-col>
-    </v-row>
-
-    <!-- Loading inicial com Skeleton -->
-    <v-row v-if="isLoadingStations && stations.length === 0">
-      <v-col cols="12">
-        <div class="text-center mb-4">
-          <v-progress-circular indeterminate color="primary" size="40" />
-          <div class="mt-2 text-subtitle-1">Carregando estações...</div>
-        </div>
-        <StationSkeleton :count="8" />
       </v-col>
     </v-row>
   </v-container>
 </template>
 
 <style scoped>
-/* Estilos consolidados - removidas ~200 linhas de CSS duplicado */
+.main-content-container {
+  background-color: transparent !important;
+}
+
+.mode-selection-container {
+  margin-bottom: 24px;
+}
+
 .station-list-item {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .station-list-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.main-content-container {
-  background-color: transparent !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .rounded-input .v-input__control .v-input__slot {
   border-radius: 8px;
 }
 
-.v-expansion-panel-title.rounded-button-title {
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease-in-out;
+.v-expansion-panel-title.rounded-button-title.section-button {
+  /* Botão mais alto do que largo (ênfase vertical) */
+  min-height: 110px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.02));
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
-.v-expansion-panel-title.rounded-button-title:hover {
+.v-expansion-panel-title.rounded-button-title.section-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.025));
+}
+
+/* Ícone das seções */
+.section-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Tipografia moderna para os títulos das seções */
+.section-title {
+  font-size: 1.125rem; /* ~18px */
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.section-subtitle {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  opacity: 0.8;
 }
 
 .v-expansion-panel.contained-panel {
@@ -570,15 +604,25 @@ watch(currentUser, (newUser) => {
   margin-right: auto;
 }
 
-/* Estilos de ícones de seleção sequencial - CONSOLIDADO */
+/* Melhor contraste no tema escuro para os títulos dos painéis principais */
+:deep(.v-theme--dark) .v-expansion-panel-title.rounded-button-title {
+  background-color: rgba(var(--v-theme-surface), 0.96) !important;
+  border: 1px solid rgba(var(--v-theme-outline), 0.24) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
 .sequential-selection-btn .v-icon {
-  color: #1565C0 !important;
+  color: #1565c0 !important;
   opacity: 1 !important;
   font-weight: 700 !important;
   visibility: visible !important;
 }
 
-.v-btn[variant="tonal"].sequential-selection-btn .v-icon {
-  color: #2E7D32 !important;
+.v-btn[variant='tonal'].sequential-selection-btn .v-icon {
+  color: #2e7d32 !important;
 }
 </style>
+
+
+

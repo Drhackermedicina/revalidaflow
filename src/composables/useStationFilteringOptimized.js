@@ -11,12 +11,12 @@ import { useDebounce } from '@vueuse/core'
 export function useStationFilteringOptimized(stations) {
   // --- State ---
   const globalSearchQuery = ref('')
-  
+
   // Debounce inteligente para busca (300ms)
   const debouncedSearchQuery = useDebounce(globalSearchQuery, 300)
 
   // --- Helpers ---
-  
+
   /**
    * Normaliza texto removendo acentos e espaços extras
    */
@@ -35,16 +35,22 @@ export function useStationFilteringOptimized(stations) {
    */
   const isINEPStation = (station) => {
     const idEstacao = (station.idEstacao || '').toUpperCase()
+
+    // Caso especial: estações de 2014 usam prefixo REVALIDA_ mas são do INEP
+    if (idEstacao.includes('2014') && idEstacao.startsWith('REVALIDA_')) {
+      return true
+    }
+
     if (!idEstacao.startsWith('REVALIDA_')) {
       return idEstacao.startsWith('INEP')
     }
+
+    // Para outras estações REVALIDA, exclui as do sistema FACIL e FLOW
     return (
       !idEstacao.startsWith('REVALIDA_FACIL') &&
       !idEstacao.startsWith('REVALIDA_FLOW')
     )
-  }
-
-  /**
+  }  /**
    * Verifica se a estação é do Revalida Fácil
    */
   const isRevalidaFacilStation = (station) => {
@@ -60,14 +66,44 @@ export function useStationFilteringOptimized(stations) {
    */
   const getINEPPeriod = (station) => {
     const idEstacao = station.idEstacao || ''
-    if (!isINEPStation(station)) return null
 
-    const match = idEstacao.match(/(?:INEP|REVALIDA)_(\d{4})(?:_(\d))?/)
-    if (match) {
-      const year = match[1]
-      const subPeriod = match[2]
-      return subPeriod ? `${year}.${subPeriod}` : year
+    if (!isINEPStation(station)) {
+      return null
     }
+
+    // Tenta todos os formatos possíveis em ordem
+    const formats = [
+      // Formato 2014 especial: REVALIDA_2014_CG_XX_
+      /(?:INEP|REVALIDA)_(\d{4})_[A-Z]+_[A-Z_]+/,
+      // Formato com especialidade: INEP_2014_CM_LOMBALGIA ou REVALIDA_2014_CG_01
+      /(?:INEP|REVALIDA)_(\d{4})_[A-Z]+/,
+      // Formato com ponto: INEP_2014.1 ou REVALIDA_2014.1
+      /(?:INEP|REVALIDA)_(\d{4})\.(\d)/,
+      // Formato com underscore: INEP_2014_1 ou REVALIDA_2014_1
+      /(?:INEP|REVALIDA)_(\d{4})_(\d)/,
+      // Formato simples: INEP_2014 ou REVALIDA_2014
+      /(?:INEP|REVALIDA)_(\d{4})/
+    ]
+
+    for (const regex of formats) {
+      const match = idEstacao.match(regex)
+      if (match) {
+        const year = match[1]
+        // Para formatos com subperíodo numérico
+        if (match[2] && !isNaN(match[2])) {
+          return `${year}.${match[2]}`
+        }
+        // Para todos os outros formatos, retorna só o ano
+        return year
+      }
+    }
+
+    // Se não encontrou em nenhum formato conhecido, procura qualquer ano de 4 dígitos
+    const yearMatch = idEstacao.match(/\d{4}/)
+    if (yearMatch) {
+      return yearMatch[0]
+    }
+
     return null
   }
 
@@ -78,12 +114,13 @@ export function useStationFilteringOptimized(stations) {
     const especialidade = station.especialidade || ''
     const normalized = normalizeText(especialidade)
 
+    // Priorizar "procedimentos" em relação a cirurgias quando ambas aparecem
+    if (normalized.includes('procedimento')) return 'procedimentos'
     if (normalized.includes('clinica') && normalized.includes('medica')) return 'clinica-medica'
     if (normalized.includes('cirurgia')) return 'cirurgia'
     if (normalized.includes('ginecologia') || normalized.includes('obstetricia') || normalized.includes('go')) return 'ginecologia'
     if (normalized.includes('pediatria')) return 'pediatria'
     if (normalized.includes('preventiva') || normalized.includes('familia') || normalized.includes('comunidade')) return 'preventiva'
-    if (normalized.includes('procedimento')) return 'procedimentos'
 
     return 'geral'
   }
@@ -95,12 +132,25 @@ export function useStationFilteringOptimized(stations) {
     const idEstacao = station.idEstacao || ''
     const normalized = normalizeText(idEstacao)
 
-    if (normalized.includes('clinica_medica')) return 'clinica-medica'
-    if (normalized.includes('cirurgia')) return 'cirurgia'
-    if (normalized.includes('pediatria')) return 'pediatria'
-    if (normalized.includes('go')) return 'ginecologia'
-    if (normalized.includes('preventiva')) return 'preventiva'
-    if (normalized.includes('procedimentos')) return 'procedimentos'
+    if (normalized.includes('clinica_medica') || normalized.includes('clinica medica')) return 'clinica-medica'
+    if (normalized.includes('cirurgia') || normalized.includes('cirurg')) return 'cirurgia'
+    if (normalized.includes('pediatria') || normalized.includes('pedi')) return 'pediatria'
+    // 'go' é um alias comum para ginecologia/obstetrícia
+    if (normalized.includes('ginecologia') || normalized.includes('obstetricia') || normalized.includes('go')) return 'ginecologia'
+    if (normalized.includes('preventiva') || normalized.includes('familia') || normalized.includes('comunidade')) return 'preventiva'
+    // Abreviação comum "PROC" (ex.: REVALIDA_FLOW_2025_PROC_01)
+    // Detecta PROC como token/segmento separado por espaço, sublinhado ou hífen
+    if (/(^|[\s_\-])proc($|[\s_\-\d])/.test(normalized)) return 'procedimentos'
+    // Tornar detecção de procedimentos mais robusta (procedimentos, procedimento, proced., proced)
+    if (
+      normalized.includes('procedimentos') ||
+      normalized.includes('procedimento') ||
+      normalized.includes('proced.') ||
+      normalized.includes('proced ') ||
+      normalized.includes('proced-') ||
+      normalized.includes('proced_') ||
+      normalized.includes('proced')
+    ) return 'procedimentos'
 
     return getSpecialty(station)
   }
@@ -109,10 +159,10 @@ export function useStationFilteringOptimized(stations) {
    * Limpa título da estação - VERSÃO SIMPLIFICADA
    */
   const cleanStationTitleCache = new Map()
-  
+
   const getCleanStationTitle = (originalTitle) => {
     if (!originalTitle) return 'Estação sem título'
-    
+
     // Check cache first
     if (cleanStationTitleCache.has(originalTitle)) {
       return cleanStationTitleCache.get(originalTitle)
@@ -159,7 +209,7 @@ export function useStationFilteringOptimized(stations) {
     // Aplicar busca global se houver
     const query = debouncedSearchQuery.value.trim()
     const normalizedQuery = query ? normalizeText(query) : ''
-    
+
     const result = {
       all: stations.value,
       filtered: [],
@@ -174,6 +224,8 @@ export function useStationFilteringOptimized(stations) {
       }
     }
 
+
+
     // Um único loop para processar TUDO
     for (const station of stations.value) {
       // Adicionar título limpo ao objeto station (cache inline)
@@ -187,14 +239,16 @@ export function useStationFilteringOptimized(stations) {
         const title = normalizeText(station.cleanTitle)
         const specialty = normalizeText(station.especialidade || '')
         const idEstacao = normalizeText(station.idEstacao || '')
-        
+
         matchesSearch = title.includes(normalizedQuery) ||
-                       specialty.includes(normalizedQuery) ||
-                       idEstacao.includes(normalizedQuery)
+          specialty.includes(normalizedQuery) ||
+          idEstacao.includes(normalizedQuery)
       }
 
-      if (!matchesSearch) continue
-      
+      if (!matchesSearch) {
+        continue
+      }
+
       result.filtered.push(station)
 
       // Classificar por tipo
@@ -219,7 +273,7 @@ export function useStationFilteringOptimized(stations) {
 
   // Computed properties derivadas do groupedStations
   const filteredStations = computed(() => groupedStations.value.filtered)
-  
+
   const filteredINEPStations = computed(() => {
     const inepGroups = groupedStations.value.inep
     return Object.values(inepGroups).flat()
@@ -231,27 +285,27 @@ export function useStationFilteringOptimized(stations) {
   })
 
   // Especialidades do Revalida Fácil
-  const filteredStationsRevalidaFacilClinicaMedica = computed(() => 
+  const filteredStationsRevalidaFacilClinicaMedica = computed(() =>
     groupedStations.value.revalidaFacil['clinica-medica']
   )
-  
-  const filteredStationsRevalidaFacilCirurgia = computed(() => 
+
+  const filteredStationsRevalidaFacilCirurgia = computed(() =>
     groupedStations.value.revalidaFacil['cirurgia']
   )
-  
-  const filteredStationsRevalidaFacilPediatria = computed(() => 
+
+  const filteredStationsRevalidaFacilPediatria = computed(() =>
     groupedStations.value.revalidaFacil['pediatria']
   )
-  
-  const filteredStationsRevalidaFacilGO = computed(() => 
+
+  const filteredStationsRevalidaFacilGO = computed(() =>
     groupedStations.value.revalidaFacil['ginecologia']
   )
-  
-  const filteredStationsRevalidaFacilPreventiva = computed(() => 
+
+  const filteredStationsRevalidaFacilPreventiva = computed(() =>
     groupedStations.value.revalidaFacil['preventiva']
   )
-  
-  const filteredStationsRevalidaFacilProcedimentos = computed(() => 
+
+  const filteredStationsRevalidaFacilProcedimentos = computed(() =>
     groupedStations.value.revalidaFacil['procedimentos']
   )
 
@@ -262,7 +316,7 @@ export function useStationFilteringOptimized(stations) {
   const globalAutocompleteItems = computed(() => {
     // Usar Map para garantir unicidade por ID
     const uniqueStationsMap = new Map()
-    
+
     filteredStations.value.forEach(station => {
       const id = station.id || station.idEstacao
       if (id && !uniqueStationsMap.has(id)) {
@@ -273,14 +327,14 @@ export function useStationFilteringOptimized(stations) {
         })
       }
     })
-    
+
     return Array.from(uniqueStationsMap.values())
   })
 
   return {
     // State
     globalSearchQuery,
-    
+
     // Helpers
     isINEPStation,
     isRevalidaFacilStation,
@@ -288,7 +342,7 @@ export function useStationFilteringOptimized(stations) {
     getSpecialty,
     getRevalidaFacilSpecialty,
     getCleanStationTitle,
-    
+
     // Filtered data
     filteredStations,
     filteredINEPStations,
@@ -301,8 +355,7 @@ export function useStationFilteringOptimized(stations) {
     filteredStationsRevalidaFacilProcedimentos,
     filteredStationsByInepPeriod,
     globalAutocompleteItems,
-    
-    // Acesso ao agrupamento principal (para debug)
-    groupedStations
+
+    groupedStations,
   }
 }

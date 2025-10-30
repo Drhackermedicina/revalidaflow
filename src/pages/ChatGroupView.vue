@@ -44,7 +44,7 @@
               <v-list-item v-for="user in users" :key="user.uid" class="py-2 user-list-item">
                 <template #prepend>
                   <v-badge
-                    :color="user.status === 'disponivel' ? 'success' : user.status === 'ausente' ? 'warning' : 'info'"
+                    :color="getStatusColor(user.status)"
                     dot
                     location="bottom right"
                     offset-x="4"
@@ -58,9 +58,24 @@
                     {{ (user.nome && user.sobrenome) ? user.nome + ' ' + user.sobrenome : user.displayName || 'Usuário sem nome' }}
                   </span>
                 </v-list-item-title>
-                <v-list-item-subtitle class="text-caption text-medium-emphasis">
-                  {{ user.status === 'disponivel' ? 'Disponível' : user.status === 'ausente' ? 'Ausente' : 'Treinando' }}
+                <v-list-item-subtitle class="text-caption text-medium-emphasis mb-2">
+                  {{ getStatusText(user.status) }}
                 </v-list-item-subtitle>
+                <template #append>
+                  <div class="d-flex gap-1">
+                    <!-- Botão de Chat Privado -->
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click="openPrivateChat(user)"
+                      title="Abrir chat privado"
+                    >
+                      <v-icon icon="ri-message-3-line" />
+                    </v-btn>
+                    </div>
+                </template>
               </v-list-item>
             </v-list>
           </v-card-text>
@@ -188,6 +203,7 @@ import { useChatUsers } from '@/composables/useChatUsers.js'
 import { useChatMessages, formatTime } from '@/composables/useChatMessages.js'
 import { useChatInput } from '@/composables/useChatInput.js'
 import { useMessageCleanup } from '@/composables/useMessageCleanup.js'
+import { usePrivateChatNotification } from '@/plugins/privateChatListener.js'
 
 const router = useRouter()
 const theme = useTheme()
@@ -232,6 +248,9 @@ const { canDeleteMessages } = useUserStore()
 // Inicializar limpeza automática e acesso manual controlado
 const { cleanOldMessages: runMessageCleanup } = useMessageCleanup()
 
+// Inicializar sistema de notificações de chat privado
+const { reloadListeners } = usePrivateChatNotification()
+
 const canCleanMessages = computed(() => {
   return canDeleteMessages.value
 })
@@ -241,6 +260,39 @@ function openPrivateChat(user) {
   if (!user.uid || user.uid === currentUser.value?.uid) return
   router.push({ name: 'ChatPrivateView', params: { uid: user.uid } })
 }
+
+// Função para obter cor do status
+function getStatusColor(status) {
+  switch (status) {
+    case 'disponivel':
+      return 'success'
+    case 'ausente':
+      return 'warning'
+    case 'treinando':
+      return 'primary'
+    case 'treinando_com_ia':
+      return 'purple'
+    default:
+      return 'info'
+  }
+}
+
+// Função para obter texto do status
+function getStatusText(status) {
+  switch (status) {
+    case 'disponivel':
+      return 'Disponível'
+    case 'ausente':
+      return 'Ausente'
+    case 'treinando':
+      return 'Treinando'
+    case 'treinando_com_ia':
+      return 'Treinando com IA'
+    default:
+      return 'Disponível'
+  }
+}
+
 
 const sendMessage = async () => {
   // Sanitizar e validar entrada
@@ -348,6 +400,16 @@ const cleanOldMessages = async () => {
 
 .user-list-item:hover {
   background: rgba(var(--v-theme-primary), 0.08);
+}
+
+/* Botões de ação dos usuários */
+.user-list-item .v-btn {
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
+}
+
+.user-list-item:hover .v-btn {
+  opacity: 1;
 }
 
 .user-avatar {

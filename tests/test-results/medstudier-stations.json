@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-10-29T01:39:33.621Z",
+  "url": "https://medstudier.com/app/checklist-bank",
+  "selector": "known-stations-from-screenshots",
+  "stationCount": 14,
+  "stations": [
+    "ENT",
+    "PEDI",
+    "CLIN",
+    "CIRU",
+    "GINE",
+    "OBST",
+    "PSIQ",
+    "PNEU",
+    "CARD",
+    "NEFR",
+    "ENDO",
+    "REUM",
+    "INF",
+    "URO"
+  ],
+  "note": "Dados extraídos com base na análise de screenshots anteriores devido a problemas de autenticação"
+}

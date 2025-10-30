@@ -3,9 +3,10 @@
 
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/plugins/firebase'
+import { logger } from '@/utils/logger.js'
 
 export async function diagnosticarRanking() {
-    console.log('🔍 Iniciando diagnóstico do ranking...')
+    logger.info('🔍 Iniciando diagnóstico do ranking...')
 
     try {
         const usuariosRef = collection(db, 'usuarios')
@@ -61,17 +62,17 @@ export async function diagnosticarRanking() {
             }
         })
 
-        console.log('📊 Resultado do diagnóstico:', problemas)
+        logger.info('📊 Resultado do diagnóstico:', problemas)
         return problemas
 
     } catch (error) {
-        console.error('❌ Erro no diagnóstico:', error)
+        logger.error('❌ Erro no diagnóstico:', error)
         return null
     }
 }
 
 export async function corrigirDadosCorrompidos() {
-    console.log('🔧 Iniciando correção de dados corrompidos...')
+    logger.info('🔧 Iniciando correção de dados corrompidos...')
 
     const problemas = await diagnosticarRanking()
 
@@ -86,9 +87,9 @@ export async function corrigirDadosCorrompidos() {
                 ranking: 0,
                 nivelHabilidade: 0
             })
-            console.log(`✅ Corrigido usuário ${usuario.id}`)
+            logger.info(`✅ Corrigido usuário ${usuario.id}`)
         } catch (error) {
-            console.error(`❌ Erro ao corrigir ${usuario.id}:`, error)
+            logger.error(`❌ Erro ao corrigir ${usuario.id}:`, error)
         }
     }
 
@@ -113,18 +114,19 @@ export async function corrigirDadosCorrompidos() {
             await updateDoc(doc(db, 'usuarios', usuario.id), {
                 estacoesConcluidas: estacoesUnicas
             })
-            console.log(`✅ Removidas duplicatas do usuário ${usuario.id}`)
+            logger.info(`✅ Removidas duplicatas do usuário ${usuario.id}`)
         } catch (error) {
-            console.error(`❌ Erro ao corrigir duplicatas ${usuario.id}:`, error)
+            logger.error(`❌ Erro ao corrigir duplicatas ${usuario.id}:`, error)
         }
     }
 
-    console.log('🎉 Correção concluída!')
+    logger.info('🎉 Correção concluída!')
 }
 
-// Para usar no console do navegador:
-// import('./src/utils/rankingDiagnostics.js').then(module => {
-//   module.diagnosticarRanking().then(result => console.log(result))
+// Para usar no console do navegador (método moderno):
+// import('./src/utils/rankingDiagnostics.js').then(async (module) => {
+//   const result = await module.diagnosticarRanking()
+//   console.log(result)
 //   // ou
-//   module.corrigirDadosCorrompidos()
+//   await module.corrigirDadosCorrompidos()
 // })

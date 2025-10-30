@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "C:/Users/helli/revalidaflow/revalidaflow/backend"
+		}
+	],
+	"settings": {
+		"typescript.tsdk": "node_modules/typescript/lib",
+		"javascript.validate.enable": false,
+		"typescript.validate.enable": false,
+		"workbench.commandPalette.experimental.askChatLocation": "chatView",
+		"workbench.commandPalette.experimental.suggestCommands": false,
+		"workbench.commandPalette.preserveInput": false,
+		"chat.agentSessionsViewLocation": "showChatsMenu",
+		"chat.checkpoints.showFileChanges": true,
+		"chat.editing.autoAcceptDelay": 30,
+		"chat.mcp.assisted.nuget.enabled": true,
+		"chat.math.enabled": true,
+		"inlineChat.accessibleDiffView": "on",
+		"telemetry.editStats.details.enabled": true,
+		"telemetry.editStats.showStatusBar": true,
+		"microsoft-sovereign-cloud.environment": "USGovernment",
+		"vue.autoInsert.dotValue": true
+	}
+}

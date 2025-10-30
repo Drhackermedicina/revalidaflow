@@ -13,6 +13,8 @@ const props = defineProps({
   evaluationScores: { type: Object, default: () => ({}) },
   candidateReceivedScores: { type: Object, default: () => ({}) },
   candidateReceivedTotalScore: { type: Number, default: 0 },
+  candidateReceivedDetails: { type: [Object, Array], default: () => ({}) },
+  performanceSummary: { type: [Object, Array], default: () => null },
   totalScore: { type: Number, default: 0 },
   evaluationSubmittedByCandidate: { type: Boolean, default: false },
   isActorOrEvaluator: { type: Boolean, default: false },
@@ -25,8 +27,65 @@ const emit = defineEmits([
   'submitEvaluation'
 ])
 
+// Debug: Log para verificar renderização dos subitens
+console.log('[CANDIDATE_CHECKLIST_DEBUG] Renderizando visão do candidato', {
+  isCandidate: props.isCandidate,
+  hasChecklistData: !!props.checklistData,
+  checklistItemsLength: props.checklistData?.itensAvaliacao?.length || 0,
+  markedPepItems: props.markedPepItems
+})
+
 // Normaliza marcações
 const marks = computed(() => props.markedPepItems?.value ?? props.markedPepItems ?? {})
+
+// Mapa de detalhes por itemId para feedback textual da IA (se fornecido)
+const detailsByItemId = computed(() => {
+  const src = (props.candidateReceivedDetails && (props.candidateReceivedDetails.value ?? props.candidateReceivedDetails)) || null
+  if (!src) return {}
+  if (Array.isArray(src)) {
+    try {
+      return Object.fromEntries(src.filter(Boolean).map(d => [d.itemId, d]))
+    } catch {
+      return {}
+    }
+  }
+  return src
+})
+
+const performance = computed(() => {
+  const src = props.performanceSummary && (props.performanceSummary.value ?? props.performanceSummary)
+  if (!src) return null
+
+  const normalizeList = value => {
+    if (!Array.isArray(value)) return []
+    return value.map(item => String(item || '').trim()).filter(Boolean)
+  }
+
+  const visaoGeral = String(src.visaoGeral || '').trim()
+  const pontosFortes = normalizeList(src.pontosFortes)
+  const pontosDeMelhoria = normalizeList(src.pontosDeMelhoria)
+  const recomendacoesOSCE = normalizeList(src.recomendacoesOSCE)
+  const indicadoresCriticos = normalizeList(src.indicadoresCriticos)
+
+  if (!visaoGeral && !pontosFortes.length && !pontosDeMelhoria.length && !recomendacoesOSCE.length && !indicadoresCriticos.length) {
+    return null
+  }
+
+  return {
+    visaoGeral,
+    pontosFortes,
+    pontosDeMelhoria,
+    recomendacoesOSCE,
+    indicadoresCriticos
+  }
+})
+
+const performanceSectionsConfig = [
+  { key: 'pontosFortes', title: 'Pontos fortes' },
+  { key: 'pontosDeMelhoria', title: 'O que melhorar' },
+  { key: 'recomendacoesOSCE', title: 'Recomendações de treino' },
+  { key: 'indicadoresCriticos', title: 'Indicadores críticos' }
+]
 
 // Verifica se item/subitem está marcado
 const isMarked = (itemId, subIndex) => {
@@ -75,6 +134,40 @@ const getEvaluationLabel = (item, score) => {
         </div>
       </VCardTitle>
     </VCardItem>
+    <VCardText v-if="performance" class="pt-0">
+      <VExpansionPanels variant="accordion" class="mb-4">
+        <VExpansionPanel value="performance-evaluator">
+          <VExpansionPanelTitle>
+            <div class="d-flex align-center">
+              <VIcon icon="ri-robot-2-line" color="secondary" class="me-2" />
+              Avaliação da Performance por IA
+            </div>
+          </VExpansionPanelTitle>
+          <VExpansionPanelText>
+            <p v-if="performance.visaoGeral" class="text-body-2 mb-4">
+              {{ performance.visaoGeral }}
+            </p>
+
+            <div
+              v-for="section in performanceSectionsConfig"
+              :key="`evaluator-${section.key}`"
+              v-if="performance[section.key]?.length"
+              class="mb-4"
+            >
+              <h5 class="text-subtitle-2 font-weight-bold mb-2">{{ section.title }}</h5>
+              <ul class="text-body-2 ps-4 mb-0">
+                <li
+                  v-for="(item, index) in performance[section.key]"
+                  :key="`evaluator-${section.key}-${index}`"
+                >
+                  {{ item }}
+                </li>
+              </ul>
+            </div>
+          </VExpansionPanelText>
+        </VExpansionPanel>
+      </VExpansionPanels>
+    </VCardText>
     <VTable class="pep-table">
       <thead>
         <tr>
@@ -143,6 +236,14 @@ const getEvaluationLabel = (item, score) => {
                     <div class="text-caption">{{ item.pontuacoes.adequado.criterio }}</div>
                   </div>
                 </div>
+
+                <!-- Feedback textual da IA por item, quando disponível (visão avaliador) -->
+                <div v-if="detailsByItemId[item.idItem]?.observacao" class="mt-2">
+                  <VAlert type="info" variant="tonal" density="compact">
+                    <strong>Feedback da IA:</strong>
+                    <span class="ms-1">{{ detailsByItemId[item.idItem].observacao }}</span>
+                  </VAlert>
+                </div>
               </div>
 
               <div 
@@ -160,6 +261,14 @@ const getEvaluationLabel = (item, score) => {
                   <div class="flex-grow-1">
                     <div class="font-weight-medium">Parcialmente Adequado ({{ item.pontuacoes.parcialmenteAdequado.pontos.toFixed(2) }} pts)</div>
                     <div class="text-caption">{{ item.pontuacoes.parcialmenteAdequado.criterio }}</div>
+                  </div>
+
+                  <!-- Feedback textual da IA por item, quando disponível (visão candidato) -->
+                  <div v-if="detailsByItemId[item.idItem]?.observacao" class="mt-2">
+                    <VAlert type="info" variant="tonal" density="compact">
+                      <strong>Feedback da IA:</strong>
+                      <span class="ms-1">{{ detailsByItemId[item.idItem].observacao }}</span>
+                    </VAlert>
                   </div>
                 </div>
               </div>
@@ -242,6 +351,38 @@ const getEvaluationLabel = (item, score) => {
       </VCardTitle>
     </VCardItem>
 
+    <VCardText v-if="performance" class="pt-0">
+      <VExpansionPanels variant="accordion" class="mb-4">
+        <VExpansionPanel value="performance">
+          <VExpansionPanelTitle>
+            <div class="d-flex align-center">
+              <VIcon icon="ri-robot-2-line" color="primary" class="me-2" />
+              Avaliação da Performance por IA
+            </div>
+          </VExpansionPanelTitle>
+          <VExpansionPanelText>
+            <p v-if="performance.visaoGeral" class="text-body-2 mb-4">
+              {{ performance.visaoGeral }}
+            </p>
+
+            <div
+              v-for="section in performanceSectionsConfig"
+              :key="section.key"
+              v-if="performance[section.key]?.length"
+              class="mb-4"
+            >
+              <h5 class="text-subtitle-2 font-weight-bold mb-2">{{ section.title }}</h5>
+              <ul class="text-body-2 ps-4 mb-0">
+                <li v-for="(item, index) in performance[section.key]" :key="`${section.key}-${index}`">
+                  {{ item }}
+                </li>
+              </ul>
+            </div>
+          </VExpansionPanelText>
+        </VExpansionPanel>
+      </VExpansionPanels>
+    </VCardText>
+
     <VTable class="pep-table">
         <thead>
             <tr>
@@ -270,15 +411,35 @@ const getEvaluationLabel = (item, score) => {
                     </p>
                   </div>
                   <!-- Apenas a descrição formatada, sem duplicar o título -->
-                  <div class="text-body-2" v-if="item.descricaoItem && item.descricaoItem.includes(':')" v-html="formatItemDescriptionForDisplay(item.descricaoItem, item.descricaoItem.split(':')[0].trim())" />
+                  <div class="text-body-2 pep-item-description" v-if="item.descricaoItem?.includes(':')">
+                    <div
+                      v-for="(subItem, subIndex) in parseEnumeratedItems(item.descricaoItem)"
+                      :key="`candidate-sub-item-${item.idItem}-${subIndex}`"
+                      class="pep-sub-item-wrapper d-flex align-center"
+                    >
+                      <VIcon
+                        :icon="isMarked(item.idItem, subItem.index) ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'"
+                        :color="isMarked(item.idItem, subItem.index) ? 'success' : undefined"
+                        size="small"
+                        class="me-2 flex-shrink-0"
+                      />
+                      <span
+                        class="pep-sub-item flex-grow-1"
+                        :class="{ 'orange-text': isMarked(item.idItem, subItem.index) }"
+                        @click="handleTogglePepItemMark(item.idItem, subItem.index)"
+                      >
+                        ({{ subItem.index + 1 }}) <span v-html="formatItemDescriptionForDisplay(subItem.text)"></span>
+                      </span>
+                    </div>
+                  </div>
 
                   <!-- Critérios de Avaliação Integrados para o Candidato -->
                   <div class="criterios-integrados mt-3 mb-4">
                     <div v-if="item.pontuacoes?.adequado"
-                      :class="{'criterio-item': true, 'criterio-selecionado': candidateReceivedScores[item.idItem] === item.pontuacoes.adequado.pontos, 'mb-2': true}">
+                      :class="{'criterio-item': true, 'criterio-selecionado': evaluationScores[item.idItem] === item.pontuacoes.adequado.pontos, 'mb-2': true}">
                       <div class="d-flex align-start">
                         <VIcon
-                          :icon="candidateReceivedScores[item.idItem] === item.pontuacoes.adequado.pontos ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'"
+                          :icon="evaluationScores[item.idItem] === item.pontuacoes.adequado.pontos ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'"
                           color="success"
                           size="small"
                           class="me-2 mt-1 flex-shrink-0"
@@ -291,10 +452,10 @@ const getEvaluationLabel = (item, score) => {
                     </div>
 
                     <div v-if="item.pontuacoes?.parcialmenteAdequado && item.pontuacoes.parcialmenteAdequado.criterio && item.pontuacoes.parcialmenteAdequado.criterio.trim() !== '' && item.pontuacoes.parcialmenteAdequado.pontos > 0"
-                      :class="{'criterio-item': true, 'criterio-selecionado': candidateReceivedScores[item.idItem] === item.pontuacoes.parcialmenteAdequado.pontos, 'mb-2': true}">
+                      :class="{'criterio-item': true, 'criterio-selecionado': evaluationScores[item.idItem] === item.pontuacoes.parcialmenteAdequado.pontos, 'mb-2': true}">
                       <div class="d-flex align-start">
                         <VIcon
-                          :icon="candidateReceivedScores[item.idItem] === item.pontuacoes.parcialmenteAdequado.pontos ? 'ri-checkbox-indeterminate-fill' : 'ri-checkbox-blank-circle-line'"
+                          :icon="evaluationScores[item.idItem] === item.pontuacoes.parcialmenteAdequado.pontos ? 'ri-checkbox-indeterminate-fill' : 'ri-checkbox-blank-circle-line'"
                           color="warning"
                           size="small"
                           class="me-2 mt-1 flex-shrink-0"
@@ -307,10 +468,10 @@ const getEvaluationLabel = (item, score) => {
                     </div>
 
                     <div v-if="item.pontuacoes?.inadequado"
-                      :class="{'criterio-item': true, 'criterio-selecionado': candidateReceivedScores[item.idItem] === item.pontuacoes.inadequado.pontos}">
+                      :class="{'criterio-item': true, 'criterio-selecionado': evaluationScores[item.idItem] === item.pontuacoes.inadequado.pontos}">
                       <div class="d-flex align-start">
                         <VIcon
-                          :icon="candidateReceivedScores[item.idItem] === item.pontuacoes.inadequado.pontos ? 'ri-close-circle-fill' : 'ri-checkbox-blank-circle-line'"
+                          :icon="evaluationScores[item.idItem] === item.pontuacoes.inadequado.pontos ? 'ri-close-circle-fill' : 'ri-checkbox-blank-circle-line'"
                           color="error"
                           size="small"
                           class="me-2 mt-1 flex-shrink-0"
@@ -321,6 +482,14 @@ const getEvaluationLabel = (item, score) => {
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  <!-- Feedback textual da IA por item, quando disponível -->
+                  <div v-if="detailsByItemId[item.idItem]?.observacao" class="mt-2">
+                    <VAlert type="info" variant="tonal" density="compact">
+                      <strong>Feedback da IA:</strong>
+                      <span class="ms-1">{{ detailsByItemId[item.idItem].observacao }}</span>
+                    </VAlert>
                   </div>
                 </td>
                 <td class="text-center">

@@ -15,6 +15,7 @@
 
 import { ref, computed, watch } from 'vue'
 import { formatTime } from '@/utils/simulationUtils'
+import { logger } from '@/utils/logger.js'
 
 /**
  * @typedef {Object} SimulationWorkflowParams
@@ -94,6 +95,7 @@ export function useSimulationWorkflow({
      * Se a simulação terminou
      */
     const simulationEnded = ref(false)
+    const simulationPaused = ref(false)
 
     /**
      * Se a simulação foi encerrada manualmente antes do tempo
@@ -104,6 +106,18 @@ export function useSimulationWorkflow({
      * Se o backend foi ativado (delayed activation)
      */
     const backendActivated = ref(false)
+
+    // --- Timer Local (Frontend-Only) ---
+
+    /**
+     * Estado de pause controlado localmente (100% frontend)
+     */
+    const isLocallyPaused = ref(false)
+
+    /**
+     * ID do interval do timer local
+     */
+    let localTimerId = null
 
     let standaloneTimerId = null
 
@@ -191,6 +205,57 @@ export function useSimulationWorkflow({
     })
 
     // --- Métodos ---
+
+    // --- Timer Local (Frontend-Only) ---
+
+    /**
+     * Inicia o timer local controlado pelo frontend
+     */
+    function _startLocalTimer() {
+        clearLocalTimer()
+        let remainingSeconds = simulationTimeSeconds.value
+        timerDisplay.value = formatTime(remainingSeconds)
+
+        localTimerId = setInterval(() => {
+            // Se estiver pausado localmente ou simulação terminou, ignora
+            if (isLocallyPaused.value || simulationEnded.value) {
+                return
+            }
+
+            remainingSeconds -= 1
+            simulationTimeSeconds.value = remainingSeconds
+            timerDisplay.value = formatTime(remainingSeconds)
+
+            // Fim do timer local
+            if (remainingSeconds <= 0) {
+                clearLocalTimer()
+                handleTimerEnd()
+            }
+        }, 1000)
+
+        logger.info('[WORKFLOW] Timer local iniciado', {
+            initialSeconds: remainingSeconds,
+            sessionId: sessionId.value
+        })
+    }
+
+    /**
+     * Limpa o timer local
+     */
+    function clearLocalTimer() {
+        if (localTimerId) {
+            clearInterval(localTimerId)
+            localTimerId = null
+            logger.info('[WORKFLOW] Timer local limpo')
+        }
+    }
+
+    /**
+     * Alterna estado de pause/continue do timer local
+     */
+    function toggleLocalPause() {
+        isLocallyPaused.value = !isLocallyPaused.value
+    }
 
     /**
      * Envia estado "pronto" via socket
@@ -376,6 +441,10 @@ export function useSimulationWorkflow({
         simulationWasManuallyEndedEarly.value = false
         candidateReadyButtonEnabled.value = false
         backendActivated.value = false
+
+        // Resetar timer local
+        isLocallyPaused.value = false
+        clearLocalTimer()
     }
 
     /**
@@ -403,6 +472,9 @@ export function useSimulationWorkflow({
         simulationStarted.value = true
         simulationEnded.value = false
         simulationWasManuallyEndedEarly.value = false
+
+        // 🚀 Iniciar timer local para controle 100% frontend
+        _startLocalTimer()
     }
 
     /**
@@ -415,8 +487,31 @@ export function useSimulationWorkflow({
             return
         }
 
+        // 🚀 IMPORTANTE: Quando o timer local está ativo, ignorar completamente atualizações do backend
+        // O timer local tem controle 100% frontend e não deve ser sobrescrito
+        if (localTimerId) {
+            // Timer local está ativo - ignorar backend completamente
+            return
+        }
+
+        // Só sincronizar com backend se o timer local NÃO estiver ativo
         if (data?.remainingSeconds !== undefined) {
-            timerDisplay.value = formatTime(data.remainingSeconds)
+            const currentLocalTime = simulationTimeSeconds.value
+            const backendTime = data.remainingSeconds
+
+            // Atualizar timer local com valor do backend (apenas para sincronização)
+            simulationTimeSeconds.value = backendTime
+            timerDisplay.value = formatTime(backendTime)
+
+            // Log quando houver correção de drift significativa
+            const drift = Math.abs(backendTime - currentLocalTime)
+            if (drift > 2) {
+                logger.info('[WORKFLOW] Timer sincronizado com backend (drift corrigido)', {
+                    backendTime,
+                    localTime: currentLocalTime,
+                    drift
+                })
+            }
         }
     }
 
@@ -426,6 +521,7 @@ export function useSimulationWorkflow({
     function handleTimerEnd() {
         timerDisplay.value = "00:00"
         simulationEnded.value = true
+        clearLocalTimer() // Limpar timer local também
     }
 
     /**
@@ -435,6 +531,31 @@ export function useSimulationWorkflow({
     function handleTimerStopped(_data) {
         simulationEnded.value = true
         simulationWasManuallyEndedEarly.value = true
+        clearLocalTimer() // Limpar timer local também
+    }
+
+    /**
+     * Processa evento de pausa da simulação
+     * @param {any} data - Dados com remainingSeconds (opcional)
+     */
+    function handleSimulationPaused(data) {
+        simulationPaused.value = true
+        if (data?.remainingSeconds !== undefined) {
+            simulationTimeSeconds.value = data.remainingSeconds
+            timerDisplay.value = formatTime(data.remainingSeconds)
+        }
+    }
+
+    /**
+     * Processa evento de retomada da simulação
+     * @param {any} data - Dados com remainingSeconds (opcional)
+     */
+    function handleSimulationResumed(data) {
+        simulationPaused.value = false
+        if (data?.remainingSeconds !== undefined) {
+            simulationTimeSeconds.value = data.remainingSeconds
+            timerDisplay.value = formatTime(data.remainingSeconds)
+        }
     }
 
     /**
@@ -530,8 +651,12 @@ export function useSimulationWorkflow({
         actorReadyButtonEnabled,
         simulationStarted,
         simulationEnded, // ✅ EXPOSTO: Gerenciado pelo composable
+        simulationPaused, // ✅ EXPOSTO: Gerenciado pelo composable
         simulationWasManuallyEndedEarly,
         backendActivated,
+
+        // Timer local (frontend-only)
+        isLocallyPaused,
 
         // Computeds
         bothParticipantsReady,
@@ -543,6 +668,8 @@ export function useSimulationWorkflow({
         manuallyEndSimulation,
         updateTimerDisplayFromSelection,
         resetWorkflowState,
+        toggleLocalPause,
+        clearLocalTimer,
 
         // Handlers de eventos (para uso nos listeners de socket)
         handlePartnerReady,
@@ -550,8 +677,12 @@ export function useSimulationWorkflow({
         handleTimerUpdate,
         handleTimerEnd,
         handleTimerStopped,
+        handleSimulationPaused,
+        handleSimulationResumed,
         handlePartnerDisconnect,
         handleSocketConnect,
         handleSocketDisconnect
     }
 }
+
+

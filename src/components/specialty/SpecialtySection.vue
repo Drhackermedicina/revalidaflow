@@ -60,8 +60,7 @@ const emit = defineEmits([
   'station-click',
   'add-to-sequence',
   'remove-from-sequence',
-  'edit-station',
-  'start-ai-training'
+  'edit-station'
 ])
 </script>
 
@@ -103,7 +102,6 @@ const emit = defineEmits([
             @add-to-sequence="emit('add-to-sequence', $event)"
             @remove-from-sequence="emit('remove-from-sequence', $event)"
             @edit-station="emit('edit-station', $event)"
-            @start-ai-training="emit('start-ai-training', $event)"
           />
         </template>
       </v-virtual-scroll>

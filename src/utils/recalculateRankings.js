@@ -5,6 +5,7 @@
 
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../plugins/firebase.js'
+import { logger } from '@/utils/logger.js'
 
 /**
  * Calcula a pontuação de ranking baseada nas estações concluídas
@@ -33,7 +34,7 @@ function calculateRankingScore(estacoesConcluidas) {
  * Recalcula o ranking de todos os usuários
  */
 export async function recalculateAllRankings() {
-    console.log('🔄 Iniciando recálculo de rankings...')
+    logger.info('🔄 Iniciando recálculo de rankings...')
 
     try {
         const usersRef = collection(db, 'usuarios')
@@ -57,18 +58,18 @@ export async function recalculateAllRankings() {
                 })
 
                 updatedCount++
-                console.log(`✅ ${userData.nome || userDoc.id}: ${newRanking} pontos`)
+                logger.info(`✅ ${userData.nome || userDoc.id}: ${newRanking} pontos`)
 
             } catch (error) {
-                console.error(`❌ Erro ao atualizar ${userDoc.id}:`, error)
+                logger.error(`❌ Erro ao atualizar ${userDoc.id}:`, error)
                 errorCount++
             }
         }
 
-        console.log(`\n📊 Recálculo concluído:`)
-        console.log(`   ✅ Usuários atualizados: ${updatedCount}`)
-        console.log(`   ❌ Erros: ${errorCount}`)
-        console.log(`   📈 Total processado: ${snapshot.size}`)
+        logger.info(`\n📊 Recálculo concluído:`)
+        logger.info(`   ✅ Usuários atualizados: ${updatedCount}`)
+        logger.info(`   ❌ Erros: ${errorCount}`)
+        logger.info(`   📈 Total processado: ${snapshot.size}`)
 
         return {
             success: true,
@@ -78,7 +79,7 @@ export async function recalculateAllRankings() {
         }
 
     } catch (error) {
-        console.error('❌ Erro geral no recálculo:', error)
+        logger.error('❌ Erro geral no recálculo:', error)
         return {
             success: false,
             error: error.message
@@ -102,13 +103,14 @@ export async function runRankingRecalculation() {
 // Para uso no Node.js (backend)
 if (typeof window === 'undefined') {
     // Executar automaticamente se for Node.js
-    recalculateAllRankings()
-        .then(result => {
-            console.log('Recálculo concluído:', result)
+    (async () => {
+        try {
+            const result = await recalculateAllRankings()
+            logger.info('Recálculo concluído:', result)
             process.exit(result.success ? 0 : 1)
-        })
-        .catch(error => {
-            console.error('Erro fatal:', error)
+        } catch (error) {
+            logger.error('Erro fatal:', error)
             process.exit(1)
-        })
+        }
+    })()
 }

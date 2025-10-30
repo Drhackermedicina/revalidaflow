@@ -2,38 +2,86 @@ import { ref } from 'vue'
 import { currentUser } from '@/plugins/auth.js'
 import { backendUrl } from '@/utils/backendUrl.js'
 
-/**
- * @typedef {import('vue').Ref} Ref
- */
+function sanitizeText(value) {
+  if (!value || typeof value !== 'string') return ''
+  return value.replace(/ausente/gi, '').trim()
+}
 
-/**
- * Gerencia a avaliação automática do PEP (checklist) usando IA.
- * @param {{checklistData: Ref<object>, stationData: Ref<object>, conversationHistory: Ref<Array<object>>, markedPepItems: Ref<object>}} props
- */
-export function useAiEvaluation({ checklistData, stationData, conversationHistory, markedPepItems }) {
+function sanitizeList(list) {
+  if (!Array.isArray(list)) return []
+  return list
+    .map(sanitizeText)
+    .filter(Boolean)
+}
+
+function normalizePerformanceSummary(performance = {}) {
+  const summary = {
+    visaoGeral: sanitizeText(performance.visaoGeral),
+    pontosFortes: sanitizeList(performance.pontosFortes),
+    pontosDeMelhoria: sanitizeList(performance.pontosDeMelhoria),
+    recomendacoesOSCE: sanitizeList(performance.recomendacoesOSCE),
+    indicadoresCriticos: sanitizeList(performance.indicadoresCriticos)
+  }
+
+  if (!summary.visaoGeral) {
+    summary.visaoGeral = 'Resumo indisponível. Revise cada item do PEP, reforçando segurança do paciente, comunicação estruturada e execução completa das tarefas obrigatórias.'
+  }
+  if (!summary.pontosFortes.length) {
+    summary.pontosFortes.push('Identifique os itens do PEP já dominados e mantenha a prática estruturada do roteiro da estação.')
+  }
+  if (!summary.pontosDeMelhoria.length) {
+    summary.pontosDeMelhoria.push('Mapeie e treine os itens do PEP não realizados ou parcialmente executados, repetindo o roteiro em voz alta.')
+  }
+  if (!summary.recomendacoesOSCE.length) {
+    summary.recomendacoesOSCE.push('Realize simulações OSCE cronometradas e revise protocolos nacionais relacionados ao tema da estação.')
+  }
+  if (!summary.indicadoresCriticos.length) {
+    summary.indicadoresCriticos.push('Garanta o cumprimento dos critérios críticos do PEP (segurança, comunicação e condutas prioritárias).')
+  }
+
+  return summary
+}
+
+export function useAiEvaluation({ checklistData, stationData, conversationHistory }) {
   const isEvaluating = ref(false)
   const evaluationCompleted = ref(false)
+  const evaluationPerformance = ref(null)
 
-  /**
-   * Executa a avaliação automática do PEP.
-   */
+  function buildFallbackPerformance(messagePrefix = '') {
+    const prefix = messagePrefix ? `${messagePrefix} ` : ''
+    return normalizePerformanceSummary({
+      visaoGeral: `${prefix}Revise o checklist ponto a ponto e treine novamente a estação.`,
+      pontosFortes: [],
+      pontosDeMelhoria: [
+        'Complete cada subitem do PEP seguindo o roteiro do paciente.',
+        'Justifique condutas com base em protocolos brasileiros.'
+      ],
+      recomendacoesOSCE: [
+        'Simule a estação com cronômetro e feedback de um tutor.',
+        'Reforce comunicação, segurança do paciente e critérios objetivos.'
+      ],
+      indicadoresCriticos: []
+    })
+  }
+
   async function runAiEvaluation() {
     if (!checklistData.value?.itensAvaliacao?.length) {
       console.log('❌ Não há itens de avaliação no PEP para a IA avaliar.')
-      return
+      return null
     }
 
     console.log('🤖 IA iniciando avaliação inteligente do PEP...')
     isEvaluating.value = true
 
     try {
-      const response = await fetch(`${backendUrl}/ai-chat/evaluate-pep`, {
+      const response = await fetch(`${backendUrl}/ai-simulation/evaluate-pep`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentUser.value?.accessToken || ''}`,
+          'user-id': currentUser.value?.uid || currentUser.value?.userId || '',
         },
         body: JSON.stringify({
+          sessionId: sessionId?.value || null,
           stationData: stationData.value,
           conversationHistory: conversationHistory.value,
           checklistData: checklistData.value,
@@ -43,62 +91,101 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
       if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`)
 
       const aiEvaluation = await response.json()
-      processAIEvaluation(aiEvaluation.evaluation)
+      const result = processAIEvaluation(aiEvaluation.evaluation)
+      evaluationPerformance.value = result?.performance || null
+      return result
     } catch (error) {
       console.error('❌ Erro na avaliação automática por IA:', error)
-      autoEvaluatePEPFallback()
+      const fallback = autoEvaluatePEPFallback()
+      evaluationPerformance.value = fallback?.performance || null
+      return fallback
     }
   }
 
-  /**
-   * Processa o resultado estruturado da avaliação da IA.
-   * @param {object | string} evaluationData
-   */
   function processAIEvaluation(evaluationData) {
     let evaluations = evaluationData
     if (typeof evaluationData === 'string') {
       try {
         evaluations = JSON.parse(evaluationData)
-      } catch (e) {
+      } catch (error) {
         return processAIEvaluationSimple(evaluationData)
       }
     }
 
-    if (evaluations && Array.isArray(evaluations.items)) {
-      evaluations.items.forEach((itemEval, index) => {
-        const item = checklistData.value.itensAvaliacao[index]
-        if (!item) return
-
-        const pontuacao = itemEval.pontuacao || itemEval.score || 0
-        const justificativa = itemEval.justificativa || itemEval.observacao || 'Avaliado pela IA'
-
-        markedPepItems.value[item.idItem] = [{
-          pontuacao: pontuacao,
-          observacao: justificativa,
-          timestamp: new Date().toISOString(),
-        }]
-      })
-    } else {
-      return processAIEvaluationSimple(typeof evaluationData === 'string' ? evaluationData : JSON.stringify(evaluationData))
+    if (!evaluations || !Array.isArray(evaluations.items)) {
+      return processAIEvaluationSimple(JSON.stringify(evaluations ?? {}))
     }
+
+    const scores = {}
+    let total = 0
+    const details = []
+
+    evaluations.items.forEach((itemEval, index) => {
+      const item = checklistData.value.itensAvaliacao[index]
+      if (!item) return
+
+      const pontuacao = Number(itemEval.pontuacao ?? itemEval.score ?? 0)
+      const justificativa = sanitizeText(itemEval.justificativa || itemEval.observacao || 'Avaliado pela IA')
+
+      scores[item.idItem] = pontuacao
+      total += pontuacao
+      details.push({ itemId: item.idItem, pontuacao, observacao: justificativa })
+    })
 
     evaluationCompleted.value = true
     isEvaluating.value = false
+
+    return {
+      scores,
+      total,
+      details,
+      performance: normalizePerformanceSummary(evaluations.performance || {})
+    }
   }
 
-  /**
-   * Fallback para processar a avaliação se o formato JSON falhar.
-   * @param {string} evaluationText
-   */
-  function processAIEvaluationSimple(evaluationText) { /* ... Lógica de fallback ... */ }
+  function processAIEvaluationSimple(evaluationText) {
+    const scores = {}
+    let total = 0
+    const details = []
+    const items = checklistData.value?.itensAvaliacao || []
 
-  /**
-   * Fallback de emergência se a chamada à API falhar.
-   */
+    const numberMatches = Array.from(String(evaluationText || '').matchAll(/\((\d+)\)\s*([0-9]+(?:\.[0-9]+)?)/g))
+    const byIndexScore = new Map(numberMatches.map(match => [Number(match[1]) - 1, Number(match[2])]))
+
+    items.forEach((item, idx) => {
+      const adequadoPts = item.pontuacoes?.adequado?.pontos ?? 5
+      const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos ?? 2.5
+      const inadequadoPts = item.pontuacoes?.inadequado?.pontos ?? 0
+
+      let score = byIndexScore.has(idx) ? byIndexScore.get(idx) : parcialPts
+      const candidates = [adequadoPts, parcialPts, inadequadoPts]
+      score = candidates.reduce((prev, cur) => Math.abs(cur - score) < Math.abs(prev - score) ? cur : prev, candidates[0])
+
+      const observacao = 'Avaliação automática (fallback simples)'
+      scores[item.idItem] = Number(score)
+      total += Number(score)
+      details.push({ itemId: item.idItem, pontuacao: Number(score), observacao })
+    })
+
+    evaluationCompleted.value = true
+    isEvaluating.value = false
+
+    return {
+      scores,
+      total,
+      details,
+      performance: buildFallbackPerformance()
+    }
+  }
+
   function autoEvaluatePEPFallback() {
     console.log('⚠️ Usando avaliação fallback simples...')
     const candidateMessages = conversationHistory.value.filter(msg => msg.role === 'candidate')
     const totalMessages = candidateMessages.length
+
+    const scores = {}
+    let total = 0
+    const details = []
 
     checklistData.value.itensAvaliacao.forEach(item => {
       const adequadoPts = item.pontuacoes?.adequado?.pontos ?? 5
@@ -115,20 +202,27 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
         observacao = 'Avaliação automática (fallback): participação parcial.'
       }
 
-      markedPepItems.value[item.idItem] = [{
-        pontuacao: Number(score),
-        observacao,
-        timestamp: new Date().toISOString(),
-      }]
+      scores[item.idItem] = Number(score)
+      total += Number(score)
+      details.push({ itemId: item.idItem, pontuacao: Number(score), observacao })
     })
+
     evaluationCompleted.value = true
     isEvaluating.value = false
+
+    return {
+      scores,
+      total,
+      details,
+      performance: buildFallbackPerformance('Resumo gerado por fallback.')
+    }
   }
 
   return {
     isEvaluating,
     evaluationCompleted,
-    runAiEvaluation,
+    evaluationPerformance,
+    runAiEvaluation
   }
 }
 

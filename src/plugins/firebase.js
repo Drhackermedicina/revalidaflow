@@ -351,14 +351,15 @@ export async function testFirestoreConnection(timeout = CONNECTION_TIMEOUT) {
 }
 
 // Monitor de status de rede
-window.addEventListener('online', () => {
+window.addEventListener('online', async () => {
   isOnline = true;
   connectionRetries = 0;
   proxyErrorCount = 0; // Reset proxy errors on reconnection
 
   // Tentar desativar modo offline se conectividade foi restaurada
   if (isOfflineMode) {
-    testFirestoreConnection().then(result => {
+    try {
+      const result = await testFirestoreConnection();
       if (result.connected) {
         setOfflineMode(false, 'Conectividade restaurada');
         validationLogger.logFirestoreRecovered('network_restoration', {
@@ -366,7 +367,9 @@ window.addEventListener('online', () => {
           connectionTestResult: result
         });
       }
-    });
+    } catch (error) {
+      console.warn('🔍 Erro ao testar conexão durante restauração:', error);
+    }
   }
 
   console.log('🌐 Conectividade restaurada');

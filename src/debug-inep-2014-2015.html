@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug INEP 2014/2015</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <h1>Debug INEP 2014/2015</h1>
+        <button @click="runTest">Testar Estações</button>
+        <div v-if="results">
+            <h2>Resultados:</h2>
+            <pre>{{ results }}</pre>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+
+        function normalizeText(text) {
+            if (!text) return '';
+            return text
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function isINEPStation(station) {
+            const idEstacao = (station.idEstacao || '').toUpperCase();
+            if (!idEstacao.startsWith('REVALIDA_')) {
+                return idEstacao.startsWith('INEP');
+            }
+            return (
+                !idEstacao.startsWith('REVALIDA_FACIL') &&
+                !idEstacao.startsWith('REVALIDA_FLOW')
+            );
+        }
+
+        function getINEPPeriod(station) {
+            const idEstacao = station.idEstacao || '';
+
+            if (!isINEPStation(station)) {
+                return null;
+            }
+
+            // Verificar formatos conhecidos
+            const formats = [
+                // Formato padrão INEP_2014
+                /(?:INEP|REVALIDA)_(\d{4})/,
+                // Formato com subperíodo INEP_2014_1
+                /(?:INEP|REVALIDA)_(\d{4})_(\d)/,
+                // Formato com separador de ponto INEP_2014.1
+                /(?:INEP|REVALIDA)_(\d{4})\.(\d)/
+            ];
+
+            for (const format of formats) {
+                const match = idEstacao.match(format);
+                if (match) {
+                    const year = match[1];
+                    const subPeriod = match[2];
+                    return subPeriod ? `${year}.${subPeriod}` : year;
+                }
+            }
+
+            // Se não encontrou em nenhum formato, tenta extrair apenas o ano
+            const yearOnly = idEstacao.match(/\d{4}/);
+            if (yearOnly) {
+                return yearOnly[0];
+            }
+
+            return null;
+        }
+
+        // Estações de teste
+        const mockStations = [
+            // 2014
+            {
+                idEstacao: 'INEP_2014_CM_LOMBALGIA',
+                tituloEstacao: 'Lombalgia'
+            },
+            {
+                idEstacao: 'INEP_2014.1_GO_01',
+                tituloEstacao: 'Ginecologia 1'
+            },
+            {
+                idEstacao: 'REVALIDA_2014_CM_02',
+                tituloEstacao: 'Clínica Médica 2'
+            },
+            // 2015
+            {
+                idEstacao: 'INEP_2015_CG_TRAUMA',
+                tituloEstacao: 'Trauma torácico'
+            },
+            {
+                idEstacao: 'INEP_2015_CM_DIABETES',
+                tituloEstacao: 'Diabetes mellitus'
+            },
+            {
+                idEstacao: 'REVALIDA_2015_1_CM_01',
+                tituloEstacao: 'Clínica Médica 1'
+            },
+            {
+                idEstacao: 'REVALIDA_2015.2_GO_01',
+                tituloEstacao: 'Ginecologia 1'
+            }
+        ];
+
+        createApp({
+            setup() {
+                const results = ref(null);
+
+                const runTest = () => {
+                    const grouped = {
+                        '2014': [],
+                        '2015': []
+                    };
+
+                    for (const station of mockStations) {
+                        if (isINEPStation(station)) {
+                            const period = getINEPPeriod(station);
+                            console.log(`Processando ${station.idEstacao}: período = ${period}`);
+
+                            if (period) {
+                                const year = period.split('.')[0];
+                                if (grouped[year]) {
+                                    grouped[year].push(station);
+                                }
+                            }
+                        }
+                    }
+
+                    results.value = JSON.stringify({
+                        total: mockStations.length,
+                        porAno: {
+                            2014: {
+                                total: grouped['2014'].length,
+                                estacoes: grouped['2014']
+                            },
+                            2015: {
+                                total: grouped['2015'].length,
+                                estacoes: grouped['2015']
+                            }
+                        }
+                    }, null, 2);
+                };
+
+                return {
+                    results,
+                    runTest
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

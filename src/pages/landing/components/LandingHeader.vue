@@ -86,7 +86,7 @@ onUnmounted(() => {
         <div class="header-logo">
           <router-link to="/" class="logo-link">
             <img
-              src="@/assets/images/revalidaflow.png"
+              src="/revalidaflow-optimized.webp"
               alt="REVALIDA FLOW"
               class="logo-image"
             />

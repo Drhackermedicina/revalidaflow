@@ -12,10 +12,19 @@ node_modules
 dist
 dist-ssr
 *.local
-scripts/validateDatabase.js 
+scripts/validateDatabase.js
 /cypress/videos/
 /cypress/screenshots/
 
 # 👉 Custom Git ignores
 node_modules
 .DS_Store
+
+# Environment variables - SECURITY
+.env
+.env.local
+.env.production
+.env.example
+
+# Claude directory - SECURITY
+.claude/

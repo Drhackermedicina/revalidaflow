@@ -90,20 +90,18 @@ export function playAudioSegment(buffer, offset, duration, volume = 1.0) {
 /**
  * Gracefully close the AudioContext and clear any cached buffers.
  */
-export function closeAudioContext() {
+export async function closeAudioContext() {
   if (!audioContext || audioContext.state === 'closed') {
     return;
   }
 
-  audioContext
-    .close()
-    .then(() => {
-      audioContext = null;
-      audioBufferCache = {};
-    })
-    .catch(error => {
-      console.error('Unable to close AudioContext.', error);
-    });
+  try {
+    await audioContext.close();
+    audioContext = null;
+    audioBufferCache = {};
+  } catch (error) {
+    console.error('Unable to close AudioContext.', error);
+  }
 }
 
 /**

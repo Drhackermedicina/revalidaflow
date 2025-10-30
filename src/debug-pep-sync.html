@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug PEP Sync - Ferramenta de Depuração</title>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #fff;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: #2d2d30;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .panel h2 {
+            color: #4fc3f7;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #4fc3f7;
+            padding-bottom: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #cccccc;
+            font-weight: bold;
+        }
+        
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #666;
+            border-radius: 4px;
+            background: #3c3c3c;
+            color: #fff;
+            font-family: inherit;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4fc3f7;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            background: #0e639c;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #1177bb;
+        }
+        
+        .btn.danger {
+            background: #c62828;
+        }
+        
+        .btn.success {
+            background: #388e3c;
+        }
+        
+        .btn.warning {
+            background: #f57c00;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .status.disconnected {
+            background: #c62828;
+            color: white;
+        }
+        
+        .status.connecting {
+            background: #f57c00;
+            color: white;
+        }
+        
+        .status.connected {
+            background: #388e3c;
+            color: white;
+        }
+        
+        .console {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .console::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .console::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        
+        .console::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 4px;
+        }
+        
+        .log-entry {
+            margin-bottom: 2px;
+            padding: 2px 0;
+        }
+        
+        .log-timestamp {
+            color: #666;
+        }
+        
+        .log-sent {
+            color: #4fc3f7;
+        }
+        
+        .log-received {
+            color: #66bb6a;
+        }
+        
+        .log-error {
+            color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+        
+        .log-warning {
+            color: #ff9800;
+            background: rgba(255, 152, 0, 0.1);
+        }
+        
+        .log-info {
+            color: #2196f3;
+        }
+        
+        .state-display {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .state-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+        
+        .state-item:last-child {
+            border-bottom: none;
+        }
+        
+        .state-key {
+            color: #cccccc;
+        }
+        
+        .state-value {
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .pep-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: #3c3c3c;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        
+        .pep-item button {
+            width: auto;
+            padding: 4px 8px;
+            font-size: 10px;
+        }
+        
+        .pep-item.marked {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .sync-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+        
+        .sync-indicator.sync {
+            background: #4caf50;
+            animation: pulse 1s infinite;
+        }
+        
+        .sync-indicator.error {
+            background: #f44336;
+            animation: pulse 1s infinite;
+        }
+        
+        .sync-indicator.waiting {
+            background: #ff9800;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug PEP Sync - Ferramenta de Depuração de Sincronização</h1>
+    
+    <!-- Status de Conexão -->
+    <div id="connectionStatus" class="status disconnected">
+        Status: Desconectado
+        <span class="sync-indicator waiting" id="syncIndicator"></span>
+    </div>
+    
+    <div class="container">
+        <!-- Painel ATOR -->
+        <div class="panel">
+            <h2>🎭 Visão do Ator</h2>
+            
+            <div class="controls">
+                <button class="btn" id="actorConnect">Conectar como Ator</button>
+                <button class="btn danger" id="actorDisconnect">Desconectar</button>
+                <button class="btn success" id="actorMarkItem">Marcar Item</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="actorStationId">ID da Estação:</label>
+                <input type="text" id="actorStationId" placeholder="ex: station-123">
+            </div>
+            
+            <div class="form-group">
+                <label for="actorSessionId">Session ID:</label>
+                <input type="text" id="actorSessionId" placeholder="ex: session-456">
+            </div>
+            
+            <div class="form-group">
+                <label>Estado Ator:</label>
+                <div class="state-display" id="actorState">
+                    <div class="state-item">
+                        <span class="state-key">Socket Connected:</span>
+                        <span class="state-value" id="actorSocketStatus">Não</span>
+                    </div>
+                    <div class="state-item">
+                        <span class="state-key">Session Joined:</span>
+                        <span class="state-value" id="actorSessionStatus">Não</span>
+                    </div>
+                    <div class="state-item">
+                        <span class="state-key">PEP Released:</span>
+                        <span class="state-value" id="actorPepReleased">Não</span>
+                    </div>
+                    <div class="state-item">
+                        <span class="state-key">Marked Items:</span>
+                        <span class="state-value" id="actorMarkedCount">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>PEP Items (Simulados):</label>
+                <div id="actorPepItems" class="pep-item-container">
+                    <!-- PEP items will be populated dynamically -->
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn warning" id="actorReleasePep">🚀 Liberar PEP</button>
+                <button class="btn" id="actorSendScores">📊 Enviar Scores</button>
+            </div>
+            
+            <h3>Estado Local Ator:</h3>
+            <div class="state-display" id="actorLocalState">
+                <div class="state-item">
+                    <span class="state-key">markedPepItems:</span>
+                    <span class="state-value" id="actorMarkedPepItems">{}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">evaluationScores:</span>
+                    <span class="state-value" id="actorEvaluationScores">{}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Painel CANDIDATO -->
+        <div class="panel">
+            <h2>🎯 Visão do Candidato</h2>
+            
+            <div class="controls">
+                <button class="btn" id="candidateConnect">Conectar como Candidato</button>
+                <button class="btn danger" id="candidateDisconnect">Desconectar</button>
+                <button class="btn success" id="candidateMarkItem">Marcar Item</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="candidateSessionId">Session ID:</label>
+                <input type="text" id="candidateSessionId" placeholder="ex: session-456">
+            </div>
+            
+            <div class="form-group">
+                <label>Estado Candidato:</label>
+                <div class="state-display" id="candidateState">
+                    <div class="state-item">
+                        <span class="state-key">Socket Connected:</span>
+                        <span class="state-value" id="candidateSocketStatus">Não</span>
+                    </div>
+                    <div class="state-item">
+                        <span class="state-key">Session Joined:</span>
+                        <span class="state-value" id="candidateSessionStatus">Não</span>
+                    </div>
+                    <div class="state-item">
+                        <span class="state-key">PEP Visible:</span>
+                        <span class="state-value" id="candidatePepVisible">Não</span>
+                    </div>
+                    <div class="state-item">
+                        <span class="state-key">Received Marks:</span>
+                        <span class="state-value" id="candidateReceivedCount">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>PEP Items Recebidos:</label>
+                <div id="candidatePepItems" class="pep-item-container">
+                    <div class="loading">Aguardando sincronização...</div>
+                </div>
+            </div>
+            
+            <h3>Estado Local Candidato:</h3>
+            <div class="state-display" id="candidateLocalState">
+                <div class="state-item">
+                    <span class="state-key">markedPepItems:</span>
+                    <span class="state-value" id="candidateMarkedPepItems">{}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">evaluationScores:</span>
+                    <span class="state-value" id="candidateEvaluationScores">{}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">candidateReceivedScores:</span>
+                    <span class="state-value" id="candidateReceivedScores">{}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Console de Logs -->
+    <div class="panel full-width">
+        <h2>📝 Console de Depuração em Tempo Real</h2>
+        <div class="controls">
+            <button class="btn" onclick="clearConsole()">Limpar Console</button>
+            <button class="btn" onclick="downloadLogs()">Baixar Logs</button>
+            <button class="btn warning" onclick="simulateFlow()">🚀 Simular Fluxo Completo</button>
+            <button class="btn success" onclick="autoTest()">🔄 Auto Teste</button>
+        </div>
+        <div id="console" class="console">
+            <div class="log-entry">
+                <span class="log-timestamp">[Ready]</span>
+                <span class="log-info"> Ferramenta de depuração PEP iniciada. Conecte como Ator e Candidato para testar.</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Estado Global -->
+    <div class="panel full-width">
+        <h2>🌐 Estado Global da Sessão</h2>
+        <div class="state-display" id="globalState">
+            <div class="state-item">
+                <span class="state-key">Frontend URL:</span>
+                <span class="state-value" id="frontendUrl">-</span>
+            </div>
+            <div class="state-item">
+                <span class="state-key">Backend URL:</span>
+                <span class="state-value" id="backendUrl">-</span>
+            </div>
+            <div class="state-item">
+                <span class="state-key">Session ID:</span>
+                <span class="state-value" id="globalSessionId">-</span>
+            </div>
+            <div class="state-item">
+                <span class="state-key">Actor Socket ID:</span>
+                <span class="state-value" id="actorSocketId">-</span>
+            </div>
+            <div class="state-item">
+                <span class="state-key">Candidate Socket ID:</span>
+                <span class="state-value" id="candidateSocketId">-</span>
+            </div>
+            <div class="state-item">
+                <span class="state-key">Sync Status:</span>
+                <span class="state-value" id="syncStatus">Aguardando conexão</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // URLs configuradas dinamicamente
+        const FRONTEND_URL = window.location.origin;
+        const BACKEND_URL = 'http://localhost:3000';
+        
+        document.getElementById('frontendUrl').textContent = FRONTEND_URL;
+        document.getElementById('backendUrl').textContent = BACKEND_URL;
+        
+        // Estado global
+        let actorSocket = null;
+        let candidateSocket = null;
+        let actorState = {
+            connected: false,
+            sessionJoined: false,
+            pepReleased: false,
+            markedPepItems: {},
+            evaluationScores: {},
+            stationId: '',
+            sessionId: '',
+            userId: 'actor-debug-001',
+            displayName: 'Debug Ator'
+        };
+        
+        let candidateState = {
+            connected: false,
+            sessionJoined: false,
+            pepVisible: false,
+            markedPepItems: {},
+            evaluationScores: {},
+            candidateReceivedScores: {},
+            sessionId: '',
+            userId: 'candidate-debug-001',
+            displayName: 'Debug Candidato'
+        };
+        
+        let eventLog = [];
+        
+        // Utilitários
+        function generateSessionId() {
+            return `debug-session-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+        }
+        
+        function updateConnectionStatus(status, indicatorClass) {
+            const statusElement = document.getElementById('connectionStatus');
+            const indicator = document.getElementById('syncIndicator');
+            
+            statusElement.className = `status ${status}`;
+            statusElement.innerHTML = `Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+            statusElement.appendChild(indicator);
+            
+            indicator.className = `sync-indicator ${indicatorClass}`;
+        }
+        
+        function log(message, type = 'info', role = 'system') {
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const consoleElement = document.getElementById('console');
+            
+            const logClass = `log-${type}`;
+            const arrow = role === 'actor' ? '🚀' : role === 'candidate' ? '🎯' : 'ℹ️';
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${logClass}`;
+            logEntry.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-info">${arrow} ${message}</span>
+            `;
+            
+            consoleElement.appendChild(logEntry);
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+            
+            // Salvar log para download
+            eventLog.push({
+                timestamp: new Date().toISOString(),
+                message,
+                type,
+                role
+            });
+        }
+        
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+            eventLog = [];
+            log('Console limpo', 'info');
+        }
+        
+        function downloadLogs() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                sessionId: actorState.sessionId || candidateState.sessionId || 'N/A',
+                actorState,
+                candidateState,
+                eventLog
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pep-debug-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            log('Logs baixados', 'info');
+        }
+        
+        function updateActorState() {
+            document.getElementById('actorSocketStatus').textContent = actorState.connected ? 'Sim' : 'Não';
+            document.getElementById('actorSessionStatus').textContent = actorState.sessionJoined ? 'Sim' : 'Não';
+            document.getElementById('actorPepReleased').textContent = actorState.pepReleased ? 'Sim' : 'Não';
+            document.getElementById('actorMarkedCount').textContent = Object.keys(actorState.markedPepItems).length;
+            document.getElementById('actorMarkedPepItems').textContent = JSON.stringify(actorState.markedPepItems);
+            document.getElementById('actorEvaluationScores').textContent = JSON.stringify(actorState.evaluationScores);
+            document.getElementById('actorSocketId').textContent = actorSocket?.id || '-';
+        }
+        
+        function updateCandidateState() {
+            document.getElementById('candidateSocketStatus').textContent = candidateState.connected ? 'Sim' : 'Não';
+            document.getElementById('candidateSessionStatus').textContent = candidateState.sessionJoined ? 'Sim' : 'Não';
+            document.getElementById('candidatePepVisible').textContent = candidateState.pepVisible ? 'Sim' : 'Não';
+            document.getElementById('candidateReceivedCount').textContent = Object.keys(candidateState.markedPepItems).length;
+            document.getElementById('candidateMarkedPepItems').textContent = JSON.stringify(candidateState.markedPepItems);
+            document.getElementById('candidateEvaluationScores').textContent = JSON.stringify(candidateState.evaluationScores);
+            document.getElementById('candidateReceivedScores').textContent = JSON.stringify(candidateState.candidateReceivedScores);
+            document.getElementById('candidateSocketId').textContent = candidateSocket?.id || '-';
+        }
+        
+        function updateGlobalState() {
+            document.getElementById('globalSessionId').textContent = actorState.sessionId || candidateState.sessionId || '-';
+            
+            const syncStatus = actorState.connected && candidateState.connected ? 
+                (actorState.sessionId === candidateState.sessionId ? 'Sincronizado' : 'Desincronizado') : 
+                'Aguardando conexão';
+            document.getElementById('syncStatus').textContent = syncStatus;
+            
+            // Atualizar indicador de sync
+            const indicatorClass = syncStatus === 'Sincronizado' ? 'sync' : 
+                                 syncStatus === 'Desincronizado' ? 'error' : 'waiting';
+            updateConnectionStatus(syncStatus.toLowerCase().replace(' ', '-'), indicatorClass);
+        }
+        
+        // Gerar PEP items simulados
+        function generatePepItems() {
+            const items = [
+                { id: 'item-1', descricao: 'Verificação de pressão arterial' },
+                { id: 'item-2', descricao: 'Ausculta cardíaca' },
+                { id: 'item-3', descricao: 'Palpação abdominal' },
+                { id: 'item-4', descricao: 'Exame neurológico' },
+                { id: 'item-5', descricao: 'Prescrição médica' }
+            ];
+            return items;
+        }
+        
+        function renderPepItems(containerId, items, isEditable = true) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            items.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'pep-item';
+                itemDiv.id = `${containerId}-${item.id}`;
+                
+                const isMarked = containerId === 'actorPepItems' ? 
+                    actorState.markedPepItems[item.id] : 
+                    candidateState.markedPepItems[item.id];
+                
+                if (isMarked) {
+                    itemDiv.classList.add('marked');
+                }
+                
+                itemDiv.innerHTML = `
+                    <span>${item.descricao}</span>
+                    ${isEditable ? `<button onclick="togglePepItem('${item.id}')">${isMarked ? 'Desmarcar' : 'Marcar'}</button>` : ''}
+                `;
+                
+                container.appendChild(itemDiv);
+            });
+        }
+        
+        function togglePepItem(itemId) {
+            const currentState = actorState.markedPepItems[itemId] || [];
+            actorState.markedPepItems[itemId] = !currentState;
+            
+            const itemElement = document.getElementById(`actorPepItems-${itemId}`);
+            if (itemElement) {
+                itemElement.classList.toggle('marked');
+                const button = itemElement.querySelector('button');
+                if (button) {
+                    button.textContent = actorState.markedPepItems[itemId] ? 'Desmarcar' : 'Marcar';
+                }
+            }
+            
+            updateActorState();
+            log(`Item ${itemId} ${actorState.markedPepItems[itemId] ? 'marcado' : 'desmarcado'} pelo ator`, 'info', 'actor');
+            
+            // Emitir evento se socket conectado
+            if (actorSocket?.connected && actorState.sessionJoined) {
+                const payload = {
+                    sessionId: actorState.sessionId,
+                    scores: actorState.evaluationScores,
+                    markedPepItems: actorState.markedPepItems,
+                    totalScore: 10,
+                    forceSync: true
+                };
+                
+                actorSocket.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', payload);
+                log(`📤 EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE emitido`, 'sent', 'actor');
+            }
+        }
+        
+        // Função para conectar como ator
+        function connectAsActor() {
+            const stationId = document.getElementById('actorStationId').value || 'station-debug-001';
+            const sessionId = document.getElementById('actorSessionId').value || generateSessionId();
+            
+            actorState.stationId = stationId;
+            actorState.sessionId = sessionId;
+            
+            document.getElementById('actorSessionId').value = sessionId;
+            document.getElementById('candidateSessionId').value = sessionId;
+            
+            if (actorSocket) {
+                actorSocket.disconnect();
+            }
+            
+            actorSocket = io(BACKEND_URL, {
+                query: {
+                    sessionId: sessionId,
+                    userId: actorState.userId,
+                    role: 'actor',
+                    stationId: stationId,
+                    displayName: actorState.displayName
+                }
+            });
+            
+            log(`🚀 Conectando como Ator - Session: ${sessionId}`, 'info', 'actor');
+            
+            actorSocket.on('connect', () => {
+                actorState.connected = true;
+                updateActorState();
+                updateGlobalState();
+                log(`✅ Ator conectado - Socket ID: ${actorSocket.id}`, 'info', 'actor');
+            });
+            
+            actorSocket.on('disconnect', () => {
+                actorState.connected = false;
+                actorState.sessionJoined = false;
+                updateActorState();
+                updateGlobalState();
+                log(`❌ Ator desconectado`, 'error', 'actor');
+            });
+            
+            actorSocket.on('SERVER_JOIN_CONFIRMED', () => {
+                actorState.sessionJoined = true;
+                updateActorState();
+                updateGlobalState();
+                log(`✅ Ator entrou na sessão`, 'info', 'actor');
+            });
+            
+            actorSocket.on('SERVER_PARTNER_JOINED', (data) => {
+                log(`👥 Parceiro entró na sessão: ${data.displayName}`, 'info', 'actor');
+            });
+            
+            actorSocket.on('SERVER_BOTH_PARTICIPANTS_READY', () => {
+                log(`🏁 Ambos participantes prontos!`, 'info', 'actor');
+            });
+            
+            // Eventos PEP
+            actorSocket.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (data) => {
+                log(`📨 CANDIDATE_RECEIVE_PEP_VISIBILITY (ator recebeu) - shouldBeVisible: ${data.shouldBeVisible}`, 'received', 'actor');
+            });
+            
+            actorSocket.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
+                log(`📨 CANDIDATE_RECEIVE_UPDATED_SCORES (ator recebeu) - scores: ${JSON.stringify(data.scores)}`, 'received', 'actor');
+            });
+            
+            // Gerar PEP items para ator
+            renderPepItems('actorPepItems', generatePepItems());
+            
+            updateActorState();
+            updateGlobalState();
+        }
+        
+        // Função para conectar como candidato
+        function connectAsCandidate() {
+            const sessionId = document.getElementById('candidateSessionId').value || actorState.sessionId;
+            
+            if (!sessionId) {
+                alert('Defina um Session ID primeiro (conecte como Ator)');
+                return;
+            }
+            
+            candidateState.sessionId = sessionId;
+            
+            if (candidateSocket) {
+                candidateSocket.disconnect();
+            }
+            
+            candidateSocket = io(BACKEND_URL, {
+                query: {
+                    sessionId: sessionId,
+                    userId: candidateState.userId,
+                    role: 'candidate',
+                    stationId: actorState.stationId,
+                    displayName: candidateState.displayName
+                }
+            });
+            
+            log(`🎯 Conectando como Candidato - Session: ${sessionId}`, 'info', 'candidate');
+            
+            candidateSocket.on('connect', () => {
+                candidateState.connected = true;
+                updateCandidateState();
+                updateGlobalState();
+                log(`✅ Candidato conectado - Socket ID: ${candidateSocket.id}`, 'info', 'candidate');
+            });
+            
+            candidateSocket.on('disconnect', () => {
+                candidateState.connected = false;
+                candidateState.sessionJoined = false;
+                updateCandidateState();
+                updateGlobalState();
+                log(`❌ Candidato desconectado`, 'error', 'candidate');
+            });
+            
+            candidateSocket.on('SERVER_JOIN_CONFIRMED', () => {
+                candidateState.sessionJoined = true;
+                updateCandidateState();
+                updateGlobalState();
+                log(`✅ Candidato entrou na sessão`, 'info', 'candidate');
+            });
+            
+            // EVENTOS PEP CRÍTICOS PARA CANDIDATO
+            candidateSocket.on('CANDIDATE_RECEIVE_PEP_VISIBILITY', (data) => {
+                candidateState.pepVisible = data.shouldBeVisible;
+                updateCandidateState();
+                updateGlobalState();
+                log(`🎯 PEP VISIBILITY - shouldBeVisible: ${data.shouldBeVisible}`, 'received', 'candidate');
+                
+                if (data.shouldBeVisible) {
+                    renderPepItems('candidatePepItems', generatePepItems(), false);
+                }
+            });
+            
+            candidateSocket.on('CANDIDATE_RECEIVE_UPDATED_SCORES', (data) => {
+                log(`🎯 SCORES RECEIVED - markedPepItems: ${JSON.stringify(data.markedPepItems)}`, 'received', 'candidate');
+                
+                if (data.markedPepItems) {
+                    candidateState.markedPepItems = { ...data.markedPepItems };
+                    
+                    // Atualizar visualização
+                    renderPepItems('candidatePepItems', generatePepItems(), false);
+                }
+                
+                if (data.scores) {
+                    candidateState.candidateReceivedScores = { ...data.scores };
+                }
+                
+                updateCandidateState();
+                updateGlobalState();
+            });
+            
+            updateCandidateState();
+            updateGlobalState();
+        }
+        
+        // Função para liberar PEP
+        function releasePepToCandidate() {
+            if (!actorSocket?.connected || !actorState.sessionJoined) {
+                alert('Ator deve estar conectado e na sessão');
+                return;
+            }
+            
+            log(`🚀 Liberando PEP para candidato...`, 'warning', 'actor');
+            
+            const payload = { sessionId: actorState.sessionId };
+            actorSocket.emit('ACTOR_RELEASE_PEP', payload);
+            log(`📤 ACTOR_RELEASE_PEP emitido`, 'sent', 'actor');
+            
+            actorState.pepReleased = true;
+            updateActorState();
+        }
+        
+        // Função para enviar scores
+        function sendScoresToCandidate() {
+            if (!actorSocket?.connected || !actorState.sessionJoined) {
+                alert('Ator deve estar conectado e na sessão');
+                return;
+            }
+            
+            log(`📊 Enviando scores e marcações para candidato...`, 'warning', 'actor');
+            
+            const payload = {
+                sessionId: actorState.sessionId,
+                scores: actorState.evaluationScores,
+                markedPepItems: actorState.markedPepItems,
+                totalScore: 10,
+                forceSync: true
+            };
+            
+            actorSocket.emit('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', payload);
+            log(`📤 EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE emitido`, 'sent', 'actor');
+        }
+        
+        // Simulação completa do fluxo
+        function simulateFlow() {
+            log('🚀 INICIANDO SIMULAÇÃO COMPLETA DO FLUXO PEP', 'warning');
+            
+            // Step 1: Auto conectar
+            if (!actorState.connected) {
+                connectAsActor();
+                setTimeout(() => {
+                    if (candidateState.connected) {
+                        connectAsCandidate();
+                    }
+                    setTimeout(runFlow, 2000);
+                }, 2000);
+            } else if (!candidateState.connected) {
+                connectAsCandidate();
+                setTimeout(runFlow, 1000);
+            } else {
+                runFlow();
+            }
+        }
+        
+        function runFlow() {
+            log('🎭 Simulando marcação de itens PEP...', 'info');
+            
+            // Simular marcação de itens
+            const items = generatePepItems();
+            items.slice(0, 3).forEach((item, index) => {
+                setTimeout(() => {
+                    actorState.markedPepItems[item.id] = true;
+                    updateActorState();
+                    log(`✅ Item ${item.id} marcado pelo ator`, 'info', 'actor');
+                    
+                    // Enviar score imediatamente
+                    if (index === 2) { // Último item
+                        setTimeout(() => {
+                            sendScoresToCandidate();
+                            log(`📊 Scores enviados após marcação`, 'info', 'actor');
+                        }, 500);
+                    }
+                }, (index + 1) * 1000);
+            });
+            
+            // Step 2: Liberar PEP
+            setTimeout(() => {
+                releasePepToCandidate();
+            }, 5000);
+        }
+        
+        // Auto teste contínuo
+        function autoTest() {
+            log('🔄 INICIANDO AUTO TESTE CONTÍNUO', 'warning');
+            
+            let testCount = 0;
+            const maxTests = 5;
+            
+            function runTest() {
+                if (testCount >= maxTests) {
+                    log('✅ Auto teste concluído!', 'success');
+                    return;
+                }
+                
+                testCount++;
+                log(`📋 Teste ${testCount}/${maxTests} iniciado`, 'info');
+                
+                // Limpar estado
+                actorState.markedPepItems = {};
+                candidateState.markedPepItems = {};
+                updateActorState();
+                updateCandidateState();
+                
+                // Simular fluxo
+                simulateFlow();
+                
+                setTimeout(runTest, 15000); // 15 segundos entre testes
+            }
+            
+            runTest();
+        }
+        
+        // Event listeners
+        document.getElementById('actorConnect').addEventListener('click', connectAsActor);
+        document.getElementById('actorDisconnect').addEventListener('click', () => {
+            if (actorSocket) {
+                actorSocket.disconnect();
+                actorState = {
+                    connected: false,
+                    sessionJoined: false,
+                    pepReleased: false,
+                    markedPepItems: {},
+                    evaluationScores: {},
+                    stationId: actorState.stationId,
+                    sessionId: actorState.sessionId,
+                    userId: actorState.userId,
+                    displayName: actorState.displayName
+                };
+                updateActorState();
+                updateGlobalState();
+                log('🔌 Ator desconectado manualmente', 'warning', 'actor');
+            }
+        });
+        
+        document.getElementById('actorReleasePep').addEventListener('click', releasePepToCandidate);
+        document.getElementById('actorSendScores').addEventListener('click', sendScoresToCandidate);
+        document.getElementById('actorMarkItem').addEventListener('click', () => {
+            const items = generatePepItems();
+            const randomItem = items[Math.floor(Math.random() * items.length)];
+            togglePepItem(randomItem.id);
+        });
+        
+        document.getElementById('candidateConnect').addEventListener('click', connectAsCandidate);
+        document.getElementById('candidateDisconnect').addEventListener('click', () => {
+            if (candidateSocket) {
+                candidateSocket.disconnect();
+                candidateState = {
+                    connected: false,
+                    sessionJoined: false,
+                    pepVisible: false,
+                    markedPepItems: {},
+                    evaluationScores: {},
+                    candidateReceivedScores: {},
+                    sessionId: candidateState.sessionId,
+                    userId: candidateState.userId,
+                    displayName: candidateState.displayName
+                };
+                updateCandidateState();
+                updateGlobalState();
+                log('🔌 Candidato desconectado manualmente', 'warning', 'candidate');
+            }
+        });
+        
+        document.getElementById('candidateMarkItem').addEventListener('click', () => {
+            const items = generatePepItems();
+            const randomItem = items[Math.floor(Math.random() * items.length)];
+            candidateState.markedPepItems[randomItem.id] = !candidateState.markedPepItems[randomItem.id];
+            updateCandidateState();
+            log(`🎯 Candidato tentou ${candidateState.markedPepItems[randomItem.id] ? 'marcar' : 'desmarcar'} item ${randomItem.id}`, 'info', 'candidate');
+        });
+        
+        // Estado inicial
+        updateActorState();
+        updateCandidateState();
+        updateGlobalState();
+        renderPepItems('actorPepItems', generatePepItems());
+        renderPepItems('candidatePepItems', [], false);
+        
+        log('✅ Ferramenta de depuração PEP pronta!', 'success');
+    </script>
+</body>
+</html>

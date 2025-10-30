@@ -6,9 +6,9 @@ import { computed, onMounted, onUnmounted } from 'vue'
 const userStore = useUserStore()
 let unsubscribe = null
 
-onMounted(() => {
+onMounted(async () => {
   try {
-    unsubscribe = userStore.fetchUsers() // Garante que todos os usuários sejam carregados
+    await userStore.fetchUsers() // Garante que todos os usuários sejam carregados
   } catch (error) {
     console.error('Erro ao buscar usuários:', error)
   }

@@ -19,6 +19,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { useSimulationSession } from '@/composables/useSimulationSession.js'
 import { useSimulationWorkflowStandalone } from '@/composables/useSimulationWorkflowStandalone.js'
+import { useUserStatusManager } from '@/composables/useUserStatusManager.js'
 import CandidateContentPanel from '@/components/CandidateContentPanel.vue'
 import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue'
 import CandidateChecklist from '@/components/CandidateChecklist.vue'
@@ -68,8 +69,13 @@ const {
   autoStartOnReady: true
 })
 
+// Inicializa composable de gerenciamento de status
+const {
+  updateUserStatus,
+  isInSimulationAiPage
+} = useUserStatusManager()
+
 // Refs para PEP - seguindo mesmo padrão
-const pepViewState = ref({ isVisible: false })
 const markedPepItems = ref({})
 
 import { useAiChat } from '@/composables/useAiChat.js'
@@ -77,6 +83,7 @@ import { useSpeechInteraction } from '@/composables/useSpeechInteraction.js'
 
 const chatContainer = ref(null)
 const messageInput = ref(null)
+const confirmManualRelease = ref(false)
 
 function scrollToBottom() {
   nextTick(() => {
@@ -127,6 +134,30 @@ const {
   scrollToBottom
 });
 
+function releaseAllPendingMaterials() {
+  try {
+    const allMaterials = stationData.value?.materiaisDisponiveis?.impressos || stationData.value?.materiaisImpressos || []
+    const current = releasedData.value || {}
+    const pending = allMaterials.filter(m => !current[m.idImpresso] && !current[m.id])
+    if (pending.length === 0) {
+      confirmManualRelease.value = false
+      return
+    }
+    pending.forEach(m => {
+      const key = m.idImpresso || m.id
+      releasedData.value[key] = { ...m, releasedAt: new Date(), releasedBy: 'manual' }
+      conversationHistory.value.push({
+        role: 'system',
+        content: `📄 Material liberado manualmente: ${m.tituloImpresso || m.titulo || 'Documento'}`,
+        timestamp: new Date(),
+      })
+    })
+  } finally {
+    confirmManualRelease.value = false
+    scrollToBottom()
+  }
+}
+
 function toggleVoiceRecording() {
   if (isListening.value) {
     stopListening()
@@ -139,12 +170,15 @@ function toggleVoiceRecording() {
 const isCountdownActive = ref(false)
 const countdownValue = ref(3)
 const countdownInterval = ref(null)
+const showTutorialDialog = ref(false)
 
 // Refs para controle de painéis expandidos
 const expandedPanels = ref(['materials']) // Materiais sempre expandidos por padrão
 
 // Refs para controle de avaliação automática
-const autoEvaluateEnabled = ref(true) // Avaliação automática habilitada por padrão
+const autoEvaluateEnabled = ref(true)
+const candidateReceivedDetails = ref(null); // Avaliação automática habilitada por padrão
+const candidateReceivedScores = ref({}); // Variável que faltava
 
 // Estatísticas AI
 const aiStats = ref({
@@ -460,19 +494,46 @@ const {
 });
 
 // Watcher para liberar PEP e iniciar avaliação automática
-watch(simulationEnded, (newValue) => {
+watch(simulationEnded, async (newValue) => {
   if (newValue) {
     finalizeAISimulation()
     pepReleasedToCandidate.value = true
     isChecklistVisibleForCandidate.value = true
-
     if (autoEvaluateEnabled.value) {
-      setTimeout(() => {
-        runAiEvaluation()
-      }, 2000)
+      const result = await runAiEvaluation();
+      if (result) {
+        candidateReceivedScores.value = result.scores;
+        candidateReceivedTotalScore.value = result.total;
+        candidateReceivedDetails.value = result.details;
+      }
     }
   }
 })
+
+// Watchers para atualizar status do usuário
+watch(simulationStarted, async (newValue) => {
+  if (newValue) {
+    // Quando simulação inicia, status já deve estar como "treinando_com_ia"
+    logger.debug('Simulação IA iniciada - status "treinando_com_ia" ativo')
+  }
+})
+
+watch(simulationEnded, async (newValue) => {
+  if (newValue) {
+    // Após 5 segundos, voltar para status disponível
+    setTimeout(() => {
+      updateUserStatus('disponivel')
+      logger.debug('Simulação IA finalizada - voltando para status "disponivel"')
+    }, 5000)
+  }
+})
+
+watch(simulationStarted, (newValue) => {
+  if (newValue) {
+    autoRecordMode.value = true;
+    startListening();
+  }
+});
 
 // Lifecycle
 onMounted(async () => {
@@ -670,6 +731,15 @@ onMounted(async () => {
                   </v-icon>
                   {{ myReadyState ? 'Cancelar' : 'Estou Pronto!' }}
                 </v-btn>
+                 <v-btn
+                  color="info"
+                  variant="text"
+                  size="large"
+                  @click="showTutorialDialog = true"
+                >
+                  <v-icon class="me-2">ri-question-line</v-icon>
+                  Tutorial
+                </v-btn>
               </v-card-actions>
 
               <v-card-text v-if="!candidateReadyButtonEnabled" class="text-center">
@@ -684,322 +754,264 @@ onMounted(async () => {
       </v-container>
     </v-main>
 
-    <!-- Interface principal da simulação -->
-    <v-main v-else class="simulation-main">
-      <v-container fluid class="pa-0 fill-height">
-        <v-row no-gutters class="fill-height">
-          <!-- Sidebar com informações da estação -->
-          <v-col
-            v-if="!pepViewState.isVisible"
-            cols="12"
-            md="8"
-            class="d-flex flex-column"
-            style="max-height: calc(100vh - 120px); overflow-y: auto;"
-          >
-            <div class="pa-3">
-              <!-- Conteúdo do Candidato (Refatorado com Componentes) -->
-              <CandidateContentPanel 
-                :station-data="stationData" 
-                :is-dark-theme="isDarkTheme"
-                :simulation-started="simulationStarted"
-              />
-
-              <!-- Impressos do Candidato (Refatorado com Componentes) -->
-              <CandidateImpressosPanel
-                :released-data="Object.values(releasedData)"
-                :is-dark-theme="isDarkTheme"
-                :open-image-zoom="openImageZoom"
-                :get-image-source="getImageSource"
-                :get-image-id="getImageId"
-                :handle-image-error="handleImageError"
-                :handle-image-load="handleImageLoad"
-              />
-
-              <!-- Controles da simulação -->
-              <v-card class="mb-4">
-                <v-card-item>
-                  <template #prepend>
-                    <v-icon icon="ri-settings-line" color="primary" />
-                  </template>
-                  <v-card-title>Controles</v-card-title>
-                </v-card-item>
-                <v-card-text>
-                  <div class="d-flex flex-column gap-2">
-                    <v-btn
-                      v-if="simulationEnded && checklistData"
-                      color="primary"
-                      variant="elevated"
-                      @click="pepViewState.isVisible = true"
-                      block
-                    >
-                      <v-icon start>ri-checklist-line</v-icon>
-                      Ver PEP
-                    </v-btn>
-                    <v-btn
-                      v-if="simulationEnded && !checklistData"
-                      color="info"
-                      variant="outlined"
-                      @click="forceLoadPEP"
-                      block
-                    >
-                      <v-icon start>ri-download-line</v-icon>
-                      Carregar PEP
-                    </v-btn>
-                    <v-btn
-                      v-if="simulationEnded && checklistData && !evaluationSubmittedByCandidate"
-                      color="secondary"
-                      variant="tonal"
-                      :loading="submittingEvaluation"
-                      @click="runAiEvaluation"
-                      block
-                    >
-                      <v-icon start>ri-robot-line</v-icon>
-                      Solicitar Avaliação da IA
-                    </v-btn>
-                    <v-btn
-                      v-if="simulationEnded && !evaluationSubmittedByCandidate && checklistData"
-                      color="success"
-                      variant="outlined"
-                      @click="submitEvaluation"
-                      block
-                    >
-                      <v-icon start>ri-send-plane-line</v-icon>
-                      Enviar Avaliação
-                    </v-btn>
-                    <v-btn
-                      color="warning"
-                      variant="outlined"
-                      @click="manuallyEndSimulation"
-                      v-if="!simulationEnded"
-                      block
-                    >
-                      <v-icon start>ri-stop-line</v-icon>
-                      Finalizar
-                    </v-btn>
+            <v-main v-else-if="(simulationStarted || simulationEnded) && !isCountdownActive" class="simulation-main">
+          <v-container fluid class="pa-0">
+            <template v-if="!simulationEnded">
+              <v-row no-gutters>
+                <v-col cols="12" md="8" class="d-flex flex-column">
+                  <div class="pa-3 flex-grow-1 overflow-y-auto">
+                    <CandidateContentPanel :station-data="stationData" :is-dark-theme="isDarkTheme" :simulation-started="simulationStarted" />
+                    <CandidateImpressosPanel
+                      :released-data="Object.values(releasedData)"
+                      :is-dark-theme="isDarkTheme"
+                      :open-image-zoom="openImageZoom"
+                      :get-image-source="getImageSource"
+                      :get-image-id="getImageId"
+                      :handle-image-error="handleImageError"
+                      :handle-image-load="handleImageLoad"
+                      :on-request-release-all="() => { confirmManualRelease = true }"
+                    />
+                    <v-card class="mb-4">
+                      <v-card-item>
+                        <template #prepend><v-icon icon="ri-settings-line" color="primary" /></template>
+                        <v-card-title>Controles</v-card-title>
+                      </v-card-item>
+                      <v-card-text>
+                        <div class="d-flex flex-column gap-2">
+                          <v-btn v-if="simulationEnded && !evaluationSubmittedByCandidate" color="secondary" variant="tonal" :loading="submittingEvaluation" @click="runAiEvaluation" block>
+                            <v-icon start>ri-robot-line</v-icon>
+                            Solicitar Avaliação da IA
+                          </v-btn>
+                          <v-btn color="warning" variant="outlined" @click="manuallyEndSimulation" v-if="!simulationEnded" block>
+                            <v-icon start>ri-stop-line</v-icon>
+                            Finalizar
+                          </v-btn>
+                        </div>
+                      </v-card-text>
+                    </v-card>
+    
+                    <CandidateChecklist
+                      :checklist-data="checklistData"
+                      :simulation-started="simulationStarted"
+                      :simulation-ended="simulationEnded"
+                      :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
+                      :marked-pep-items="markedPepItems"
+                      :candidate-received-scores="candidateReceivedScores"
+                      :candidate-received-total-score="candidateReceivedTotalScore"
+                      :candidate-received-details="candidateReceivedDetails"
+                      :is-actor-or-evaluator="false"
+                      :is-candidate="true"
+                      @submit-evaluation="submitEvaluation"
+                    />
                   </div>
-                </v-card-text>
-              </v-card>
-            </div>
-          </v-col>
-
-          <!-- Chat Interface -->
-          <v-col
-            v-if="!pepViewState.isVisible"
-            cols="12"
-            md="4"
-            class="d-flex flex-column chat-column"
-            style="height: calc(100vh - 60px);"
-          >
-            <!-- Cenário da estação -->
-            <v-card class="flex-1-1 d-flex flex-column ma-2 chat-card" flat>
-              <v-card-title class="chat-card-header d-flex align-center py-3">
-                <v-icon class="me-2 chat-title-icon" size="26">ri-message-3-line</v-icon>
-                <span class="chat-title">Chat</span>
-                <v-spacer />
-                <div class="chat-timer">
-                  <v-icon size="20">ri-timer-line</v-icon>
-                  <span>{{ timerDisplay }}</span>
-                </div>
-              </v-card-title>
-
-              <v-divider />
-
-              <!-- Histórico de conversa -->
-              <div
-                ref="chatContainer"
-                class="chat-history flex-1-1 pa-4"
-                :class="{ 'dark-theme': isDarkTheme }"
-              >
-                <div v-if="conversationHistory.length === 0" class="text-center mt-8">
-                  <v-icon size="64" color="grey-lighten-1" class="mb-4">ri-user-heart-line</v-icon>
-                  <h3 class="mb-2">Inicie a comunicação</h3>
-                  <p class="text-medium-emphasis">
-                    Cumprimente o paciente e comece a conversa.
-                  </p>
-                </div>
-
-                <div
-                  v-for="(message, index) in conversationHistory"
-                  :key="index"
-                  class="message-item mb-4"
-                  :class="{
-                    'message-candidate': message.role === 'candidate',
-                    'message-ai-actor': message.role === 'ai_actor',
-                    'message-system': message.role === 'system',
-                    'message-welcome': message.isWelcome,
-                    'message-error': message.isError
-                  }"
-                >
-                  <div class="message-header d-flex align-center mb-1">
-                    <v-avatar
-                      size="24"
-                      :color="message.role === 'candidate' ? 'blue' :
-                              message.role === 'ai_actor' ? 'green' : 'orange'"
-                      class="me-2"
-                    >
-                      <v-icon size="12" color="white">
-                        {{
-                          message.role === 'candidate' ? 'ri-user-line' :
-                          message.role === 'ai_actor' ? 'ri-robot-line' :
-                          'ri-information-line'
-                        }}
-                      </v-icon>
-                    </v-avatar>
-                    <div class="text-body-2 font-weight-medium">
-                      {{
-                        message.role === 'candidate' ? 'Você' :
-                        message.role === 'ai_actor' ? 'Paciente Virtual' :
-                        'Sistema'
-                      }}
+                </v-col>
+    
+                <v-col cols="12" md="4" class="d-flex flex-column chat-column" style="position: relative;">
+                  <!-- Wrapper fixo para evitar qualquer sobreposição do header -->
+                  <div class="chat-fixed-wrapper">
+                  <v-card class="chat-card" flat>
+                    <v-card-title class="chat-card-header d-flex align-center py-3" style="flex:0 0 auto;">
+                      <v-icon class="me-2 chat-title-icon" size="26">ri-message-3-line</v-icon>
+                      <span class="chat-title">Chat</span>
+                      <v-spacer />
+                      <div class="chat-timer">
+                        <v-icon size="20">ri-timer-line</v-icon>
+                        <span>{{ timerDisplay }}</span>
+                      </div>
+                    </v-card-title>
+                    <v-divider />
+                    <div ref="chatContainer" class="chat-history pa-4" :class="{ 'dark-theme': isDarkTheme }">
+                      <div v-if="conversationHistory.length === 0" class="text-center mt-2">
+                        <v-icon size="64" color="grey-lighten-1" class="mb-4">ri-robot-line</v-icon>
+                        <h3 class="mb-2">Bem-vindo à Simulação com IA!</h3>
+                        <p class="text-medium-emphasis mb-4">
+                          Você pode interagir com o paciente virtual usando sua voz ou digitando no campo abaixo.
+                          O microfone será ativado automaticamente ao iniciar a simulação.
+                        </p>
+                        <p class="text-medium-emphasis">
+                          Para finalizar a simulação a qualquer momento, utilize o botão "Finalizar" no painel de controles.
+                        </p>
+                      </div>
+                      <div v-for="(message, index) in conversationHistory" :key="index" class="message-item mb-4">
+                        <div class="message-header d-flex align-center mb-1">
+                          <v-avatar size="24" :color="message.role === 'candidate' ? 'blue' : message.role === 'ai_actor' ? 'green' : 'orange'" class="me-2">
+                            <v-icon size="12" color="white">{{ message.role === 'candidate' ? 'ri-user-line' : message.role === 'ai_actor' ? 'ri-robot-line' : 'ri-information-line' }}</v-icon>
+                          </v-avatar>
+                          <div class="text-body-2 font-weight-medium">{{ message.role === 'candidate' ? 'Você' : message.role === 'ai_actor' ? 'Paciente Virtual' : 'Sistema' }}</div>
+                          <v-spacer />
+                          <div class="text-caption text-medium-emphasis">{{ formatTimestamp(message.timestamp) }}</div>
+                        </div>
+                        <div class="message-content pa-3 rounded" v-html="message.content || message.message" />
+                      </div>
                     </div>
-                    <v-spacer />
-                    <div class="text-caption text-medium-emphasis">
-                      {{ formatTimestamp(message.timestamp) }}
-                    </div>
+                    <v-card-actions class="pa-4 chat-input-actions">
+                      <v-text-field
+                        id="chat-message-input"
+                        ref="messageInput"
+                        v-model="currentMessage"
+                        label="Digite ou fale sua pergunta..."
+                        variant="outlined"
+                        density="comfortable"
+                        :disabled="isProcessingMessage"
+                        @keydown="handleKeyPress"
+                        hide-details
+                        class="flex-1-1"
+                        append-inner-icon="ri-send-plane-line"
+                        @click:append-inner="sendMessage"
+                      />
+                      <v-btn :color="autoRecordMode ? 'success' : 'grey'" variant="tonal" size="large" class="ml-2" @click="toggleAutoRecordMode">
+                        <v-icon>{{ autoRecordMode ? 'ri-robot-2-line' : 'ri-user-voice-line' }}</v-icon>
+                        <v-tooltip activator="parent" location="top">{{ autoRecordMode ? 'Modo Automático' : 'Modo Manual' }}</v-tooltip>
+                      </v-btn>
+                      <v-btn color="primary" variant="tonal" size="large" class="ml-2" :disabled="isProcessingMessage" @click="() => isListening ? stopListening() : startListening()">
+                        <v-icon>{{ isListening ? 'ri-mic-fill' : 'ri-mic-line' }}</v-icon>
+                        <v-tooltip activator="parent" location="top">{{ isListening ? 'Parar' : 'Gravar' }}</v-tooltip>
+                      </v-btn>
+                    </v-card-actions>
+                    <v-card-text v-if="simulationEnded" class="text-center">
+                      <v-icon size="48" color="success" class="mb-2">ri-check-double-line</v-icon>
+                      <div class="text-h6 mb-2">Simulação Finalizada!</div>
+                      <div class="text-body-2 text-medium-emphasis">Agora você pode avaliar sua performance usando o PEP.</div>
+                    </v-card-text>
+                  </v-card>
                   </div>
-                  <div
-                    class="message-content pa-3 rounded"
-                    :style="getMessageStyle(message.role)"
-                    v-html="message.content || message.message"
+                </v-col>
+              </v-row>
+            </template>
+    
+            <template v-else>
+              <v-row no-gutters>
+                <v-col cols="12">
+                  <CandidateChecklist
+                    :checklist-data="checklistData"
+                    :simulation-started="simulationStarted"
+                    :simulation-ended="simulationEnded"
+                    :is-checklist-visible-for-candidate="isChecklistVisibleForCandidate"
+                    :marked-pep-items="markedPepItems"
+                    :candidate-received-scores="candidateReceivedScores"
+                    :candidate-received-total-score="candidateReceivedTotalScore"
+                    :candidate-received-details="candidateReceivedDetails"
+                    :is-actor-or-evaluator="false"
+                    :is-candidate="true"
+                    @submit-evaluation="submitEvaluation"
                   />
-                </div>
-              </div>
+                </v-col>
+              </v-row>
+            </template>
+          </v-container>
+        </v-main>
 
-              <!-- Input de mensagem com controles de voz -->
-              <v-card-actions class="pa-4 chat-input-actions">
-                <v-text-field
-                  id="chat-message-input"
-                  ref="messageInput"
-                  v-model="currentMessage"
-                  label="Digite ou fale sua pergunta..."
-                  placeholder="Ex: Bom dia! Qual o seu nome?"
-                  variant="outlined"
-                  density="comfortable"
-                  :disabled="isProcessingMessage"
-                  @keydown="handleKeyPress"
-                  hide-details
-                  class="flex-1-1 chat-message-field"
-                  append-inner-icon="ri-send-plane-line"
-                  @click:append-inner="sendMessage"
-                  :style="{
-                    color: isDarkTheme ? 'white' : '#212121',
-                    fontWeight: isDarkTheme ? '400' : '500',
-                    backgroundColor: 'white'
-                  }"
-                >
-                </v-text-field>
+        <!-- Confirmação para liberação manual de impressos -->
+        <v-dialog v-model="confirmManualRelease" max-width="520">
+          <v-card>
+            <v-card-title class="text-h6">Liberar todos os impressos?</v-card-title>
+            <v-card-text>
+              Esta ação irá liberar, de uma só vez, todos os impressos disponíveis nesta estação que ainda não foram liberados pelo fluxo com IA. Deseja continuar?
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn variant="text" @click="confirmManualRelease = false">Cancelar</v-btn>
+              <v-btn color="primary" @click="releaseAllPendingMaterials">Confirmar</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
 
-                <!-- Botão para alternar modo automático -->
-                <v-btn
-                  :color="autoRecordMode ? 'success' : 'grey'"
-                  variant="tonal"
-                  size="large"
-                  class="ml-2"
-                  :aria-label="autoRecordMode ? 'Modo automático ativo' : 'Modo manual ativo'"
-                  @click="toggleAutoRecordMode"
-                >
-                  <v-icon>{{ autoRecordMode ? 'ri-robot-2-line' : 'ri-user-voice-line' }}</v-icon>
-                  <v-tooltip activator="parent" location="top">
-                    {{ autoRecordMode ? 'Modo Automático (clique para Manual)' : 'Modo Manual (clique para Automático)' }}
-                  </v-tooltip>
-                </v-btn>
+        <v-dialog v-model="showTutorialDialog" max-width="700">
+          <v-card>
+            <v-card-title class="text-h5">Guia Rápido: Treinamento com IA Virtual</v-card-title>
+            <v-card-text>
+              <p class="mb-4">Bem-vindo ao seu treinamento com o paciente virtual! Para uma experiência eficaz, siga estas orientações:</p>
+    
+              <h4 class="mb-2 text-primary">1. Comunicação:</h4>
+              <p class="mb-4">
+                - Você pode interagir com o paciente virtual usando sua <strong>voz</strong> (microfone ativado automaticamente ao iniciar a simulação) ou <strong>digitando</strong> suas perguntas e comentários na caixa de texto do chat.
+                <br>
+                - Fale de forma clara e natural. Se digitar, seja objetivo.
+              </p>
+    
+              <h4 class="mb-2 text-primary mt-4">2. Solicitando Exames Complementares:</h4>
+              <p class="mb-4">
+                - Para solicitar exames, use frases claras e diretas. A IA entende uma variedade de pedidos.
+                <br>
+                - <strong>Exemplos:</strong>
+                <ul>
+                  <li>"Gostaria de solicitar um hemograma completo."</li>
+                  <li>"Peço um exame de urina tipo 1."</li>
+                  <li>"Preciso de uma radiografia de tórax."</li>
+                  <li>"Solicito uma tomografia computadorizada do abdome."</li>
+                  <li>"Vamos fazer uma ultrassonografia abdominal."</li>
+                  <li>"Quero pedir exames de função renal e hepática."</li>
+                  <li>"Solicito um eletrocardiograma."</li>
+                  <li>"Preciso de exames de imagem para o joelho."</li>
+                </ul>
+                Seja específico sobre o tipo de exame e a região, se aplicável.
+              </p>
+    
+              <h4 class="mb-2 text-primary mt-4">3. Objetivo:</h4>
+              <p class="mb-4">Seu objetivo é conduzir a consulta, investigar o caso, solicitar exames pertinentes e chegar a um diagnóstico ou plano de conduta, como faria em uma estação clínica real.</p>
+    
+              <h4 class="mb-2 text-primary mt-4">4. Finalização:</h4>
+              <p class="mb-4">Para encerrar a simulação a qualquer momento, utilize o botão "Finalizar" no painel de controles. Ao final do tempo, a IA fornecerá um feedback detalhado.</p>
+    
+              <p>Boa sorte no seu treinamento!</p>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="primary" @click="showTutorialDialog = false">Fechar</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+    
+    <v-dialog v-model="showTutorialDialog" max-width="700">
+      <v-card>
+        <v-card-title class="text-h5">Guia Rápido: Treinamento com IA Virtual</v-card-title>
+        <v-card-text>
+          <p class="mb-4">Bem-vindo ao seu treinamento com o paciente virtual! Para uma experiência eficaz, siga estas orientações:</p>
 
-                <!-- Botão de voz -->
-                <v-btn
-                  color="primary"
-                  variant="tonal"
-                  size="large"
-                  class="ml-2"
-                  :disabled="isProcessingMessage"
-                  :aria-label="isListening ? 'Parar gravação' : 'Iniciar gravação de voz'"
-                  @click="toggleVoiceRecording"
-                >
-                  <v-icon>{{ isListening ? 'ri-mic-fill' : 'ri-mic-line' }}</v-icon>
-                  <v-tooltip activator="parent" location="top">
-                    {{ autoRecordMode ? 'Gravando automaticamente' : (isListening ? 'Parar gravação' : 'Iniciar gravação') }}
-                  </v-tooltip>
-                </v-btn>
+          <h4 class="mb-2 text-primary">1. Comunicação:</h4>
+          <p class="mb-4">
+            - Você pode interagir com o paciente virtual usando sua <strong>voz</strong> (microfone ativado automaticamente ao iniciar a simulação) ou <strong>digitando</strong> suas perguntas e comentários na caixa de texto do chat.
+            <br>
+            - Fale de forma clara e natural. Se digitar, seja objetivo.
+          </p>
 
-                <!-- Botão para parar a fala -->
-                <v-btn
-                  v-if="isSpeaking"
-                  color="warning"
-                  variant="tonal"
-                  size="large"
-                  class="ml-2"
-                  :disabled="!isSpeaking"
-                  aria-label="Parar síntese de voz"
-                  @click="stopSpeaking"
-                >
-                  <v-icon>ri-volume-mute-line</v-icon>
-                </v-btn>
+          <h4 class="mb-2 text-primary mt-4">2. Solicitando Exames Complementares:</h4>
+          <p class="mb-4">
+            - Para solicitar exames, use frases claras e diretas. A IA entende uma variedade de pedidos.
+            <br>
+            - <strong>Exemplos:</strong>
+            <ul>
+              <li>"Gostaria de solicitar um hemograma completo."</li>
+              <li>"Peço um exame de urina tipo 1."</li>
+              <li>"Preciso de uma radiografia de tórax."</li>
+              <li>"Solicito uma tomografia computadorizada do abdome."</li>
+              <li>"Vamos fazer uma ultrassonografia abdominal."</li>
+              <li>"Quero pedir exames de função renal e hepática."</li>
+              <li>"Solicito um eletrocardiograma."</li>
+              <li>"Preciso de exames de imagem para o joelho."</li>
+            </ul>
+            Seja específico sobre o tipo de exame e a região, se aplicável.
+          </p>
 
-                <!-- Botão para controlar voz da IA -->
-                <v-btn
-                  :color="speechEnabled ? 'success' : 'grey'"
-                  variant="tonal"
-                  size="large"
-                  class="ml-2"
-                  :aria-label="speechEnabled ? 'Desativar voz da IA' : 'Ativar voz da IA'"
-                  @click="speechEnabled = !speechEnabled"
-                >
-                  <v-icon>{{ speechEnabled ? 'ri-volume-up-line' : 'ri-volume-mute-line' }}</v-icon>
-                  <v-tooltip activator="parent" location="top">
-                    {{ speechEnabled ? 'Voz da IA ativada (clique para desativar)' : 'Voz da IA desativada (clique para ativar)' }}
-                  </v-tooltip>
-                </v-btn>
+          <h4 class="mb-2 text-primary mt-4">3. Objetivo:</h4>
+          <p class="mb-4">Seu objetivo é conduzir a consulta, investigar o caso, solicitar exames pertinentes e chegar a um diagnóstico ou plano de conduta, como faria em uma estação clínica real.</p>
 
-                <!-- Botão de enviar -->
-                <v-btn
-                  color="primary"
-                  variant="elevated"
-                  size="large"
-                  class="ml-2"
-                  :disabled="!canSendMessage"
-                  :loading="isProcessingMessage"
-                  aria-label="Enviar mensagem"
-                  @click="sendMessage"
-                >
-                  <v-icon>ri-send-plane-line</v-icon>
-                </v-btn>
-              </v-card-actions>
+          <h4 class="mb-2 text-primary mt-4">4. Finalização:</h4>
+          <p class="mb-4">Para encerrar a simulação a qualquer momento, utilize o botão "Finalizar" no painel de controles. Ao final do tempo, a IA fornecerá um feedback detalhado.</p>
 
-              <!-- Mensagem de simulação finalizada -->
-              <v-card-text v-if="simulationEnded" class="text-center">
-                <v-icon size="48" color="success" class="mb-2">ri-check-double-line</v-icon>
-                <div class="text-h6 mb-2">Simulação Finalizada!</div>
-                <div class="text-body-2 text-medium-emphasis">
-                  Agora você pode avaliar sua performance usando o PEP.
-                </div>
-              </v-card-text>
-            </v-card>
-          </v-col>
+          <p>Boa sorte no seu treinamento!</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" @click="showTutorialDialog = false">Fechar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-          <!-- PEP Completo (Refatorado com Componente) -->
-          <CandidateChecklist
-            :checklist-data="checklistData"
-            :simulation-started="simulationStarted"
-            :simulation-ended="simulationEnded"
-            :is-checklist-visible-for-candidate="pepReleasedToCandidate"
-            :marked-pep-items="markedPepItems"
-            :evaluation-scores="{ /* IA não tem scores de avaliação em tempo real */ }"
-            :candidate-received-scores="markedPepItems"
-            :candidate-received-total-score="candidateReceivedTotalScore"
-            :total-score="candidateReceivedTotalScore"
-            :evaluation-submitted-by-candidate="evaluationSubmittedByCandidate"
-            :is-actor-or-evaluator="false"
-            :is-candidate="true"
-            @submit-evaluation="submitEvaluation"
-          />
-        </v-row>
-      </v-container>
-    </v-main>
-
-    <!-- Modal de zoom para imagens -->
     <ImageZoomModal
       v-model:is-open="imageZoomDialog"
-      :image-url="selectedImageForZoom"
-      :image-alt="selectedImageAlt"
+      :image-url="zoomedImageSrc"
+      :image-alt="zoomedImageAlt"
       @close="closeImageZoom"
     />
   </div>
@@ -1362,4 +1374,51 @@ onMounted(async () => {
 }
 
 /* DIAGNÓSTICO URGENTE: Usando apenas estilos inline no template */
+</style>
+<style scoped>
+/* Wrapper fixo do chat em telas md+ para evitar sobreposição */
+@media (min-width: 960px) {
+  .chat-fixed-wrapper {
+    position: fixed;
+    right: 16px;
+    top: 16px;
+    width: calc(33.333% - 32px); /* ~col md=4 com margens */
+    max-width: 520px;
+    z-index: 5;
+  }
+}
+
+.chat-card {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 32px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+  border-radius: 16px;
+}
+
+.chat-history {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0 !important;
+  padding-top: 16px !important; /* garante folga abaixo do header */
+}
+
+.chat-input-actions {
+  flex: 0 0 auto;
+}
+
+/* Em telas pequenas, volta ao fluxo normal */
+@media (max-width: 959px) {
+  .chat-fixed-wrapper {
+    position: static;
+    width: auto;
+    max-width: none;
+  }
+  .chat-card {
+    height: auto;
+  }
+  .chat-history {
+    max-height: 50vh;
+  }
+}
 </style>

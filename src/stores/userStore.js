@@ -307,7 +307,7 @@ function cleanupRoleListener() {
 }
 
 // Função para buscar usuários online do Firestore (otimizada para reduzir custos)
-function fetchUsers() {
+async function fetchUsers() {
   state.loadingUsers = true;
   state.errorUsers = '';
   const usersCollectionRef = collection(db, 'usuarios');
@@ -324,8 +324,8 @@ function fetchUsers() {
     limit(50) // Reduzido de 100 para 50
   );
 
-  // Usa getDocs em vez de onSnapshot para evitar listeners constantes
-  return getDocs(q).then((snapshot) => {
+  try {
+    const snapshot = await getDocs(q);
     const allUsers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
 
     // Filtra apenas usuários realmente online (lastActive < 2 minutos)
@@ -346,14 +346,14 @@ function fetchUsers() {
     state.loadingUsers = false;
 
     // Removido log desnecessário
-  }).catch((error) => {
+  } catch (error) {
     state.errorUsers = 'Erro ao buscar usuários: ' + error.message;
     state.loadingUsers = false;
     // Log apenas em desenvolvimento
     if (import.meta.env.DEV) {
       console.error("Erro ao buscar usuários:", error);
     }
-  });
+  }
 }
 
 // Função para atualizar role do usuário manualmente (admin)

@@ -13,7 +13,7 @@ const logger = new Logger('useChatUsers');
  * @property {string} [displayName]
  * @property {string} [photoURL]
  * @property {string} [avatar]
- * @property {'disponivel'|'treinando'|'ausente'} [status]
+ * @property {'disponivel'|'ausente'|'treinando'|'treinando_com_ia'} [status]
  * @property {any} [lastActive]
  */
 
@@ -45,7 +45,7 @@ export const useChatUsers = () => {
     // Buscar usuários com qualquer status ativo
     const q = query(
       usersCollectionRef,
-      where('status', 'in', ['disponivel', 'treinando', 'ausente']),
+      where('status', 'in', ['disponivel', 'treinando', 'treinando_com_ia', 'ausente']),
       limit(pageSize)
     )
 
@@ -78,7 +78,8 @@ export const useChatUsers = () => {
         .map(({ raw, lastActiveMs }) => {
           let updatedStatus = raw.status
 
-          if (raw.status !== 'treinando') {
+          // Mantém status "treinando" e "treinando_com_ia" se já estiver definido
+          if (raw.status !== 'treinando' && raw.status !== 'treinando_com_ia') {
             if (lastActiveMs < awayThreshold) {
               updatedStatus = 'ausente'
             } else if (raw.status !== 'disponivel') {

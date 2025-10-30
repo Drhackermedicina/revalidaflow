@@ -484,3 +484,27 @@ Este documento rastreia o status de implementação de todas as features do prod
 **Dica**: Execute `npm run update-prd` para atualizar contadores automaticamente!
 
 **Última sincronização**: 2025-01-12 15:30 BRT
+
+---
+
+## 📊 **ATUALIZAÇÃO 29/10/2025 - CORREÇÃO DE DADOS**
+
+**⚠️ DADOS REAIS vs DOCUMENTADOS:**
+
+| Métrica | Documentado | Real | Diferença |
+|---------|-------------|------|-----------|
+| Composables | 43 arquivos | **52 arquivos** | +21% |
+| Componentes | 45+ arquivos | **50 arquivos** | ~Correto |
+| Páginas | 43 arquivos | **42 arquivos** | -2% |
+
+**🚨 DESCOBERTAS CRÍTICAS:**
+
+- `src/pages/SimulationView.vue`: **2.366 linhas** (monólito crítico)
+- `src/pages/SimulationViewAI.vue`: **1.424 linhas** (não documentado)
+- `src/pages/AdminUpload.vue`: **1.505 linhas** (não documentado)
+- **Total de monólitos**: 5.295 linhas em 3 arquivos Vue
+
+**💡 AÇÕES NECESSÁRIAS:**
+- Priorizar componentização dos monólitos críticos
+- Atualizar contadores de composables no MASTER_REFACTORING_TASKS.md
+- Documentar SimulationViewAI e AdminUpload adequadamente

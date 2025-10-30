@@ -27,6 +27,10 @@ defineProps({
   handleImageLoad: {
     type: Function,
     required: true
+  },
+  onRequestReleaseAll: {
+    type: Function,
+    default: null
   }
 })
 </script>
@@ -185,6 +189,18 @@ defineProps({
         </VExpansionPanel>
       </VExpansionPanels>
     </VCardText>
+    <VCardActions>
+      <VSpacer />
+      <VBtn
+        v-if="typeof onRequestReleaseAll === 'function'"
+        color="info"
+        variant="tonal"
+        @click="onRequestReleaseAll()"
+      >
+        <VIcon start>ri-file-add-line</VIcon>
+        Liberar impressos
+      </VBtn>
+    </VCardActions>
   </VCard>
 </template>
 

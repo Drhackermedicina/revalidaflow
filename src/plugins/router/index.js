@@ -103,16 +103,22 @@ function updateAuthCheck(result) {
   authCheckCache.timestamp = Date.now()
 }
 
-// Guarda de Navegação Global (Async) - OTIMIZADO
+// Guarda de Navegação Global (Async) - OTIMIZADO COM LOADING E ERROR HANDLING
 router.beforeEach(async (to, from, next) => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const useSimulatedUser = urlParams.get('sim_user') === 'true';
+  try {
+    // Mostrar loader no início da navegação
+    if (window.globalLoaderRef) {
+      window.globalLoaderRef.setLoading(true)
+    }
 
-  // Se estivermos em modo DEV e usando o usuário simulado, pulamos todas as verificações.
-  if (import.meta.env.DEV && useSimulatedUser) {
-    next();
-    return;
-  }
+    const urlParams = new URLSearchParams(window.location.search);
+    const useSimulatedUser = urlParams.get('sim_user') === 'true';
+
+    // Se estivermos em modo DEV e usando o usuário simulado, pulamos todas as verificações.
+    if (import.meta.env.DEV && useSimulatedUser) {
+      next();
+      return;
+    }
 
   // Verificar cache de autenticação primeiro
   if (isAuthCheckValid()) {
@@ -251,23 +257,53 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // ✅ Inicializar sistema de presença após autenticação bem-sucedida
-  if (!presenceInitialized && currentUser.value) {
-    presenceInitialized = true
-    import('@/composables/useUserPresence').then(({ initUserPresence }) => {
-      initUserPresence()
-    }).catch(error => {
-      // Log apenas em desenvolvimento
+    // ✅ Inicializar sistema de presença após autenticação bem-sucedida
+    if (!presenceInitialized && currentUser.value) {
+      presenceInitialized = true
+      
+      // 🔍 DEBUG: Log de inicialização do Presence no router
       if (import.meta.env.DEV) {
-        console.warn('[Router] Erro ao inicializar sistema de presença:', error)
+        console.debug('[DEBUG] Router - Inicializando useUserPresence...')
       }
-    })
-  }
+      
+      try {
+        const { initUserPresence } = await import('@/composables/useUserPresence')
+        initUserPresence()
+        
+        // 🔍 DEBUG: Log de sucesso
+        if (import.meta.env.DEV) {
+          console.debug('[DEBUG] Router - useUserPresence inicializado com SUCESSO')
+        }
+      } catch (error) {
+        // Log apenas em desenvolvimento
+        if (import.meta.env.DEV) {
+          console.warn('[Router] Erro ao inicializar sistema de presença:', error)
+          console.debug('[DEBUG] Router - ERRO ao inicializar useUserPresence:', error.message)
+        }
+      }
+    }
 
-  next()
+    next()
+  } catch (error) {
+    // Error handling para falhas críticas na navegação
+    console.error('[Router] Erro crítico na navegação:', error)
+
+    // Em caso de erro, redirecionar para uma página segura
+    if (to.path !== '/login' && to.path !== '/error') {
+      next('/login')
+    } else {
+      next() // Evitar loop infinito
+    }
+  }
 })
 
-// REMOVIDO: afterEach antigo - agora o useUserPresence cuida da presença do usuário
+// Guarda após navegação para esconder o loader
+router.afterEach(() => {
+  if (window.globalLoaderRef) {
+    window.globalLoaderRef.setLoading(false)
+  }
+})
+
 // REMOVIDO: beforeunload antigo - agora o useUserPresence cuida disso
 
 // Sistema de presença do usuário - inicializado dinamicamente após autenticação

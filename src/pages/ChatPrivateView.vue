@@ -19,11 +19,11 @@
             <span class="text-h5 font-weight-bold">Chat Privado</span>
             <span v-if="userName" class="ms-2">com <b>{{ userName }}</b></span>
             <v-spacer />
-            <v-btn icon @click="$router.back()"><v-icon icon="ri-arrow-left-line" /></v-btn>
+            <SafeBackButton fallback="/app/chat-group" />
           </v-card-title>
           <v-divider />
           <v-card-text class="chat-messages flex-grow-1 pa-4">
-            <div v-for="message in messages" :key="message.id" class="message-bubble d-flex mb-4" :class="{ 'justify-end': message.senderId === currentUser?.uid }">
+            <div v-for="message in visibleMessages" :key="message.id" class="message-bubble d-flex mb-4" :class="{ 'justify-end': message.senderId === currentUser?.uid }">
               <v-avatar v-if="message.senderPhotoURL" :image="message.senderPhotoURL" size="32" class="me-2" />
               <div class="message-content pa-3 rounded-lg" :class="message.senderId === currentUser?.uid ? 'bg-primary text-white my-message' : 'bg-grey-lighten-4 other-message'">
                 <div class="font-weight-medium text-body-2 mb-1" :class="{ 'text-right': message.senderId === currentUser?.uid }">
@@ -41,7 +41,7 @@
                     Copiar Link
                   </v-btn>
                 </div>
-                <div class="text-caption text-right" :class="message.senderId === currentUser?.uid ? 'text-white-50' : 'text-medium-emphasis'">
+                  <div class="text-caption text-right" :class="message.senderId === currentUser?.uid ? 'text-white-50' : 'text-medium-emphasis'">
                   {{ formatTime(message.timestamp) }}
                 </div>
               </div>
@@ -84,10 +84,12 @@ import { currentUser } from '@/plugins/auth';
 import { db } from '@/plugins/firebase';
 import { addDoc, collection, doc, getDoc, limit, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useTheme } from 'vuetify';
+import SafeBackButton from '@/components/SafeBackButton.vue';
 
 const route = useRoute();
+const router = useRouter();
 const theme = useTheme();
 
 // Computed para detectar tema escuro
@@ -100,6 +102,7 @@ const newMessage = ref('');
 const messagesEnd = ref(null);
 let unsubscribe = null;
 let listenerInitialized = false;
+
 
 // Busca nome do usuário alvo (corrigido para API v9)
 async function fetchUserName() {
@@ -146,6 +149,8 @@ function initializeMessageListener() {
     // Mapear documentos e reverter para ordem ascendente para exibição correta
     const loadedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     messages.value = loadedMessages.reverse(); // Reverter para ordem cronológica (ascendente)
+
+  
     nextTick(() => {
       scrollToEnd();
     });
@@ -259,6 +264,7 @@ const copyMessageLinks = async (text) => {
     }
   }
 };
+
 </script>
 
 <style scoped>

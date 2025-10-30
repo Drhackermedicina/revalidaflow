@@ -29,7 +29,12 @@ A auditoria revelou que, embora muitas tarefas de refatoração P0 (críticas) t
 ### P1 - High Priority
 
 -   **P1-B01 a P1-B06 (Refatoração Backend)**: Nenhuma evidência de extração de handlers, serviços de IA, ou criação de error handler centralizado foi encontrada. `server.js` e `aiChat.js` continuam monolíticos. **Status Real: NÃO IMPLEMENTADO** (Correto).
--   **P1-F01 (Extrair 3 composables do SimulationView)**: Tarefa marcada como `DONE`, o que está correto. Os arquivos `useSimulationSession.js`, `useSimulationWorkflow.js`, e `useSimulationSocket.js` existem. No entanto, o componente `SimulationView.vue` em si não foi refatorado para usar uma UI componentizada, mantendo-se com mais de 1.500 linhas. **Status Real: PARCIALMENTE IMPLEMENTADO** (Funcional, mas não completo no espírito da tarefa).
+-   **P1-F01 (Extrair 3 composables do SimulationView)**: Tarefa marcada como `DONE`, o que está correto. Os arquivos `useSimulationSession.js`, `useSimulationWorkflow.js`, e `useSimulationSocket.js` existem. No entanto, o componente `SimulationView.vue` em si não foi refatorado para usar uma UI componentizada, mantendo-se com **2.366 linhas** (não 1.500 como relatado anteriormente). **Status Real: PARCIALMENTE IMPLEMENTADO - PRIORIDADE MÁXIMA** para componentização.
+
+    **ATUALIZAÇÃO 29/10/2025** - Descobertas Adicionais:
+    - `SimulationViewAI.vue`: 1.424 linhas (não documentado no MASTER_REFACTORING_TASKS.md)
+    - `AdminUpload.vue`: 1.505 linhas (não documentado)
+    - **Total de monólitos críticos**: 5.295 linhas em 3 arquivos Vue (Impacto: Manutenibilidade crítica)
 -   **P1-F02 (Migrar sessionStorage para Pinia)**: `sessionStorage` é amplamente usado em `useSequentialMode` e `useSequentialNavigation`. **Status Real: NÃO IMPLEMENTADO** (Correto).
 -   **P1-F03 (Lógica de Reconexão Socket.IO)**: Nenhuma lógica explícita de reconexão com restauração de estado foi encontrada no `useSimulationSocket.js`. **Status Real: NÃO IMPLEMENTADO** (Correto).
 -   **P1-F04 (Notificação de Erro Centralizada)**: Arquivo `src/services/errorService.js` não existe. **Status Real: NÃO IMPLEMENTADO** (Correto).
