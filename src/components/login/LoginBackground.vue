@@ -89,16 +89,16 @@ onUnmounted(() => {
 const startTimedAnimations = () => {
   // Change gradient intensity based on time of day
   const hour = new Date().getHours()
-  let intensity = 0.6
+  let intensity = 0.75
 
   if (hour >= 6 && hour < 12) {
-    intensity = 0.4 // Morning - softer
+    intensity = 0.6 // Morning - softer
   } else if (hour >= 12 && hour < 18) {
-    intensity = 0.6 // Afternoon - normal
+    intensity = 0.75 // Afternoon - normal
   } else if (hour >= 18 && hour < 22) {
-    intensity = 0.8 // Evening - stronger
+    intensity = 0.9 // Evening - stronger
   } else {
-    intensity = 0.3 // Night - very soft
+    intensity = 0.55 // Night - softer but still visible
   }
 
   document.documentElement.style.setProperty('--bg-intensity', intensity)
@@ -168,7 +168,7 @@ const startTimedAnimations = () => {
   position: absolute;
   width: 100%;
   height: 100%;
-  opacity: 0.1;
+  opacity: 0.35;
   background:
     repeating-linear-gradient(
       45deg,
@@ -185,6 +185,7 @@ const startTimedAnimations = () => {
       var(--medical-green) 12px
     );
   animation: float 20s ease-in-out infinite;
+  filter: brightness(1.2);
 }
 
 .ecg-pattern {
@@ -192,10 +193,11 @@ const startTimedAnimations = () => {
   bottom: 10%;
   left: 0;
   width: 100%;
-  height: 100px;
-  background: url("data:image/svg+xml,%3Csvg width='200' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,50 L30,50 L40,20 L50,80 L60,10 L70,90 L80,30 L90,50 L200,50' stroke='%238C57FF' stroke-width='2' fill='none' opacity='0.3'/%3E%3C/svg%3E") repeat-x;
+  height: 120px;
+  background: url("data:image/svg+xml,%3Csvg width='200' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,50 L30,50 L40,20 L50,80 L60,10 L70,90 L80,30 L90,50 L200,50' stroke='%238C57FF' stroke-width='3' fill='none' opacity='0.8'/%3E%3C/svg%3E") repeat-x;
   background-size: 200px 100px;
   animation: medical-pulse 3s ease-in-out infinite;
+  filter: drop-shadow(0 4px 10px rgba(140, 87, 255, 0.5)) drop-shadow(0 0 8px rgba(140, 87, 255, 0.4));
 }
 
 .medical-icons {
@@ -206,10 +208,12 @@ const startTimedAnimations = () => {
 
 .medical-icon {
   position: absolute;
-  opacity: 0.15;
+  opacity: 0.6;
   animation: float-icon 15s ease-in-out infinite;
   color: var(--login-primary);
-  font-size: 2rem;
+  font-size: 3rem;
+  filter: drop-shadow(0 4px 12px rgba(140, 87, 255, 0.6)) drop-shadow(0 0 8px rgba(140, 87, 255, 0.4));
+  text-shadow: 0 0 10px rgba(140, 87, 255, 0.5);
 }
 
 .icon-1 { top: 15%; left: 10%; animation-delay: 0s; }
@@ -261,7 +265,8 @@ const startTimedAnimations = () => {
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .medical-icon {
-    font-size: 1.5rem;
+    font-size: 2rem;
+    opacity: 0.5;
   }
 
   .icon-5, .icon-6 {
@@ -281,7 +286,7 @@ const startTimedAnimations = () => {
 /* Performance optimizations */
 @media (max-width: 768px) {
   .dna-pattern {
-    opacity: 0.05;
+    opacity: 0.25;
   }
 }
 

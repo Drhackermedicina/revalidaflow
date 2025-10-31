@@ -85,8 +85,10 @@ onMounted(() => {
 .particle {
   position: absolute;
   border-radius: 50%;
-  opacity: 0.7;
+  opacity: 0.95;
   animation: particle-float linear infinite;
+  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor);
+  box-shadow: 0 0 8px currentColor;
 }
 
 .particle-medical-cell {
