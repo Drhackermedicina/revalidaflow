@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, unref } from 'vue'
 import { currentUser } from '@/plugins/auth.js'
 import { backendUrl } from '@/utils/backendUrl.js'
 
@@ -42,7 +42,7 @@ function normalizePerformanceSummary(performance = {}) {
   return summary
 }
 
-export function useAiEvaluation({ checklistData, stationData, conversationHistory }) {
+export function useAiEvaluation({ checklistData, stationData, conversationHistory, sessionId, releasedData }) {
   const isEvaluating = ref(false)
   const evaluationCompleted = ref(false)
   const evaluationPerformance = ref(null)
@@ -74,6 +74,28 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
     isEvaluating.value = true
 
     try {
+      const payloadSessionId = unref(sessionId) ?? null
+      const payloadStation = unref(stationData) || {}
+      const payloadChecklist = unref(checklistData) || {}
+      const payloadConversation = unref(conversationHistory) || []
+      const payloadReleasedData = unref(releasedData) || {}
+
+      const clone = value => {
+        if (value == null) return value
+        if (typeof structuredClone === 'function') {
+          try {
+            return structuredClone(value)
+          } catch (cloneError) {
+            // Fallback para JSON.stringify logo abaixo
+          }
+        }
+        try {
+          return JSON.parse(JSON.stringify(value))
+        } catch (cloneError) {
+          return value
+        }
+      }
+
       const response = await fetch(`${backendUrl}/ai-simulation/evaluate-pep`, {
         method: 'POST',
         headers: {
@@ -81,24 +103,47 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
           'user-id': currentUser.value?.uid || currentUser.value?.userId || '',
         },
         body: JSON.stringify({
-          sessionId: sessionId?.value || null,
-          stationData: stationData.value,
-          conversationHistory: conversationHistory.value,
-          checklistData: checklistData.value,
+          sessionId: payloadSessionId,
+          stationData: clone(payloadStation),
+          conversationHistory: clone(payloadConversation),
+          checklistData: clone(payloadChecklist),
+          releasedData: clone(payloadReleasedData) || {},
         }),
       })
 
       if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`)
 
       const aiEvaluation = await response.json()
-      const result = processAIEvaluation(aiEvaluation.evaluation)
-      evaluationPerformance.value = result?.performance || null
-      return result
+      const metadata = aiEvaluation.metadata ?? null
+      const evaluationPayload =
+        aiEvaluation.evaluation ??
+        aiEvaluation.evaluations ??
+        aiEvaluation
+
+      const result = processAIEvaluation(evaluationPayload)
+      const enrichedResult = {
+        ...result,
+        metadata
+      }
+
+      evaluationPerformance.value = enrichedResult?.performance || null
+      return enrichedResult
     } catch (error) {
       console.error('❌ Erro na avaliação automática por IA:', error)
       const fallback = autoEvaluatePEPFallback()
-      evaluationPerformance.value = fallback?.performance || null
-      return fallback
+      const enrichedFallback = {
+        ...fallback,
+        metadata: {
+          mode: 'fallback',
+          reason: error.message,
+          timestamp: new Date().toISOString(),
+          generatedBy: {
+            displayName: 'IA (fallback)'
+          }
+        }
+      }
+      evaluationPerformance.value = enrichedFallback?.performance || null
+      return enrichedFallback
     }
   }
 
@@ -109,6 +154,61 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
         evaluations = JSON.parse(evaluationData)
       } catch (error) {
         return processAIEvaluationSimple(evaluationData)
+      }
+    }
+
+    if (evaluations && !Array.isArray(evaluations.items) && typeof evaluations === 'object') {
+      const items = checklistData.value?.itensAvaliacao || []
+      const scores = {}
+      let total = 0
+      const details = []
+
+      Object.entries(evaluations).forEach(([itemId, evaluationArray], index) => {
+        const item =
+          items.find(candidate => candidate.idItem === itemId) ||
+          items[index]
+
+        if (!item) return
+
+        const adequadoPts = item.pontuacoes?.adequado?.pontos ?? 5
+        const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos ?? adequadoPts / 2
+        const inadequadoPts = item.pontuacoes?.inadequado?.pontos ?? 0
+
+        let score = inadequadoPts
+        if (Array.isArray(evaluationArray) && evaluationArray.length > 0) {
+          const trueCount = evaluationArray.filter(Boolean).length
+          const ratio = trueCount / evaluationArray.length
+          if (ratio >= 0.75) score = adequadoPts
+          else if (ratio >= 0.35) score = parcialPts
+          else score = inadequadoPts
+        }
+
+        scores[item.idItem] = Number(score)
+        total += Number(score)
+
+        const trueCount = Array.isArray(evaluationArray)
+          ? evaluationArray.filter(Boolean).length
+          : 0
+        const criteriaCount = Array.isArray(evaluationArray)
+          ? evaluationArray.length
+          : 0
+        const percentage = criteriaCount > 0 ? Math.round((trueCount / criteriaCount) * 100) : 0
+
+        details.push({
+          itemId: item.idItem,
+          pontuacao: Number(score),
+          observacao: `Avaliação automática: ${percentage}% dos critérios cumpridos`
+        })
+      })
+
+      evaluationCompleted.value = true
+      isEvaluating.value = false
+
+      return {
+        scores,
+        total,
+        details,
+        performance: normalizePerformanceSummary(evaluations.performance || {})
       }
     }
 

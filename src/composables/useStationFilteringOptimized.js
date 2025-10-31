@@ -186,8 +186,17 @@ export function useStationFilteringOptimized(stations) {
   }
 
   /**
+   * Função de comparação alfabética A-Z para ordenação de títulos
+   */
+  const compareAlphabetically = (a, b) => {
+    const titleA = (a.cleanTitle || a.tituloEstacao || '').toLowerCase()
+    const titleB = (b.cleanTitle || b.tituloEstacao || '').toLowerCase()
+    return titleA.localeCompare(titleB, 'pt-BR')
+  }
+
+  /**
    * OTIMIZAÇÃO PRINCIPAL: Um único computed que agrupa TUDO
-   * Elimina múltiplos filtros redundantes
+   * Elimina múltiplos filtros redundantes e implementa ordenação alfabética
    */
   const groupedStations = computed(() => {
     if (!stations.value || !Array.isArray(stations.value)) {
@@ -223,8 +232,6 @@ export function useStationFilteringOptimized(stations) {
         'procedimentos': []
       }
     }
-
-
 
     // Um único loop para processar TUDO
     for (const station of stations.value) {
@@ -268,10 +275,23 @@ export function useStationFilteringOptimized(stations) {
       }
     }
 
+    // Aplicar ordenação APENAS nas seções REVALIDA FÁCIL/FLOW (ordem alfabética)
+    // INEP mantém a ordenação original do Firestore (por número da estação)
+    
+    // Ordenar seções REVALIDA por especialidade (alfabeticamente A-Z)
+    Object.keys(result.revalidaFacil).forEach(specialty => {
+      result.revalidaFacil[specialty] = result.revalidaFacil[specialty].sort(compareAlphabetically)
+    })
+
+    // INEP mantém a ordem original do Firestore (não aplicar ordenação alfabética aqui)
+    
+    // Ordenar filtered stations também em ordem alfabética (apenas para visualização geral)
+    result.filtered.sort(compareAlphabetically)
+
     return result
   })
 
-  // Computed properties derivadas do groupedStations
+  // Computed properties derivadas do groupedStations (já ordenadas alfabeticamente)
   const filteredStations = computed(() => groupedStations.value.filtered)
 
   const filteredINEPStations = computed(() => {
@@ -284,29 +304,29 @@ export function useStationFilteringOptimized(stations) {
     return Object.values(rfGroups).flat()
   })
 
-  // Especialidades do Revalida Fácil
+  // Especialidades do Revalida Fácil (já ordenadas alfabeticamente no groupedStations)
   const filteredStationsRevalidaFacilClinicaMedica = computed(() =>
-    groupedStations.value.revalidaFacil['clinica-medica']
+    groupedStations.value.revalidaFacil['clinica-medica'] || []
   )
 
   const filteredStationsRevalidaFacilCirurgia = computed(() =>
-    groupedStations.value.revalidaFacil['cirurgia']
+    groupedStations.value.revalidaFacil['cirurgia'] || []
   )
 
   const filteredStationsRevalidaFacilPediatria = computed(() =>
-    groupedStations.value.revalidaFacil['pediatria']
+    groupedStations.value.revalidaFacil['pediatria'] || []
   )
 
   const filteredStationsRevalidaFacilGO = computed(() =>
-    groupedStations.value.revalidaFacil['ginecologia']
+    groupedStations.value.revalidaFacil['ginecologia'] || []
   )
 
   const filteredStationsRevalidaFacilPreventiva = computed(() =>
-    groupedStations.value.revalidaFacil['preventiva']
+    groupedStations.value.revalidaFacil['preventiva'] || []
   )
 
   const filteredStationsRevalidaFacilProcedimentos = computed(() =>
-    groupedStations.value.revalidaFacil['procedimentos']
+    groupedStations.value.revalidaFacil['procedimentos'] || []
   )
 
   // Períodos INEP

@@ -52,16 +52,61 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
   }
 
   /**
-   * Adiciona estação à sequência
+   * Determina se a estação é do tipo REVALIDA
+   */
+  const isRevalidaStation = (station) => {
+    const idEstacao = (station.idEstacao || '').toUpperCase()
+    return idEstacao.includes('REVALIDA_FACIL') || idEstacao.includes('REVALIDA_FLOW')
+  }
+
+  /**
+   * Função de comparação adaptada: INEP mantém ordem original, REVALIDA ordena alfabeticamente
+   */
+  const compareStations = (a, b) => {
+    const isRevalidaA = isRevalidaStation(a.originalStation || a)
+    const isRevalidaB = isRevalidaStation(b.originalStation || b)
+    
+    // Se ambos são REVALIDA, ordenar alfabeticamente
+    if (isRevalidaA && isRevalidaB) {
+      const titleA = (a.titulo || a.title || '').toLowerCase()
+      const titleB = (b.titulo || b.title || '').toLowerCase()
+      return titleA.localeCompare(titleB, 'pt-BR')
+    }
+    
+    // Se ambos são INEP, manter ordem original (por número da estação)
+    if (!isRevalidaA && !isRevalidaB) {
+      // Manter a ordem original - não ordenar
+      return 0
+    }
+    
+    // Se um é REVALIDA e outro é INEP, INEP vem primeiro
+    if (isRevalidaA && !isRevalidaB) return 1
+    if (!isRevalidaA && isRevalidaB) return -1
+    
+    return 0
+  }
+
+  /**
+   * Adiciona estação à sequência (ordem diferenciada por tipo)
    */
   const addToSequence = (station) => {
     if (!isStationInSequence(station.id)) {
-      selectedStationsSequence.value.push({
+      const newStation = {
         id: station.id,
         titulo: getCleanStationTitle(station.tituloEstacao),
         especialidade: station.especialidade,
         area: getStationArea(station),
-        order: selectedStationsSequence.value.length + 1
+        originalStation: station // Manter referência para determinar tipo
+      }
+
+      selectedStationsSequence.value.push(newStation)
+      
+      // Reordenar com lógica específica: INEP mantém ordem original, REVALIDA ordena alfabeticamente
+      selectedStationsSequence.value.sort(compareStations)
+      
+      // Atualizar ordem após ordenação
+      selectedStationsSequence.value.forEach((station, idx) => {
+        station.order = idx + 1
       })
     }
   }
@@ -73,7 +118,7 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
     const index = selectedStationsSequence.value.findIndex(s => s.id === stationId)
     if (index > -1) {
       selectedStationsSequence.value.splice(index, 1)
-      // Reordenar
+      // Reordenar após remoção
       selectedStationsSequence.value.forEach((station, idx) => {
         station.order = idx + 1
       })
@@ -81,19 +126,26 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
   }
 
   /**
-   * Move estação na sequência (drag and drop)
+   * Move estação na sequência (drag and drop) - DESABILITADO para manter ordenação alfabética
    */
-  const moveStationInSequence = (fromIndex, toIndex) => {
-    const stations = [...selectedStationsSequence.value]
-    const [movedStation] = stations.splice(fromIndex, 1)
-    stations.splice(toIndex, 0, movedStation)
+  const moveStationInSequence = (_fromIndex, _toIndex) => {
+    // Nota: Para manter ordenação alfabética, desabilitamos drag and drop
+    // Se for necessário reativar, descomentar o código abaixo:
+    
+    // const stations = [...selectedStationsSequence.value]
+    // const [movedStation] = stations.splice(fromIndex, 1)
+    // stations.splice(toIndex, 0, movedStation)
+    //
+    // // Reordenar alfabeticamente após movimento manual
+    // stations.sort(compareAlphabetically)
+    // stations.forEach((station, idx) => {
+    //   station.order = idx + 1
+    // })
+    //
+    // selectedStationsSequence.value = stations
 
-    // Reordenar
-    stations.forEach((station, idx) => {
-      station.order = idx + 1
-    })
-
-    selectedStationsSequence.value = stations
+    // Por enquanto, apenas emitir aviso se usuário tentar usar drag and drop
+    console.warn('Movimento manual desabilitado para manter ordenação alfabética')
   }
 
   function persistSelectedCandidate(candidate, sessionId = null) {
@@ -267,3 +319,4 @@ export function useSequentialMode(loadFullStation, getCleanStationTitle, getStat
     nextSequentialStation
   }
 }
+

@@ -58,11 +58,12 @@ import { deleteInviteFromFirestore } from '@/utils/simulationInviteCleanup.js'
 // Composables de IA
 import { useAiEvaluation } from '@/composables/useAiEvaluation.js'
 import { useAiChat } from '@/composables/useAiChat.js'
+import { useCandidateAudioTranscription } from '@/composables/useCandidateAudioTranscription.js'
 
 // Composables de Gravação
 import { useContinuousRecording } from '@/composables/useContinuousRecording.js'
 
-// Utils de Formata��o
+// Utils de Formatação
 
 // Bibliotecas Externas
 import { io } from 'socket.io-client'
@@ -75,7 +76,7 @@ function handleZoomImageLoad(_event) {
   // Carregamento de imagem completo
 }
 
-// Fun��es de formata��o memoizadas
+// Funções de formatação memoizadas
 // Inicializa o composable de sessão
 const {
   stationId,
@@ -111,7 +112,7 @@ const disconnect = () => {
   connectionStatus.value = 'Desconectado';
 };
 
-// Inicializa composable de navega��o sequencial
+// Inicializa composable de navegação sequencial
 const {  goToNextSequentialStation,
   goToPreviousSequentialStation,
   exitSequentialMode,
@@ -125,11 +126,11 @@ const {  goToNextSequentialStation,
   totalSequentialStations,
   sequentialData,
   userRole,  // ✅ FIX: Passar userRole para o composable
-  socketRef,  // ? NOVO: Passar socket para sincroniza��o
+  socketRef,  // ? NOVO: Passar socket para sincronização
   sessionId   // ✅ NOVO: Passar sessionId para eventos Socket
 });
 
-// Refs para notifica��es
+// Refs para notificações
 // NOTA: simulationEnded agora vem do useSimulationWorkflow (linha 176)
 const showNotificationSnackbar = ref(false);
 const notificationMessage = ref('');
@@ -154,7 +155,7 @@ const { reloadListeners } = usePrivateChatNotification();
 const theme = useTheme();
 const isDarkTheme = computed(() => theme.global.name.value === 'dark');
 
-// Inicializa composable de convites de simula��o (usado em sendLinkViaPrivateChat)
+// Inicializa composable de convites de simulação (usado em sendLinkViaPrivateChat)
 const { sendSimulationInvite } = useSimulationInvites(reloadListeners);
 
 const {
@@ -169,7 +170,7 @@ const {
   bothParticipantsReady,
   // Timer local (frontend-only)
   isLocallyPaused,
-  // M�todos
+  // Métodos
   sendReady,
   handleStartSimulationClick,
   manuallyEndSimulation,
@@ -197,16 +198,23 @@ const {
   backendUrl
 });
 
-// Router e Route (necess�rios para alguns composables)
+// Router e Route (necessários para alguns composables)
 const route = useRoute();
 const router = useRouter();
 
-// Candidato selecionado para simula��o
+// Candidato selecionado para simulação
 const selectedCandidateForSimulation = ref(null);
 
 watch(simulationStarted, async started => {
   if (!started) {
+    if (isCandidateTranscribing.value) {
+      stopCandidateTranscription();
+    }
     return;
+  }
+
+  if (isCandidate.value) {
+    await startCandidateTranscription();
   }
 
   // Iniciar gravação contínua para todos os participantes
@@ -237,7 +245,7 @@ watch(simulationStarted, async started => {
       inviteLink: inviteLinkToShow.value || null
     });
   } catch (error) {
-    console.error('[SimulationView] Erro ao remover convite pendente ap�s in�cio da simula��o:', error);
+    console.error('[SimulationView] Erro ao remover convite pendente após início da simulação:', error);
   }
 });
 
@@ -253,7 +261,7 @@ const {
   getMeetLinkForInvite
 } = useSimulationMeet({ userRole, route });
 
-// Inicializa composable de gera��o de links de convite
+// Inicializa composable de geração de links de convite
 const {
   generateInviteLinkWithDuration
 } = useInviteLinkGeneration({
@@ -272,7 +280,7 @@ const {
   meetLink,
   connectWebSocket,
   router,
-  // ? FIX: Passar par�metros de modo sequencial para gera��o de link
+  // ? FIX: Passar parâmetros de modo sequencial para geração de link
   isSequentialMode,
   sequenceId,
   sequenceIndex,
@@ -282,7 +290,7 @@ const {
 // Estado para copiar link de convite
 const copySuccess = ref(false);
 
-// Fun��o para copiar link de convite para clipboard
+// Função para copiar link de convite para clipboard
 async function copyInviteLink() {
   if (!inviteLinkToShow.value) {
     return;
@@ -292,7 +300,7 @@ async function copyInviteLink() {
     await navigator.clipboard.writeText(inviteLinkToShow.value);
     copySuccess.value = true;
 
-    // Reset ap�s 3 segundos
+    // Reset após 3 segundos
     setTimeout(() => {
       copySuccess.value = false;
     }, 3000);
@@ -311,7 +319,7 @@ const {
   initializePepItems
 } = useSimulationPEP({ userRole, checklistData });
 
-// Inicializa composable de avalia��o (marcadoPepItems deve estar dispon�vel)
+// Inicializa composable de avaliação (marcadoPepItems deve estar disponível)
 const {
   evaluationScores,
   candidateReceivedScores,
@@ -347,12 +355,35 @@ const {  zoomedImageSrc,
   closeImageZoom
 } = useImagePreloading({ stationData });
 
-// Inicializa composable de marca��o de roteiro
+// Inicializa composable de marcação de roteiro
 const {
-  markedScriptContexts,  markedParagraphs,  toggleScriptContext,  isParagraphMarked,
-  toggleParagraphMark,  handleClick,} = useScriptMarking({ userRole });
+  markedScriptContexts,
+  markedParagraphs,
+  toggleScriptContext,
+  isParagraphMarked,
+  toggleParagraphMark,
+  handleClick
+} = useScriptMarking({ userRole });
 
-// Inicializa composable de avalia��o por IA
+// Simulation data management
+const {
+  releasedData,
+  isChecklistVisibleForCandidate,
+  actorVisibleImpressoContent,
+  actorReleasedImpressoIds,
+  impressosModalOpen,
+  toggleActorImpressoVisibility,
+  releaseData,
+  handleCandidateReceiveData,
+  resetSimulationData
+} = useSimulationData({ socket: socketRef, sessionId, userRole, stationData });
+
+// Convert releasedData object to array for CandidateImpressosPanel
+const releasedDataArray = computed(() => {
+  return Object.values(releasedData.value);
+});
+
+// Inicializa composable de avaliação por IA
 const {
   isEvaluating: submittingEvaluation,
   evaluationCompleted: aiEvaluationSubmitted,
@@ -361,7 +392,8 @@ const {
   checklistData,
   stationData,
   conversationHistory,
-  markedPepItems
+  sessionId,
+  releasedData
 });
 
 // Inicializa composable de gravação contínua
@@ -378,20 +410,33 @@ const {
   cleanup: cleanupRecording
 } = useContinuousRecording();
 
-// Resultado da avalia��o por IA
+// Resultado da avaliação por IA
 const aiEvaluationResult = ref(null)
 
-// Controle da avalia��o opcional por IA
+// Transcrição automática da fala do candidato para alimentar o histórico da IA
+const candidateUserId = computed(() => currentUser.value?.uid || currentUser.value?.userId || '')
+const {
+  requestMicrophonePermission: requestCandidateMicPermission,
+  startCapture: startCandidateTranscription,
+  stopCapture: stopCandidateTranscription,
+  isCapturing: isCandidateTranscribing
+} = useCandidateAudioTranscription({
+  sessionId,
+  userId: candidateUserId,
+  socketRef
+})
+
+// Controle da avaliação opcional por IA
 const enableAIEvaluation = ref(false)
 const showAIEvaluationDialog = ref(false)
 const aiEvaluationDialogShown = ref(false)
 
-// Fun��o para lidar com aceite da avalia��o por IA
+// Função para lidar com aceite da avaliação por IA
 const handleAIEvaluationAccept = async () => {
   showAIEvaluationDialog.value = false
   enableAIEvaluation.value = true
 
-  logger.info('[IA_EVALUATION] 🤖 Candidato aceitou avalia��o por IA, iniciando...');
+  logger.info('[IA_EVALUATION] 🤖 Candidato aceitou avaliação por IA, iniciando...');
 
   try {
     // ✅ NOVO: Sincronizar histórico de conversa com backend antes de avaliar
@@ -415,29 +460,29 @@ const handleAIEvaluationAccept = async () => {
     const result = await runAiEvaluation();
     
     if (result) {
-      // Armazenar resultado da avalia��o por IA
+      // Armazenar resultado da avaliação por IA
       aiEvaluationResult.value = result
-      logger.info('[IA_EVALUATION] ✅ Avalia��o por IA conclu�da com sucesso', {
+      logger.info('[IA_EVALUATION] ✅ Avaliação por IA concluída com sucesso', {
         scoresCount: Object.keys(result.scores || {}).length,
         totalScore: result.total,
         conversationEntries: syncedHistory.length
       });
-      showNotification('Avalia��o por IA conclu�da! Verifique os resultados.', 'success');
+      showNotification('Avaliação por IA concluída! Verifique os resultados.', 'success');
     } else {
-      logger.warn('[IA_EVALUATION] ⚠️ Avalia��o por IA retornou resultado vazio');
-      showNotification('Avalia��o por IA n�o foi poss�vel', 'warning');
+      logger.warn('[IA_EVALUATION] ⚠️ Avaliação por IA retornou resultado vazio');
+      showNotification('Avaliação por IA não foi possível', 'warning');
     }
   } catch (error) {
-    logger.error('[IA_EVALUATION] ❌ Erro na avalia��o por IA', error);
-    showNotification('Erro na avalia��o por IA', 'error');
+    logger.error('[IA_EVALUATION] ❌ Erro na avaliação por IA', error);
+    showNotification('Erro na avaliação por IA', 'error');
   }
 }
 
-// Fun��o para recusar avalia��o por IA
+// Função para recusar avaliação por IA
 const handleAIEvaluationDecline = () => {
   showAIEvaluationDialog.value = false
   enableAIEvaluation.value = false
-  logger.info('[IA_EVALUATION] ?? Candidato recusou avalia��o por IA');
+  logger.info('[IA_EVALUATION] ?? Candidato recusou avaliação por IA');
 }
 
 // ✅ NOVO: Função para sincronizar histórico de conversa com backend
@@ -500,7 +545,7 @@ const syncConversationHistory = () => {
   });
 }
 
-// Aliases para manter compatibilidade com template (fun��es j� t�m debounce interno)
+// Aliases para manter compatibilidade com template (funções já têm debounce interno)
 const debouncedToggleParagraphMark = toggleParagraphMark;
 const debouncedToggleScriptContext = toggleScriptContext;
 
@@ -536,32 +581,14 @@ const tryAutoSubmitEvaluation = async () => {
     await submitEvaluation();
   } catch (error) {
     autoSubmitTriggered.value = false;
-    console.error('[AUTO_SUBMIT] Falha ao submeter avalia��o automaticamente:', error);
+    console.error('[AUTO_SUBMIT] Falha ao submeter avaliação automaticamente:', error);
   }
 };
 
-// Fun��o handler para atualiza��o de scores de avalia��o
+// Função handler para atualização de scores de avaliação
 function handleEvaluationScoreUpdate({ itemId, score }) {
   updateEvaluationScore(itemId, score);
 }
-
-// Simulation data management
-const {
-  releasedData,
-  isChecklistVisibleForCandidate,
-  actorVisibleImpressoContent,
-  actorReleasedImpressoIds,
-  impressosModalOpen,
-  toggleActorImpressoVisibility,
-  releaseData,
-  handleCandidateReceiveData,
-  resetSimulationData
-} = useSimulationData({ socket: socketRef, sessionId, userRole, stationData });
-
-// Convert releasedData object to array for CandidateImpressosPanel
-const releasedDataArray = computed(() => {
-  return Object.values(releasedData.value);
-});
 
 // Internal invites management
 const {  internalInviteDialog,
@@ -583,14 +610,14 @@ const {  internalInviteDialog,
 const sendingChat = ref(false);
 const chatSentSuccess = ref(false);
 
-// Importar userStore para verifica��o de permiss�es
+// Importar userStore para verificação de permissões
 const { canEditStations } = useUserStore();
 
 const isAdmin = computed(() => {
   return canEditStations.value;
 });
 
-// Fun��o para abrir a p�gina de edi��o em uma nova aba
+// Função para abrir a página de edição em uma nova aba
 function openEditPage() {
   if (stationId.value) {
     const routeData = router.resolve({
@@ -600,10 +627,10 @@ function openEditPage() {
   }
 }
 
-// Refs para estado de prontid�o e controle da simula��o
-// Todos os estados de workflow agora s�o gerenciados pelo composable
+// Refs para estado de prontidão e controle da simulação
+// Todos os estados de workflow agora são gerenciados pelo composable
 
-// fetchSimulationData agora est� no composable useSimulationSession
+// fetchSimulationData agora está no composable useSimulationSession
 
 function clearSelectedCandidate() {
   try {
@@ -637,7 +664,7 @@ async function sendLinkViaPrivateChat() {
       candidateUid: selectedCandidateForSimulation.value.uid,
       candidateName: selectedCandidateForSimulation.value.name,
       inviteLink: inviteLinkToShow.value,
-      stationTitle: stationData.value?.tituloEstacao || 'Esta��o',
+      stationTitle: stationData.value?.tituloEstacao || 'Estação',
       duration: selectedDurationMinutes.value || 10,
       meetLink: getMeetLinkForInvite(),
       senderName: currentUser.value?.displayName || 'Avaliador',
@@ -853,7 +880,7 @@ function connectWebSocket() {
 
     // Notificação para o candidato
     if (userRole.value === 'candidate') {
-      showNotification('Tempo finalizado! Aguardando avalia��o do examinador...', 'info');
+      showNotification('Tempo finalizado! Aguardando avaliação do examinador...', 'info');
     }
   });
   
@@ -920,7 +947,7 @@ function connectWebSocket() {
         // Notificar o candidato quando o PEP é liberado
         if (payload.shouldBeVisible) {
           console.log('[PEP_VISIBILITY] 🔔 Exibindo notificação para candidato');
-          showNotification('O PEP (checklist de avalia��o) foi liberado pelo examinador!', 'success');
+          showNotification('O PEP (checklist de avaliação) foi liberado pelo examinador!', 'success');
         }
       });
     }
@@ -1104,7 +1131,7 @@ function connectWebSocket() {
   // Listener para convites internos de simulação
   socket.on('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
   
-  // Listener para confirma��o de submiss�o de avalia��o
+  // Listener para confirmação de submissão de avaliação
   socket.on('SUBMISSION_CONFIRMED', (data) => {
     if (data.success) {
         // Marcar como submetido se ainda não estiver
@@ -1118,7 +1145,7 @@ function connectWebSocket() {
   // Listener para notificar o avaliador sobre submissão do candidato
   socket.on('CANDIDATE_SUBMITTED_EVALUATION', (data) => {
     if (userRole.value === 'actor' || userRole.value === 'evaluator') {
-        showNotification(`Candidato submeteu avalia��o final. Nota: ${data.totalScore?.toFixed(2) || 'N/A'}`, 'info');
+        showNotification(`Candidato submeteu avaliação final. Nota: ${data.totalScore?.toFixed(2) || 'N/A'}`, 'info');
     }
 
     // Garantir que o usuário volte ao topo da página ao iniciar próxima estação
@@ -1255,6 +1282,12 @@ function setupSession() {
 onMounted(() => {
   setupSession();
 
+  if (isCandidate.value) {
+    requestCandidateMicPermission().catch(error => {
+      logger.warn('[IA_EVALUATION] ⚠️ Permissão de microfone para transcrição automática negada ou falhou', error);
+    });
+  }
+
   // Verifica link do Meet para candidato
   checkCandidateMeetLink();
 
@@ -1312,7 +1345,7 @@ watch(() => route.fullPath, (newPath, oldPath) => {
 
 // --- Funções de Interação ---
 
-// Fun��o para manter os callbacks de avalia��o
+// Função para manter os callbacks de avaliação
 watch([evaluationScores, markedPepItems], ([newScores, newMarks]) => {
   if (
     socketRef.value?.connected &&
@@ -1388,12 +1421,17 @@ watch(simulationEnded, (newValue) => {
           });
         }
       } else {
-        logger.warn('[CONTINUOUS_RECORDING] ⚠️ Nenhuma gravação contínua estava em andamento');
-      }
-    } catch (error) {
-      logger.error('[CONTINUOUS_RECORDING] ❌ Erro ao finalizar gravação contínua:', error);
+      logger.warn('[CONTINUOUS_RECORDING] ⚠️ Nenhuma gravação contínua estava em andamento');
     }
+  } catch (error) {
+    logger.error('[CONTINUOUS_RECORDING] ❌ Erro ao finalizar gravação contínua:', error);
   }
+
+    if (isCandidateTranscribing.value) {
+      stopCandidateTranscription();
+      logger.info('[CONVERSATION_HISTORY] ⏹️ Transcrição automática do candidato finalizada com o término da simulação');
+    }
+}
 
   if (
     newValue && // Simulação terminou
@@ -1406,17 +1444,17 @@ watch(simulationEnded, (newValue) => {
   }
 });
 
-// Watcher para acionar avalia��o por IA ao final da simula��o (apenas para candidatos)
+// Watcher para acionar avaliação por IA ao final da simulação (apenas para candidatos)
 watch(simulationEnded, async (newValue) => {
   if (newValue && checklistData.value?.itensAvaliacao?.length > 0 && userRole.value === 'candidate') {
     // Aguardar um pouco para garantir que todos os dados estejam prontos
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Mostrar di�logo de avalia��o opcional (apenas para candidatos)
+    // Mostrar diálogo de avaliação opcional (apenas para candidatos)
     if (!aiEvaluationDialogShown.value) {
       showAIEvaluationDialog.value = true;
       aiEvaluationDialogShown.value = true;
-      logger.info('[IA_EVALUATION] ?? Di�logo de avalia��o por IA disponibilizado para o candidato');
+      logger.info('[IA_EVALUATION] ?? Diálogo de avaliação por IA disponibilizado para o candidato');
     }
   }
 });
@@ -1500,6 +1538,11 @@ onUnmounted(() => {
     logger.info('[CONTINUOUS_RECORDING] 🧹 Recursos de gravação limpos no unmount');
   } catch (error) {
     logger.error('[CONTINUOUS_RECORDING] ❌ Erro ao limpar recursos de gravação:', error);
+  }
+
+  if (isCandidateTranscribing.value) {
+    stopCandidateTranscription();
+    logger.info('[CONVERSATION_HISTORY] 🧹 Transcrição automática do candidato finalizada no unmount');
   }
 });
 
@@ -1701,7 +1744,10 @@ function toggleCollapse() {
             <!-- FEEDBACK DA AVALIAÇÃO POR IA -->
             <SimulationAiFeedbackCard
               v-if="aiEvaluationResult && simulationEnded"
-              :feedback="aiEvaluationResult.scores"
+              :feedback="aiEvaluationResult.performance"
+              :scores="aiEvaluationResult.scores"
+              :total-score="aiEvaluationResult.total"
+              :details="aiEvaluationResult.details"
               :loading="submittingEvaluation"
               :error="aiEvaluationResult.error"
               :is-dark-theme="isDarkTheme"
@@ -1709,7 +1755,7 @@ function toggleCollapse() {
             />
            </div>
 
-           <!-- NAVEGA��O SEQUENCIAL - Bot�o Pr�xima Esta��o -->
+           <!-- NAVEGAÇÃO SEQUENCIAL - Botão Próxima Estação -->
            <VCard
              v-if="isSequentialMode && isActorOrEvaluator && simulationEnded"
              class="mt-6 sequential-next-card"
@@ -1736,7 +1782,7 @@ function toggleCollapse() {
                  class="mb-3 px-8"
                  variant="elevated"
                >
-                 Pr�xima Esta��o ({{ sequenceIndex + 2 }}/{{ totalSequentialStations }})
+                 Próxima Estação ({{ sequenceIndex + 2 }}/{{ totalSequentialStations }})
                </VBtn>
 
                <VBtn
@@ -1758,7 +1804,7 @@ function toggleCollapse() {
            <div v-if="isCandidate">
               <div v-if="!simulationStarted && !simulationEnded">
                  <VCard class="mb-6">
-                     <VCardTitle>Prepara��o da Simula��o</VCardTitle>
+                     <VCardTitle>Preparação da Simulação</VCardTitle>
                      <VCardText class="text-center">
                          <div v-if="candidateMeetLink" class="d-flex flex-column gap-3">
                              <VAlert type="info" variant="tonal" title="Comunicação via Google Meet">
@@ -1841,7 +1887,10 @@ function toggleCollapse() {
              <!-- FEEDBACK DA AVALIAÇÃO POR IA PARA CANDIDATO -->
              <SimulationAiFeedbackCard
                v-if="aiEvaluationResult && simulationEnded"
-               :feedback="aiEvaluationResult.scores"
+               :feedback="aiEvaluationResult.performance"
+               :scores="aiEvaluationResult.scores"
+               :total-score="aiEvaluationResult.total"
+               :details="aiEvaluationResult.details"
                :loading="submittingEvaluation"
                :error="aiEvaluationResult.error"
                :is-dark-theme="isDarkTheme"
@@ -1884,7 +1933,7 @@ function toggleCollapse() {
                      :width="4"
                    />
                    <div class="text-caption text-medium-emphasis mt-2">
-                     Esta��o {{ sequenceIndex + 1 }}/{{ totalSequentialStations }} conclu�da
+                     Estação {{ sequenceIndex + 1 }}/{{ totalSequentialStations }} concluída
                    </div>
                  </div>
                </VCardText>
@@ -1911,7 +1960,7 @@ function toggleCollapse() {
                  <div class="d-flex align-center">
                    <VIcon icon="ri-checkbox-circle-line" class="me-2" :tabindex="undefined" />
                    <div>
-                     <div class="font-weight-bold">Esta��o Conclu�da</div>
+                     <div class="font-weight-bold">Estação Concluída</div>
                      <div class="text-body-2">O candidato submeteu a avaliação. Você pode prosseguir para a próxima estação.</div>
                    </div>
                  </div>
@@ -1926,7 +1975,7 @@ function toggleCollapse() {
                    @click="goToNextSequentialStation"
                    class="mb-3"
                  >
-                   Pr�xima Esta��o ({{ sequenceIndex + 2 }}/{{ totalSequentialStations }})
+                   Próxima Estação ({{ sequenceIndex + 2 }}/{{ totalSequentialStations }})
                  </VBtn>
 
                  <VBtn
@@ -1960,7 +2009,7 @@ function toggleCollapse() {
          <VCardTitle>Convite para Simulação</VCardTitle>
          <VCardText>
            <p><strong>De:</strong> {{ internalInviteData.from }}</p>
-           <p><strong>Esta��o:</strong> {{ internalInviteData.stationTitle }}</p>
+           <p><strong>Estação:</strong> {{ internalInviteData.stationTitle }}</p>
            <p><strong>Duração:</strong> {{ selectedDurationMinutes }} min</p>
            <a v-if="internalInviteData.meet" :href="internalInviteData.meet" target="_blank">Link do Google Meet</a>
          </VCardText>

@@ -490,7 +490,8 @@ const {
   checklistData,
   stationData,
   conversationHistory,
-  markedPepItems
+  sessionId,
+  releasedData
 });
 
 // Watcher para liberar PEP e iniciar avaliação automática

@@ -53,5 +53,14 @@ defineProps({
     align-items: center;
     cursor: pointer;
   }
+
+  // Garantir que o ícone fique visível quando o link está ativo
+  .nav-link > a.router-link-active,
+  .nav-link > a.router-link-exact-active {
+    .nav-item-icon,
+    .v-icon {
+      color: rgb(var(--v-theme-on-primary)) !important;
+    }
+  }
 }
 </style>

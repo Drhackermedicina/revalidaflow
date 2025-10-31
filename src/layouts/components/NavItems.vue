@@ -103,7 +103,7 @@ export default {
 
     const aiTrainingLink = {
       title: 'Treinamento IA',
-      icon: 'ri-robot-line',
+      icon: 'ri-robot-2-line',
       iconColor: '#7c4dff',
       to: '/app/ai-training',
     };
