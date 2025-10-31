@@ -1,0 +1,302 @@
+// ========================================
+// LOGIN PAGE TYPOGRAPHY
+// ========================================
+
+// Enhanced Title Styles
+.modern-title {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: var(--title-size);
+  font-weight: var(--title-font-weight);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0;
+  position: relative;
+
+  // Main gradient text
+  .title-gradient {
+    background: var(--title-gradient);
+    background-size: 200% 200%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradient-shift 8s ease infinite;
+    position: relative;
+    z-index: 2;
+  }
+
+  // Glow effect behind text
+  .title-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--title-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: blur(12px);
+    opacity: 0.6;
+    z-index: 1;
+    animation: gradient-shift 8s ease infinite;
+  }
+
+  // Letter by letter animation container
+  .title-letters {
+    display: inline-block;
+  }
+
+  .letter {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(20px) rotateX(90deg);
+    animation: letter-reveal 0.6s var(--transition-bounce) forwards;
+  }
+}
+
+// Keyframe for letter animation
+@keyframes letter-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) rotateX(90deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-2px) rotateX(0deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+  }
+}
+
+// Subtitle Styles
+.modern-subtitle {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: var(--subtitle-size);
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+  position: relative;
+
+  .subtitle-text {
+    color: white;
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .emoji-accent {
+    font-size: 1.1em;
+    display: inline-block;
+    animation: float 3s ease-in-out infinite;
+    filter: drop-shadow(0 2px 8px rgba(140, 87, 255, 0.4));
+  }
+
+  // Decorative underline
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: var(--title-gradient);
+    border-radius: 2px;
+    animation: slide-in-left 0.8s var(--transition-smooth) 0.5s both;
+  }
+}
+
+// Body Text Styles
+.modern-body-text {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: var(--body-size);
+  font-weight: 400;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  position: relative;
+
+  .body-text-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  // Soft highlight effect
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120%;
+    height: 120%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(140, 87, 255, 0.1) 0%,
+      transparent 70%
+    );
+    z-index: 1;
+    border-radius: 50%;
+  }
+}
+
+// Typography Animation Classes
+.typography-fade-in {
+  opacity: 0;
+  animation: fadeInScale 0.8s var(--transition-smooth) forwards;
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.typography-slide-up {
+  opacity: 0;
+  transform: translateY(30px);
+  animation: slideUpFade 0.6s var(--transition-smooth) forwards;
+}
+
+@keyframes slideUpFade {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Typography States
+.typography-hover {
+  transition: all var(--transition-fast);
+  cursor: default;
+
+  &:hover {
+    transform: scale(1.02);
+    filter: brightness(1.1);
+  }
+}
+
+// Button Typography
+.button-text {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  position: relative;
+  z-index: 2;
+}
+
+// Error Typography
+.error-text {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #ff6b6b;
+  margin: 0;
+}
+
+// Success Typography
+.success-text {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--medical-green);
+  margin: 0;
+}
+
+// Dark Theme Typography
+.v-theme--dark {
+  .modern-subtitle .subtitle-text {
+    color: white;
+  }
+
+  .modern-body-text {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .error-text {
+    color: #ff8787;
+  }
+}
+
+// Responsive Typography
+@media (max-width: 600px) {
+  .modern-title {
+    font-size: 2rem;
+
+    .letter {
+      animation-duration: 0.4s;
+    }
+  }
+
+  .modern-subtitle {
+    font-size: 1.3rem;
+  }
+
+  .modern-body-text {
+    font-size: 0.95rem;
+  }
+
+  .button-text {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .modern-title {
+    font-size: 1.8rem;
+    letter-spacing: -0.01em;
+  }
+
+  .modern-subtitle {
+    font-size: 1.2rem;
+  }
+
+  .modern-body-text {
+    font-size: 0.9rem;
+  }
+}
+
+// High Performance Mode (reduced animations)
+@media (prefers-reduced-motion: reduce) {
+  .modern-title .letter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .modern-title .title-gradient,
+  .modern-title .title-glow {
+    animation: none;
+  }
+
+  .emoji-accent {
+    animation: none;
+  }
+}
+
+// Print Styles
+@media print {
+  .modern-title,
+  .modern-subtitle,
+  .modern-body-text {
+    color: black !important;
+    -webkit-text-fill-color: black !important;
+  }
+}

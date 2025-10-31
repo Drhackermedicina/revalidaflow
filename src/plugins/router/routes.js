@@ -30,6 +30,24 @@ export const routes = [
         component: () => import('@/pages/pagamento.vue'),
         meta: { requiresAuth: true },
       },
+      {
+        path: 'pagamento/sucesso',
+        name: 'pagamento-sucesso',
+        component: () => import('@/pages/pagamento-sucesso.vue'),
+        meta: { requiresAuth: false },
+      },
+      {
+        path: 'pagamento/erro',
+        name: 'pagamento-erro',
+        component: () => import('@/pages/pagamento-erro.vue'),
+        meta: { requiresAuth: false },
+      },
+      {
+        path: 'pagamento/pendente',
+        name: 'pagamento-pendente',
+        component: () => import('@/pages/pagamento-pendente.vue'),
+        meta: { requiresAuth: false },
+      },
     ],
   },
   // Demais rotas protegidas com layout global

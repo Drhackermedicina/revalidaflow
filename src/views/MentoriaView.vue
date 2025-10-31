@@ -1,676 +1,566 @@
 <template>
-  <VContainer fluid class="mentoria-container py-8">
-    <!-- Hero Section -->
-    <div class="mentoria-hero mb-12">
-      <div class="hero-content text-center">
-        <VChip
-          color="primary"
-          variant="elevated"
-          class="mb-4"
-          size="large"
-        >
-          <VIcon icon="ri-graduation-cap-fill" start />
-          Mentoria Especializada
-        </VChip>
-        
-        <h1 class="text-h2 font-weight-bold mb-4">
-          <span class="gradient-text">ATIVAMED</span> Mentoria
-        </h1>
-        
-        <p class="text-h6 text-medium-emphasis mb-6 mx-auto" style="max-width: 800px;">
-          Prepare-se para o Revalida com quem já conquistou a aprovação!
-          <br>
-          Mentoria personalizada com profissionais revalidados e experientes.
-        </p>
+  <VContainer fluid class="mentoria-view py-10 px-6 px-md-12">
+    <section class="hero d-flex flex-column align-center text-center rounded-xl pa-12 pa-md-16 mb-14">
+      <VChip variant="elevated" color="primary" class="mb-6" size="large">
+        <VIcon icon="ri-graduation-cap-fill" start />
+        Mentoria Especializada
+      </VChip>
+      <h1 class="hero-title mb-6">
+        <span class="text-gradient text-ativa">ATIVA</span>
+        <span class="text-gradient text-med">MED</span>
+        <span class="text-gradient text-mentoria d-block">Mentoria</span>
+      </h1>
+      <p class="hero-description mb-8">
+        Prepare-se para o Revalida com quem já conquistou a aprovação. Mentoria personalizada com profissionais revalidados, experientes e prontos para guiar sua jornada.
+      </p>
+      <VBtn size="x-large" class="hero-cta" @click="scrollTo(produtosSection)">
+        <VIcon icon="ri-rocket-fill" start />
+        Conheça Nossos Planos
+        <VIcon icon="ri-arrow-down-line" end />
+      </VBtn>
+    </section>
 
-        <VBtn
-          color="primary"
-          size="x-large"
-          variant="elevated"
-          class="px-8"
-          @click="scrollToProdutos"
-        >
-          <VIcon icon="ri-arrow-down-line" start />
-          Conheça Nossos Planos
-        </VBtn>
-      </div>
-    </div>
-
-    <!-- Mentores Section -->
-    <div ref="mentoresSection" class="mentores-section mb-12">
-      <div class="section-header text-center mb-8">
-        <VIcon icon="ri-star-fill" color="warning" size="32" class="mb-2" />
-        <h2 class="text-h3 font-weight-bold mb-3">Nossos Mentores</h2>
-        <p class="text-h6 text-medium-emphasis">
-          Profissionais revalidados que já trilharam o caminho do sucesso
-        </p>
-      </div>
-
-      <!-- Card de Parceria e Descrição -->
-      <VCard
-        class="parceria-card mb-10"
-        elevation="12"
-        color="primary"
-      >
-        <VCardText class="pa-8">
-          <div class="text-center mb-6">
-            <VIcon icon="ri-handshake-fill" color="white" size="48" class="mb-3" />
-            <h3 class="text-h4 font-weight-bold text-white mb-2">
-              Parceria RevalidaFlow + Ativa Med Mentoria
-            </h3>
-          </div>
-          
-          <div class="parceria-content">
-            <p class="text-h6 text-white text-center mb-6 font-weight-medium">
-              O RevalidaFlow fechou uma parceria exclusiva com a Ativa Med Mentoria para oferecer 
-              uma experiência completa de preparação para o Revalida!
+    <section class="partnership mb-14">
+      <VCard class="glass" elevation="12">
+        <VCardText class="pa-8 pa-md-10">
+          <div class="text-center mb-8">
+            <h2 class="section-title mb-3">
+              Revalida Flow + Ativa Med
+            </h2>
+            <p class="section-subtitle mb-4">
+              Parceria oficial que combina tecnologia de simulação com mentoria clínica premium para acelerar sua aprovação na 2ª fase.
             </p>
-            
-            <VDivider class="my-6 border-opacity-25" color="white" />
-            
-            <VRow class="mt-6">
-              <VCol cols="12" md="4" class="text-center">
-                <VIcon icon="ri-medal-fill" color="warning" size="40" class="mb-3" />
-                <h4 class="text-h6 text-white font-weight-bold mb-2">Mentores Revalidados</h4>
-                <p class="text-body-1 text-white opacity-90">
-                  Profissionais aprovados na 2ª Fase do Revalida
-                </p>
-              </VCol>
-              
-              <VCol cols="12" md="4" class="text-center">
-                <VIcon icon="ri-book-open-fill" color="success" size="40" class="mb-3" />
-                <h4 class="text-h6 text-white font-weight-bold mb-2">Experiência Comprovada</h4>
-                <p class="text-body-1 text-white opacity-90">
-                  Especialistas em preparação para provas práticas
-                </p>
-              </VCol>
-              
-              <VCol cols="12" md="4" class="text-center">
-                <VIcon icon="ri-team-fill" color="info" size="40" class="mb-3" />
-                <h4 class="text-h6 text-white font-weight-bold mb-2">Acompanhamento Personalizado</h4>
-                <p class="text-body-1 text-white opacity-90">
-                  Mentoria humanizada e focada no seu sucesso
-                </p>
-              </VCol>
-            </VRow>
+            <p class="section-body">
+              O app Revalida Flow reúne dashboards de desempenho, simulados interativos e roteiros inteligentes. A Ativa Med conecta mentores revalidados que interpretam seus dados, personalizam o plano de treino e oferecem sessões práticas semanais. Você recebe diagnóstico, acompanhamento humano e suporte contínuo até o dia da prova.
+            </p>
           </div>
+          <VRow class="g-6" align="stretch">
+            <VCol v-for="beneficio in beneficios" :key="beneficio.titulo" cols="12" md="4">
+              <div class="benefit-card h-100 text-center pa-6">
+                <VIcon :icon="beneficio.icone" size="36" class="mb-4 icon-bubble" />
+                <h3 class="benefit-title mb-2">{{ beneficio.titulo }}</h3>
+                <p class="benefit-text">{{ beneficio.texto }}</p>
+              </div>
+            </VCol>
+          </VRow>
         </VCardText>
       </VCard>
+    </section>
 
-      <!-- Cards dos Mentores -->
-      <VRow justify="center">
-        <VCol
-          v-for="mentor in mentores"
-          :key="mentor.id"
-          cols="6"
-          sm="4"
-          md="3"
-          lg="2"
-        >
-          <VCard
-            class="mentor-card-simple text-center"
-            elevation="8"
-            hover
-          >
-            <VCardText class="pa-4">
-              <!-- Usa imagem real se disponível, senão avatar -->
-              <div v-if="mentor.imagem" class="mentor-image-wrapper mb-3">
-                <img 
-                  :src="mentor.imagem" 
-                  :alt="mentor.nome"
-                  class="mentor-real-image"
-                />
+    <section class="mentors mb-14 text-center">
+      <div class="section-header mb-8">
+        <VIcon icon="ri-star-fill" size="32" color="warning" class="mb-2" />
+        <h2 class="section-title mb-2">Nossos Mentores</h2>
+        <p class="section-subtitle">
+          Profissionais revalidados que já trilharam o caminho da aprovação
+        </p>
+      </div>
+      <VRow class="mentors-grid" justify="center">
+        <VCol v-for="mentor in mentores" :key="mentor.id" cols="10" sm="6" md="4" lg="3">
+          <VCard class="mentor-card text-center" elevation="10" hover>
+            <VCardText class="pa-6">
+              <div class="mentor-photo mb-4">
+                <img :src="mentor.imagem" :alt="mentor.nome" />
               </div>
-              <VAvatar
-                v-else
-                :color="mentor.color"
-                size="80"
-                class="mb-3"
-              >
-                <VIcon icon="ri-user-fill" size="40" />
-              </VAvatar>
-              
-              <h3 class="text-subtitle-1 font-weight-bold mb-2">{{ mentor.nome }}</h3>
-              <VChip
+              <h3 class="mentor-name mb-4">{{ mentor.nome }}</h3>
+              <VBtn
+                :href="whatsUrl(mentor.whatsapp, mentor.mensagem)"
+                target="_blank"
                 color="success"
-                variant="elevated"
-                size="x-small"
+                class="whatsapp-btn"
+                size="large"
+                rounded
               >
-                <VIcon icon="ri-verified-badge-fill" start size="12" />
-                Revalidado
-              </VChip>
-
-              <!-- Botão WhatsApp -->
-              <div class="mt-4">
-                <VBtn
-                  icon
-                  size="x-small"
-                  variant="tonal"
-                  color="success"
-                  class="whatsapp-btn"
-                  :href="`https://wa.me/${mentor.whatsapp}?text=${encodeURIComponent(mentor.mensagem)}`"
-                  target="_blank"
-                  title="Falar com o mentor no WhatsApp"
-                >
-                  <VIcon icon="ri-whatsapp-fill" size="20" />
-                </VBtn>
-              </div>
+                <VIcon icon="ri-whatsapp-fill" size="22" start />
+                Falar no WhatsApp
+              </VBtn>
             </VCardText>
           </VCard>
         </VCol>
       </VRow>
-    </div>
+    </section>
 
-    <!-- Produtos Section -->
-    <div ref="produtosSection" class="produtos-section mb-12">
-      <div class="section-header text-center mb-8">
-        <VIcon icon="ri-gift-fill" color="primary" size="32" class="mb-2" />
-        <h2 class="text-h3 font-weight-bold mb-3">Nossos Produtos</h2>
-        <p class="text-h6 text-medium-emphasis">
-          Escolha o plano ideal para sua preparação
+    <section ref="produtosSection" class="products mb-14">
+      <div class="section-header text-center mb-10">
+        <VIcon icon="ri-gift-fill" size="36" color="primary" class="mb-2" />
+        <h2 class="section-title mb-2">Nossos Planos Exclusivos</h2>
+        <p class="section-subtitle">
+          Três caminhos pensados para acelerar sua performance no Revalida
         </p>
       </div>
-
-      <VRow>
-        <!-- Produto 1: Ator Revalidado + Feedback -->
-        <VCol
-          v-for="produto in produtos"
-          :key="produto.id"
-          cols="12"
-          md="4"
-        >
+      <VRow class="product-grid" justify="center" align="stretch">
+        <VCol v-for="produto in produtos" :key="produto.id" cols="12" sm="6" md="4">
           <VCard
-            :class="['produto-card', { 'produto-destaque': produto.destaque }]"
+            :class="['product-card', { destaque: produto.destaque }]"
             elevation="12"
             hover
           >
-            <div v-if="produto.destaque" class="destaque-badge">
-              <VIcon icon="ri-star-fill" size="16" />
-              MAIS POPULAR
-            </div>
-
-            <VCardText class="pa-8">
+            <VCardText class="pa-8 d-flex flex-column">
               <div class="text-center mb-6">
-                <VIcon
-                  :icon="produto.icon"
-                  :color="produto.color"
-                  size="64"
-                  class="mb-4"
-                />
-                <h3 class="text-h4 font-weight-bold mb-2">{{ produto.titulo }}</h3>
-                <p class="text-body-1 text-medium-emphasis">{{ produto.descricao }}</p>
-              </div>
-
-              <VDivider class="my-6" />
-
-              <!-- Features -->
-              <div class="features-list mb-6">
-                <div
-                  v-for="(feature, index) in produto.features"
-                  :key="index"
-                  class="feature-item mb-3"
-                >
-                  <VIcon icon="ri-checkbox-circle-fill" color="success" class="me-2" size="20" />
-                  <span class="text-body-1">{{ feature }}</span>
+                <VIcon :icon="produto.icon" :color="produto.color" size="60" class="mb-4" />
+                <div class="d-flex align-center justify-center gap-2 mb-3">
+                  <h3 class="product-title mb-0">{{ produto.titulo }}</h3>
+                  <VChip v-if="produto.badge" color="warning" size="small" class="fw-bold">
+                    {{ produto.badge }}
+                  </VChip>
                 </div>
+                <p class="product-description">{{ produto.descricao }}</p>
               </div>
 
-              <VDivider class="my-6" />
+              <VDivider class="my-5" />
 
-              <!-- Preços -->
-              <div v-if="produto.opcoes" class="opcoes-preco mb-6">
-                <div
-                  v-for="(opcao, index) in produto.opcoes"
-                  :key="index"
-                  class="opcao-item mb-3"
-                >
-                  <div class="d-flex justify-space-between align-center">
-                    <span class="text-subtitle-1 font-weight-medium">{{ opcao.label }}</span>
-                    <VChip
-                      :color="produto.color"
-                      variant="elevated"
-                      size="large"
-                    >
-                      R$ {{ opcao.preco }}
-                    </VChip>
+              <ul class="feature-list mb-6">
+                <li v-for="feature in produto.features" :key="feature">
+                  <VIcon icon="ri-checkbox-circle-fill" size="20" color="success" class="me-2" />
+                  <span>{{ feature }}</span>
+                </li>
+              </ul>
+
+              <div class="mt-auto">
+                <div v-if="produto.opcoes" class="d-flex flex-column gap-3 mb-5">
+                  <div v-for="opcao in produto.opcoes" :key="opcao.label" class="price-option">
+                    <span>{{ opcao.label }}</span>
+                    <strong>R$ {{ opcao.preco }}</strong>
                   </div>
                 </div>
-              </div>
-              <div v-else class="text-center mb-6">
-                <div class="text-h3 font-weight-bold" :style="{ color: getColorHex(produto.color) }">
-                  R$ {{ produto.preco }}
+                <div v-else class="text-center mb-5">
+                  <div class="price-display">R$ {{ produto.preco }}</div>
+                  <small class="text-medium-emphasis">{{ produto.prazo }}</small>
                 </div>
-                <div class="text-caption text-medium-emphasis">{{ produto.prazo }}</div>
-              </div>
-
-              <!-- Botão CTA -->
-              <VBtn
-                :color="produto.color"
-                size="x-large"
-                variant="elevated"
-                block
-                class="text-h6"
-                @click="entrarEmContato(produto)"
-              >
-                <VIcon icon="ri-whatsapp-fill" start />
-                Quero Este Plano
-              </VBtn>
-
-              <!-- Badge de aula grátis -->
-              <div v-if="produto.aulaGratis" class="text-center mt-4">
-                <VChip
-                  color="success"
-                  variant="elevated"
-                  size="large"
-                >
-                  <VIcon icon="ri-gift-fill" start />
-                  Primeira Aula Grátis!
+                <VBtn block size="large" class="product-btn" @click="irParaPagamentos">
+                  <VIcon icon="ri-whatsapp-fill" start />
+                  Quero Este Plano
+                </VBtn>
+                <VChip v-if="produto.aulaGratis" class="mt-4" color="success" variant="elevated">
+                  Primeira aula grátis
                 </VChip>
               </div>
             </VCardText>
           </VCard>
         </VCol>
       </VRow>
-    </div>
+    </section>
 
-    <!-- CTA Final Section -->
-    <div class="cta-final-section text-center">
-      <VCard
-        color="primary"
-        class="pa-12"
-        elevation="16"
-      >
-        <VIcon icon="ri-rocket-fill" size="64" class="mb-4" color="white" />
-        <h2 class="text-h3 font-weight-bold text-white mb-4">
-          Pronto para Começar sua Jornada?
-        </h2>
-        <p class="text-h6 text-white mb-6">
-          Entre em contato agora e agende sua primeira aula!
-        </p>
-        <VBtn
-          color="white"
-          size="x-large"
-          variant="elevated"
-          class="px-12"
-          @click="entrarEmContatoGeral"
-        >
-          <VIcon icon="ri-whatsapp-fill" start />
-          Falar com um Mentor
-        </VBtn>
+    <section class="cta text-center">
+      <VCard class="glass" elevation="14">
+        <VCardText class="pa-12">
+          <VIcon icon="ri-rocket-fill" size="56" color="white" class="mb-4" />
+          <h2 class="section-title text-white mb-3">Pronto para começar sua jornada?</h2>
+          <p class="section-subtitle text-white mb-6">
+            Converse com um mentor agora mesmo e monte um plano personalizado para o Revalida.
+          </p>
+          <VBtn size="x-large" class="cta-btn" @click="entrarEmContatoGeral">
+            <VIcon icon="ri-whatsapp-fill" start />
+            Falar com um Mentor
+          </VBtn>
+        </VCardText>
       </VCard>
-    </div>
+    </section>
   </VContainer>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { useTheme } from 'vuetify'
+import { useRouter } from 'vue-router'
 
-const theme = useTheme()
 const produtosSection = ref(null)
-const mentoresSection = ref(null)
+const router = useRouter()
 
-// Dados dos mentores
 const mentores = [
   {
     id: 1,
     nome: 'Gabriel Feruffo',
-    color: 'primary',
     imagem: '/gabriel.jpg',
-    whatsapp: '+5546999064467', // Número do Gabriel (sem espaços ou +)
-    mensagem: `Olá Gabriel! Vi seu perfil na Ativa Med Mentoria do RevalidaFlow e gostaria de saber mais sobre seus serviços de mentoria para o Revalida. Você tem disponibilidade para conversarmos?`
+    whatsapp: '+5546999064467',
+    mensagem: 'Olá Gabriel! Quero saber mais sobre sua mentoria para o Revalida.'
   },
   {
     id: 2,
     nome: 'Stefferson Ferraz',
-    color: 'secondary',
-    whatsapp: '+595983680985', // Número do Stefferson (sem espaços ou +)
-    mensagem: `Olá Stefferson! Vi seu perfil na Ativa Med Mentoria do RevalidaFlow e gostaria de saber mais sobre seus serviços de mentoria para o Revalida. Você tem disponibilidade para conversarmos?`
+    imagem: '/image.png',
+    whatsapp: '+595983680985',
+    mensagem: 'Olá Stefferson! Vi sua mentoria no Revalida Flow e gostaria de conversar.'
   },
 ]
 
-// Dados dos produtos
+const beneficios = [
+  {
+    icone: 'ri-medal-fill',
+    titulo: 'Mentores Revalidados',
+    texto: 'Acompanhamento direto de profissionais aprovados na 2ª fase com feedbacks aplicáveis.'
+  },
+  {
+    icone: 'ri-book-open-fill',
+    titulo: 'Experiência Comprovada',
+    texto: 'Simulados dirigidos, planos de estudo práticos e correções comentadas.'
+  },
+  {
+    icone: 'ri-user-heart-fill',
+    titulo: 'Acompanhamento Humano',
+    texto: 'Mentoria flexível, personalizada e com suporte próximo até o dia da prova.'
+  }
+]
+
 const produtos = [
   {
     id: 1,
     titulo: 'Ator Revalidado + Feedback',
-    descricao: 'Pratique com quem já conquistou a aprovação',
+    descricao: 'Treinos com atores revalidados e devolutivas detalhadas.',
     icon: 'ri-user-star-fill',
     color: 'primary',
     features: [
-      'Simulação de estações práticas',
-      'Feedback personalizado e detalhado',
-      'Dicas de quem já passou',
-      'Material de apoio incluso',
+      'Simulações de estações práticas',
+      'Feedback personalizado e gravado',
+      'Dicas de quem já passou pela banca',
+      'Material complementar incluso'
     ],
     opcoes: [
       { label: '5 Estações', preco: '49' },
-      { label: '10 Estações', preco: '89' },
-    ],
-    destaque: false,
+      { label: '10 Estações', preco: '89' }
+    ]
   },
   {
     id: 2,
     titulo: 'Mentoria Flash',
-    descricao: 'Construa uma base sólida em pouco tempo',
+    descricao: 'Plano intensivo para construir base sólida em poucas semanas.',
     icon: 'ri-flashlight-fill',
     color: 'warning',
-    preco: '500',
-    prazo: '5 aulas intensivas',
+    badge: 'Mais Popular',
     features: [
-      'Construção do esqueleto de estudo',
-      'Treinamentos práticos direcionados',
-      'Simulados personalizados',
+      'Plano de estudo enxuto e objetivo',
+      'Simulados dirigidos e correções em vídeo',
       'Acompanhamento individual',
-      'Material exclusivo',
+      'Material exclusivo e atualizado'
     ],
-    destaque: true,
+    preco: '500',
+    prazo: '5 aulas intensivas'
   },
   {
     id: 3,
     titulo: 'Mentoria Completa',
-    descricao: 'Acompanhamento total até a aprovação',
+    descricao: 'Acompanhamento total até o dia da prova com mentor exclusivo.',
     icon: 'ri-trophy-fill',
     color: 'success',
-    preco: '1.500',
-    prazo: '15 aulas completas',
     features: [
-      'Acompanhamento até o dia da prova',
-      'Plano de estudos personalizado',
-      'Simulações semanais',
-      'Suporte via WhatsApp',
-      'Revisões e tira-dúvidas',
-      'Estratégias comprovadas',
-      'Análise de performance',
+      'Plano estratégico completo',
+      'Treinos semanais com feedback imediato',
+      'Suporte via WhatsApp todos os dias',
+      'Análise de performance e simulados finais'
     ],
-    aulaGratis: true,
-    destaque: false,
-  },
+    preco: '1.500',
+    prazo: '15 aulas + plantões',
+    aulaGratis: true
+  }
 ]
 
-// Funções
-function scrollToProdutos() {
-  if (produtosSection.value) {
-    produtosSection.value.scrollIntoView({ behavior: 'smooth' })
-  }
+const whatsappBase = '5511999999999'
+
+const scrollTo = section => {
+  if (section?.value) section.value.scrollIntoView({ behavior: 'smooth' })
 }
 
-function getColorHex(colorName) {
-  const colors = {
-    primary: theme.current.value.colors.primary,
-    secondary: theme.current.value.colors.secondary,
-    success: theme.current.value.colors.success,
-    warning: theme.current.value.colors.warning,
-    error: theme.current.value.colors.error,
-    info: theme.current.value.colors.info,
-  }
-  return colors[colorName] || colorName
+const whatsUrl = (numero, mensagem) => `https://wa.me/${numero.replace(/\D/g, '')}?text=${encodeURIComponent(mensagem)}`
+
+const entrarEmContato = produto => {
+  const message = `Olá! Gostaria de saber mais sobre o plano "${produto.titulo}" da mentoria.`
+  window.open(`https://wa.me/${whatsappBase}?text=${encodeURIComponent(message)}`, '_blank')
 }
 
-function entrarEmContato(produto) {
-  const mensagem = `Olá! Gostaria de saber mais sobre o plano "${produto.titulo}" da ATIVAMED Mentoria.`
-  const whatsappUrl = `https://wa.me/5511999999999?text=${encodeURIComponent(mensagem)}`
-  window.open(whatsappUrl, '_blank')
+const entrarEmContatoGeral = () => {
+  const message = 'Olá! Vi a Mentoria Ativa Med no Revalida Flow e gostaria de agendar uma conversa sobre os planos disponíveis.'
+  const numero = '5545998606685'
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(message)}`, '_blank')
 }
 
-function entrarEmContatoGeral() {
-  const mensagem = 'Olá! Gostaria de saber mais sobre a ATIVAMED Mentoria e agendar uma conversa.'
-  const whatsappUrl = `https://wa.me/5511999999999?text=${encodeURIComponent(mensagem)}`
-  window.open(whatsappUrl, '_blank')
+const irParaPagamentos = () => {
+  router.push('/pagamento')
 }
 </script>
 
 <style scoped lang="scss">
-.mentoria-container {
-  max-width: 1400px;
-  margin: 0 auto;
+$surface: #151224;
+$gradient: linear-gradient(135deg, #7c4dff 0%, #00bcd4 100%);
+
+.mentoria-view {
+  background: radial-gradient(circle at top, rgba(124, 77, 255, 0.15), transparent 55%),
+    radial-gradient(circle at 15% 80%, rgba(0, 188, 212, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 20%, rgba(255, 214, 0, 0.1), transparent 40%),
+    $surface;
+  color: #f5f5ff;
 }
 
-.mentoria-hero {
-  padding: 60px 20px;
-  background: linear-gradient(135deg, rgba(124, 77, 255, 0.1) 0%, rgba(0, 188, 212, 0.1) 100%);
-  border-radius: 24px;
+.hero {
+  background: $gradient;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 25px 60px rgba(16, 12, 40, 0.45);
 
-  &::before {
+  &::after {
     content: '';
     position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle, rgba(124, 77, 255, 0.2) 0%, transparent 70%);
-    animation: pulse 4s ease-in-out infinite;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.2), transparent 60%),
+      radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.2), transparent 55%);
+    mix-blend-mode: screen;
+    opacity: 0.6;
   }
 
-  .hero-content {
+  > * {
     position: relative;
     z-index: 1;
   }
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
+.hero-title {
+  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, #7c4dff 0%, #00bcd4 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.text-gradient {
+  color: #ffffff;
+}
+
+.text-ativa {
+  margin-right: 0.75rem;
+}
+
+.text-med {
+  margin-right: 0.75rem;
+  color: #d9ccff;
+}
+
+.text-mentoria {
+  color: #bdf6ff;
+}
+
+.hero-description {
+  max-width: 720px;
+  font-size: 1.35rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.hero-cta {
+  background: linear-gradient(135deg, #ffe082, #ff9800);
+  color: #1a1138 !important;
+  font-weight: 700;
+  border-radius: 999px;
+  padding-inline: clamp(28px, 8vw, 48px);
+  box-shadow: 0 18px 45px rgba(255, 184, 0, 0.35);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 24px 55px rgba(255, 184, 0, 0.45);
+  }
 }
 
 .section-header {
-  margin-bottom: 48px;
-}
-
-.parceria-card {
-  background: linear-gradient(135deg, #7c4dff 0%, #00bcd4 100%);
-  position: relative;
-  overflow: hidden;
+  max-width: 640px;
   margin: 0 auto;
-  max-width: 1200px;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
-    animation: pulse 4s ease-in-out infinite;
-  }
-
-  .parceria-content {
-    position: relative;
-    z-index: 1;
-  }
 }
 
-.mentor-card-simple {
-  height: 100%;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
+.section-title {
+  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+.section-subtitle {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1.05rem;
+}
+
+.section-body {
+  max-width: 900px;
+  margin: 0 auto;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.glass {
+  background: rgba(21, 18, 36, 0.85) !important;
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 20px 50px rgba(12, 10, 30, 0.35) !important;
+}
+
+.benefit-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 
   &:hover {
     transform: translateY(-6px);
-    border-color: rgb(var(--v-theme-primary));
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
-  }
-
-  .v-avatar {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 16px 35px rgba(10, 10, 30, 0.35);
   }
 }
 
-.produto-card {
-  height: 100%;
-  transition: all 0.3s ease;
-  position: relative;
-  border: 2px solid transparent;
+.icon-bubble {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  padding: 14px;
+  color: #fff !important;
+}
+
+.mentors-grid {
+  gap: 20px;
+}
+
+.mentor-card {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(14px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 
   &:hover {
-    transform: translateY(-12px);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
-  }
-
-  &.produto-destaque {
-    border-color: rgb(var(--v-theme-warning));
-    
-    .destaque-badge {
-      position: absolute;
-      top: -12px;
-      right: 20px;
-      background: linear-gradient(135deg, #ffd600 0%, #ff9800 100%);
-      color: #000;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-weight: bold;
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
-      z-index: 1;
-    }
-  }
-
-  .features-list {
-    .feature-item {
-      display: flex;
-      align-items: flex-start;
-      padding: 8px 0;
-    }
-  }
-
-  .opcoes-preco {
-    .opcao-item {
-      padding: 16px;
-      background: rgba(var(--v-theme-surface), 0.5);
-      border-radius: 12px;
-      transition: all 0.2s ease;
-
-      &:hover {
-        background: rgba(var(--v-theme-surface), 0.8);
-        transform: translateX(4px);
-      }
-    }
+    transform: translateY(-6px);
+    box-shadow: 0 20px 42px rgba(18, 17, 40, 0.45);
   }
 }
 
-.cta-final-section {
-  margin-top: 80px;
-  margin-bottom: 40px;
-
-  .v-card {
-    background: linear-gradient(135deg, #7c4dff 0%, #00bcd4 100%);
-    position: relative;
-    overflow: hidden;
-
-    &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-      opacity: 0.3;
-    }
-  }
-}
-
-.mentor-image-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 80px;
-  height: 80px;
+.mentor-photo {
+  width: 96px;
+  height: 96px;
   margin: 0 auto;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid rgba(var(--v-theme-surface), 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
 
-  &:hover {
-    transform: scale(1.05);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 }
 
-.mentor-real-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
+.mentor-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .whatsapp-btn {
-  background: linear-gradient(135deg, #25d366 0%, #128c7e 100%) !important;
+  background: linear-gradient(135deg, #25d366, #128c7e) !important;
   color: white !important;
-  border-radius: 50% !important;
-  width: 40px !important;
-  height: 40px !important;
-  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3) !important;
-  transition: all 0.3s ease !important;
+  box-shadow: 0 12px 28px rgba(18, 140, 126, 0.25) !important;
+}
 
-  &:hover {
-    transform: scale(1.1) !important;
-    box-shadow: 0 6px 16px rgba(37, 211, 102, 0.4) !important;
+.product-grid {
+  gap: 24px;
+}
+
+.product-card {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(14px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  &.destaque {
+    border: 1px solid rgba(255, 193, 7, 0.45) !important;
+    box-shadow: 0 30px 60px rgba(255, 193, 7, 0.25) !important;
   }
 
-  .v-icon {
-    color: white !important;
+  &:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 24px 50px rgba(10, 10, 30, 0.4);
   }
 }
 
-// Responsividade
+.product-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.product-description {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+
+  li {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+.price-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.price-display {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.product-btn {
+  background: linear-gradient(135deg, #7c4dff, #00bcd4) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+}
+
+.cta .glass {
+  background: $gradient !important;
+  color: white;
+}
+
+.cta-btn {
+  background: linear-gradient(135deg, #25d366, #128c7e) !important;
+  color: white !important;
+  font-weight: 700;
+  padding-inline: 40px;
+  border-radius: 999px;
+  box-shadow: 0 14px 32px rgba(18, 140, 126, 0.35) !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(18, 140, 126, 0.45) !important;
+  }
+}
+
 @media (max-width: 960px) {
-  .mentoria-hero {
-    padding: 40px 20px;
-
-    .text-h2 {
-      font-size: 2rem !important;
-    }
+  .hero {
+    padding: 64px 32px;
   }
 
-  .section-header {
-    .text-h3 {
-      font-size: 1.75rem !important;
-    }
-  }
-
-  .produto-card {
-    margin-bottom: 24px;
+  .product-grid {
+    gap: 20px;
   }
 }
 
 @media (max-width: 600px) {
-  .hero-content {
-    .text-h6 {
-      font-size: 1rem !important;
-    }
+  .hero {
+    padding: 48px 24px;
   }
 
-  .cta-final-section {
-    .text-h3 {
-      font-size: 1.5rem !important;
-    }
+  .hero-description {
+    font-size: 1.1rem;
+  }
 
-    .text-h6 {
-      font-size: 1rem !important;
-    }
+  .mentor-name {
+    font-size: 1.05rem;
   }
 }
 </style>
-

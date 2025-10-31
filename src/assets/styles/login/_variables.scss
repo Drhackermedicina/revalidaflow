@@ -1,0 +1,85 @@
+// ========================================
+// LOGIN PAGE VARIABLES
+// ========================================
+
+// Core Colors
+:root {
+  // Primary Palette
+  --login-primary: #8C57FF;
+  --login-primary-light: #A279FF;
+  --login-primary-dark: #7344E6;
+  --login-primary-gradient-start: #8C57FF;
+  --login-primary-gradient-end: #6B3AAE;
+
+  // Medical Colors
+  --medical-blue: #00B4D8;
+  --medical-blue-light: #00C9E9;
+  --medical-green: #52B788;
+  --medical-green-light: #74C69D;
+  --medical-red: #E63946;
+  --medical-orange: #F77F00;
+
+  // Background Gradients
+  --bg-gradient-start: rgba(140, 87, 255, 0.08);
+  --bg-gradient-mid: rgba(140, 87, 255, 0.04);
+  --bg-gradient-end: rgba(0, 180, 216, 0.02);
+  --bg-overlay: rgba(0, 0, 0, 0.4);
+
+  // Glassmorphism
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-bg-dark: rgba(0, 0, 0, 0.25);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-blur: blur(20px);
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+
+  // Typography
+  --title-font-weight: 800;
+  --title-size: 2.5rem;
+  --subtitle-size: 1.5rem;
+  --body-size: 1rem;
+  --title-gradient: linear-gradient(135deg, #8C57FF 0%, #00B4D8 50%, #52B788 100%);
+
+  // Animations
+  --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --transition-fast: 0.2s var(--transition-smooth);
+  --transition-medium: 0.3s var(--transition-smooth);
+  --transition-slow: 0.6s var(--transition-smooth);
+
+  // Shadows & Effects
+  --shadow-card: 0 16px 64px rgba(140, 87, 255, 0.15);
+  --shadow-card-hover: 0 24px 80px rgba(140, 87, 255, 0.25);
+  --shadow-neon: 0 0 40px rgba(140, 87, 255, 0.3);
+  --shadow-inner: inset 0 2px 4px rgba(255, 255, 255, 0.1);
+
+  // Particles & Effects
+  --particle-size: 4px;
+  --particle-color: rgba(140, 87, 255, 0.6);
+  --glow-intensity: 0.8;
+  --pulse-duration: 3s;
+}
+
+// Dark Theme Variables
+.v-theme--dark {
+  --bg-gradient-start: rgba(140, 87, 255, 0.12);
+  --bg-gradient-mid: rgba(140, 87, 255, 0.06);
+  --bg-gradient-end: rgba(0, 180, 216, 0.03);
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+
+  --glass-bg: rgba(0, 0, 0, 0.35);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.44);
+}
+
+// Breakpoints
+$mobile-breakpoint: 600px;
+$tablet-breakpoint: 960px;
+$desktop-breakpoint: 1264px;
+
+// Z-index layers
+$z-particles: 1;
+$z-background-effects: 2;
+$z-card: 10;
+$z-card-content: 11;
+$z-tooltips: 100;
+$z-overlays: 1000;

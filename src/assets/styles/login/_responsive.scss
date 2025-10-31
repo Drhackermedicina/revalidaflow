@@ -1,0 +1,360 @@
+// ========================================
+// LOGIN PAGE RESPONSIVE DESIGN
+// ========================================
+
+// Mobile First Approach
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  position: relative;
+
+  // Ensure proper layering
+  z-index: 1;
+}
+
+// Mobile Devices (320px - 600px)
+@media (max-width: 600px) {
+  .login-page {
+    padding: 0.75rem;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 20px !important;
+
+    .login-card-content {
+      padding: 1.5rem 1.25rem;
+    }
+  }
+
+  .login-title {
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+
+  .welcome-section {
+    margin-bottom: 2rem;
+
+    .welcome-title {
+      font-size: 1.3rem;
+    }
+
+    .welcome-subtitle {
+      font-size: 0.95rem;
+    }
+  }
+
+  .login-button {
+    height: 48px !important;
+    font-size: 1rem !important;
+  }
+
+  // Reduce particles on mobile for performance
+  .particle {
+    &:nth-child(n+8) {
+      display: none;
+    }
+  }
+
+  .mouse-glow {
+    display: none; // Remove mouse glow on touch devices
+  }
+}
+
+// Small Mobile (320px - 400px)
+@media (max-width: 400px) {
+  .login-page {
+    padding: 0.5rem;
+  }
+
+  .login-card-content {
+    padding: 1.25rem 1rem !important;
+  }
+
+  .login-title {
+    font-size: 1.8rem;
+  }
+
+  .welcome-title {
+    font-size: 1.2rem !important;
+  }
+
+  .welcome-subtitle {
+    font-size: 0.9rem !important;
+  }
+
+  // Further reduce particles
+  .particle {
+    &:nth-child(n+6) {
+      display: none;
+    }
+  }
+}
+
+// Tablet Devices (601px - 960px)
+@media (min-width: 601px) and (max-width: 960px) {
+  .login-page {
+    padding: 2rem;
+  }
+
+  .login-card {
+    max-width: 480px;
+  }
+
+  .login-title {
+    font-size: 2.8rem;
+  }
+
+  .welcome-title {
+    font-size: 1.6rem;
+  }
+
+  .welcome-subtitle {
+    font-size: 1.1rem;
+  }
+
+  .login-button {
+    height: 54px !important;
+    font-size: 1.05rem !important;
+  }
+}
+
+// Desktop Devices (961px - 1264px)
+@media (min-width: 961px) and (max-width: 1264px) {
+  .login-page {
+    padding: 2rem;
+  }
+
+  .login-card {
+    max-width: 500px;
+  }
+
+  .login-title {
+    font-size: 3rem;
+  }
+
+  .welcome-title {
+    font-size: 1.8rem;
+  }
+
+  .login-button {
+    height: 58px !important;
+    font-size: 1.1rem !important;
+  }
+}
+
+// Large Desktop (1265px+)
+@media (min-width: 1265px) {
+  .login-page {
+    padding: 2rem;
+  }
+
+  .login-card {
+    max-width: 520px;
+  }
+
+  .login-title {
+    font-size: 3.2rem;
+  }
+
+  .welcome-title {
+    font-size: 2rem;
+  }
+
+  .login-button {
+    height: 60px !important;
+    font-size: 1.15rem !important;
+  }
+}
+
+// Ultra-wide Displays
+@media (min-width: 1920px) {
+  .login-card {
+    max-width: 560px;
+  }
+
+  .login-title {
+    font-size: 3.5rem;
+  }
+}
+
+// Landscape Orientation Adjustments
+@media (orientation: landscape) and (max-height: 600px) {
+  .login-page {
+    align-items: flex-start;
+    padding-top: 2rem;
+    min-height: auto;
+  }
+
+  .login-card {
+    margin-bottom: 2rem;
+  }
+
+  .welcome-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .login-title {
+    font-size: 2.2rem;
+  }
+
+  .welcome-title {
+    font-size: 1.4rem;
+  }
+
+  // Reduce background effects on landscape
+  .medical-theme-bg .ecg-pattern {
+    display: none;
+  }
+}
+
+// High DPI Displays (Retina)
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .login-title {
+    text-shadow: 0 2px 10px rgba(140, 87, 255, 0.2);
+  }
+
+  .login-card {
+    border-width: 0.5px;
+  }
+}
+
+// Touch Device Optimizations
+@media (hover: none) and (pointer: coarse) {
+  .login-button {
+    min-height: 48px; // Larger touch targets
+    min-width: 48px;
+  }
+
+  .login-card:hover {
+    transform: none; // Remove hover effects on touch
+  }
+
+  .logo-link:hover {
+    transform: none;
+  }
+
+  .typography-hover:hover {
+    transform: none;
+    filter: none;
+  }
+}
+
+// Reduced Motion Preferences
+@media (prefers-reduced-motion: reduce) {
+  .login-page * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .particle {
+    animation: none !important;
+    position: static;
+    display: inline-block;
+  }
+}
+
+// Low Performance Devices
+@media (max-width: 600px) and (max-height: 800px) {
+  // Disable expensive effects on low-end devices
+  .login-background::before {
+    animation: none;
+  }
+
+  .login-background::after {
+    display: none;
+  }
+
+  .medical-theme-bg .dna-pattern {
+    display: none;
+  }
+
+  .particle {
+    display: none;
+  }
+
+  .mouse-glow {
+    display: none;
+  }
+}
+
+// Dark Mode Responsive Adjustments
+@media (max-width: 600px) {
+  .v-theme--dark {
+    .login-card {
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .welcome-subtitle {
+      color: rgba(255, 255, 255, 0.65);
+    }
+  }
+}
+
+// Print Styles
+@media print {
+  .login-page {
+    background: white !important;
+    padding: 2rem;
+  }
+
+  .login-background,
+  .particle-container,
+  .medical-theme-bg,
+  .mouse-glow {
+    display: none !important;
+  }
+
+  .login-card {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .login-title,
+  .welcome-title,
+  .welcome-subtitle {
+    color: black !important;
+    -webkit-text-fill-color: black !important;
+  }
+
+  .login-button {
+    background: #ccc !important;
+    color: black !important;
+    border: 1px solid #999 !important;
+  }
+}
+
+// Container Queries (when supported)
+@supports (container-type: inline-size) {
+  .login-card {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 400px) {
+    .login-title {
+      font-size: 1.8rem;
+    }
+
+    .welcome-title {
+      font-size: 1.3rem;
+    }
+  }
+
+  @container (min-width: 500px) {
+    .login-title {
+      font-size: 2.8rem;
+    }
+
+    .welcome-title {
+      font-size: 1.8rem;
+    }
+  }
+}

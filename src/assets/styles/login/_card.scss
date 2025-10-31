@@ -1,0 +1,326 @@
+// ========================================
+// LOGIN PAGE CARD
+// ========================================
+
+// Main Login Card
+.login-card {
+  position: relative;
+  z-index: $z-card;
+  border-radius: 24px !important;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: all var(--transition-medium);
+  overflow: hidden;
+
+  // Inner glow effect
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(140, 87, 255, 0.5),
+      transparent
+    );
+    animation: shimmer 3s infinite;
+  }
+
+  // Hover effects
+  &:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-card-hover);
+    border-color: rgba(140, 87, 255, 0.3);
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  // Content wrapper
+  .login-card-content {
+    position: relative;
+    z-index: $z-card-content;
+    padding: 2rem;
+  }
+}
+
+// Card Header with Logo
+.login-card-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  position: relative;
+
+  .logo-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: transform var(--transition-fast);
+
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
+
+  .logo-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 1rem;
+    background: var(--title-gradient);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(140, 87, 255, 0.3);
+    animation: pulse-glow var(--pulse-duration) ease-in-out infinite;
+
+    // Medical cross or caduceus icon placeholder
+    &::before {
+      content: '+';
+      color: white;
+      font-size: 2rem;
+      font-weight: bold;
+    }
+  }
+}
+
+// Title Styling
+.login-title {
+  font-size: var(--title-size);
+  font-weight: var(--title-font-weight);
+  background: var(--title-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 20px rgba(140, 87, 255, 0.3);
+  animation: text-reveal 1s var(--transition-bounce) forwards;
+
+  // Add subtle glow
+  &::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: -1;
+    background: var(--title-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: blur(8px);
+    opacity: 0.5;
+  }
+}
+
+// Welcome Section
+.welcome-section {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  animation: fade-in-up 0.8s var(--transition-smooth) 0.3s both;
+
+  .welcome-title {
+    font-size: var(--subtitle-size);
+    font-weight: 600;
+    color: white;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    .emoji {
+      font-size: 1.2em;
+      animation: float 3s ease-in-out infinite;
+    }
+  }
+
+  .welcome-subtitle {
+    font-size: var(--body-size);
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.6;
+    margin: 0;
+  }
+}
+
+// Enhanced Google Button
+.login-button {
+  position: relative;
+  border-radius: 16px !important;
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  height: 56px !important;
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+  overflow: hidden;
+  transition: all var(--transition-medium);
+
+  // Gradient background
+  &.google-btn {
+    background: var(--title-gradient) !important;
+    border: none !important;
+    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3);
+
+    // Shimmer effect
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+      );
+      transition: left 0.6s;
+    }
+
+    &:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 12px 32px rgba(140, 87, 255, 0.4);
+
+      &::before {
+        left: 100%;
+      }
+    }
+
+    &:active {
+      transform: translateY(-1px) scale(1.01);
+    }
+  }
+
+  // Loading state
+  &.v-btn--loading {
+    .v-btn__content {
+      opacity: 0;
+    }
+  }
+
+  // Icon styling
+  .v-icon {
+    font-size: 1.5rem !important;
+    margin-right: 0.5rem;
+  }
+}
+
+// Enhanced Alert/Error Styling
+.login-alert {
+  border-radius: 12px !important;
+  margin-top: 1.5rem;
+  animation: slideDown 0.4s var(--transition-bounce);
+
+  &.v-alert--error {
+    background: rgba(230, 57, 70, 0.1) !important;
+    border: 1px solid rgba(230, 57, 70, 0.3) !important;
+    color: #ff6b6b !important;
+    backdrop-filter: blur(10px);
+  }
+
+  .v-alert__title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+}
+
+// Loading States
+.login-loading {
+  .skeleton-loader {
+    background: var(--glass-bg);
+    border-radius: 12px;
+    height: 56px;
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(140, 87, 255, 0.2),
+        transparent
+      );
+      animation: shimmer 1.5s infinite;
+    }
+  }
+}
+
+// Dark Theme Card Adjustments
+.v-theme--dark {
+  .login-card {
+    background: var(--glass-bg-dark);
+    border-color: rgba(140, 87, 255, 0.2);
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.4);
+
+    &:hover {
+      border-color: rgba(140, 87, 255, 0.4);
+    }
+  }
+
+  .welcome-subtitle {
+    color: rgba(255, 255, 255, 0.6);
+  }
+}
+
+// Responsive Card
+@media (max-width: 600px) {
+  .login-card {
+    margin: 1rem;
+    border-radius: 20px !important;
+
+    .login-card-content {
+      padding: 1.5rem;
+    }
+  }
+
+  .login-title {
+    font-size: 2rem;
+  }
+
+  .welcome-title {
+    font-size: 1.3rem;
+  }
+
+  .login-button {
+    height: 48px !important;
+    font-size: 1rem !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .login-title {
+    font-size: 1.8rem;
+  }
+
+  .login-card-content {
+    padding: 1rem;
+  }
+}
+
+// High contrast for accessibility
+@media (prefers-contrast: high) {
+  .login-card {
+    border: 2px solid var(--login-primary);
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  .v-theme--dark .login-card {
+    background: rgba(0, 0, 0, 0.95);
+    border-color: var(--login-primary-light);
+  }
+}

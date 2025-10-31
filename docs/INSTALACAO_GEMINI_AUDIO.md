@@ -343,3 +343,5 @@ Se encontrar problemas:
 **Status:** ✅ Pronto para Instalação  
 **Tempo estimado:** 5-10 minutos
 
+
+

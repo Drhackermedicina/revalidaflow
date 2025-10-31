@@ -1,0 +1,232 @@
+// ========================================
+// LOGIN PAGE ANIMATIONS
+// ========================================
+
+// Keyframes
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(140, 87, 255, 0.3);
+    opacity: 0.8;
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(140, 87, 255, 0.6);
+    opacity: 1;
+  }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes text-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slide-in-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  0% {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(100vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes medical-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 5px rgba(140, 87, 255, 0.5),
+      inset 0 0 5px rgba(140, 87, 255, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 20px rgba(140, 87, 255, 0.8),
+      inset 0 0 10px rgba(140, 87, 255, 0.4);
+  }
+}
+
+// Animation Classes
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+.pulse-glow {
+  animation: pulse-glow var(--pulse-duration) ease-in-out infinite;
+}
+
+.gradient-animation {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.text-reveal {
+  animation: text-reveal 1s var(--transition-bounce) forwards;
+}
+
+.slide-in-left {
+  animation: slide-in-left 0.8s var(--transition-smooth) forwards;
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.8s var(--transition-smooth) forwards;
+}
+
+.fade-in-up {
+  animation: fade-in-up 0.6s var(--transition-smooth) forwards;
+}
+
+.particle-animation {
+  animation: particle-float 15s linear infinite;
+}
+
+.medical-pulse {
+  animation: medical-pulse 2s ease-in-out infinite;
+}
+
+.border-glow {
+  animation: border-glow 3s ease-in-out infinite;
+}
+
+// Staggered Animations
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+// Hover Animation Classes
+.hover-lift {
+  transition: transform var(--transition-fast);
+
+  &:hover {
+    transform: translateY(-4px);
+  }
+}
+
+.hover-scale {
+  transition: transform var(--transition-fast);
+
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+.hover-glow {
+  transition: all var(--transition-fast);
+
+  &:hover {
+    box-shadow: var(--shadow-neon);
+    transform: translateY(-2px);
+  }
+}
+
+// Loading Animations
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 20%,
+    rgba(255, 255, 255, 0.2) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+// Responsive Animation Adjustments
+@media (max-width: 600px) {
+  .float-animation {
+    animation-duration: 8s; // Slower on mobile for better performance
+  }
+
+  .gradient-animation {
+    animation-duration: 12s; // Slower gradient on mobile
+  }
+}
+
+// Reduced Motion
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
