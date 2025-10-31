@@ -616,9 +616,10 @@ A funcionalidade de **avaliação automática do PEP por IA** está **IMPLEMENTA
 - ✅ **IMPLEMENTADO:** Sincronização de histórico antes da avaliação
 - ✅ **IMPLEMENTADO:** Cleanup de listeners e tratamento de erros
 
-**Status atual:** Sistema completamente funcional, aguardando apenas integração com Speech-to-Text para captura automática de transcrições em tempo real.
+**Status atual:** Sistema completamente funcional, guardando apenas integração com Speech-to-Text para captura automática de transcrições em tempo real.
 
 **Implementação concluída em:** `src/pages/SimulationView.vue` (linhas 390-481, 851-897, 1491-1494)
 
 **Documentação completa:** [`IMPLEMENTACAO_CONVERSATION_HISTORY.md`](./IMPLEMENTACAO_CONVERSATION_HISTORY.md)
 
+a

@@ -168,6 +168,15 @@ export default {
   <!-- <VerticalNavLink :item="questoesLink" /> --> <!-- Temporariamente desabilitado -->
   <VerticalNavLink :item="grupoChatLink" />
 
+  <!-- Seção Mentoria -->
+  <VerticalNavGroup
+    :item="{ title: 'Mentoria', icon: 'ri-graduation-cap-fill', iconColor: '#7c4dff', to: '/app/mentoria', group: false, }"
+    @click="$router.push('/app/mentoria')"
+    style="cursor:pointer;"
+    :expandable="false"
+  >
+  </VerticalNavGroup>
+
   <VerticalNavGroup
     :item="{ title: 'Ranking Geral', icon: 'ri-medal-fill', iconColor: '#ffd600', to: '/app/ranking', group: false, }"
     @click="$router.push('/app/ranking')"

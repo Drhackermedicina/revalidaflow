@@ -172,6 +172,12 @@ export const routes = [
         meta: { requiresAuth: true }, // Corrigido: deve requerer autenticação pois está sob /app
       },
       {
+        path: 'mentoria',
+        name: 'mentoria',
+        component: () => import('@/views/MentoriaView.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
         path: 'edit-station/:id',
         name: 'edit-station',
         component: () => import('@/pages/EditStationView.vue'),

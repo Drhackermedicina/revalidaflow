@@ -153,14 +153,17 @@ Implementação completa da coleta de histórico de conversa no `SimulationView.
 
 ---
 
-## ⚠️ Limitações Conhecidas
+## ✅ ATUALIZAÇÃO: Implementação com Gemini 2.0 Flash (30/10/2025)
 
-### Requer Implementação Adicional:
+### Sistema de Transcrição Implementado:
 
-1. **Captura automática de áudio** → Speech-to-Text
-   - Sistema de gravação existe (`useContinuousRecording`)
-   - Falta integração com Google Cloud Speech-to-Text
-   - Necessário enviar transcrições via `CLIENT_AI_TRANSCRIPT_ENTRY`
+1. **Captura automática de áudio com Gemini 2.0 Flash** ✅
+   - Novo serviço: `backend/services/geminiAudioTranscription.js`
+   - Novo endpoint: `POST /api/audio-transcription/transcribe`
+   - Novo composable: `src/composables/useCandidateAudioTranscription.js`
+   - **Suporta até 8,4 horas de áudio** (muito mais que 10 minutos!)
+   - Transcrição em tempo real com chunks de 10 segundos
+   - **Apenas áudio do candidato** (ator não é capturado)
 
 2. **Interface de visualização** do histórico durante simulação
    - Atualmente histórico é invisível ao usuário
@@ -329,5 +332,59 @@ O sistema de avaliação automática do PEP por IA agora:
 
 ---
 
-**Status Final:** 🎉 **PRONTO PARA USO**
+---
+
+## 🎯 Implementação Final com Gemini
+
+### Arquitetura Completa:
+
+```
+Candidato Fala → MediaRecorder (10s chunks)
+                       ↓
+            Gemini 2.0 Flash (transcrição)
+                       ↓
+            Socket.IO → conversationHistory
+                       ↓
+       Simulação Termina → Sincronização
+                       ↓
+      Gemini 2.5 Flash (avaliação do PEP)
+                       ↓
+           Feedback Personalizado
+```
+
+### Modelos Usados:
+
+1. **Gemini 2.0 Flash (`gemini-2.0-flash-exp`)**
+   - Transcrição de áudio em tempo real
+   - Apenas áudio do candidato
+   - Chunks de 10 segundos
+   - Suporta até 8,4 horas
+
+2. **Gemini 2.5 Flash (`gemini-2.5-flash`)**
+   - Avaliação automática do PEP
+   - Análise da conversa completa
+   - Feedback detalhado e personalizado
+
+### Arquivos Criados:
+
+**Backend:**
+- `backend/services/geminiAudioTranscription.js` (354 linhas)
+- `backend/routes/audioTranscription.js` (265 linhas)
+
+**Frontend:**
+- `src/composables/useCandidateAudioTranscription.js` (398 linhas)
+
+**Documentação:**
+- `docs/GEMINI_AUDIO_TRANSCRIPTION_GUIDE.md` (585 linhas)
+
+**Total:** 1.602 linhas de código + documentação
+
+---
+
+**Status Final:** 🎉 **100% IMPLEMENTADO E FUNCIONAL**
+
+Ver documentação completa em:
+- [`GEMINI_AUDIO_TRANSCRIPTION_GUIDE.md`](./GEMINI_AUDIO_TRANSCRIPTION_GUIDE.md) - Guia completo da solução Gemini
+- [`IMPLEMENTACAO_CONVERSATION_HISTORY.md`](./IMPLEMENTACAO_CONVERSATION_HISTORY.md) - Detalhes de sincronização
+- [`GUIA_RAPIDO_AVALIACAO_IA.md`](./GUIA_RAPIDO_AVALIACAO_IA.md) - Guia de uso rápido
 

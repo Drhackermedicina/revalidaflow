@@ -161,6 +161,7 @@ export default defineConfig({
         ],
     },
     server: {
+        open: true, // Abre automaticamente o navegador quando iniciar o servidor de desenvolvimento
         headers: {
             // Removido Cross-Origin-Opener-Policy para evitar erros no login Google
             // 'Cross-Origin-Opener-Policy': 'unsafe-none',
