@@ -221,17 +221,45 @@ onMounted(() => {
 
 /* Garantir fallback final para todos os casos */
 .title-gradient {
-  /* Forçar texto branco visível - IMPORTANTE! */
-  color: white !important;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8) !important;
-  -webkit-text-fill-color: white !important;
-  background: none !important;
+  /* Tentar gradiente primeiro, com fallback sólido */
+  background: var(--title-gradient) !important;
+  background-size: 200% 200% !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+
+  /* Fallback colorido para navegadores que não suportam */
+  color: #8C57FF !important;
+  text-shadow: 0 0 20px rgba(140, 87, 255, 0.5) !important;
+
+  /* Animação suave */
+  animation: gradient-shift 8s ease infinite;
 }
 
-/* Sobrescrever todas as regras que podem tornar o texto invisível */
-.title-gradient * {
-  color: white !important;
-  -webkit-text-fill-color: white !important;
+/* Fallback para navegadores que não suportam background-clip */
+@supports not (-webkit-background-clip: text) {
+  .title-gradient {
+    background: none !important;
+    -webkit-text-fill-color: #8C57FF !important;
+    color: #8C57FF !important;
+    text-shadow:
+      0 0 20px rgba(140, 87, 255, 0.5),
+      0 2px 10px rgba(0, 0, 0, 0.3) !important;
+  }
+}
+
+/* Fallback específico para quando o backdrop-filter interfere */
+@supports (backdrop-filter: blur(12px)) {
+  .title-gradient {
+    /* Forçar gradiente mesmo com backdrop-filter */
+    background: var(--title-gradient) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+
+    /* Adicionar brilho extra */
+    filter: brightness(1.2) contrast(1.1);
+  }
 }
 
 /* Fallback para navegadores muito antigos */

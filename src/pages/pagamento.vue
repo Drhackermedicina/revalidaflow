@@ -57,8 +57,8 @@ const planosDisponiveis = {
         descricao: 'Estações ilimitadas com feedback detalhado',
         icone: 'ri-user-star-fill',
         quantidades: [
-          { min: 1, max: 9, valorUnitario: 10.00, label: 'Até 9 estações - R$ 10,00/estação' },
-          { min: 10, max: 14, valorUnitario: 8.90, label: '10-14 estações - R$ 8,90/estação' },
+          { min: 1, max: 5, valorUnitario: 9.90, label: '1-5 estações - R$ 9,90/estação' },
+          { min: 6, max: 14, valorUnitario: 8.90, label: '6-14 estações - R$ 8,90/estação' },
           { min: 15, max: 999, valorUnitario: 7.50, label: '15+ estações - R$ 7,50/estação' },
         ]
       },
@@ -95,12 +95,11 @@ const bandeirasCartao = [
 ]
 
 // Estados
-const etapa = ref(1) // 1: Seleção de plano, 2: Forma de pagamento, 3: Confirmação
+const etapa = ref(1) // 1: Seleção de plano, 2: Confirmação/Pagamento
 const planoSelecionado = ref('')
 const periodoSelecionado = ref('')
 const subplanoSelecionado = ref('')
 const quantidadeEstacoes = ref(1)
-const formaPagamentoSelecionada = ref('')
 const processando = ref(false)
 const mensagemStatus = ref('')
 const pixCopiaCola = ref('')
@@ -170,20 +169,6 @@ const podeProsseguir = computed(() => {
     return valorTotal.value > 0
   }
   
-  if (etapa.value === 2) {
-    if (!formaPagamentoSelecionada.value) return false
-    
-    if (formaPagamentoSelecionada.value === 'credito') {
-      return dadosCartao.value.numero.length >= 16 &&
-             dadosCartao.value.nome.length > 0 &&
-             dadosCartao.value.validade.length === 5 &&
-             dadosCartao.value.cvv.length >= 3 &&
-             dadosCartao.value.bandeira.length > 0
-    }
-    
-    return true
-  }
-  
   return false
 })
 
@@ -203,9 +188,12 @@ const selecionarPlano = (planoId) => {
   planoSelecionado.value = planoId
 }
 
-const avancarEtapa = () => {
+const avancarEtapa = async () => {
   if (podeProsseguir.value) {
-    etapa.value++
+    // Vai direto para finalização (etapa 2 = confirmação/pagamento)
+    etapa.value = 2
+    // Chama finalizarPagamento automaticamente
+    await finalizarPagamento()
   }
 }
 
@@ -286,11 +274,10 @@ const finalizarPagamento = async () => {
     const data = await response.json()
 
     if (data.success && data.checkout && data.checkout.initPoint) {
-      // Redirecionar para o checkout do Mercado Pago
-      mensagemStatus.value = 'Redirecionando para o checkout do Mercado Pago...'
-      
-      // Abrir checkout em nova aba ou redirecionar
+      // Redirecionar imediatamente para o checkout do Mercado Pago
+      // Não atualizar mensagemStatus para evitar mostrar "Pagamento Confirmado"
       window.location.href = data.checkout.initPoint
+      return // Não continua o código após redirecionar
     } else {
       throw new Error('Resposta inválida do servidor')
     }
@@ -737,10 +724,10 @@ const voltarInicio = () => {
             <div class="d-flex align-center justify-space-between">
               <div>
                 <h2 class="text-h4 font-weight-bold mb-1">Finalizar Assinatura</h2>
-                <p class="text-body-2 mb-0 opacity-90">Escolha seu plano e forma de pagamento</p>
+                <p class="text-body-2 mb-0 opacity-90">Escolha seu plano</p>
               </div>
               <VChip color="white" variant="flat" size="large">
-                Etapa {{ etapa }}/3
+                Etapa {{ etapa }}/2
               </VChip>
             </div>
           </VCardTitle>
@@ -843,9 +830,15 @@ const voltarInicio = () => {
                     density="compact"
                     class="estacoes-valor-alert"
                   >
-                    <div v-for="faixa in planoAtual.subplanos[0].quantidades" :key="faixa.min">
-                      <div v-if="quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max" class="estacoes-valor-texto">
-                        {{ faixa.label }} = <strong class="estacoes-valor-moeda">{{ formatarMoeda(faixa.valorUnitario * quantidadeEstacoes) }}</strong>
+                    <div class="mb-2">
+                      <strong class="text-dark">Tabela de Preços:</strong>
+                    </div>
+                    <div v-for="faixa in planoAtual.subplanos[0].quantidades" :key="faixa.min" class="estacoes-faixa-item">
+                      <div :class="['estacoes-valor-texto', { 'estacoes-faixa-ativa': quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max }]">
+                        <span>{{ faixa.label }}</span>
+                        <span v-if="quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max" class="estacoes-valor-total">
+                          = {{ formatarMoeda(faixa.valorUnitario * quantidadeEstacoes) }}
+                        </span>
                       </div>
                     </div>
                   </VAlert>
@@ -872,150 +865,50 @@ const voltarInicio = () => {
               </VBtn>
             </div>
 
-            <!-- ETAPA 2: FORMA DE PAGAMENTO -->
-            <div v-show="etapa === 2" class="etapa-pagamento">
-              <VBtn variant="text" class="mb-4" @click="voltarEtapa">
-                <VIcon icon="ri-arrow-left-line" start />
-                Voltar
-              </VBtn>
-
-              <h3 class="text-h5 font-weight-bold mb-6">Escolha a forma de pagamento</h3>
-
-              <VRow class="mb-6">
-                <VCol
-                  v-for="forma in formasPagamento"
-                  :key="forma.id"
-                  cols="12"
-                  md="4"
-                >
-                  <VCard
-                    :class="['forma-pagamento-option', { 'selected': formaPagamentoSelecionada === forma.id }]"
-                    :variant="formaPagamentoSelecionada === forma.id ? 'tonal' : 'outlined'"
-                    @click="formaPagamentoSelecionada = forma.id"
-                    hover
-                  >
-                    <VCardText class="text-center pa-6">
-                      <VIcon :icon="forma.icone" size="48" color="primary" class="mb-3" />
-                      <h4 class="text-h6 font-weight-bold mb-2">{{ forma.nome }}</h4>
-                      <p class="text-caption text-medium-emphasis mb-0">{{ forma.descricao }}</p>
-                    </VCardText>
-                  </VCard>
-                </VCol>
-              </VRow>
-
-              <!-- Formulário de Cartão de Crédito -->
-              <div v-if="formaPagamentoSelecionada === 'credito'" class="form-cartao mb-6">
-                <h4 class="text-h6 font-weight-bold mb-4">Dados do Cartão</h4>
-                <VRow>
-                  <VCol cols="12">
-                    <VTextField
-                      v-model="dadosCartao.numero"
-                      label="Número do Cartão"
-                      placeholder="0000 0000 0000 0000"
-                      variant="outlined"
-                      maxlength="19"
-                      @input="formatarNumeroCartao"
-                    >
-                      <template v-slot:prepend-inner>
-                        <VIcon icon="ri-bank-card-line" />
-                      </template>
-                    </VTextField>
-                  </VCol>
-                  <VCol cols="12">
-                    <VTextField
-                      v-model="dadosCartao.nome"
-                      label="Nome no Cartão"
-                      placeholder="Como está impresso no cartão"
-                      variant="outlined"
-                    />
-                  </VCol>
-                  <VCol cols="12" sm="4">
-                    <VTextField
-                      v-model="dadosCartao.validade"
-                      label="Validade"
-                      placeholder="MM/AA"
-                      variant="outlined"
-                      maxlength="5"
-                      @input="formatarValidade"
-                    />
-                  </VCol>
-                  <VCol cols="12" sm="4">
-                    <VTextField
-                      v-model="dadosCartao.cvv"
-                      label="CVV"
-                      placeholder="000"
-                      variant="outlined"
-                      maxlength="4"
-                      type="password"
-                    />
-                  </VCol>
-                  <VCol cols="12" sm="4">
-                    <VSelect
-                      v-model="dadosCartao.bandeira"
-                      :items="bandeirasCartao"
-                      item-title="nome"
-                      item-value="id"
-                      label="Bandeira"
-                      variant="outlined"
-                    />
-                  </VCol>
-                  <VCol cols="12">
-                    <VSelect
-                      v-model="dadosCartao.parcelas"
-                      :items="[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"
-                      label="Parcelas"
-                      variant="outlined"
-                    >
-                      <template v-slot:item="{ item, props }">
-                        <v-list-item v-bind="props">
-                          {{ item.value }}x de {{ formatarMoeda(valorTotal / item.value) }}
-                        </v-list-item>
-                      </template>
-                      <template v-slot:selection="{ item }">
-                        {{ item.value }}x de {{ formatarMoeda(valorTotal / item.value) }}
-                      </template>
-                    </VSelect>
-                  </VCol>
-                </VRow>
+            <!-- ETAPA 2: CONFIRMAÇÃO/PAGAMENTO -->
+            <div v-show="etapa === 2" class="etapa-confirmacao text-center">
+              <!-- Aguardando criação do checkout -->
+              <div v-if="processando && !mensagemStatus.includes('Redirecionando')">
+                <VIcon
+                  icon="ri-loader-4-line"
+                  size="80"
+                  color="primary"
+                  class="mb-4 animate-spin"
+                />
+                <h3 class="text-h4 font-weight-bold mb-3 text-dark">{{ mensagemStatus || 'Processando pagamento...' }}</h3>
               </div>
-
-              <!-- Resumo -->
-              <VCard variant="tonal" color="primary" class="mb-6 resumo-card">
-                <VCardText>
-                  <h4 class="text-h6 font-weight-bold mb-3 resumo-title">Resumo do Pedido</h4>
-                  <div class="d-flex justify-space-between mb-2 resumo-item">
-                    <span class="resumo-label">Plano:</span>
-                    <strong class="resumo-value">{{ planoAtual?.nome }}</strong>
-                  </div>
-                  <div class="d-flex justify-space-between mb-2 resumo-item">
-                    <span class="resumo-label">Valor:</span>
-                    <strong class="resumo-value resumo-valor">{{ formatarMoeda(valorTotal) }}</strong>
-                  </div>
-                  <VDivider class="my-3" />
-                  <div class="d-flex justify-space-between resumo-total">
-                    <span class="text-h6 resumo-label">Total:</span>
-                    <strong class="text-h6 resumo-valor-total">{{ formatarMoeda(valorTotal) }}</strong>
-                  </div>
-                </VCardText>
-              </VCard>
-
-              <VBtn
-                block
-                size="x-large"
-                color="success"
-                :disabled="!podeProsseguir"
-                :loading="processando"
-                @click="finalizarPagamento"
-              >
-                <VIcon icon="ri-check-line" start />
-                Finalizar Pagamento
-              </VBtn>
-            </div>
-
-            <!-- ETAPA 3: CONFIRMAÇÃO -->
-            <div v-show="etapa === 3" class="etapa-confirmacao text-center">
-              <!-- PIX - Aguardando Pagamento -->
-              <div v-if="formaPagamentoSelecionada === 'pix' && aguardandoPagamento">
+              
+              <!-- Mensagem de erro -->
+              <div v-else-if="mensagemStatus && mensagemStatus.includes('Erro')">
+                <VIcon
+                  icon="ri-error-warning-line"
+                  size="80"
+                  color="error"
+                  class="mb-4"
+                />
+                <h3 class="text-h4 font-weight-bold mb-3 text-dark">Erro no Pagamento</h3>
+                <p class="text-body-1 mb-6 text-dark">{{ mensagemStatus }}</p>
+                <VBtn
+                  size="large"
+                  color="primary"
+                  @click="voltarEtapa"
+                  class="me-3"
+                >
+                  <VIcon icon="ri-arrow-left-line" start />
+                  Voltar
+                </VBtn>
+                <VBtn
+                  size="large"
+                  color="success"
+                  @click="finalizarPagamento"
+                >
+                  <VIcon icon="ri-refresh-line" start />
+                  Tentar Novamente
+                </VBtn>
+              </div>
+              
+              <!-- PIX - Aguardando Pagamento (quando usar PIX no futuro) -->
+              <div v-else-if="aguardandoPagamento">
                 <VIcon
                   icon="ri-qr-code-line"
                   size="80"
@@ -1030,7 +923,7 @@ const voltarInicio = () => {
                   <VCardText class="pa-6">
                     <div v-if="pixQRCode" class="qr-code-wrapper mb-4">
                       <img :src="pixQRCode" alt="QR Code PIX" class="qr-code-image" />
-                    </div>
+        </div>
                     
                     <VDivider class="my-4" />
                     
@@ -1047,7 +940,7 @@ const voltarInicio = () => {
                         <VBtn
                           block
                           size="large"
-                          color="primary"
+          color="primary"
                           @click="copiarCodigoPix"
                         >
                           <VIcon icon="ri-file-copy-line" start />
@@ -1056,7 +949,7 @@ const voltarInicio = () => {
                       </VCol>
                       <VCol cols="12" md="6">
                         <VBtn
-                          block
+          block
                           size="large"
                           color="success"
                           variant="tonal"
@@ -1171,8 +1064,8 @@ const voltarInicio = () => {
                 </VAlert>
               </div>
 
-              <!-- Pagamento Confirmado -->
-              <div v-else>
+              <!-- Pagamento Confirmado - só aparece quando realmente confirmado (via webhook/retorno) -->
+              <div v-else-if="mensagemStatus && mensagemStatus.includes('confirmado') && !processando">
                 <VIcon
                   icon="ri-checkbox-circle-fill"
                   size="80"
@@ -1196,13 +1089,25 @@ const voltarInicio = () => {
                   Voltar para Início
                 </VBtn>
               </div>
-            </div>
+              
+              <!-- Fallback: apenas loading se nenhuma das condições acima foi atendida -->
+              <div v-else>
+                <VIcon
+                  icon="ri-loader-4-line"
+                  size="80"
+                  color="primary"
+                  class="mb-4 animate-spin"
+                />
+                <h3 class="text-h4 font-weight-bold mb-3 text-dark">Redirecionando para o Mercado Pago...</h3>
+                <p class="text-body-1 mb-6 text-dark">Aguarde, você será redirecionado automaticamente.</p>
+              </div>
+          </div>
           </VCardText>
         </VCard>
       </VCol>
     </VRow>
   </VContainer>
-</template>
+  </template>
 
 <style scoped lang="scss">
 .pagamento-container {
@@ -1229,7 +1134,6 @@ h3, h4, h5, p, span, label {
 }
 
 .etapa-planos,
-.etapa-pagamento,
 .etapa-confirmacao {
   h3, h4, h5 {
     color: #1a1a1a !important;
@@ -1294,14 +1198,26 @@ h3, h4, h5, p, span, label {
 
   .periodo-label {
     width: 100%;
+    gap: 24px; // Espaçamento entre o texto do período e o valor
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     
     .periodo-label-text {
       color: #333 !important;
+      flex: 1; // Permite que o texto ocupe o espaço disponível
+      margin-right: auto; // Empurra para a esquerda
+      text-align: left;
     }
     
     .periodo-valor {
       color: #1a1a1a !important;
       font-weight: 700 !important;
+      margin-left: auto; // Empurra o valor para a direita
+      flex-shrink: 0; // Impede que o valor seja comprimido
+      white-space: nowrap; // Evita quebra de linha no valor
+      text-align: right; // Alinha o texto do valor à direita
+      min-width: 100px; // Garante largura mínima para alinhamento
     }
   }
 }
@@ -1425,13 +1341,50 @@ h3, h4, h5, p, span, label {
 
 // Valores no alerta de estações
 .estacoes-valor-alert {
+  .estacoes-faixa-item {
+    margin-bottom: 8px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
   .estacoes-valor-texto {
     color: #333 !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    
+    &.estacoes-faixa-ativa {
+      background-color: rgba(124, 77, 255, 0.1);
+      padding-left: 8px;
+      padding-right: 8px;
+      font-weight: 600;
+    }
+    
+    span:first-child {
+      flex: 1;
+      text-align: left;
+    }
+  }
+  
+  .estacoes-valor-total {
+    color: #1a1a1a !important;
+    font-weight: 700 !important;
+    margin-left: 16px; // Espaçamento adicional antes do valor
+    white-space: nowrap; // Evita quebra de linha no valor
+    text-align: right;
+    min-width: 120px; // Garante largura mínima para alinhamento
   }
   
   .estacoes-valor-moeda {
     color: #1a1a1a !important;
     font-weight: 700 !important;
+    margin-left: 12px; // Espaçamento adicional antes do valor (depois do "=")
+    white-space: nowrap; // Evita quebra de linha no valor
   }
 }
 
@@ -1445,6 +1398,20 @@ h3, h4, h5, p, span, label {
   }
 }
 
+// Animação de spin para loader
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 @media (max-width: 960px) {
   .payment-header {
     h2 {
@@ -1452,8 +1419,7 @@ h3, h4, h5, p, span, label {
     }
   }
 
-  .plano-option,
-  .forma-pagamento-option {
+  .plano-option {
     margin-bottom: 16px;
   }
   
@@ -1461,4 +1427,4 @@ h3, h4, h5, p, span, label {
     max-width: 250px;
   }
 }
-</style>
+  </style>

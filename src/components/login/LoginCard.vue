@@ -78,18 +78,15 @@
       </div>
 
       <!-- Additional Options -->
-      <div class="additional-options typography-slide-up stagger-4">
-        <div class="options-divider">
-          <span class="divider-text">ou</span>
-        </div>
-
+      <div class="additional-options">
         <div class="additional-links">
-          <RouterLink
-            to="/register"
+          <button
+            @click="redirectToWhatsApp"
             class="help-link typography-hover"
+            type="button"
           >
             Precisa de ajuda?
-          </RouterLink>
+          </button>
 
           <RouterLink
             to="/"
@@ -145,7 +142,17 @@ const props = defineProps({
   }
 })
 
-defineEmits(['login', 'clearError'])
+const emit = defineEmits(['login', 'clearError'])
+
+// Função para redirecionar para WhatsApp com mensagem automática
+const redirectToWhatsApp = () => {
+  const phoneNumber = '5545998606685'
+  const message = encodeURIComponent('Olá! Preciso de ajuda com o acesso ao Revalida Flow.')
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`
+
+  // Abrir WhatsApp em nova aba
+  window.open(whatsappUrl, '_blank')
+}
 </script>
 
 <style scoped>
@@ -211,30 +218,93 @@ defineEmits(['login', 'clearError'])
 .welcome-section {
   text-align: center;
   margin-bottom: 2.5rem;
+  position: relative;
 }
 
 .welcome-title {
-  font-size: var(--subtitle-size);
-  font-weight: 600;
-  color: white;
-  margin-bottom: 0.5rem;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+
+  /* Gradiente colorido para o título */
+  background: linear-gradient(135deg, #8C57FF 0%, #00B4D8 50%, #52B788 100%);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 8s ease infinite;
+
+  /* Fallback colorido */
+  color: #8C57FF;
+  text-shadow: 0 0 20px rgba(140, 87, 255, 0.5);
 }
 
 .emoji-accent {
-  font-size: 1.2em;
+  font-size: 1.5em;
+  display: inline-block;
   animation: float 3s ease-in-out infinite;
   filter: drop-shadow(0 2px 8px rgba(140, 87, 255, 0.4));
+
+  /* Garantir que o emoji apareça corretamente */
+  color: #8C57FF !important;
+  -webkit-text-fill-color: #8C57FF !important;
+  background: none !important;
+  text-shadow: 0 0 15px rgba(140, 87, 255, 0.6) !important;
+
+  /* Forçar renderização do emoji */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .welcome-subtitle {
-  font-size: var(--body-size);
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85);
   line-height: 1.6;
   margin: 0;
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+
+  /* Animação sutil de entrada */
+  animation: fadeInUp 0.8s ease-out;
+}
+
+/* Decorative elements */
+.welcome-section::before {
+  content: '';
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #8C57FF, transparent);
+  animation: shimmer 3s infinite;
+}
+
+/* Brilho sutil no subtítulo */
+.welcome-subtitle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: shimmer 4s infinite;
 }
 
 .login-form {
@@ -333,32 +403,7 @@ defineEmits(['login', 'clearError'])
 
 .additional-options {
   text-align: center;
-  margin-top: 1.5rem;
-}
-
-.options-divider {
-  position: relative;
-  margin: 1.5rem 0;
-  text-align: center;
-}
-
-.options-divider::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.divider-text {
-  background: var(--glass-bg);
-  color: rgba(255, 255, 255, 0.6);
-  padding: 0 1rem;
-  font-size: 0.9rem;
-  position: relative;
-  z-index: 1;
+  margin-top: 2rem;
 }
 
 .additional-links {
@@ -375,6 +420,15 @@ defineEmits(['login', 'clearError'])
   padding: 0.5rem;
   border-radius: 8px;
   transition: all var(--transition-fast);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .help-link:hover,
@@ -382,6 +436,13 @@ defineEmits(['login', 'clearError'])
   color: white;
   background: rgba(255, 255, 255, 0.1);
   transform: translateX(4px);
+}
+
+/* Adicionar ícone do WhatsApp ao botão de ajuda */
+.help-link::before {
+  content: '💬';
+  margin-right: 0.5rem;
+  font-size: 1em;
 }
 
 /* Responsive adjustments */
@@ -442,10 +503,33 @@ defineEmits(['login', 'clearError'])
   .welcome-subtitle {
     color: rgba(255, 255, 255, 0.6);
   }
+}
 
-  .divider-text {
-    background: var(--glass-bg-dark);
+/* Animações adicionais */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* High contrast for accessibility */
@@ -458,6 +542,17 @@ defineEmits(['login', 'clearError'])
   .v-theme--dark .login-card {
     background: rgba(0, 0, 0, 0.95);
     border-color: var(--login-primary-light);
+  }
+
+  .welcome-title {
+    background: none !important;
+    -webkit-text-fill-color: var(--login-primary) !important;
+    color: var(--login-primary) !important;
+  }
+
+  .welcome-subtitle {
+    background: rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid rgba(0, 0, 0, 0.3) !important;
   }
 }
 </style>
