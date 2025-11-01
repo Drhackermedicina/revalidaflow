@@ -27,14 +27,6 @@ const emit = defineEmits([
   'submitEvaluation'
 ])
 
-// Debug: Log para verificar renderização dos subitens
-console.log('[CANDIDATE_CHECKLIST_DEBUG] Renderizando visão do candidato', {
-  isCandidate: props.isCandidate,
-  hasChecklistData: !!props.checklistData,
-  checklistItemsLength: props.checklistData?.itensAvaliacao?.length || 0,
-  markedPepItems: props.markedPepItems
-})
-
 // Normaliza marcações
 const marks = computed(() => props.markedPepItems?.value ?? props.markedPepItems ?? {})
 

@@ -195,9 +195,9 @@ watch(
 </script>
 
 <template>
-  <v-container fluid class="pa-0">
+  <v-container fluid class="sections-container pa-0">
     <v-row>
-      <v-col cols="12" md="12" class="mx-auto">
+      <v-col cols="12" md="12" class="mx-auto sections-content">
         <!-- Loading Overlay -->
         <v-overlay
           v-model="isLoadingStations"
@@ -238,7 +238,7 @@ watch(
           @station-selected="handleStartSimulation"
         />
 
-        <v-card class="pa-4 mb-4" rounded="lg" elevation="1">
+        <v-card class="inep-banner pa-4 mb-6" rounded="xl" elevation="0">
           <div class="d-flex align-center">
             <v-img :src="inepIcon" max-width="48" class="me-3" />
             <div class="text-h6 font-weight-bold">INEP — Provas Anteriores</div>
@@ -247,30 +247,103 @@ watch(
           </div>
         </v-card>
 
-        <v-expansion-panels variant="accordion" class="mb-6">
-          <INEPPeriodSection
-            v-for="period in inepPeriods"
-            :key="period"
-            v-show="filteredStationsByInepPeriod[period]?.length > 0"
-            :period="period"
-            :stations="filteredStationsByInepPeriod[period] || []"
-            :show-sequential-config="showSequentialConfig"
-            :is-admin="isAdmin"
-            :get-user-station-score="getUserStationScore"
-            :get-station-background-color="getStationBackgroundColor"
-            :get-specialty="getSpecialty"
-            :is-station-in-sequence="isStationInSequence"
-            :creating-session-for-station-id="creatingSessionForStationId"
-            @station-click="handleStartSimulation"
-            @add-to-sequence="addToSequence"
-            @remove-from-sequence="removeFromSequence"
-            @edit-station="goToEditStation"
-          />
-        </v-expansion-panels>
+        <div class="sections-panel">
+          <v-expansion-panels variant="accordion" class="sections-expansion">
+            <INEPPeriodSection
+              v-for="period in inepPeriods"
+              :key="period"
+              v-show="filteredStationsByInepPeriod[period]?.length > 0"
+              :period="period"
+              :stations="filteredStationsByInepPeriod[period] || []"
+              :show-sequential-config="showSequentialConfig"
+              :is-admin="isAdmin"
+              :get-user-station-score="getUserStationScore"
+              :get-station-background-color="getStationBackgroundColor"
+              :get-specialty="getSpecialty"
+              :is-station-in-sequence="isStationInSequence"
+              :creating-session-for-station-id="creatingSessionForStationId"
+              @station-click="handleStartSimulation"
+              @add-to-sequence="addToSequence"
+              @remove-from-sequence="removeFromSequence"
+              @edit-station="goToEditStation"
+            />
+          </v-expansion-panels>
+        </div>
       </v-col>
     </v-row>
   </v-container>
 </template>
 
 <style scoped>
+.sections-container {
+  background: var(--station-hero-gradient);
+  min-height: 100vh;
+  padding-bottom: 64px;
+}
+
+.sections-content {
+  padding: 48px 24px 32px;
+}
+
+.inep-banner {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(14, 165, 233, 0.24));
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  box-shadow: 0 28px 64px rgba(32, 45, 99, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+.sections-panel {
+  background: var(--station-panel-bg);
+  border-radius: 32px;
+  padding: 24px 18px;
+  border: 1px solid var(--station-panel-border);
+  box-shadow: var(--station-panel-shadow);
+  backdrop-filter: blur(22px);
+}
+
+.sections-expansion :deep(.v-expansion-panel-title) {
+  border-radius: 18px;
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  background: var(--station-panel-bg);
+  border: 1px solid var(--station-panel-border);
+  box-shadow: 0 18px 42px rgba(32, 45, 99, 0.12);
+  color: var(--station-text-color);
+}
+
+.sections-expansion :deep(.v-expansion-panel-title__content) {
+  color: var(--station-text-color) !important;
+  font-weight: 600;
+}
+
+.sections-expansion :deep(.v-expansion-panel-title__overlay) {
+  background-color: transparent !important;
+}
+
+.sections-expansion :deep(.v-expansion-panel) {
+  background-color: transparent !important;
+}
+
+.sections-expansion :deep(.v-expansion-panel:not(:last-child)) {
+  margin-bottom: 12px;
+}
+
+.sections-expansion :deep(.station-card) {
+  box-shadow: none;
+  border-radius: 20px;
+}
+
+.sections-expansion :deep(.v-virtual-scroll__item) {
+  padding: 12px 8px;
+}
+
+@media (max-width: 960px) {
+  .sections-content {
+    padding: 32px 16px;
+  }
+
+  .sections-panel {
+    padding: 18px 12px;
+  }
+}
 </style>

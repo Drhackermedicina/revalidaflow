@@ -152,10 +152,12 @@ FIREBASE_AUTH_URI=https://accounts.google.com/o/oauth2/auth
 FIREBASE_TOKEN_URI=https://oauth2.googleapis.com/token
 
 # Google AI API Keys
-GOOGLE_API_KEY=sua-key-1
 GOOGLE_API_KEY_1=sua-key-1
 GOOGLE_API_KEY_2=sua-key-2
-# ... até GOOGLE_API_KEY_11
+GOOGLE_API_KEY_3=sua-key-3
+GOOGLE_API_KEY_6=sua-key-6
+GOOGLE_API_KEY_7=sua-key-7
+GOOGLE_API_KEY_8=sua-key-8
 
 # Redis (se disponível)
 REDIS_HOST=localhost

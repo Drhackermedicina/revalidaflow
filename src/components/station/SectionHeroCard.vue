@@ -32,16 +32,18 @@ const isDark = computed(() => {
   }
 })
 
-const cardStyle = computed(() => {
-  if (isDark.value) {
-    return {
-      background: 'linear-gradient(180deg, rgba(var(--v-theme-surface), 0.98), rgba(var(--v-theme-surface), 0.92))',
-      color: 'rgb(var(--v-theme-on-surface))',
-    }
+const lightGradient = computed(() => {
+  if (!props.gradientStart || !props.gradientEnd) {
+    return 'var(--station-hero-gradient)'
   }
+
+  return `linear-gradient(140deg, ${props.gradientStart}, ${props.gradientEnd})`
+})
+
+const cardStyle = computed(() => {
   return {
-    background: `linear-gradient(180deg, ${props.gradientStart}, ${props.gradientEnd})`,
-    color: 'rgb(var(--v-theme-on-surface))',
+    background: isDark.value ? 'var(--station-hero-gradient)' : lightGradient.value,
+    color: 'var(--station-hero-title-color)'
   }
 })
 </script>
@@ -77,23 +79,32 @@ const cardStyle = computed(() => {
 
 <style scoped>
 .section-hero-card {
-  cursor: pointer;
+  position: relative;
+  border-radius: 28px;
+  border: 1px solid var(--station-panel-border);
+  box-shadow: var(--station-panel-shadow);
+  overflow: hidden;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
-  /* Alto e estreito */
-  max-width: 360px;
-  min-height: 460px;
-  color: rgb(var(--v-theme-on-surface));
+  backdrop-filter: blur(14px);
 }
 
 .section-hero-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.12);
+  transform: translateY(-6px);
+  box-shadow: 0 32px 78px rgba(32, 45, 99, 0.28);
 }
 
 .hero-badge {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 22px;
+  right: 22px;
+  z-index: 4;
+}
+
+.hero-badge .v-chip {
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 0.45rem 0.9rem;
+  backdrop-filter: blur(12px);
 }
 
 .hero-media {
@@ -101,63 +112,78 @@ const cardStyle = computed(() => {
   height: 160px;
   border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 16px 36px rgba(32, 45, 99, 0.18);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
 }
 
-.hero-image {
-  width: 100%;
-  height: 100%;
+.section-hero-card:hover .hero-media {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px rgba(32, 45, 99, 0.28);
 }
 
 .hero-placeholder {
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .hero-title {
-  font-size: 1.2rem;
-  font-weight: 900;
-  letter-spacing: 0.4px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgb(var(--v-theme-on-surface)) !important;
+  color: var(--station-hero-title-color);
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.hero-title::after {
+  content: '';
+  display: block;
+  width: 64px;
+  height: 2px;
+  margin: 0.5rem auto 0;
+  background: rgba(102, 126, 234, 0.55);
+  border-radius: 1px;
 }
 
 .hero-subtitle {
-  font-size: 0.9rem;
-  opacity: 0.8;
-  color: rgb(var(--v-theme-on-surface)) !important;
+  font-size: 1rem;
+  color: var(--station-hero-subtitle-color);
+  line-height: 1.6;
+  max-width: 260px;
+  margin: 0 auto 1.5rem;
 }
 
-/* Ajustes para tema escuro */
+.section-hero-card :deep(.v-btn) {
+  font-weight: 600;
+  text-transform: none;
+  border-radius: 18px;
+  padding: 0.75rem 1.9rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(102, 126, 234, 0.28);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.section-hero-card :deep(.v-btn:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(102, 126, 234, 0.38);
+}
+
 :deep(.v-theme--dark) .section-hero-card {
-  background-color: rgb(var(--v-theme-surface)) !important;
-  border: 1px solid rgba(var(--v-theme-outline), 0.28) !important;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
+  border-color: var(--station-panel-border);
+  box-shadow: var(--station-panel-shadow);
 }
 
-:deep(.v-theme--dark) .section-hero-card .hero-title,
-:deep(.v-theme--dark) .section-hero-card .hero-subtitle {
-  color: rgb(var(--v-theme-on-surface)) !important;
-  opacity: 1 !important;
+:deep(.v-theme--dark) .hero-badge .v-chip {
+  background: rgba(129, 140, 248, 0.3);
+  color: var(--station-hero-title-color);
+  border-color: rgba(129, 140, 248, 0.4);
 }
 
-/* Garantir que o logo não seja cortado: usar object-fit: contain */
-:deep(.hero-image .v-img__img) {
-  object-fit: contain !important;
-}
-
-/* Botão e chip com contraste no dark */
-:deep(.v-theme--dark) .section-hero-card .v-chip {
-  background-color: rgba(var(--v-theme-primary), 0.22) !important;
-  color: rgb(var(--v-theme-primary)) !important;
-}
-
-:deep(.v-theme--dark) .section-hero-card .v-btn {
-  background-color: rgba(var(--v-theme-primary), 0.22) !important;
-  color: rgb(var(--v-theme-primary)) !important;
-  border: 1px solid rgba(var(--v-theme-primary), 0.38) !important;
-  box-shadow: none !important;
+:deep(.v-theme--dark) .hero-media {
+  box-shadow: 0 22px 48px rgba(3, 6, 20, 0.55);
 }
 </style>
+

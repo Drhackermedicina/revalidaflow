@@ -8,7 +8,6 @@ import Logger from '@/utils/logger.js'
 const logger = new Logger('SimulationViewAI');
 import { currentUser } from '@/plugins/auth.js'
 import { db } from '@/plugins/firebase.js'
-import { backendUrl } from '@/utils/backendUrl.js' // Necessário para IA
 import {  getInfrastructureColor,
   getInfrastructureIcon,
   processInfrastructureItems
@@ -21,6 +20,8 @@ import { useSimulationSession } from '@/composables/useSimulationSession.js'
 import { useSimulationWorkflowStandalone } from '@/composables/useSimulationWorkflowStandalone.js'
 import { useUserStatusManager } from '@/composables/useUserStatusManager.js'
 import CandidateContentPanel from '@/components/CandidateContentPanel.vue'
+import ChatPanel from '@/components/ChatPanel.vue'
+import PreSimulationPanel from '@/components/PreSimulationPanel.vue'
 import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue'
 import CandidateChecklist from '@/components/CandidateChecklist.vue'
 import ImageZoomModal from '@/components/ImageZoomModal.vue'
@@ -58,6 +59,7 @@ const {
   candidateReadyButtonEnabled,
   simulationStarted,
   simulationEnded,
+  startSimulation,
   manuallyEndSimulation,
   sendReady,
   updateTimerDisplayFromSelection,
@@ -66,13 +68,12 @@ const {
   simulationTimeSeconds,
   timerDisplay,
   selectedDurationMinutes,
-  autoStartOnReady: true
+  autoStartOnReady: false
 })
 
 // Inicializa composable de gerenciamento de status
 const {
-  updateUserStatus,
-  isInSimulationAiPage
+  updateUserStatus
 } = useUserStatusManager()
 
 // Refs para PEP - seguindo mesmo padrão
@@ -80,6 +81,9 @@ const markedPepItems = ref({})
 
 import { useAiChat } from '@/composables/useAiChat.js'
 import { useSpeechInteraction } from '@/composables/useSpeechInteraction.js'
+import { useChatInput } from '@/composables/useChatInput.js'
+
+const { formatMessageText } = useChatInput()
 
 const chatContainer = ref(null)
 const messageInput = ref(null)
@@ -96,7 +100,6 @@ function scrollToBottom() {
 // --- Lógica de Voz (Deve ser inicializada antes do AiChat) ---
 const {
   isListening,
-  isSpeaking,
   autoRecordMode,
   start: startListening,
   stop: stopListening,
@@ -124,7 +127,6 @@ const {
   currentMessage, 
   isProcessingMessage, 
   releasedData, 
-  canSendMessage, 
   sendMessage, 
   handleKeyPress 
 } = useAiChat({
@@ -148,7 +150,7 @@ function releaseAllPendingMaterials() {
       releasedData.value[key] = { ...m, releasedAt: new Date(), releasedBy: 'manual' }
       conversationHistory.value.push({
         role: 'system',
-        content: `📄 Material liberado manualmente: ${m.tituloImpresso || m.titulo || 'Documento'}`,
+        content: formatMessageText(`📄 Material liberado manualmente: ${m.tituloImpresso || m.titulo || 'Documento'}`),
         timestamp: new Date(),
       })
     })
@@ -158,13 +160,7 @@ function releaseAllPendingMaterials() {
   }
 }
 
-function toggleVoiceRecording() {
-  if (isListening.value) {
-    stopListening()
-  } else {
-    startListening()
-  }
-}
+// toggleVoiceRecording removido (não utilizado)
 
 // Refs para contagem regressiva antes da simulação
 const isCountdownActive = ref(false)
@@ -172,8 +168,7 @@ const countdownValue = ref(3)
 const countdownInterval = ref(null)
 const showTutorialDialog = ref(false)
 
-// Refs para controle de painéis expandidos
-const expandedPanels = ref(['materials']) // Materiais sempre expandidos por padrão
+// (removido) expandedPanels não utilizado
 
 // Refs para controle de avaliação automática
 const autoEvaluateEnabled = ref(true)
@@ -181,11 +176,6 @@ const candidateReceivedDetails = ref(null); // Avaliação automática habilitad
 const candidateReceivedScores = ref({}); // Variável que faltava
 
 // Estatísticas AI
-const aiStats = ref({
-  messageCount: 0
-  // Estatísticas simplificadas sem backend
-})
-
 
 // Inicializar dados da estação - seguindo mesmo padrão do SimulationView
 async function loadSimulationData(currentStationId, { preserveWorkflowState = false } = {}) {
@@ -228,6 +218,7 @@ async function loadSimulationData(currentStationId, { preserveWorkflowState = fa
     initializeLocalAISession()
   } catch (error) {
     logger.error('Erro ao carregar dados da estação (IA):', error)
+    try { const { captureFirebaseError } = await import('@/plugins/sentry.js'); captureFirebaseError(error, { operation: 'fetchSessionData', collection: 'estacoes_clinicas', userId: currentUser.value?.uid }) } catch (_) {}
     if (!errorMessage.value) {
       errorMessage.value = error.message || 'Falha ao carregar dados da estação.'
     }
@@ -247,30 +238,38 @@ function initializeLocalAISession() {
 }
 
 function toggleReadyState() {
-  if (!candidateReadyButtonEnabled.value) return
+  if (!candidateReadyButtonEnabled.value || simulationEnded.value) return
+
   const wasReady = myReadyState.value
   sendReady()
 
   if (!wasReady && myReadyState.value) {
+    if (simulationStarted.value || isCountdownActive.value) return
     startSimulationCountdown()
   } else if (wasReady && !myReadyState.value) {
     cancelCountdown()
-    if (isListening.value) {
-      stopListening()
-    }
+    stopListening()
+    stopSpeaking()
   }
 }
 
 // Funções para contagem regressiva antes da simulação
 function startSimulationCountdown() {
+  if (isCountdownActive.value || simulationStarted.value) return
+
   isCountdownActive.value = true
   countdownValue.value = 3
 
   countdownInterval.value = setInterval(() => {
+    if (!myReadyState.value) {
+      cancelCountdown()
+      return
+    }
+
     countdownValue.value--
     if (countdownValue.value <= 0) {
       cancelCountdown()
-      // A simulação já é iniciada automaticamente pelo workflow
+      startSimulation()
     }
   }, 1000)
 }
@@ -284,72 +283,6 @@ function cancelCountdown() {
   countdownValue.value = 3
 }
 
-const contextKeywordMap = {
-  physical_exam: [
-    'exame físico', 'exame fisico', 'semiologia', 'propedêutica', 'propedeutica',
-    'abdome', 'abdômen', 'abdominal', 'neurológico', 'neurologico', 'respiratório', 'respiratorio',
-    'cardíaco', 'cardiaco', 'musculoesquelético', 'musculo esquelético', 'osteoarticular', 'dermatológico',
-    'otorrinolaringológico', 'ginecológico', 'urológico'
-  ],
-  vitals: [
-    'sinais vitais', 'ssvv', 'pressão arterial', 'pa', 'temperatura', 'pulso', 'frequência cardíaca',
-    'frequencia cardiaca', 'frequência respiratória', 'frequencia respiratoria', 'oximetria', 'saturação',
-    'saturacao', 'glicemia capilar'
-  ],
-  lab: [
-    'exame', 'exames', 'teste', 'testes', 'laboratorial', 'laboratoriais', 'dosagem', 'dosagens',
-    'marcador', 'marcadores', 'sorologia', 'sorologias', 'imunológico', 'bioquímica', 'hemograma',
-    'hemograma completo', 'hemograma total', 'coagulograma', 'perfil', 'lipidograma', 'hepatograma',
-    'renal', 'eletrólitos', 'elelitros', 'gases arteriais', 'beta hcg', 'bhcg', 'pcr', 'vhs', 'urina',
-    'urocultura', 'coleta', 'resultado', 'painel', 'dosagem hormonal'
-  ],
-  imaging: [
-    'imagem', 'raio-x', 'raio x', 'rx', 'radiografia', 'tomografia', 'tc', 'ressonância', 'ressonancia',
-    'rm', 'ultrassom', 'ultrassonografia', 'usg', 'ecografia', 'mamografia', 'angiografia', 'cintilografia',
-    'densitometria', 'colonoscopia', 'endoscopia', 'broncoscopia', 'ectoscopia', 'enema', 'artrografia',
-    'histerossalpingografia', 'videolaringoscopia', 'retossigmoidoscopia'
-  ]
-}
-
-function getContextOption(value) {
-  return requestContextOptions.find(option => option.value === value) || null
-}
-
-function setRequestContext(newContext) {
-  const normalized = newContext || null
-  const previous = requestContext.value
-
-  if (previous === normalized) {
-    requestContext.value = null
-    if (previous) {
-      resetCategoryState(previous)
-      conversationHistory.value.push({
-        role: 'system',
-        content: 'Contexto de solicitação removido. Você pode continuar normalmente.',
-        timestamp: new Date(),
-        isSystemMessage: true
-      })
-    }
-    return
-  }
-
-  requestContext.value = normalized
-  if (normalized) {
-    resetCategoryState(normalized)
-  }
-
-  const option = getContextOption(normalized)
-  if (option) {
-    conversationHistory.value.push({
-      role: 'system',
-      content: 'Desculpe, houve um erro. Tente novamente.',
-      timestamp: new Date(),
-      isError: true
-    })
-  }
-}
-
-
 // Submeter avaliação - seguindo mesmo padrão
 async function submitEvaluation() {
   if (evaluationSubmittedByCandidate.value) return
@@ -358,6 +291,9 @@ async function submitEvaluation() {
     const evaluationData = {
       stationId: stationId.value,
       sessionId: sessionId.value,
+      userId: currentUser.value?.uid || '',
+      stationTitle: stationData.value?.tituloEstacao || stationData.value?.titulo || '',
+      period: stationData.value?.periodoInep || stationData.value?.anoEdicao || stationData.value?.ano || '',
       evaluations: markedPepItems.value,
       timestamp: new Date().toISOString()
     }
@@ -371,11 +307,13 @@ async function submitEvaluation() {
 
   } catch (error) {
     logger.error('Erro ao submeter avaliação:', error)
+    try { const { captureFirebaseError } = await import('@/plugins/sentry.js'); captureFirebaseError(error, { operation: 'addDoc', collection: 'avaliacoes_ai', userId: currentUser.value?.uid }) } catch (_) {}
+    // TODO: enviar para Sentry quando disponível
   }
 }
 
 // Forçar carregamento do PEP
-async function forceLoadPEP() {
+/* async function forceLoadPEP() {
   logger.debug('Forçando carregamento do PEP...')
   try {
     // Recarregar dados da estação para obter PEP
@@ -392,7 +330,7 @@ async function forceLoadPEP() {
   } catch (error) {
     logger.error('Erro ao forçar PEP:', error)
   }
-}
+} */
 
 // Finalizar simulação AI local (sem backend)
 function finalizeAISimulation() {
@@ -420,7 +358,7 @@ function formatTimestamp(timestamp) {
   })
 }
 
-function getMessageStyle(role) {
+/* function getMessageStyle(role) {
   const isDark = isDarkTheme.value
 
   switch (role) {
@@ -453,13 +391,21 @@ function getMessageStyle(role) {
       }
   }
 }
+*/
 
 function goBack() {
+  cancelCountdown()
+  stopListening()
+  stopSpeaking()
+  if (simulationStarted.value && !simulationEnded.value) {
+    manuallyEndSimulation()
+  }
+  resetWorkflowState()
   finalizeAISimulation()
-  router.push('/app/station-list')
+  router.push({ name: 'station-list' })
 }
 
-import { useAiEvaluation, getClassificacaoFromPontuacao } from '@/composables/useAiEvaluation.js'
+import { useAiEvaluation } from '@/composables/useAiEvaluation.js'
 import { useImagePreloading } from '@/composables/useImagePreloading.js'
 
 // --- Lógica de Imagem ---
@@ -478,8 +424,12 @@ const {
 // --- Variáveis de Estado que Faltavam ---
 const pepReleasedToCandidate = ref(false);
 const candidateReceivedTotalScore = ref(0);
-const speechEnabled = ref(true);
 const isChecklistVisibleForCandidate = ref(false);
+
+const availableDurations = [7, 8, 9, 10, 11, 12];
+
+// Removidas as variáveis computadas desnecessárias (stationTagChips, stationHighlightCards, infrastructureHighlights)
+// pois não são mais usadas na nova interface simplificada de IA
 
 // Lógica de avaliação com IA (Refatorada)
 const { 
@@ -494,21 +444,35 @@ const {
   releasedData
 });
 
-// Watcher para liberar PEP e iniciar avaliação automática
-watch(simulationEnded, async (newValue) => {
-  if (newValue) {
-    finalizeAISimulation()
-    pepReleasedToCandidate.value = true
-    isChecklistVisibleForCandidate.value = true
-    if (autoEvaluateEnabled.value) {
-      const result = await runAiEvaluation();
+// Watcher para finalizar, liberar PEP, avaliar e atualizar status
+watch(simulationEnded, async (ended) => {
+  if (!ended) return
+
+  finalizeAISimulation()
+  pepReleasedToCandidate.value = true
+  isChecklistVisibleForCandidate.value = true
+  autoRecordMode.value = false
+  stopListening()
+  stopSpeaking()
+
+  if (autoEvaluateEnabled.value) {
+    try {
+      const result = await runAiEvaluation()
       if (result) {
-        candidateReceivedScores.value = result.scores;
-        candidateReceivedTotalScore.value = result.total;
-        candidateReceivedDetails.value = result.details;
+        candidateReceivedScores.value = result.scores
+        candidateReceivedTotalScore.value = result.total
+        candidateReceivedDetails.value = result.details
       }
+    } catch (err) {
+      logger.error('Erro na avaliação automática:', err)
     }
   }
+
+  // Após 5 segundos, voltar para status disponível
+  setTimeout(() => {
+    updateUserStatus('disponivel')
+    logger.debug('Simulação IA finalizada - voltando para status "disponivel"')
+  }, 5000)
 })
 
 // Watchers para atualizar status do usuário
@@ -519,53 +483,52 @@ watch(simulationStarted, async (newValue) => {
   }
 })
 
-watch(simulationEnded, async (newValue) => {
-  if (newValue) {
-    // Após 5 segundos, voltar para status disponível
-    setTimeout(() => {
-      updateUserStatus('disponivel')
-      logger.debug('Simulação IA finalizada - voltando para status "disponivel"')
-    }, 5000)
-  }
-})
-
 watch(simulationStarted, (newValue) => {
   if (newValue) {
-    autoRecordMode.value = true;
-    startListening();
+    autoRecordMode.value = true
+    startListening()
+  } else {
+    autoRecordMode.value = false
+    stopListening()
+    stopSpeaking()
   }
 });
 
+// Manter timer sincronizado com seleção
+watch(selectedDurationMinutes, () => {
+ updateTimerDisplayFromSelection()
+})
+
 // Lifecycle
+// Handler global para ESC fechar zoom
+const handleEscKey = (event) => {
+  if (event.key === 'Escape' && imageZoomDialog.value) {
+    closeImageZoom()
+  }
+}
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEscKey)
+  cancelCountdown()
+  stopListening()
+  stopSpeaking()
+  resetWorkflowState()
+  finalizeAISimulation()
+})
+
 onMounted(async () => {
   if (!currentUser.value) {
     errorMessage.value = 'Usuário não autenticado'
     return
   }
 
-  // Event listener para tecla ESC fechar modal de zoom
-  const handleEscKey = (event) => {
-    if (event.key === 'Escape' && imageZoomDialog.value) {
-      closeImageZoom()
-    }
-  }
-
-  // Register cleanup BEFORE any await statements
-  onUnmounted(() => {
-    document.removeEventListener('keydown', handleEscKey)
-    resetWorkflowState()
-    finalizeAISimulation()
-  })
-
-  // A inicialização da voz foi movida para o composable useSpeechInteraction
-
-  // Habilitar botão de pronto após delay
-  setTimeout(() => {
-    candidateReadyButtonEnabled.value = true
-  }, 3000)
+  // Event listener ESC já definido globalmente
 
   // Carregar dados da estação
   await loadSimulationData(stationId.value)
+
+  // Habilitar botão de pronto após carregar dados
+  candidateReadyButtonEnabled.value = true
 
   // Focus no input após simulação iniciar
   await nextTick()
@@ -573,7 +536,6 @@ onMounted(async () => {
     messageInput.value.focus()
   }
 
-  // Register event listener after setup
   document.addEventListener('keydown', handleEscKey)
 })
 </script>
@@ -609,7 +571,7 @@ onMounted(async () => {
             {{ timerDisplay }}
           </div>
           <div class="text-caption" v-if="simulationStarted">
-            {{ aiStats.messageCount }} mensagens
+            {{ conversationHistory.length }} mensagens
           </div>
           <div class="text-caption" v-else>
             Aguardando início
@@ -649,104 +611,132 @@ onMounted(async () => {
     </v-main>
 
     <!-- Tela de preparação - antes do início -->
-    <v-main v-else-if="!simulationStarted && !simulationEnded" class="d-flex align-center justify-center">
-      <v-container class="text-center">
+    <v-main v-else-if="!simulationStarted && !simulationEnded" class="ai-pre-simulation-main">
+      <v-container class="py-8">
         <v-row justify="center">
-          <v-col cols="12" md="8" lg="6">
-            <v-card class="pa-6">
-              <v-card-title class="text-h5 mb-4">
-                <v-icon class="me-2" color="primary">ri-robot-line</v-icon>
-                Treinamento com IA Virtual
-              </v-card-title>
-
-              <v-card-text>
-                <div class="mb-6">
-                  <h3>{{ stationData?.tituloEstacao }}</h3>
-                  <p class="text-medium-emphasis mt-2">
-                    Você é o <strong>candidato</strong> nesta simulação.
-                    A IA atuará como <strong>ator/paciente e avaliador</strong>.
-                  </p>
+          <v-col cols="12" md="10" lg="8">
+            <v-card class="ai-preparation-card" elevation="0">
+              <!-- Header principal -->
+              <div class="ai-prep-header">
+                <div class="d-flex align-center mb-4">
+                  <v-avatar size="48" class="me-3" color="primary">
+                    <v-icon size="28" color="white">ri-robot-line</v-icon>
+                  </v-avatar>
+                  <div>
+                    <h1 class="ai-title">Treinamento com IA Virtual</h1>
+                    <p class="ai-subtitle">Pratique com nosso paciente virtual inteligente</p>
+                  </div>
                 </div>
+              </div>
 
+              <v-card-text class="pa-6">
                 <!-- Configuração de tempo -->
                 <div class="mb-6">
-                  <h4 class="mb-3">Duração da simulação</h4>
+                  <h3 class="text-h6 mb-3 d-flex align-center">
+                    <v-icon class="me-2" color="primary">ri-time-line</v-icon>
+                    Duração da sessão
+                  </h3>
                   <v-btn-toggle
                     v-model="selectedDurationMinutes"
-                    mandatory
-                    color="primary"
                     variant="outlined"
+                    color="primary"
+                    class="duration-selector"
+                    mandatory
                   >
-                    <v-btn :value="7">7 min</v-btn>
-                    <v-btn :value="8">8 min</v-btn>
-                    <v-btn :value="9">9 min</v-btn>
-                    <v-btn :value="10">10 min</v-btn>
-                    <v-btn :value="11">11 min</v-btn>
-                    <v-btn :value="12">12 min</v-btn>
+                    <v-btn
+                      v-for="duration in availableDurations"
+                      :key="duration"
+                      :value="duration"
+                      class="duration-btn"
+                    >
+                      {{ duration }} min
+                    </v-btn>
                   </v-btn-toggle>
                 </div>
 
-                <!-- Status dos participantes -->
-                <v-row class="mb-4">
-                  <v-col cols="6">
-                    <v-card variant="tonal" :color="myReadyState ? 'success' : 'default'">
-                      <v-card-text class="text-center">
-                        <v-icon
-                          size="32"
-                          :color="myReadyState ? 'success' : 'default'"
-                          class="mb-2"
-                        >
-                          {{ myReadyState ? 'ri-check-line' : 'ri-user-line' }}
-                        </v-icon>
-                        <div class="text-subtitle-2">Você (Candidato)</div>
-                        <div class="text-caption">
-                          {{ myReadyState ? 'Pronto!' : 'Aguardando...' }}
+                <!-- Status cards -->
+                <v-row class="mb-6">
+                  <v-col cols="12" sm="6">
+                    <v-card variant="outlined" class="status-card">
+                      <v-card-text class="pa-4">
+                        <div class="d-flex align-center">
+                          <v-avatar size="40" color="primary" variant="tonal" class="me-3">
+                            <v-icon>ri-user-line</v-icon>
+                          </v-avatar>
+                          <div>
+                            <div class="text-body-2 text-medium-emphasis">Você</div>
+                            <div class="text-subtitle-1 font-weight-medium">
+                              {{ myReadyState ? 'Pronto' : 'Aguardando' }}
+                            </div>
+                          </div>
                         </div>
                       </v-card-text>
                     </v-card>
                   </v-col>
-                  <v-col cols="6">
-                    <v-card variant="tonal" color="success">
-                      <v-card-text class="text-center">
-                        <v-icon size="32" color="success" class="mb-2">
-                          ri-check-line
-                        </v-icon>
-                        <div class="text-subtitle-2">IA Virtual</div>
-                        <div class="text-caption">Pronta!</div>
+                  <v-col cols="12" sm="6">
+                    <v-card variant="outlined" class="status-card">
+                      <v-card-text class="pa-4">
+                        <div class="d-flex align-center">
+                          <v-avatar size="40" color="success" variant="tonal" class="me-3">
+                            <v-icon>ri-robot-line</v-icon>
+                          </v-avatar>
+                          <div>
+                            <div class="text-body-2 text-medium-emphasis">IA Virtual</div>
+                            <div class="text-subtitle-1 font-weight-medium text-success">
+                              Pronta
+                            </div>
+                          </div>
+                        </div>
                       </v-card-text>
                     </v-card>
                   </v-col>
                 </v-row>
-              </v-card-text>
 
-              <v-card-actions class="justify-center">
-                <v-btn
-                  :color="myReadyState ? 'warning' : 'success'"
-                  :variant="myReadyState ? 'outlined' : 'elevated'"
-                  size="large"
-                  :disabled="!candidateReadyButtonEnabled"
-                  @click="toggleReadyState"
+                <!-- Instruções rápidas -->
+                <v-alert
+                  type="info"
+                  variant="tonal"
+                  class="mb-6"
                 >
-                  <v-icon class="me-2">
-                    {{ myReadyState ? 'ri-close-line' : 'ri-check-line' }}
-                  </v-icon>
-                  {{ myReadyState ? 'Cancelar' : 'Estou Pronto!' }}
-                </v-btn>
-                 <v-btn
-                  color="info"
-                  variant="text"
-                  size="large"
-                  @click="showTutorialDialog = true"
-                >
-                  <v-icon class="me-2">ri-question-line</v-icon>
-                  Tutorial
-                </v-btn>
-              </v-card-actions>
+                  <template #prepend>
+                    <v-icon>ri-lightbulb-line</v-icon>
+                  </template>
+                  <div class="text-body-2">
+                    <strong>Como funciona:</strong> Você conversará com um paciente virtual via voz ou texto. 
+                    Faça perguntas, solicite exames e conduza a consulta como em uma estação real.
+                  </div>
+                </v-alert>
 
-              <v-card-text v-if="!candidateReadyButtonEnabled" class="text-center">
-                <v-progress-linear indeterminate color="primary" class="mb-2" />
-                <div class="text-caption text-medium-emphasis">
-                  Preparando sistema... Aguarde alguns segundos
+                <!-- Botões de ação -->
+                <div class="d-flex flex-wrap gap-3 justify-space-between align-center">
+                  <div class="d-flex gap-3">
+                    <v-btn
+                      variant="outlined"
+                      color="secondary"
+                      @click="showTutorialDialog = true"
+                    >
+                      <v-icon start>ri-question-line</v-icon>
+                      Guia Rápido
+                    </v-btn>
+                    <v-btn
+                      variant="outlined"
+                      @click="goBack"
+                    >
+                      <v-icon start>ri-arrow-left-line</v-icon>
+                      Voltar
+                    </v-btn>
+                  </div>
+                  
+                  <v-btn
+                    color="primary"
+                    size="large"
+                    :disabled="!candidateReadyButtonEnabled || !selectedDurationMinutes"
+                    @click="toggleReadyState"
+                    class="ready-btn"
+                  >
+                    <v-icon start>{{ myReadyState ? 'ri-stop-line' : 'ri-play-line' }}</v-icon>
+                    {{ myReadyState ? 'Cancelar' : 'Iniciar Treinamento' }}
+                  </v-btn>
                 </div>
               </v-card-text>
             </v-card>
@@ -810,71 +800,22 @@ onMounted(async () => {
                 <v-col cols="12" md="4" class="d-flex flex-column chat-column" style="position: relative;">
                   <!-- Wrapper fixo para evitar qualquer sobreposição do header -->
                   <div class="chat-fixed-wrapper">
-                  <v-card class="chat-card" flat>
-                    <v-card-title class="chat-card-header d-flex align-center py-3" style="flex:0 0 auto;">
-                      <v-icon class="me-2 chat-title-icon" size="26">ri-message-3-line</v-icon>
-                      <span class="chat-title">Chat</span>
-                      <v-spacer />
-                      <div class="chat-timer">
-                        <v-icon size="20">ri-timer-line</v-icon>
-                        <span>{{ timerDisplay }}</span>
-                      </div>
-                    </v-card-title>
-                    <v-divider />
-                    <div ref="chatContainer" class="chat-history pa-4" :class="{ 'dark-theme': isDarkTheme }">
-                      <div v-if="conversationHistory.length === 0" class="text-center mt-2">
-                        <v-icon size="64" color="grey-lighten-1" class="mb-4">ri-robot-line</v-icon>
-                        <h3 class="mb-2">Bem-vindo à Simulação com IA!</h3>
-                        <p class="text-medium-emphasis mb-4">
-                          Você pode interagir com o paciente virtual usando sua voz ou digitando no campo abaixo.
-                          O microfone será ativado automaticamente ao iniciar a simulação.
-                        </p>
-                        <p class="text-medium-emphasis">
-                          Para finalizar a simulação a qualquer momento, utilize o botão "Finalizar" no painel de controles.
-                        </p>
-                      </div>
-                      <div v-for="(message, index) in conversationHistory" :key="index" class="message-item mb-4">
-                        <div class="message-header d-flex align-center mb-1">
-                          <v-avatar size="24" :color="message.role === 'candidate' ? 'blue' : message.role === 'ai_actor' ? 'green' : 'orange'" class="me-2">
-                            <v-icon size="12" color="white">{{ message.role === 'candidate' ? 'ri-user-line' : message.role === 'ai_actor' ? 'ri-robot-line' : 'ri-information-line' }}</v-icon>
-                          </v-avatar>
-                          <div class="text-body-2 font-weight-medium">{{ message.role === 'candidate' ? 'Você' : message.role === 'ai_actor' ? 'Paciente Virtual' : 'Sistema' }}</div>
-                          <v-spacer />
-                          <div class="text-caption text-medium-emphasis">{{ formatTimestamp(message.timestamp) }}</div>
-                        </div>
-                        <div class="message-content pa-3 rounded" v-html="message.content || message.message" />
-                      </div>
-                    </div>
-                    <v-card-actions class="pa-4 chat-input-actions">
-                      <v-text-field
-                        id="chat-message-input"
-                        ref="messageInput"
-                        v-model="currentMessage"
-                        label="Digite ou fale sua pergunta..."
-                        variant="outlined"
-                        density="comfortable"
-                        :disabled="isProcessingMessage"
-                        @keydown="handleKeyPress"
-                        hide-details
-                        class="flex-1-1"
-                        append-inner-icon="ri-send-plane-line"
-                        @click:append-inner="sendMessage"
-                      />
-                      <v-btn :color="autoRecordMode ? 'success' : 'grey'" variant="tonal" size="large" class="ml-2" @click="toggleAutoRecordMode">
-                        <v-icon>{{ autoRecordMode ? 'ri-robot-2-line' : 'ri-user-voice-line' }}</v-icon>
-                        <v-tooltip activator="parent" location="top">{{ autoRecordMode ? 'Modo Automático' : 'Modo Manual' }}</v-tooltip>
-                      </v-btn>
-                      <v-btn color="primary" variant="tonal" size="large" class="ml-2" :disabled="isProcessingMessage" @click="() => isListening ? stopListening() : startListening()">
-                        <v-icon>{{ isListening ? 'ri-mic-fill' : 'ri-mic-line' }}</v-icon>
-                        <v-tooltip activator="parent" location="top">{{ isListening ? 'Parar' : 'Gravar' }}</v-tooltip>
-                      </v-btn>
-                    </v-card-actions>
-                    <v-card-text v-if="simulationEnded" class="text-center">
-                      <v-icon size="48" color="success" class="mb-2">ri-check-double-line</v-icon>
-                      <div class="text-h6 mb-2">Simulação Finalizada!</div>
-                      <div class="text-body-2 text-medium-emphasis">Agora você pode avaliar sua performance usando o PEP.</div>
-                    </v-card-text>
-                  </v-card>
+                    <ChatPanel
+                      :is-dark-theme="isDarkTheme"
+                      :timer-display="timerDisplay"
+                      :conversation-history="conversationHistory"
+                      v-model:current-message="currentMessage"
+                      :is-processing-message="isProcessingMessage"
+                      :is-listening="isListening"
+                      :auto-record-mode="autoRecordMode"
+                      :format-timestamp="formatTimestamp"
+                      :format-message-text="formatMessageText"
+                      @sendMessage="sendMessage"
+                      @handleKeyPress="handleKeyPress"
+                      @toggleAutoRecordMode="toggleAutoRecordMode"
+                      @startListening="startListening"
+                      @stopListening="stopListening"
+                    />
                   </div>
                 </v-col>
               </v-row>
@@ -917,52 +858,6 @@ onMounted(async () => {
           </v-card>
         </v-dialog>
 
-        <v-dialog v-model="showTutorialDialog" max-width="700">
-          <v-card>
-            <v-card-title class="text-h5">Guia Rápido: Treinamento com IA Virtual</v-card-title>
-            <v-card-text>
-              <p class="mb-4">Bem-vindo ao seu treinamento com o paciente virtual! Para uma experiência eficaz, siga estas orientações:</p>
-    
-              <h4 class="mb-2 text-primary">1. Comunicação:</h4>
-              <p class="mb-4">
-                - Você pode interagir com o paciente virtual usando sua <strong>voz</strong> (microfone ativado automaticamente ao iniciar a simulação) ou <strong>digitando</strong> suas perguntas e comentários na caixa de texto do chat.
-                <br>
-                - Fale de forma clara e natural. Se digitar, seja objetivo.
-              </p>
-    
-              <h4 class="mb-2 text-primary mt-4">2. Solicitando Exames Complementares:</h4>
-              <p class="mb-4">
-                - Para solicitar exames, use frases claras e diretas. A IA entende uma variedade de pedidos.
-                <br>
-                - <strong>Exemplos:</strong>
-                <ul>
-                  <li>"Gostaria de solicitar um hemograma completo."</li>
-                  <li>"Peço um exame de urina tipo 1."</li>
-                  <li>"Preciso de uma radiografia de tórax."</li>
-                  <li>"Solicito uma tomografia computadorizada do abdome."</li>
-                  <li>"Vamos fazer uma ultrassonografia abdominal."</li>
-                  <li>"Quero pedir exames de função renal e hepática."</li>
-                  <li>"Solicito um eletrocardiograma."</li>
-                  <li>"Preciso de exames de imagem para o joelho."</li>
-                </ul>
-                Seja específico sobre o tipo de exame e a região, se aplicável.
-              </p>
-    
-              <h4 class="mb-2 text-primary mt-4">3. Objetivo:</h4>
-              <p class="mb-4">Seu objetivo é conduzir a consulta, investigar o caso, solicitar exames pertinentes e chegar a um diagnóstico ou plano de conduta, como faria em uma estação clínica real.</p>
-    
-              <h4 class="mb-2 text-primary mt-4">4. Finalização:</h4>
-              <p class="mb-4">Para encerrar a simulação a qualquer momento, utilize o botão "Finalizar" no painel de controles. Ao final do tempo, a IA fornecerá um feedback detalhado.</p>
-    
-              <p>Boa sorte no seu treinamento!</p>
-            </v-card-text>
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="primary" @click="showTutorialDialog = false">Fechar</v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
-    
     <v-dialog v-model="showTutorialDialog" max-width="700">
       <v-card>
         <v-card-title class="text-h5">Guia Rápido: Treinamento com IA Virtual</v-card-title>
@@ -1036,6 +931,103 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+@import '@/assets/styles/simulation-view.scss';
+
+/* Tela de preparação da IA - mantendo fundo roxo padrão */
+.ai-pre-simulation-main {
+  background: linear-gradient(135deg, rgba(7, 13, 34, 0.95), rgba(31, 18, 59, 0.9));
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+.ai-preparation-card {
+  background: rgba(var(--v-theme-surface), 0.98) !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(var(--v-theme-outline), 0.12) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: blur(16px);
+}
+
+.ai-prep-header {
+  padding: 24px 24px 0;
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.08);
+  margin-bottom: 0;
+}
+
+.ai-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  margin: 0;
+  line-height: 1.2;
+}
+
+.ai-subtitle {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 1rem;
+  margin: 4px 0 0;
+  line-height: 1.4;
+}
+
+.duration-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.duration-btn {
+  min-width: 80px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.status-card {
+  transition: all 0.2s ease;
+  border-radius: 12px !important;
+}
+
+.status-card:hover {
+  box-shadow: 0 4px 16px rgba(var(--v-theme-primary), 0.1) !important;
+  transform: translateY(-2px);
+}
+
+.ready-btn {
+  min-width: 180px;
+  font-weight: 600;
+  text-transform: none;
+  border-radius: 12px;
+}
+
+/* Responsividade para a nova interface de IA */
+@media (max-width: 768px) {
+  .ai-preparation-card {
+    margin: 16px;
+    border-radius: 16px !important;
+  }
+  
+  .ai-prep-header {
+    padding: 20px 20px 0;
+  }
+  
+  .ai-title {
+    font-size: 1.5rem;
+  }
+  
+  .duration-selector {
+    justify-content: center;
+  }
+  
+  .d-flex.justify-space-between {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .ready-btn {
+    width: 100%;
+  }
+}
+
 .simulation-container {
   height: 100vh;
   display: flex;

@@ -1,0 +1,24 @@
+ATATT3xFfGF0iSF369H6UcVhk4CBB4jbclaRkVIL4qF6LJfdWHzjVAwHDu3Hw2GpV8D0G1Qrw9MvwYSBKINuAW73W45wdmU23A_juEfjO-D-fwszh2Dx94ByXwm8vTBtCdVRhytNMJpkcONMqSyPRwsirUm3iFgWXjB1yVNPNQmFCwvzBghbVJg=8AD0D262 
+
+
+ Excelente! O Rovo Dev funcionou!
+
+Vou te ensinar como trocar de token caso você queira usar outro no futuro:
+
+Como Trocar Token do Rovo Dev:
+Passos para trocar o token:
+Faça logout do token atual:
+
+.\acli.exe rovodev auth logout
+Salve o novo token em um arquivo:
+
+echo SEU_NOVO_TOKEN_AQUI > novo-token.txt
+Autentique com o novo token:
+
+type novo-token.txt | .\acli.exe rovodev auth login --email "hellitoncechinel1@gmail.com" --token
+Teste se funcionou:
+
+.\acli.exe rovodev auth status
+Use o Rovo Dev:
+
+.\acli.exe rovodev run

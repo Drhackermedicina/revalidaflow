@@ -96,7 +96,7 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
         }
       }
 
-      const response = await fetch(`${backendUrl}/ai-simulation/evaluate-pep`, {
+      const response = await fetch(`${backendUrl}/ai-chat/evaluate-pep`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

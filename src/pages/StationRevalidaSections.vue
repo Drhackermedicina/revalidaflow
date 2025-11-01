@@ -173,9 +173,9 @@ watch(
 </script>
 
 <template>
-  <v-container fluid class="pa-0">
+  <v-container fluid class="sections-container pa-0">
     <v-row>
-      <v-col cols="12" md="12" class="mx-auto">
+      <v-col cols="12" md="12" class="mx-auto sections-content">
         <StationListHeader
           :selected-candidate="selectedCandidate"
           :selected-mode="selectedMode"
@@ -203,7 +203,7 @@ watch(
           @station-selected="handleStartSimulation"
         />
 
-        <v-card class="pa-4 mb-4" rounded="lg" elevation="1">
+        <v-card class="revalida-banner pa-4 mb-6" rounded="xl" elevation="0">
           <div class="d-flex align-center">
             <v-img src="/botaosemfundo.png" max-width="48" class="me-3" />
             <div class="text-h6 font-weight-bold">REVALIDA FLOW</div>
@@ -212,125 +212,198 @@ watch(
           </div>
         </v-card>
 
-        <v-expansion-panels variant="accordion" class="mb-6">
-          <SpecialtySection
-            v-if="filteredStationsRevalidaFacilClinicaMedica.length > 0"
-            title="Clínica Médica"
-            :stations="filteredStationsRevalidaFacilClinicaMedica"
-            icon="ri-stethoscope-line"
-            color="info"
-            specialty="clinica-medica"
-            :show-sequential-config="showSequentialConfig"
-            :is-admin="isAdmin"
-            :get-user-station-score="getUserStationScore"
-            :get-station-background-color="getStationBackgroundColor"
-            :is-station-in-sequence="isStationInSequence"
-            :creating-session-for-station-id="creatingSessionForStationId"
-            @station-click="handleStartSimulation"
-            @add-to-sequence="addToSequence"
-            @remove-from-sequence="removeFromSequence"
-            @edit-station="goToEditStation"
-          />
+        <div class="sections-panel">
+          <v-expansion-panels variant="accordion" class="sections-expansion">
+            <SpecialtySection
+              v-if="filteredStationsRevalidaFacilClinicaMedica.length > 0"
+              title="Clínica Médica"
+              :stations="filteredStationsRevalidaFacilClinicaMedica"
+              icon="ri-stethoscope-line"
+              color="info"
+              specialty="clinica-medica"
+              :show-sequential-config="showSequentialConfig"
+              :is-admin="isAdmin"
+              :get-user-station-score="getUserStationScore"
+              :get-station-background-color="getStationBackgroundColor"
+              :is-station-in-sequence="isStationInSequence"
+              :creating-session-for-station-id="creatingSessionForStationId"
+              @station-click="handleStartSimulation"
+              @add-to-sequence="addToSequence"
+              @remove-from-sequence="removeFromSequence"
+              @edit-station="goToEditStation"
+            />
 
-          <SpecialtySection
-            v-if="filteredStationsRevalidaFacilCirurgia.length > 0"
-            title="Cirurgia"
-            :stations="filteredStationsRevalidaFacilCirurgia"
-            icon="ri-knife-line"
-            color="primary"
-            specialty="cirurgia"
-            :show-sequential-config="showSequentialConfig"
-            :is-admin="isAdmin"
-            :get-user-station-score="getUserStationScore"
-            :get-station-background-color="getStationBackgroundColor"
-            :is-station-in-sequence="isStationInSequence"
-            :creating-session-for-station-id="creatingSessionForStationId"
-            @station-click="handleStartSimulation"
-            @add-to-sequence="addToSequence"
-            @remove-from-sequence="removeFromSequence"
-            @edit-station="goToEditStation"
-          />
+            <SpecialtySection
+              v-if="filteredStationsRevalidaFacilCirurgia.length > 0"
+              title="Cirurgia"
+              :stations="filteredStationsRevalidaFacilCirurgia"
+              icon="ri-knife-line"
+              color="primary"
+              specialty="cirurgia"
+              :show-sequential-config="showSequentialConfig"
+              :is-admin="isAdmin"
+              :get-user-station-score="getUserStationScore"
+              :get-station-background-color="getStationBackgroundColor"
+              :is-station-in-sequence="isStationInSequence"
+              :creating-session-for-station-id="creatingSessionForStationId"
+              @station-click="handleStartSimulation"
+              @add-to-sequence="addToSequence"
+              @remove-from-sequence="removeFromSequence"
+              @edit-station="goToEditStation"
+            />
 
-          <SpecialtySection
-            v-if="filteredStationsRevalidaFacilPediatria.length > 0"
-            title="Pediatria"
-            :stations="filteredStationsRevalidaFacilPediatria"
-            icon="ri-bear-smile-line"
-            color="success"
-            specialty="pediatria"
-            :show-sequential-config="showSequentialConfig"
-            :is-admin="isAdmin"
-            :get-user-station-score="getUserStationScore"
-            :get-station-background-color="getStationBackgroundColor"
-            :is-station-in-sequence="isStationInSequence"
-            :creating-session-for-station-id="creatingSessionForStationId"
-            @station-click="handleStartSimulation"
-            @add-to-sequence="addToSequence"
-            @remove-from-sequence="removeFromSequence"
-            @edit-station="goToEditStation"
-          />
+            <SpecialtySection
+              v-if="filteredStationsRevalidaFacilPediatria.length > 0"
+              title="Pediatria"
+              :stations="filteredStationsRevalidaFacilPediatria"
+              icon="ri-bear-smile-line"
+              color="success"
+              specialty="pediatria"
+              :show-sequential-config="showSequentialConfig"
+              :is-admin="isAdmin"
+              :get-user-station-score="getUserStationScore"
+              :get-station-background-color="getStationBackgroundColor"
+              :is-station-in-sequence="isStationInSequence"
+              :creating-session-for-station-id="creatingSessionForStationId"
+              @station-click="handleStartSimulation"
+              @add-to-sequence="addToSequence"
+              @remove-from-sequence="removeFromSequence"
+              @edit-station="goToEditStation"
+            />
 
-          <SpecialtySection
-            v-if="filteredStationsRevalidaFacilGO.length > 0"
-            title="Ginecologia e Obstetrícia"
-            :stations="filteredStationsRevalidaFacilGO"
-            icon="ri-women-line"
-            color="#E91E63"
-            specialty="ginecologia"
-            :show-sequential-config="showSequentialConfig"
-            :is-admin="isAdmin"
-            :get-user-station-score="getUserStationScore"
-            :get-station-background-color="getStationBackgroundColor"
-            :is-station-in-sequence="isStationInSequence"
-            :creating-session-for-station-id="creatingSessionForStationId"
-            @station-click="handleStartSimulation"
-            @add-to-sequence="addToSequence"
-            @remove-from-sequence="removeFromSequence"
-            @edit-station="goToEditStation"
-          />
+            <SpecialtySection
+              v-if="filteredStationsRevalidaFacilGO.length > 0"
+              title="Ginecologia e Obstetrícia"
+              :stations="filteredStationsRevalidaFacilGO"
+              icon="ri-women-line"
+              color="#E91E63"
+              specialty="ginecologia"
+              :show-sequential-config="showSequentialConfig"
+              :is-admin="isAdmin"
+              :get-user-station-score="getUserStationScore"
+              :get-station-background-color="getStationBackgroundColor"
+              :is-station-in-sequence="isStationInSequence"
+              :creating-session-for-station-id="creatingSessionForStationId"
+              @station-click="handleStartSimulation"
+              @add-to-sequence="addToSequence"
+              @remove-from-sequence="removeFromSequence"
+              @edit-station="goToEditStation"
+            />
 
-          <SpecialtySection
-            v-if="filteredStationsRevalidaFacilPreventiva.length > 0"
-            title="Preventiva"
-            :stations="filteredStationsRevalidaFacilPreventiva"
-            icon="ri-shield-cross-line"
-            color="warning"
-            specialty="preventiva"
-            :show-sequential-config="showSequentialConfig"
-            :is-admin="isAdmin"
-            :get-user-station-score="getUserStationScore"
-            :get-station-background-color="getStationBackgroundColor"
-            :is-station-in-sequence="isStationInSequence"
-            :creating-session-for-station-id="creatingSessionForStationId"
-            @station-click="handleStartSimulation"
-            @add-to-sequence="addToSequence"
-            @remove-from-sequence="removeFromSequence"
-            @edit-station="goToEditStation"
-          />
+            <SpecialtySection
+              v-if="filteredStationsRevalidaFacilPreventiva.length > 0"
+              title="Preventiva"
+              :stations="filteredStationsRevalidaFacilPreventiva"
+              icon="ri-shield-cross-line"
+              color="warning"
+              specialty="preventiva"
+              :show-sequential-config="showSequentialConfig"
+              :is-admin="isAdmin"
+              :get-user-station-score="getUserStationScore"
+              :get-station-background-color="getStationBackgroundColor"
+              :is-station-in-sequence="isStationInSequence"
+              :creating-session-for-station-id="creatingSessionForStationId"
+              @station-click="handleStartSimulation"
+              @add-to-sequence="addToSequence"
+              @remove-from-sequence="removeFromSequence"
+              @edit-station="goToEditStation"
+            />
 
-          <SpecialtySection
-            v-if="filteredStationsRevalidaFacilProcedimentos.length > 0"
-            title="Procedimentos"
-            :stations="filteredStationsRevalidaFacilProcedimentos"
-            icon="ri-syringe-line"
-            color="#A52A2A"
-            specialty="procedimentos"
-            :show-sequential-config="showSequentialConfig"
-            :is-admin="isAdmin"
-            :get-user-station-score="getUserStationScore"
-            :get-station-background-color="getStationBackgroundColor"
-            :is-station-in-sequence="isStationInSequence"
-            :creating-session-for-station-id="creatingSessionForStationId"
-            @station-click="handleStartSimulation"
-            @add-to-sequence="addToSequence"
-            @remove-from-sequence="removeFromSequence"
-            @edit-station="goToEditStation"
-          />
-        </v-expansion-panels>
+            <SpecialtySection
+              v-if="filteredStationsRevalidaFacilProcedimentos.length > 0"
+              title="Procedimentos"
+              :stations="filteredStationsRevalidaFacilProcedimentos"
+              icon="ri-syringe-line"
+              color="#A52A2A"
+              specialty="procedimentos"
+              :show-sequential-config="showSequentialConfig"
+              :is-admin="isAdmin"
+              :get-user-station-score="getUserStationScore"
+              :get-station-background-color="getStationBackgroundColor"
+              :is-station-in-sequence="isStationInSequence"
+              :creating-session-for-station-id="creatingSessionForStationId"
+              @station-click="handleStartSimulation"
+              @add-to-sequence="addToSequence"
+              @remove-from-sequence="removeFromSequence"
+              @edit-station="goToEditStation"
+            />
+          </v-expansion-panels>
+        </div>
       </v-col>
     </v-row>
   </v-container>
 </template>
 
 <style scoped>
+.sections-container {
+  background: var(--station-hero-gradient);
+  min-height: 100vh;
+  padding-bottom: 64px;
+}
+
+.sections-content {
+  padding: 48px 24px 32px;
+}
+
+.revalida-banner {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(16, 185, 129, 0.24));
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 26px 52px rgba(34, 45, 99, 0.18);
+}
+
+.sections-panel {
+  background: var(--station-panel-bg);
+  border-radius: 32px;
+  padding: 24px 18px;
+  border: 1px solid var(--station-panel-border);
+  box-shadow: var(--station-panel-shadow);
+  backdrop-filter: blur(22px);
+}
+
+.sections-expansion :deep(.v-expansion-panel-title) {
+  border-radius: 18px;
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  background: var(--station-panel-bg);
+  border: 1px solid var(--station-panel-border);
+  box-shadow: 0 18px 42px rgba(34, 45, 99, 0.12);
+  color: var(--station-text-color);
+}
+
+.sections-expansion :deep(.v-expansion-panel-title__content) {
+  color: var(--station-text-color) !important;
+  font-weight: 600;
+}
+
+.sections-expansion :deep(.v-expansion-panel-title__overlay) {
+  background-color: transparent !important;
+}
+
+.sections-expansion :deep(.v-expansion-panel) {
+  background-color: transparent !important;
+}
+
+.sections-expansion :deep(.v-expansion-panel:not(:last-child)) {
+  margin-bottom: 12px;
+}
+
+.sections-expansion :deep(.station-card) {
+  box-shadow: none;
+  border-radius: 20px;
+}
+
+.sections-expansion :deep(.v-virtual-scroll__item) {
+  padding: 12px 8px;
+}
+
+@media (max-width: 960px) {
+  .sections-content {
+    padding: 32px 16px;
+  }
+
+  .sections-panel {
+    padding: 18px 12px;
+  }
+}
 </style>

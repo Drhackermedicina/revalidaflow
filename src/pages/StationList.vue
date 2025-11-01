@@ -422,12 +422,24 @@ function applyRouteState() {
 </script>
 
 <template>
+  <!-- Hero Section Moderno -->
   <v-container fluid class="pa-0 main-content-container">
     <v-row>
-      <v-col cols="12" md="12" class="mx-auto">
+      <v-col cols="12" class="text-center py-12 hero-section-modern">
+        <h1 class="display-lg mb-4">
+          <span class="gradient-text">Estações de Simulação</span>
+        </h1>
+        <p class="body-lg text-medium-emphasis mb-8 max-width-600 mx-auto">
+          Escolha entre treinamento individual ou simulação completa sequencial
+        </p>
+      </v-col>
+    </v-row>
+
+    <v-row>
+      <v-col cols="12" md="12" class="mx-auto section-container">
         <AdminUploadCard v-if="isAdmin" @navigate-to-upload="goToAdminUpload" />
 
-        <div v-if="shouldShowCandidateSearch">
+        <div v-if="shouldShowCandidateSearch" class="candidate-search-section">
           <CandidateSearchBar
             v-model="candidateSearchQuery"
             v-model:show-suggestions="showCandidateSuggestions"
@@ -439,32 +451,45 @@ function applyRouteState() {
             @clear-selection="clearCandidateSelection"
           />
 
-          <div class="d-flex justify-center mt-4">
-            <v-btn color="primary" variant="elevated" @click="viewStationsDirectly">
-              Ir para a Lista de estações sem selecionar candidato
+          <div class="d-flex justify-center mt-6">
+            <v-btn
+              class="modern-btn outline-btn"
+              variant="outlined"
+              size="large"
+              @click="viewStationsDirectly"
+            >
+              <VIcon icon="ri-eye-line" class="mr-2" :tabindex="undefined" />
+              Explorar Estações sem Seleção
             </v-btn>
           </div>
         </div>
 
-        <div v-if="shouldShowModeSelection" class="mode-selection-container">
+        <div v-if="shouldShowModeSelection" class="mode-selection-container hero-card-modern">
+          <div class="text-center mb-8">
+            <h2 class="heading-lg mb-4 gradient-text">Escolha o Modo de Treinamento</h2>
+            <p class="body-md text-medium-emphasis">
+              Selecione como deseja realizar suas simulações médicas
+            </p>
+          </div>
+          
           <v-row>
             <v-col cols="12" md="6" class="mb-4">
               <ModeSelectionCard
                 title="Treinamento Simples"
-                description="Treine uma estação por vez, no seu próprio ritmo"
+                description="Pratique uma estação por vez, no seu próprio ritmo e horário"
                 icon="ri-user-follow-line"
                 color="success"
-                duration="Aprox. 15 min por estação"
+                duration="~ 15 minutos por estação"
                 @select="handleModeSelection('simple-training')"
               />
             </v-col>
             <v-col cols="12" md="6" class="mb-4">
               <ModeSelectionCard
                 title="Simulação Completa"
-                description="Simulação sequencial de múltiplas estações"
+                description="Experimente múltiplas estações em sequência realista"
                 icon="ri-play-list-line"
                 color="primary"
-                duration="Aprox. 60-90 min"
+                duration="~ 60-90 minutos total"
                 @select="handleModeSelection('simulation')"
               />
             </v-col>
@@ -492,44 +517,62 @@ function applyRouteState() {
           @reset="resetSequentialConfig"
         />
 
+        <!-- Seção de Cards Hero Modernos -->
+        <div v-if="shouldShowStationList" class="hero-cards-section">
+          <div class="text-center mb-8">
+            <h3 class="heading-md mb-4">Escolha a Categoria</h3>
+            <p class="body-md text-medium-emphasis">
+              Acesse diferentes tipos de estações organizadas por origem
+            </p>
+          </div>
+          
+          <v-row class="justify-center">
+            <v-col cols="12" sm="6" md="5" lg="4" class="d-flex justify-center mb-6">
+              <div class="hero-card-wrapper">
+                <SectionHeroCard
+                  title="INEP — Provas Anteriores"
+                  subtitle="Acesse estações organizadas por período de exame"
+                  :image="inepIcon"
+                  :badge-count="inepTotalAll"
+                  color="primary"
+                  gradient-start="#ECF4FF"
+                  gradient-end="#F7FAFF"
+                  @click="openInepSection"
+                />
+              </div>
+            </v-col>
+            <v-col cols="12" sm="6" md="5" lg="4" class="d-flex justify-center mb-6">
+              <div class="hero-card-wrapper">
+                <SectionHeroCard
+                  title="REVALIDA FLOW"
+                  subtitle="Estações organizadas por especialidade médica"
+                  image="/botaosemfundo.png"
+                  :badge-count="revalidaTotalAll"
+                  color="success"
+                  gradient-start="#E9F7EF"
+                  gradient-end="#F5FBF7"
+                  @click="openRevalidaSection"
+                />
+              </div>
+            </v-col>
+          </v-row>
+        </div>
+
+        <!-- Loading State Modernizado -->
+        <div v-if="shouldShowStationList" ref="loadMoreSentinel" class="load-more-sentinel" />
         
-
-        <!-- Cards altos e estreitos para abrir as seções principais (após selecionar o modo) -->
-        <v-row v-if="shouldShowStationList" class="mt-6 mb-8" justify="center" align="stretch">
-          <v-col cols="12" sm="6" md="4" lg="3" class="d-flex justify-center mb-4">
-            <SectionHeroCard
-              title="INEP — Provas Anteriores"
-              subtitle="Acesse estações por período"
-              :image="inepIcon"
-              :badge-count="inepTotalAll"
-              color="primary"
-              gradient-start="#ECF4FF"
-              gradient-end="#F7FAFF"
-              @click="openInepSection"
-            />
-          </v-col>
-          <v-col cols="12" sm="6" md="4" lg="3" class="d-flex justify-center mb-4">
-            <SectionHeroCard
-              title="REVALIDA FLOW"
-              subtitle="Estações por especialidade"
-              image="/botaosemfundo.png"
-              :badge-count="revalidaTotalAll"
-              color="success"
-              gradient-start="#E9F7EF"
-              gradient-end="#F5FBF7"
-              @click="openRevalidaSection"
-            />
-          </v-col>
-        </v-row>
-
-        <!-- Seções antigas removidas desta página -->
-
-        <div v-if="shouldShowStationList" ref="loadMoreSentinel" class="load-more-sentinel" style="height: 1px; margin-top: 20px;" />
-
-        <v-row v-if="shouldShowStationList && isLoadingMoreStations" class="mt-4">
+        <v-row v-if="shouldShowStationList && isLoadingMoreStations" class="mt-8">
           <v-col cols="12" class="text-center">
-            <v-progress-circular indeterminate color="primary" />
-            <div class="mt-2">Carregando mais estações...</div>
+            <div class="loading-container">
+              <v-progress-circular
+                indeterminate
+                size="48"
+                width="4"
+                color="primary"
+                class="mb-4"
+              />
+              <div class="body-md text-medium-emphasis">Carregando mais estações...</div>
+            </div>
           </v-col>
         </v-row>
 
@@ -538,91 +581,640 @@ function applyRouteState() {
   </v-container>
 </template>
 
-<style scoped>
-.main-content-container {
-  background-color: transparent !important;
+<style scoped lang="scss">
+// ============================================================================
+// 🎨 SISTEMA DE CORES MODERNO
+// ============================================================================
+
+:root {
+  // Gradientes Primários
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --gradient-warning: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  
+  // Cores de Fundo
+  --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --card-gradient: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1));
+  
+  // Cores Temáticas
+  --inep-color: #2563eb;
+  --revalida-color: #16a34a;
+  --glass-border: rgba(255,255,255,0.2);
+  
+  // Sombras Modernas
+  --shadow-card: 0 4px 20px rgba(0,0,0,0.08);
+  --shadow-hover: 0 20px 40px rgba(0,0,0,0.12);
+  --shadow-hero: 0 25px 50px rgba(0,0,0,0.15);
 }
+
+// ============================================================================
+// 🌟 LAYOUT PRINCIPAL MODERNO
+// ============================================================================
+
+.main-content-container {
+  background: var(--bg-gradient) !important;
+  min-height: 100vh;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+// ============================================================================
+// 🎴 CONTAINER DE SELEÇÃO DE MODO
+// ============================================================================
 
 .mode-selection-container {
-  margin-bottom: 24px;
+  margin: 3rem 0;
+  padding: 2rem;
+  background: var(--card-gradient);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-card);
 }
 
-.station-list-item {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+// ============================================================================
+// 💫 CARDS MODERNOS E INTERATIVOS
+// ============================================================================
+
+
+// ============================================================================
+// 🔍 BARRA DE BUSCA MODERNA
+// ============================================================================
+
+.rounded-input {
+  .v-input__control .v-input__slot {
+    border-radius: 50px !important;
+    background: rgba(255,255,255,0.9) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 2px solid transparent !important;
+    padding: 1rem 2rem !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
+    transition: all 0.3s ease !important;
+    
+    &:focus-within {
+      border-color: #667eea !important;
+      box-shadow: 0 8px 32px rgba(102,126,234,0.2) !important;
+    }
+  }
 }
 
-.station-list-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.rounded-input .v-input__control .v-input__slot {
-  border-radius: 8px;
-}
+// ============================================================================
+// 🎯 BOTÕES DE SEÇÃO COM DESIGN MODERNO
+// ============================================================================
 
 .v-expansion-panel-title.rounded-button-title.section-button {
-  /* Botão mais alto do que largo (ênfase vertical) */
-  min-height: 110px;
-  padding: 20px 24px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.02));
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  min-height: 120px;
+  padding: 2rem;
+  border-radius: 24px;
+  background: var(--card-gradient);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+  
+  &:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: var(--shadow-hero);
+    
+    &::before {
+      transform: scaleX(1);
+    }
+  }
 }
 
-.v-expansion-panel-title.rounded-button-title.section-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
-  background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.025));
-}
+// ============================================================================
+// 🎨 ÍCONES DAS SEÇÕES COM EFEITOS
+// ============================================================================
 
-/* Ícone das seções */
 .section-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+  }
+  
+  &:hover {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  }
 }
 
-/* Tipografia moderna para os títulos das seções */
+// ============================================================================
+// 📝 TIPOGRAFIA MODERNA E HIERÁRQUICA
+// ============================================================================
+
 .section-title {
-  font-size: 1.125rem; /* ~18px */
+  font-size: 1.25rem;
   font-weight: 800;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.3;
 }
 
 .section-subtitle {
-  margin-top: 4px;
-  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  font-size: 1rem;
   opacity: 0.8;
+  font-weight: 400;
+  line-height: 1.5;
 }
+
+// ============================================================================
+// 🎪 GRID RESPONSIVO MODERNO
+// ============================================================================
 
 .v-expansion-panel.contained-panel {
-  margin-left: auto;
-  margin-right: auto;
+  margin: 0 auto;
+  max-width: 400px;
+  
+  @media (min-width: 768px) {
+    max-width: 600px;
+  }
 }
 
-/* Melhor contraste no tema escuro para os títulos dos painéis principais */
-:deep(.v-theme--dark) .v-expansion-panel-title.rounded-button-title {
-  background-color: rgba(var(--v-theme-surface), 0.96) !important;
-  border: 1px solid rgba(var(--v-theme-outline), 0.24) !important;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
+// ============================================================================
+// 🌙 DARK MODE SUPPORT
+// ============================================================================
+
+:deep(.v-theme--dark) {
+  .main-content-container {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+  }
+  
+  .v-expansion-panel-title.rounded-button-title.section-button {
+    background: rgba(30,30,30,0.8) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+    color: rgba(255,255,255,0.9) !important;
+  }
+  
+  .rounded-input .v-input__control .v-input__slot {
+    background: rgba(30,30,30,0.9) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+  }
+  
+  .section-icon {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+  
+  .hero-section-modern {
+    h1, h2, h3 {
+      color: rgba(255,255,255,0.95) !important;
+    }
+  }
+  
+  .mode-selection-container {
+    background: rgba(30,30,30,0.8) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+  }
 }
 
-.sequential-selection-btn .v-icon {
-  color: #1565c0 !important;
-  opacity: 1 !important;
-  font-weight: 700 !important;
-  visibility: visible !important;
+// ============================================================================
+// 🎨 ELEMENTOS VISUAIS FINAIS
+// ============================================================================
+
+.hero-section-modern {
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(102,126,234,0.1) 0%, transparent 70%);
+    animation: float 8s ease-in-out infinite;
+  }
+  
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
+  }
 }
 
-.v-btn[variant='tonal'].sequential-selection-btn .v-icon {
-  color: #2e7d32 !important;
+.candidate-search-section {
+  margin: 3rem 0;
+  text-align: center;
+}
+
+.modern-btn {
+  border-radius: 50px !important;
+  padding: 1rem 2.5rem !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: 0.5px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  &:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+    
+    &::before {
+      left: 100% !important;
+    }
+  }
+}
+
+.outline-btn {
+  border: 2px solid transparent !important;
+  background: rgba(255,255,255,0.1) !important;
+  backdrop-filter: blur(10px) !important;
+  
+  &:hover {
+    border-color: #667eea !important;
+    background: rgba(102,126,234,0.1) !important;
+  }
+}
+
+.section-container {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-cards-section {
+  margin: 4rem 0;
+  padding: 2rem 0;
+}
+
+.hero-card-wrapper {
+  width: 100%;
+  max-width: 380px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+.loading-container {
+  background: var(--card-gradient);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 3rem 2rem;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-card);
+}
+
+// ============================================================================
+// 📝 TIPOGRAFIA UTILITÁRIA
+// ============================================================================
+
+.display-lg {
+  font-size: 3.75rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  
+  @media (max-width: 768px) {
+    font-size: 2.5rem;
+  }
+}
+
+.heading-lg {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  
+  @media (max-width: 768px) {
+    font-size: 1.875rem;
+  }
+}
+
+.heading-md {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+  }
+}
+
+.body-lg {
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.body-md {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.max-width-600 {
+  max-width: 600px;
+}
+
+// ============================================================================
+// 🎯 MELHORIAS DE ACESSIBILIDADE
+// ============================================================================
+
+.v-btn:focus-visible {
+  outline: 2px solid #667eea !important;
+  outline-offset: 2px !important;
+}
+
+// ============================================================================
+// 📱 OTIMIZAÇÕES RESPONSIVAS ADICIONAIS
+// ============================================================================
+
+@media (max-width: 768px) {
+  .hero-section-modern {
+    padding: 4rem 1rem !important;
+    
+    .display-lg {
+      font-size: 2.25rem !important;
+    }
+    
+    .body-lg {
+      font-size: 1rem !important;
+    }
+  }
+  
+  .candidate-search-section {
+    margin: 2rem 0;
+    padding: 0 1rem;
+  }
+  
+  .mode-selection-container {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    border-radius: 16px;
+  }
+  
+  .hero-cards-section {
+    margin: 3rem 0;
+    padding: 1rem 0;
+  }
+  
+  .hero-card-wrapper {
+    max-width: 100%;
+  }
+  
+  .loading-container {
+    padding: 2rem 1rem;
+    border-radius: 16px;
+  }
+}
+
+// ============================================================================
+// 🌟 EFEITOS ESPECIAIS PARA INTERAÇÕES
+// ============================================================================
+
+// Hover effect para cards com shimmer
+.shimmer-hover {
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transition: left 0.6s;
+  }
+  
+  &:hover::after {
+    left: 100%;
+  }
+}
+
+// Animação para elementos que aparecem
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ============================================================================
+// 🎨 MELHORIAS VISUAIS PARA ESTADOS
+// ============================================================================
+
+// Estado de loading mais atrativo
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+// Estados de hover melhorados
+.state-hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+  }
+}
+
+// Indicador visual para elementos interativos
+.interactive-indicator {
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: var(--gradient-primary);
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+  }
+  
+  &:hover::before {
+    opacity: 0.1;
+  }
+}
+
+// ============================================================================
+// 🎮 ANIMAÇÕES ESPECIAIS
+// ============================================================================
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+// ============================================================================
+// 🎯 ELEMENTOS ESPECIAIS COM ANIMAÇÕES
+// ============================================================================
+
+.sequential-selection-btn {
+  .v-icon {
+    color: var(--inep-color) !important;
+    opacity: 1 !important;
+    font-weight: 700 !important;
+    visibility: visible !important;
+    animation: pulse 2s infinite;
+  }
+}
+
+.v-btn[variant='tonal'].sequential-selection-btn {
+  .v-icon {
+    color: var(--revalida-color) !important;
+  }
+}
+
+// ============================================================================
+// 📱 RESPONSIVIDADE OTIMIZADA
+// ============================================================================
+
+@media (max-width: 768px) {
+  .mode-selection-container {
+    margin: 2rem 0;
+    padding: 1.5rem;
+  }
+  
+  .v-expansion-panel-title.rounded-button-title.section-button {
+    min-height: 100px;
+    padding: 1.5rem;
+  }
+  
+  .section-icon {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .section-title {
+    font-size: 1.125rem;
+  }
+  
+  .section-subtitle {
+    font-size: 0.875rem;
+  }
+}
+
+// ============================================================================
+// 🌈 EFEITOS ESPECIAIS PARA ELEMENTOS
+// ============================================================================
+
+.hero-card-modern {
+  background: var(--card-gradient);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  position: relative;
+  overflow: hidden;
+  animation: float 6s ease-in-out infinite;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+    animation: shimmer 3s infinite;
+  }
+}
+
+.badge-counter-modern {
+  background: var(--gradient-accent);
+  color: white;
+  border-radius: 25px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  animation: pulse 2s infinite;
 }
 </style>
-
-
 

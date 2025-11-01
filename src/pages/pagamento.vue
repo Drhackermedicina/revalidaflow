@@ -3,7 +3,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { backendUrl } from '@/utils/backendUrl.js'
 import { getAuthHeadersAsync } from '@/utils/authHeaders.js'
-import LoginBackground from '@/components/login/LoginBackground.vue'
 
 const router = useRouter()
 
@@ -58,8 +57,8 @@ const planosDisponiveis = {
         descricao: 'Estações ilimitadas com feedback detalhado',
         icone: 'ri-user-star-fill',
         quantidades: [
-          { min: 1, max: 5, valorUnitario: 9.90, label: '1-5 estações - R$ 9,90/estação' },
-          { min: 6, max: 14, valorUnitario: 8.90, label: '6-14 estações - R$ 8,90/estação' },
+          { min: 1, max: 9, valorUnitario: 10.00, label: 'Até 9 estações - R$ 10,00/estação' },
+          { min: 10, max: 14, valorUnitario: 8.90, label: '10-14 estações - R$ 8,90/estação' },
           { min: 15, max: 999, valorUnitario: 7.50, label: '15+ estações - R$ 7,50/estação' },
         ]
       },
@@ -96,11 +95,12 @@ const bandeirasCartao = [
 ]
 
 // Estados
-const etapa = ref(1) // 1: Seleção de plano, 2: Confirmação/Pagamento
+const etapa = ref(1) // 1: Seleção de plano, 2: Forma de pagamento, 3: Confirmação
 const planoSelecionado = ref('')
 const periodoSelecionado = ref('')
 const subplanoSelecionado = ref('')
 const quantidadeEstacoes = ref(1)
+const formaPagamentoSelecionada = ref('')
 const processando = ref(false)
 const mensagemStatus = ref('')
 const pixCopiaCola = ref('')
@@ -170,6 +170,20 @@ const podeProsseguir = computed(() => {
     return valorTotal.value > 0
   }
   
+  if (etapa.value === 2) {
+    if (!formaPagamentoSelecionada.value) return false
+    
+    if (formaPagamentoSelecionada.value === 'credito') {
+      return dadosCartao.value.numero.length >= 16 &&
+             dadosCartao.value.nome.length > 0 &&
+             dadosCartao.value.validade.length === 5 &&
+             dadosCartao.value.cvv.length >= 3 &&
+             dadosCartao.value.bandeira.length > 0
+    }
+    
+    return true
+  }
+  
   return false
 })
 
@@ -189,12 +203,9 @@ const selecionarPlano = (planoId) => {
   planoSelecionado.value = planoId
 }
 
-const avancarEtapa = async () => {
+const avancarEtapa = () => {
   if (podeProsseguir.value) {
-    // Vai direto para finalização (etapa 2 = confirmação/pagamento)
-    etapa.value = 2
-    // Chama finalizarPagamento automaticamente
-    await finalizarPagamento()
+    etapa.value++
   }
 }
 
@@ -275,10 +286,11 @@ const finalizarPagamento = async () => {
     const data = await response.json()
 
     if (data.success && data.checkout && data.checkout.initPoint) {
-      // Redirecionar imediatamente para o checkout do Mercado Pago
-      // Não atualizar mensagemStatus para evitar mostrar "Pagamento Confirmado"
+      // Redirecionar para o checkout do Mercado Pago
+      mensagemStatus.value = 'Redirecionando para o checkout do Mercado Pago...'
+      
+      // Abrir checkout em nova aba ou redirecionar
       window.location.href = data.checkout.initPoint
-      return // Não continua o código após redirecionar
     } else {
       throw new Error('Resposta inválida do servidor')
     }
@@ -717,28 +729,21 @@ const voltarInicio = () => {
 </script>
 
 <template>
-  <div class="pagamento-page">
-    <!-- Advanced Background System -->
-    <LoginBackground />
-
-    <!-- Main Content -->
-    <VContainer class="pagamento-container py-10">
-      <div class="login-content">
-        <VRow justify="center">
-          <VCol cols="12" md="12" lg="8" xl="6">
-            <VCard class="payment-card login-card" elevation="12">
-          <div class="payment-header pa-6">
-            <div class="payment-header-content">
-              <div class="payment-header-main">
-                <h2 class="payment-title">Finalizar Assinatura</h2>
-                <p class="payment-subtitle">Escolha seu plano e finalize sua jornada médica</p>
+  <VContainer class="pagamento-container py-10">
+    <VRow justify="center">
+      <VCol cols="12" md="10" lg="8">
+        <VCard class="payment-card" elevation="12">
+          <VCardTitle class="payment-header pa-6">
+            <div class="d-flex align-center justify-space-between">
+              <div>
+                <h2 class="text-h4 font-weight-bold mb-1">Finalizar Assinatura</h2>
+                <p class="text-body-2 mb-0 opacity-90">Escolha seu plano e forma de pagamento</p>
               </div>
-              <VChip color="white" variant="flat" size="large" class="step-chip">
-                <VIcon icon="ri-progress-1" start size="16" />
-                Etapa {{ etapa }}/2
+              <VChip color="white" variant="flat" size="large">
+                Etapa {{ etapa }}/3
               </VChip>
             </div>
-          </div>
+          </VCardTitle>
 
           <VCardText class="pa-6 pa-md-8">
             <!-- ETAPA 1: SELEÇÃO DE PLANO -->
@@ -753,19 +758,16 @@ const voltarInicio = () => {
                   md="4"
                 >
                   <VCard
-                    :class="['plano-option', 'login-card', { 'selected': planoSelecionado === key }]"
+                    :class="['plano-option', { 'selected': planoSelecionado === key }]"
                     :color="planoSelecionado === key ? plano.cor : ''"
                     :variant="planoSelecionado === key ? 'tonal' : 'outlined'"
                     @click="selecionarPlano(key)"
                     hover
                   >
-                    <!-- Inner glow effect -->
-                    <div class="card-glow"></div>
-                    
                     <VCardText class="text-center pa-6">
-                      <VIcon :icon="plano.icone" size="48" :color="plano.cor" class="mb-3 plan-icon" />
-                      <h4 class="text-h6 font-weight-bold mb-2 plan-title">{{ plano.nome }}</h4>
-                      <p class="text-body-2 text-medium-emphasis mb-0 plan-description">{{ plano.descricao }}</p>
+                      <VIcon :icon="plano.icone" size="48" :color="plano.cor" class="mb-3" />
+                      <h4 class="text-h6 font-weight-bold mb-2">{{ plano.nome }}</h4>
+                      <p class="text-body-2 text-medium-emphasis mb-0">{{ plano.descricao }}</p>
                     </VCardText>
                   </VCard>
                 </VCol>
@@ -841,15 +843,9 @@ const voltarInicio = () => {
                     density="compact"
                     class="estacoes-valor-alert"
                   >
-                    <div class="mb-2">
-                      <strong class="text-dark">Tabela de Preços:</strong>
-                    </div>
-                    <div v-for="faixa in planoAtual.subplanos[0].quantidades" :key="faixa.min" class="estacoes-faixa-item">
-                      <div :class="['estacoes-valor-texto', { 'estacoes-faixa-ativa': quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max }]">
-                        <span>{{ faixa.label }}</span>
-                        <span v-if="quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max" class="estacoes-valor-total">
-                          = {{ formatarMoeda(faixa.valorUnitario * quantidadeEstacoes) }}
-                        </span>
+                    <div v-for="faixa in planoAtual.subplanos[0].quantidades" :key="faixa.min">
+                      <div v-if="quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max" class="estacoes-valor-texto">
+                        {{ faixa.label }} = <strong class="estacoes-valor-moeda">{{ formatarMoeda(faixa.valorUnitario * quantidadeEstacoes) }}</strong>
                       </div>
                     </div>
                   </VAlert>
@@ -868,70 +864,158 @@ const voltarInicio = () => {
                 block
                 size="x-large"
                 color="primary"
-                variant="elevated"
                 :disabled="!podeProsseguir"
                 @click="avancarEtapa"
-                class="continue-btn hover-lift"
-                :class="{ 'pulse-animation': podeProsseguir }"
               >
-                <template v-slot:loader>
-                  <VProgressCircular
-                    indeterminate
-                    size="20"
-                    width="2"
-                    class="mr-2"
-                  />
-                  Processando...
-                </template>
-                <VIcon icon="ri-arrow-right-line" end />
                 Continuar para Pagamento
+                <VIcon icon="ri-arrow-right-line" end />
               </VBtn>
             </div>
 
-            <!-- ETAPA 2: CONFIRMAÇÃO/PAGAMENTO -->
-            <div v-show="etapa === 2" class="etapa-confirmacao text-center">
-              <!-- Aguardando criação do checkout -->
-              <div v-if="processando && !mensagemStatus.includes('Redirecionando')">
-                <VIcon
-                  icon="ri-loader-4-line"
-                  size="80"
-                  color="primary"
-                  class="mb-4 animate-spin"
-                />
-                <h3 class="text-h4 font-weight-bold mb-3 text-dark">{{ mensagemStatus || 'Processando pagamento...' }}</h3>
-              </div>
-              
-              <!-- Mensagem de erro -->
-              <div v-else-if="mensagemStatus && mensagemStatus.includes('Erro')">
-                <VIcon
-                  icon="ri-error-warning-line"
-                  size="80"
-                  color="error"
-                  class="mb-4"
-                />
-                <h3 class="text-h4 font-weight-bold mb-3 text-dark">Erro no Pagamento</h3>
-                <p class="text-body-1 mb-6 text-dark">{{ mensagemStatus }}</p>
-                <VBtn
-                  size="large"
-                  color="primary"
-                  @click="voltarEtapa"
-                  class="me-3"
+            <!-- ETAPA 2: FORMA DE PAGAMENTO -->
+            <div v-show="etapa === 2" class="etapa-pagamento">
+              <VBtn variant="text" class="mb-4" @click="voltarEtapa">
+                <VIcon icon="ri-arrow-left-line" start />
+                Voltar
+              </VBtn>
+
+              <h3 class="text-h5 font-weight-bold mb-6">Escolha a forma de pagamento</h3>
+
+              <VRow class="mb-6">
+                <VCol
+                  v-for="forma in formasPagamento"
+                  :key="forma.id"
+                  cols="12"
+                  md="4"
                 >
-                  <VIcon icon="ri-arrow-left-line" start />
-                  Voltar
-                </VBtn>
-                <VBtn
-                  size="large"
-                  color="success"
-                  @click="finalizarPagamento"
-                >
-                  <VIcon icon="ri-refresh-line" start />
-                  Tentar Novamente
-                </VBtn>
+                  <VCard
+                    :class="['forma-pagamento-option', { 'selected': formaPagamentoSelecionada === forma.id }]"
+                    :variant="formaPagamentoSelecionada === forma.id ? 'tonal' : 'outlined'"
+                    @click="formaPagamentoSelecionada = forma.id"
+                    hover
+                  >
+                    <VCardText class="text-center pa-6">
+                      <VIcon :icon="forma.icone" size="48" color="primary" class="mb-3" />
+                      <h4 class="text-h6 font-weight-bold mb-2">{{ forma.nome }}</h4>
+                      <p class="text-caption text-medium-emphasis mb-0">{{ forma.descricao }}</p>
+                    </VCardText>
+                  </VCard>
+                </VCol>
+              </VRow>
+
+              <!-- Formulário de Cartão de Crédito -->
+              <div v-if="formaPagamentoSelecionada === 'credito'" class="form-cartao mb-6">
+                <h4 class="text-h6 font-weight-bold mb-4">Dados do Cartão</h4>
+                <VRow>
+                  <VCol cols="12">
+                    <VTextField
+                      v-model="dadosCartao.numero"
+                      label="Número do Cartão"
+                      placeholder="0000 0000 0000 0000"
+                      variant="outlined"
+                      maxlength="19"
+                      @input="formatarNumeroCartao"
+                    >
+                      <template v-slot:prepend-inner>
+                        <VIcon icon="ri-bank-card-line" />
+                      </template>
+                    </VTextField>
+                  </VCol>
+                  <VCol cols="12">
+                    <VTextField
+                      v-model="dadosCartao.nome"
+                      label="Nome no Cartão"
+                      placeholder="Como está impresso no cartão"
+                      variant="outlined"
+                    />
+                  </VCol>
+                  <VCol cols="12" sm="4">
+                    <VTextField
+                      v-model="dadosCartao.validade"
+                      label="Validade"
+                      placeholder="MM/AA"
+                      variant="outlined"
+                      maxlength="5"
+                      @input="formatarValidade"
+                    />
+                  </VCol>
+                  <VCol cols="12" sm="4">
+                    <VTextField
+                      v-model="dadosCartao.cvv"
+                      label="CVV"
+                      placeholder="000"
+                      variant="outlined"
+                      maxlength="4"
+                      type="password"
+                    />
+                  </VCol>
+                  <VCol cols="12" sm="4">
+                    <VSelect
+                      v-model="dadosCartao.bandeira"
+                      :items="bandeirasCartao"
+                      item-title="nome"
+                      item-value="id"
+                      label="Bandeira"
+                      variant="outlined"
+                    />
+                  </VCol>
+                  <VCol cols="12">
+                    <VSelect
+                      v-model="dadosCartao.parcelas"
+                      :items="[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"
+                      label="Parcelas"
+                      variant="outlined"
+                    >
+                      <template v-slot:item="{ item, props }">
+                        <v-list-item v-bind="props">
+                          {{ item.value }}x de {{ formatarMoeda(valorTotal / item.value) }}
+                        </v-list-item>
+                      </template>
+                      <template v-slot:selection="{ item }">
+                        {{ item.value }}x de {{ formatarMoeda(valorTotal / item.value) }}
+                      </template>
+                    </VSelect>
+                  </VCol>
+                </VRow>
               </div>
-              
-              <!-- PIX - Aguardando Pagamento (quando usar PIX no futuro) -->
-              <div v-else-if="aguardandoPagamento">
+
+              <!-- Resumo -->
+              <VCard variant="tonal" color="primary" class="mb-6 resumo-card">
+                <VCardText>
+                  <h4 class="text-h6 font-weight-bold mb-3 resumo-title">Resumo do Pedido</h4>
+                  <div class="d-flex justify-space-between mb-2 resumo-item">
+                    <span class="resumo-label">Plano:</span>
+                    <strong class="resumo-value">{{ planoAtual?.nome }}</strong>
+                  </div>
+                  <div class="d-flex justify-space-between mb-2 resumo-item">
+                    <span class="resumo-label">Valor:</span>
+                    <strong class="resumo-value resumo-valor">{{ formatarMoeda(valorTotal) }}</strong>
+                  </div>
+                  <VDivider class="my-3" />
+                  <div class="d-flex justify-space-between resumo-total">
+                    <span class="text-h6 resumo-label">Total:</span>
+                    <strong class="text-h6 resumo-valor-total">{{ formatarMoeda(valorTotal) }}</strong>
+                  </div>
+                </VCardText>
+              </VCard>
+
+              <VBtn
+                block
+                size="x-large"
+                color="success"
+                :disabled="!podeProsseguir"
+                :loading="processando"
+                @click="finalizarPagamento"
+              >
+                <VIcon icon="ri-check-line" start />
+                Finalizar Pagamento
+              </VBtn>
+            </div>
+
+            <!-- ETAPA 3: CONFIRMAÇÃO -->
+            <div v-show="etapa === 3" class="etapa-confirmacao text-center">
+              <!-- PIX - Aguardando Pagamento -->
+              <div v-if="formaPagamentoSelecionada === 'pix' && aguardandoPagamento">
                 <VIcon
                   icon="ri-qr-code-line"
                   size="80"
@@ -946,7 +1030,7 @@ const voltarInicio = () => {
                   <VCardText class="pa-6">
                     <div v-if="pixQRCode" class="qr-code-wrapper mb-4">
                       <img :src="pixQRCode" alt="QR Code PIX" class="qr-code-image" />
-        </div>
+                    </div>
                     
                     <VDivider class="my-4" />
                     
@@ -963,7 +1047,7 @@ const voltarInicio = () => {
                         <VBtn
                           block
                           size="large"
-          color="primary"
+                          color="primary"
                           @click="copiarCodigoPix"
                         >
                           <VIcon icon="ri-file-copy-line" start />
@@ -972,7 +1056,7 @@ const voltarInicio = () => {
                       </VCol>
                       <VCol cols="12" md="6">
                         <VBtn
-          block
+                          block
                           size="large"
                           color="success"
                           variant="tonal"
@@ -1087,8 +1171,8 @@ const voltarInicio = () => {
                 </VAlert>
               </div>
 
-              <!-- Pagamento Confirmado - só aparece quando realmente confirmado (via webhook/retorno) -->
-              <div v-else-if="mensagemStatus && mensagemStatus.includes('confirmado') && !processando">
+              <!-- Pagamento Confirmado -->
+              <div v-else>
                 <VIcon
                   icon="ri-checkbox-circle-fill"
                   size="80"
@@ -1112,211 +1196,56 @@ const voltarInicio = () => {
                   Voltar para Início
                 </VBtn>
               </div>
-              
-              <!-- Fallback: apenas loading se nenhuma das condições acima foi atendida -->
-              <div v-else>
-                <VIcon
-                  icon="ri-loader-4-line"
-                  size="80"
-                  color="primary"
-                  class="mb-4 animate-spin"
-                />
-                <h3 class="text-h4 font-weight-bold mb-3 text-dark">Redirecionando para o Mercado Pago...</h3>
-                <p class="text-body-1 mb-6 text-dark">Aguarde, você será redirecionado automaticamente.</p>
-              </div>
-          </div>
+            </div>
           </VCardText>
-            </VCard>
-          </VCol>
-        </VRow>
-      </div>
-    </VContainer>
-  </div>
+        </VCard>
+      </VCol>
+    </VRow>
+  </VContainer>
 </template>
 
 <style scoped lang="scss">
-// Import all modular styles
-@import '@/assets/styles/login/variables.scss';
-@import '@/assets/styles/login/animations.scss';
-@import '@/assets/styles/login/background.scss';
-@import '@/assets/styles/login/card.scss';
-@import '@/assets/styles/login/typography.scss';
-@import '@/assets/styles/login/responsive.scss';
-
-.pagamento-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 1rem;
-  position: relative;
-  z-index: 1;
-}
-
-.login-content {
-  position: relative;
-  z-index: 20;
-  width: 100%;
-  max-width: 1800px;
-}
-
 .pagamento-container {
-  position: relative;
-  z-index: 10;
-  width: 100%;
+  background: radial-gradient(circle at top, rgba(124, 77, 255, 0.15), transparent 55%);
+  min-height: 100vh;
 }
 
 .payment-card {
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(20px);
   border-radius: 24px !important;
   overflow: hidden;
-  transition: all var(--transition-medium);
-  
-  // Inner glow effect
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(140, 87, 255, 0.5),
-      transparent
-    );
-    animation: shimmer 3s infinite;
-    z-index: 1;
-  }
-
-  &:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: var(--shadow-card-hover);
-    border-color: rgba(140, 87, 255, 0.3);
-  }
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
 // Garantir visibilidade de todos os textos
 h3, h4, h5, p, span, label {
-  color: rgba(255, 255, 255, 0.95) !important;
+  color: #333 !important;
 }
 
 .text-dark {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: #333 !important;
 }
 
 .etapa-planos,
+.etapa-pagamento,
 .etapa-confirmacao {
   h3, h4, h5 {
-    color: rgba(255, 255, 255, 0.98) !important;
+    color: #1a1a1a !important;
   }
   
   p, span {
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: #666 !important;
   }
 }
 
 .payment-header {
-  background: linear-gradient(135deg, #8C57FF 0%, #00B4D8 50%, #52B788 100%) !important;
-  background-size: 200% 200% !important;
-  animation: gradient-shift 8s ease infinite;
+  background: linear-gradient(135deg, #7c4dff 0%, #00bcd4 100%);
   color: white !important;
-  position: relative;
-  overflow: visible !important;
-  z-index: 1000 !important;
-  margin-bottom: 2rem;
-  padding: 3rem 1.5rem !important;
-  border-radius: 24px 24px 0 0;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.15),
-      transparent
-    );
-    animation: shimmer 4s infinite;
-    z-index: 1;
-  }
-}
 
-.payment-header-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 1001 !important;
-  text-align: center;
-  width: 100%;
-  
-  @media (min-width: 960px) {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-}
-
-.payment-header-main {
-  margin-bottom: 1.5rem;
-  
-  @media (min-width: 960px) {
-    margin-bottom: 0;
-  }
-}
-
-.payment-title {
-  font-size: 2.5rem !important;
-  font-weight: 800 !important;
-  color: white !important;
-  margin: 0 0 1rem 0 !important;
-  padding: 0 !important;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 20px rgba(140, 87, 255, 0.3) !important;
-  line-height: 1.2 !important;
-  
-  @media (max-width: 960px) {
-    font-size: 2rem !important;
-  }
-  
-  @media (max-width: 600px) {
-    font-size: 1.5rem !important;
-  }
-}
-
-.payment-subtitle {
-  font-size: 1.125rem !important;
-  font-weight: 500 !important;
-  color: rgba(255, 255, 255, 0.98) !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
-  line-height: 1.5 !important;
-  opacity: 0.95;
-  
-  @media (max-width: 960px) {
-    font-size: 1rem !important;
-  }
-  
-  @media (max-width: 600px) {
-    font-size: 0.9rem !important;
-  }
-}
-
-.step-chip {
-  margin-top: 0.5rem;
-  
-  @media (min-width: 960px) {
-    margin-top: 0;
+  h2, p {
+    color: white !important;
   }
 }
 
@@ -1324,108 +1253,86 @@ h3, h4, h5, p, span, label {
 .subplano-option,
 .forma-pagamento-option {
   cursor: pointer;
-  transition: all var(--transition-medium);
+  transition: all 0.3s ease;
   border-width: 2px !important;
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  border-color: var(--glass-border) !important;
+  background: white !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
 
   &.selected {
-    transform: scale(1.02) translateY(-2px);
-    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3) !important;
-    border-color: rgba(140, 87, 255, 0.5) !important;
-    background: rgba(140, 87, 255, 0.1) !important;
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(124, 77, 255, 0.25);
   }
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 28px rgba(140, 87, 255, 0.2) !important;
-    border-color: rgba(140, 87, 255, 0.4) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
   }
   
   h4 {
-    color: rgba(255, 255, 255, 0.95) !important;
+    color: #333 !important;
   }
   
   p {
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: #666 !important;
   }
 }
 
 .periodo-radio {
   .periodo-item {
-    border: 1px solid var(--glass-border) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 12px;
-    transition: all var(--transition-medium);
-    background: rgba(255, 255, 255, 0.05) !important;
-    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    background: white !important;
 
     &:hover {
-      background: rgba(140, 87, 255, 0.15) !important;
-      border-color: rgba(140, 87, 255, 0.4) !important;
-      transform: translateX(4px);
+      background: rgba(124, 77, 255, 0.05);
+      border-color: rgba(124, 77, 255, 0.3);
     }
   }
 
   .periodo-label {
     width: 100%;
-    gap: 24px; // Espaçamento entre o texto do período e o valor
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     
     .periodo-label-text {
-      color: rgba(255, 255, 255, 0.95) !important;
-      flex: 1; // Permite que o texto ocupe o espaço disponível
-      margin-right: auto; // Empurra para a esquerda
-      text-align: left;
+      color: #333 !important;
     }
     
     .periodo-valor {
-      color: rgba(255, 255, 255, 0.98) !important;
+      color: #1a1a1a !important;
       font-weight: 700 !important;
-      margin-left: auto; // Empurra o valor para a direita
-      flex-shrink: 0; // Impede que o valor seja comprimido
-      white-space: nowrap; // Evita quebra de linha no valor
-      text-align: right; // Alinha o texto do valor à direita
-      min-width: 100px; // Garante largura mínima para alinhamento
     }
   }
 }
 
 .form-cartao {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
+  background: white;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: var(--glass-shadow);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .pix-info {
   text-align: left;
-  color: rgba(255, 255, 255, 0.95) !important;
+  color: #333 !important;
   
   p {
     margin-bottom: 8px;
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #333 !important;
   }
 }
 
 .pix-dados {
   p {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #333 !important;
   }
 }
 
 // Estilos para QR Code PIX
 .qr-code-card {
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  border: 2px solid rgba(140, 87, 255, 0.3) !important;
+  background: white !important;
+  border: 2px solid rgba(124, 77, 255, 0.2) !important;
 }
 
 .qr-code-wrapper {
@@ -1433,9 +1340,9 @@ h3, h4, h5, p, span, label {
   justify-content: center;
   align-items: center;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.98);
+  background: white;
   border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .qr-code-image {
@@ -1450,202 +1357,103 @@ h3, h4, h5, p, span, label {
   font-size: 12px;
   
   :deep(.v-field__input) {
-    color: rgba(255, 255, 255, 0.95) !important;
-    background: rgba(255, 255, 255, 0.05) !important;
+    color: #333 !important;
   }
 }
 
 .status-alert {
-  background: rgba(140, 87, 255, 0.15) !important;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(140, 87, 255, 0.3) !important;
+  background: rgba(124, 77, 255, 0.1) !important;
   
   strong, span {
-    color: rgba(255, 255, 255, 0.95) !important;
+    color: #333 !important;
   }
 }
 
 // Estilos para resumo de valores - garantir visibilidade
 .resumo-valor-alert {
-  background: rgba(140, 87, 255, 0.15) !important;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(140, 87, 255, 0.3) !important;
-  
   .resumo-label {
-    color: rgba(255, 255, 255, 0.95) !important;
+    color: #333 !important;
   }
   
   .resumo-valor {
-    color: rgba(255, 255, 255, 1) !important;
+    color: #1a1a1a !important;
     font-weight: 700 !important;
   }
 }
 
 .resumo-card {
   .resumo-title {
-    color: rgba(255, 255, 255, 0.98) !important;
+    color: #1a1a1a !important;
   }
   
   .resumo-label {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #333 !important;
   }
   
   .resumo-value {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #333 !important;
   }
   
   .resumo-valor {
-    color: rgba(255, 255, 255, 1) !important;
+    color: #1a1a1a !important;
     font-weight: 700 !important;
   }
   
   .resumo-valor-total {
-    color: rgba(255, 255, 255, 1) !important;
+    color: #000 !important;
     font-weight: 800 !important;
   }
   
-  // Garantir que texto dentro do VCardText tenha cor clara
+  // Garantir que texto dentro do VCardText tenha cor escura
   :deep(.v-card-text) {
     span, strong {
-      color: rgba(255, 255, 255, 0.95) !important;
+      color: #333 !important;
     }
   }
 }
 
 // Garantir labels visíveis
 :deep(.v-label) {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: #333 !important;
 }
 
 // Valores de subplanos visíveis
 .subplano-valor-fixo {
-  color: var(--medical-green) !important;
+  color: #1a7f3a !important;
   font-weight: 700 !important;
-  text-shadow: 0 0 10px rgba(82, 183, 136, 0.5);
 }
 
 // Valores no alerta de estações
 .estacoes-valor-alert {
-  background: rgba(140, 87, 255, 0.1) !important;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(140, 87, 255, 0.2) !important;
-  
-  .estacoes-faixa-item {
-    margin-bottom: 8px;
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-  
   .estacoes-valor-texto {
-    color: rgba(255, 255, 255, 0.95) !important;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 0;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-    
-    &.estacoes-faixa-ativa {
-      background-color: rgba(140, 87, 255, 0.2);
-      padding-left: 8px;
-      padding-right: 8px;
-      font-weight: 600;
-      border: 1px solid rgba(140, 87, 255, 0.4);
-    }
-    
-    span:first-child {
-      flex: 1;
-      text-align: left;
-    }
-  }
-  
-  .estacoes-valor-total {
-    color: rgba(255, 255, 255, 1) !important;
-    font-weight: 700 !important;
-    margin-left: 16px; // Espaçamento adicional antes do valor
-    white-space: nowrap; // Evita quebra de linha no valor
-    text-align: right;
-    min-width: 120px; // Garante largura mínima para alinhamento
+    color: #333 !important;
   }
   
   .estacoes-valor-moeda {
-    color: rgba(255, 255, 255, 1) !important;
+    color: #1a1a1a !important;
     font-weight: 700 !important;
-    margin-left: 12px; // Espaçamento adicional antes do valor (depois do "=")
-    white-space: nowrap; // Evita quebra de linha no valor
   }
 }
 
 :deep(.v-field__input) {
-  color: rgba(255, 255, 255, 0.95) !important;
-  background: rgba(255, 255, 255, 0.05) !important;
+  color: #333 !important;
 }
 
 :deep(.v-selection-control-group) {
   label {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #333 !important;
   }
-}
-
-:deep(.v-field--focused .v-field__input) {
-  color: rgba(255, 255, 255, 1) !important;
-}
-
-:deep(.v-text-field__input) {
-  color: rgba(255, 255, 255, 0.95) !important;
-}
-
-:deep(.v-card-text),
-:deep(.v-card-title),
-:deep(.v-alert__content) {
-  color: rgba(255, 255, 255, 0.95) !important;
-  
-  * {
-    color: inherit;
-  }
-}
-
-// Animação de spin para loader
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-// Global animations
-.fade-slide-enter-active {
-  transition: all 0.8s var(--transition-smooth);
-}
-
-.fade-slide-enter-from {
-  opacity: 0;
-  transform: translateY(30px);
-}
-
-// Ensure proper stacking
-.login-background {
-  z-index: 1;
-}
-
-.login-content {
-  z-index: 10;
 }
 
 @media (max-width: 960px) {
   .payment-header {
-    padding: 2.5rem 1rem !important;
+    h2 {
+      font-size: 1.5rem !important;
+    }
   }
 
-  .plano-option {
+  .plano-option,
+  .forma-pagamento-option {
     margin-bottom: 16px;
   }
   
@@ -1653,271 +1461,4 @@ h3, h4, h5, p, span, label {
     max-width: 250px;
   }
 }
-
-// Enhanced Button Styles
-.continue-btn {
-  position: relative;
-  border-radius: 16px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  height: 56px;
-  text-transform: none;
-  letter-spacing: 0.02em;
-  overflow: hidden;
-  background: var(--title-gradient) !important;
-  border: none;
-  box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3) !important;
-  transition: all var(--transition-medium);
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
-      transparent
-    );
-    transition: left 0.6s;
-  }
-  
-  &:hover::before {
-    left: 100%;
-  }
-  
-  &:hover:not(:disabled) {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 12px 32px rgba(140, 87, 255, 0.4) !important;
-  }
-  
-  &:active:not(:disabled) {
-    transform: translateY(-1px) scale(1.01);
-  }
-  
-  &.pulse-animation {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-}
-
-.hover-lift {
-  transition: all var(--transition-medium);
-  
-  &:hover {
-    transform: translateY(-2px);
-  }
-}
-
-.pulse-animation {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3);
-  }
-  50% {
-    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.5), 0 0 20px rgba(140, 87, 255, 0.3);
-  }
-}
-
-.step-chip {
-  animation: slideInRight 0.6s ease-out;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  
-  .v-icon {
-    animation: rotate 2s linear infinite;
-  }
-}
-
-// Enhanced Card Hover Effects
-.payment-card {
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(140, 87, 255, 0.5),
-      transparent
-    );
-    animation: shimmer 3s infinite;
-    z-index: 1;
-  }
-
-  &:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: var(--shadow-card-hover);
-    border-color: rgba(140, 87, 255, 0.3);
-  }
-}
-
-// Responsive Enhancements
-@media (max-width: 1200px) {
-  .login-content {
-    max-width: 1600px;
-  }
-  
-  .payment-card .login-card-content {
-    padding: 2.5rem;
-  }
-}
-
-@media (max-width: 1400px) {
-  .login-content {
-    max-width: 1400px;
-  }
-}
-
-@media (max-width: 960px) {
-  .login-content {
-    max-width: 100%;
-    padding: 0 1rem;
-  }
-  
-  .payment-card .login-card-content {
-    padding: 2rem;
-  }
-  
-  .payment-header {
-    padding: 2.5rem 1rem !important;
-  }
-}
-
-@media (max-width: 600px) {
-  .payment-card {
-    border-radius: 20px;
-    margin: 0.5rem;
-  }
-  
-  .payment-card .login-card-content {
-    padding: 1.5rem;
-  }
-  
-  .payment-header {
-    padding: 2rem 1rem !important;
-  }
-  
-  .continue-btn {
-    height: 48px;
-    font-size: 1rem;
-  }
-}
-
-@media (max-width: 400px) {
-  .payment-card .login-card-content {
-    padding: 1.25rem;
-  }
-  
-  // Additional mobile optimizations can be added here if needed
-}
-
-// Additional animations
-@keyframes fadeInUp {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInRight {
-  0% {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-// Enhanced Plan Card Styles
-.plano-option.login-card {
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 24px !important;
-  overflow: hidden;
-  transition: all var(--transition-medium);
-  position: relative;
-  box-shadow: var(--glass-shadow) !important;
-  
-  .card-glow {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(140, 87, 255, 0.5),
-      transparent
-    );
-    animation: shimmer 3s infinite;
-    z-index: 1;
-  }
-  
-  &.selected {
-    transform: scale(1.02) translateY(-2px);
-    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3) !important;
-    border-color: rgba(140, 87, 255, 0.5) !important;
-    background: rgba(140, 87, 255, 0.1) !important;
-  }
-  
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 28px rgba(140, 87, 255, 0.2) !important;
-    border-color: rgba(140, 87, 255, 0.4) !important;
-  }
-  
-  .plan-icon {
-    filter: drop-shadow(0 4px 12px rgba(140, 87, 255, 0.6)) drop-shadow(0 0 8px rgba(140, 87, 255, 0.4));
-    animation: float-icon 3s ease-in-out infinite;
-  }
-  
-  .plan-title {
-    background: linear-gradient(135deg, #8C57FF 0%, #00B4D8 50%, #52B788 100%);
-    background-size: 200% 200%;
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: gradient-shift 8s ease infinite;
-    
-    /* Fallback */
-    color: #8C57FF;
-  }
-  
-  .plan-description {
-    color: rgba(255, 255, 255, 0.8) !important;
-  }
-  
-  /* Icon animation delays */
-  &:nth-child(1) .plan-icon { animation-delay: 0s; }
-  &:nth-child(2) .plan-icon { animation-delay: 0.5s; }
-  &:nth-child(3) .plan-icon { animation-delay: 1s; }
-}
-
-  </style>
+</style>

@@ -736,46 +736,36 @@ const saveSimulationBatch = async (sessions) => {
 
 #### **4. API Key Management**
 
-##### **Multi-Key System (12 Keys)**
+##### **Multi-Key System (dinâmico)**
 ```javascript
-// geminiApiManager.js
+const collectEnvKeys = prefix => Object.keys(process.env)
+  .filter(name => name.startsWith(prefix) && process.env[name])
+  .map(name => ({
+    index: Number.parseInt(name.replace(prefix, ''), 10) || 0,
+    value: process.env[name]
+  }))
+  .filter(item => item.index > 0)
+  .sort((a, b) => a.index - b.index)
+
 class GeminiApiManager {
   constructor() {
-    this.apiKeys = [
-      process.env.GOOGLE_API_KEY,       // Free tier
-      process.env.GOOGLE_API_KEY_1,     // Free tier
-      process.env.GOOGLE_API_KEY_2,     // Free tier
-      process.env.GOOGLE_API_KEY_3,     // Free tier
-      process.env.GOOGLE_API_KEY_4,     // Paid tier
-      process.env.GOOGLE_API_KEY_5,     // Paid tier
-      process.env.GOOGLE_API_KEY_6,     // Paid tier
-      process.env.GOOGLE_API_KEY_7,     // Paid tier
-      process.env.GOOGLE_API_KEY_8,     // Paid tier
-      process.env.GOOGLE_API_KEY_9,     // Paid tier
-      process.env.GOOGLE_API_KEY_10,    // Paid tier
-      process.env.GOOGLE_API_KEY_11     // Paid tier
-    ];
-
-    this.keyStatus = new Map(); // Track usage per key
-    this.currentIndex = 0;
+    const googleKeys = collectEnvKeys('GOOGLE_API_KEY_')
+    this.freeKeys = googleKeys.filter(item => item.index <= 7)
+    this.paidKeys = googleKeys.filter(item => item.index >= 8)
   }
 
   async getAvailableKey() {
-    // Try paid keys first for heavy requests
-    for (let i = 4; i < this.apiKeys.length; i++) {
-      if (await this.isKeyAvailable(i)) {
-        return this.apiKeys[i];
+    const pools = [this.paidKeys, this.freeKeys]
+
+    for (const pool of pools) {
+      for (const { value } of pool) {
+        if (await this.isKeyAvailable(value)) {
+          return value
+        }
       }
     }
 
-    // Fall back to free keys for light requests
-    for (let i = 0; i < 4; i++) {
-      if (await this.isKeyAvailable(i)) {
-        return this.apiKeys[i];
-      }
-    }
-
-    throw new Error('No available API keys');
+    throw new Error('No available API keys')
   }
 }
 ```

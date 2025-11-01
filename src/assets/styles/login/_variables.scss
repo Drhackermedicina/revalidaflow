@@ -20,10 +20,10 @@
   --medical-orange: #F77F00;
 
   // Background Gradients
-  --bg-gradient-start: rgba(140, 87, 255, 0.08);
-  --bg-gradient-mid: rgba(140, 87, 255, 0.04);
-  --bg-gradient-end: rgba(0, 180, 216, 0.02);
-  --bg-overlay: rgba(0, 0, 0, 0.4);
+  --bg-gradient-start: rgba(5, 12, 32, 0.92);
+  --bg-gradient-mid: rgba(23, 24, 54, 0.88);
+  --bg-gradient-end: rgba(8, 37, 52, 0.85);
+  --bg-overlay: rgba(0, 0, 0, 0.55);
 
   // Glassmorphism
   --glass-bg: rgba(255, 255, 255, 0.08);
@@ -54,7 +54,7 @@
 
   // Particles & Effects
   --particle-size: 4px;
-  --particle-color: rgba(140, 87, 255, 0.6);
+  --particle-color: rgba(160, 120, 255, 0.75);
   --glow-intensity: 0.8;
   --pulse-duration: 3s;
 }

@@ -181,6 +181,13 @@ const mentores = [
     whatsapp: '+595983680985',
     mensagem: 'Olá Stefferson! Vi sua mentoria no Revalida Flow e gostaria de conversar.'
   },
+  {
+    id: 3,
+    nome: 'Hugo Gabriel',
+    imagem: '/hugo.jpg',
+    whatsapp: '+5515997919323',
+    mensagem: 'Olá Hugo! Vi sua mentoria no Revalida Flow e gostaria de conversar.'
+  },
 ]
 
 const beneficios = [

@@ -1,6 +1,7 @@
 import { ref, computed, nextTick } from 'vue'
 import { currentUser } from '@/plugins/auth.js'
 import { backendUrl } from '@/utils/backendUrl.js'
+import { useChatInput } from '@/composables/useChatInput.js'
 
 /**
  * @typedef {import('vue').Ref} Ref
@@ -12,6 +13,7 @@ import { backendUrl } from '@/utils/backendUrl.js'
  * @param {{stationData: Ref<object>, simulationStarted: Ref<boolean>, speakText: (text: string) => void, scrollToBottom: () => void}} props
  */
 export function useAiChat({ stationData, simulationStarted, speakText, scrollToBottom }) {
+  const { formatMessageText } = useChatInput()
   const conversationHistory = ref([])
   const currentMessage = ref('')
   const isProcessingMessage = ref(false)
@@ -179,6 +181,26 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
     return matches
   }
 
+  async function resolveAuthContext() {
+    const user = currentUser.value
+    if (!user || typeof user.getIdToken !== 'function') {
+      return { token: null, userId: '' }
+    }
+
+    try {
+      const token = await user.getIdToken()
+      return {
+        token,
+        userId: user.uid || user.userId || ''
+      }
+    } catch (_error) {
+      return {
+        token: null,
+        userId: user.uid || user.userId || ''
+      }
+    }
+  }
+
   function handleMaterialRequest(candidateMessage) {
     if (!isFormalRequest(candidateMessage) || !stationData.value) {
       return { status: 'none' }
@@ -231,11 +253,17 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
     }
 
     try {
+      const authContext = await resolveAuthContext()
+      if (!authContext.token || !authContext.userId) {
+        throw new Error('AUTHENTICATION_REQUIRED')
+      }
+
       const response = await fetch(`${backendUrl}/ai-chat/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentUser.value?.accessToken || ''}`,
+          'Authorization': `Bearer ${authContext.token}`,
+          'user-id': authContext.userId
         },
         body: JSON.stringify({
           message: candidateMessage,
@@ -256,7 +284,10 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
 
       return message
     } catch (error) {
-      console.error('❌ Erro ao conectar com IA:', error)
+      if (error.message === 'AUTHENTICATION_REQUIRED') {
+        return 'Não consegui validar sua sessão. Atualize a página ou faça login novamente.'
+      }
+      try { const { captureSimulationError } = await import('@/plugins/sentry.js'); captureSimulationError(error, { simulationState: 'ai_response', stationId: stationData.value?.id, sessionId: conversationHistory.value?.length }) } catch (_) {}
       return 'Desculpe, estou com um problema técnico no momento. Pode repetir a pergunta?'
     }
   }
@@ -273,7 +304,7 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
       }
       conversationHistory.value.push({
         role: 'system',
-        content: `📄 Material liberado: ${material.tituloImpresso || material.titulo || 'Documento'}`,
+        content: formatMessageText(`📄 Material liberado: ${material.tituloImpresso || material.titulo || 'Documento'}`),
         timestamp: new Date(),
       })
     }
@@ -288,7 +319,7 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
 
     conversationHistory.value.push({
       role: 'candidate',
-      content: message,
+      content: formatMessageText(message),
       timestamp: new Date(),
     })
     await nextTick()
@@ -298,7 +329,7 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
       const aiResponse = await processAIResponse(message)
       conversationHistory.value.push({
         role: 'ai_actor',
-        content: aiResponse,
+        content: formatMessageText(aiResponse),
         timestamp: new Date(),
       })
       await nextTick()
@@ -307,7 +338,7 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
     } catch (error) {
       conversationHistory.value.push({
         role: 'system',
-        content: 'Desculpe, houve um erro. Tente novamente.',
+        content: formatMessageText('Desculpe, houve um erro. Tente novamente.'),
         timestamp: new Date(),
         isError: true,
       })

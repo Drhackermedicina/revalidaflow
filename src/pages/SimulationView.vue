@@ -38,7 +38,6 @@ import CandidateContentPanel from '@/components/CandidateContentPanel.vue'
 import ImageZoomModal from '@/components/ImageZoomModal.vue'
 import ImpressosModal from '@/components/ImpressosModal.vue'
 import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue'
-import SimulationAiFeedbackCard from '@/components/SimulationAiFeedbackCard.vue'
 
 // Composables Principais
 import { useSimulationSession } from '@/composables/useSimulationSession.js'
@@ -55,14 +54,7 @@ import { useSimulationWorkflow } from '@/composables/useSimulationWorkflow.js'
 import { useInviteLinkGeneration } from '@/composables/useInviteLinkGeneration.js'
 import { deleteInviteFromFirestore } from '@/utils/simulationInviteCleanup.js'
 
-// Composables de IA
-import { useAiEvaluation } from '@/composables/useAiEvaluation.js'
-import { useAiChat } from '@/composables/useAiChat.js'
-import { useCandidateAudioTranscription } from '@/composables/useCandidateAudioTranscription.js'
-
 // Composables de Gravação
-import { useContinuousRecording } from '@/composables/useContinuousRecording.js'
-
 // Utils de Formatação
 
 // Bibliotecas Externas

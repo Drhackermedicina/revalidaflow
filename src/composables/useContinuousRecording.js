@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 
 export function useContinuousRecording() {
   const isRecording = ref(false)
@@ -121,10 +121,6 @@ export function useContinuousRecording() {
 
     if (stream.value) {
       stream.value.getTracks().forEach(track => track.stop())
-    }
-
-    if (audioBlob.value) {
-      URL.revokeObjectURL(audioBlob.value)
     }
 
     // Reset state

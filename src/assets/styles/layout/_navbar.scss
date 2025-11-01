@@ -1,0 +1,475 @@
+// ========================================
+// NAVBAR & HEADER STYLES
+// ========================================
+
+// Variáveis do gradiente do logo (mesmas do login)
+:root {
+  --navbar-logo-gradient: linear-gradient(135deg, #8C57FF 0%, #00B4D8 50%, #52B788 100%);
+  --navbar-glow-primary: rgba(140, 87, 255, 0.4);
+  --navbar-glow-secondary: rgba(0, 180, 216, 0.3);
+  --navbar-transition: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// ========================================
+// FIX: Garantir que o nav-header seja SUPER VISÍVEL
+// ========================================
+.layout-vertical-nav {
+  .nav-header {
+    min-height: 84px !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 18px 16px !important;
+    width: 100% !important;
+    overflow: visible !important;
+    position: relative;
+    border-radius: 0 0 18px 18px;
+    
+    background: linear-gradient(
+      135deg,
+      rgba(18, 24, 40, 0.94) 0%,
+      rgba(28, 46, 70, 0.9) 60%,
+      rgba(42, 68, 101, 0.88) 100%
+    ) !important;
+    border-bottom: 1px solid rgba(140, 87, 255, 0.5) !important;
+    box-shadow:
+      0 16px 32px rgba(10, 16, 32, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 15% 25%, rgba(140, 87, 255, 0.35), transparent 55%),
+                  radial-gradient(circle at 85% 70%, rgba(0, 180, 216, 0.28), transparent 60%);
+      opacity: 0.9;
+      pointer-events: none;
+      border-radius: inherit;
+    }
+  }
+}
+
+// ========================================
+// NAVBAR BRAND - LOGO ANIMADO
+// ========================================
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: transform 0.3s var(--navbar-transition);
+  padding: 8px 0;
+  cursor: pointer;
+
+  &:hover {
+    transform: scale(1.02);
+  }
+}
+
+.navbar-logo-text {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  position: relative;
+  display: inline-block;
+  
+  // Gradiente animado
+  background: var(--navbar-logo-gradient);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 8s ease infinite;
+
+  // Fallback para navegadores que não suportam
+  @supports not (-webkit-background-clip: text) {
+    color: #8C57FF;
+    -webkit-text-fill-color: #8C57FF;
+  }
+}
+
+// Glow effect atrás do texto
+.navbar-logo-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--navbar-logo-gradient);
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: blur(8px);
+  opacity: 0.6;
+  z-index: -1;
+  animation: gradient-shift 8s ease infinite;
+}
+
+// Animação do gradiente
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+// ========================================
+// HEADER BUTTONS - MELHORIAS
+// ========================================
+
+// Botão de notificações
+.header-notification-btn {
+  position: relative;
+  transition: all 0.3s var(--navbar-transition);
+
+  &:hover {
+    transform: translateY(-2px) scale(1.05);
+    
+    .v-icon {
+      animation: bell-ring 0.5s ease-in-out;
+    }
+  }
+}
+
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(15deg); }
+  75% { transform: rotate(-15deg); }
+}
+
+// Botão de menu hamburguer
+.header-menu-btn {
+  transition: all 0.3s var(--navbar-transition);
+
+  &:hover {
+    transform: scale(1.1) rotate(90deg);
+    background: rgba(var(--v-theme-primary), 0.1);
+  }
+
+  .v-icon {
+    transition: transform 0.3s var(--navbar-transition);
+  }
+}
+
+// Melhorias no botão IA
+.medical-ai-btn {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 4px 15px rgba(var(--v-theme-primary), 0.35),
+    0 0 25px var(--navbar-glow-primary);
+  transition: all 0.4s var(--navbar-transition);
+  
+  // Efeito de shimmer
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    transform: rotate(45deg);
+    animation: shimmer 3s infinite;
+  }
+
+  &:hover {
+    box-shadow: 
+      0 8px 25px rgba(var(--v-theme-primary), 0.5),
+      0 0 40px var(--navbar-glow-primary),
+      0 0 60px var(--navbar-glow-secondary);
+    transform: translateY(-4px) scale(1.08);
+  }
+
+  &:active {
+    transform: translateY(-2px) scale(1.04);
+  }
+
+  .v-icon {
+    animation: rotate-pulse 4s ease-in-out infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+@keyframes rotate-pulse {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-5deg) scale(1.05); }
+  50% { transform: rotate(0deg) scale(1); }
+  75% { transform: rotate(5deg) scale(1.05); }
+}
+
+.circular-medical-btn {
+  // Borda com gradiente animado
+  border: 2px solid transparent;
+  background-image: 
+    linear-gradient(rgb(var(--v-theme-surface)), rgb(var(--v-theme-surface))),
+    var(--navbar-logo-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    padding: 2px;
+    background: var(--navbar-logo-gradient);
+    background-size: 200% 200%;
+    animation: gradient-shift 8s ease infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: -1;
+  }
+}
+
+// ========================================
+// SIDEBAR VERTICAL NAV - MELHORIAS
+// ========================================
+
+.layout-vertical-nav {
+  // Melhoria nos links de navegação
+  .nav-link {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s var(--navbar-transition);
+
+    a {
+      position: relative;
+      padding: 12px 16px;
+      border-radius: 10px;
+      transition: all 0.3s var(--navbar-transition);
+
+      // Efeito de hover
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 4px;
+        height: 0;
+        background: var(--navbar-logo-gradient);
+        border-radius: 0 4px 4px 0;
+        transform: translateY(-50%);
+        transition: height 0.3s var(--navbar-transition);
+      }
+
+      &:hover {
+        background: rgba(var(--v-theme-primary), 0.08);
+        transform: translateX(4px);
+
+        &::before {
+          height: 70%;
+        }
+
+        .nav-item-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .nav-item-title {
+          color: rgb(var(--v-theme-primary));
+          font-weight: 600;
+        }
+      }
+
+      // Estado ativo
+      &.router-link-active,
+      &.router-link-exact-active {
+        background: rgba(var(--v-theme-primary), 0.12);
+        font-weight: 600;
+
+        &::before {
+          height: 100%;
+        }
+
+        .nav-item-icon {
+          transform: scale(1.1);
+          filter: drop-shadow(0 0 6px currentColor);
+        }
+      }
+    }
+
+    .nav-item-icon {
+      transition: all 0.3s var(--navbar-transition);
+      margin-right: 12px;
+    }
+
+    .nav-item-title {
+      transition: all 0.3s var(--navbar-transition);
+    }
+  }
+
+  // Melhoria nos grupos de navegação
+  .nav-group {
+    .nav-group-label {
+      padding: 12px 16px;
+      border-radius: 10px;
+      transition: all 0.3s var(--navbar-transition);
+      position: relative;
+
+      &:hover {
+        background: rgba(var(--v-theme-primary), 0.08);
+        transform: translateX(2px);
+
+        .nav-item-icon {
+          transform: scale(1.15) rotate(5deg);
+          filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .nav-item-title {
+          color: rgb(var(--v-theme-primary));
+        }
+      }
+
+      .nav-item-icon {
+        transition: all 0.3s var(--navbar-transition);
+        margin-right: 12px;
+      }
+
+      .nav-group-arrow {
+        transition: transform 0.3s var(--navbar-transition);
+        margin-left: auto;
+      }
+    }
+
+    &.open {
+      .nav-group-arrow {
+        transform: rotate(90deg);
+      }
+
+      .nav-group-label {
+        background: rgba(var(--v-theme-primary), 0.05);
+      }
+    }
+
+    // Animação dos filhos ao expandir
+    .nav-group-children {
+      li {
+        opacity: 0;
+        transform: translateX(-10px);
+        animation: slideInLeft 0.3s ease forwards;
+
+        @for $i from 1 through 10 {
+          &:nth-child(#{$i}) {
+            animation-delay: #{$i * 0.05}s;
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes slideInLeft {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// Card especial do ranking no sidebar
+.sidebar-ranking-card {
+  margin: 8px 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 0.08) 0%,
+    rgba(var(--v-theme-secondary), 0.08) 100%
+  );
+  border: 1px solid rgba(var(--v-theme-primary), 0.2);
+  transition: all 0.3s var(--navbar-transition);
+
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(var(--v-theme-primary), 0.12) 0%,
+      rgba(var(--v-theme-secondary), 0.12) 100%
+    );
+    border-color: rgba(var(--v-theme-primary), 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.2);
+  }
+}
+
+// ========================================
+// RESPONSIVE
+// ========================================
+
+@media (max-width: 1280px) {
+  .navbar-logo-text {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 960px) {
+  .navbar-logo-text {
+    font-size: 1.2rem;
+  }
+
+  .medical-ai-btn {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+  }
+}
+
+@media (max-width: 600px) {
+  .navbar-logo-text {
+    font-size: 1rem;
+  }
+
+  .medical-ai-btn {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+  }
+}
+
+// ========================================
+// DARK THEME ADJUSTMENTS
+// ========================================
+
+.v-theme--dark {
+  .navbar-logo-text {
+    // Mais brilhante no tema escuro
+    filter: brightness(1.2);
+  }
+
+  .medical-ai-btn {
+    box-shadow: 
+      0 4px 15px rgba(140, 87, 255, 0.4),
+      0 0 30px rgba(140, 87, 255, 0.3);
+
+    &:hover {
+      box-shadow: 
+        0 8px 25px rgba(140, 87, 255, 0.6),
+        0 0 45px rgba(140, 87, 255, 0.4),
+        0 0 70px rgba(0, 180, 216, 0.3);
+    }
+  }
+}
+
+// ========================================
+// REDUCED MOTION
+// ========================================
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

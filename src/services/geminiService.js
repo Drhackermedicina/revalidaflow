@@ -16,13 +16,19 @@ class GeminiService {
 
     if (apiKeyFromEnv) {
       this.apiKeys.push(apiKeyFromEnv);
-    } else {
-      // Carregar chaves VITE_GOOGLE_API_KEY_1 até _12
-      for (let i = 1; i <= 12; i++) {
-        const key = import.meta.env[`VITE_GOOGLE_API_KEY_${i}`];
-        if (key) {
-          this.apiKeys.push(key);
-        }
+    }
+
+    const fallbackKeys = Object.keys(import.meta.env)
+      .filter(key => key.startsWith('VITE_GOOGLE_API_KEY_') && import.meta.env[key])
+      .sort((a, b) => {
+        const extractIndex = keyName => Number.parseInt(keyName.replace('VITE_GOOGLE_API_KEY_', ''), 10) || 0;
+        return extractIndex(a) - extractIndex(b);
+      })
+      .map(key => import.meta.env[key]);
+
+    for (const key of fallbackKeys) {
+      if (!this.apiKeys.includes(key)) {
+        this.apiKeys.push(key);
       }
     }
 
