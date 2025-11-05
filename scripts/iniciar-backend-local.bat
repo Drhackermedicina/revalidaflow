@@ -9,4 +9,4 @@ echo ========================================
 
 echo Iniciando servidor backend...
 cd backend
-node server.js
+node -r dotenv/config server.js dotenv_config_path=../.env

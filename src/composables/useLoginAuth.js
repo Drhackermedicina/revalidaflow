@@ -23,7 +23,7 @@ export function useLoginAuth() {
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Popup timeout')), 10000)
         );
-        
+
         result = await Promise.race([popupPromise, timeoutPromise]);
       } catch (popupError) {
         throw popupError;
@@ -38,10 +38,10 @@ export function useLoginAuth() {
     } catch (err) {
       // Detectar especificamente erros de popup/policy
       const isPopupError = err.message?.includes('popup') ||
-                          err.message?.includes('Cross-Origin') ||
-                          err.code?.includes('popup') ||
-                          err.code === 'auth/popup-blocked' ||
-                          err.code === 'auth/popup-closed-by-user'
+        err.message?.includes('Cross-Origin') ||
+        err.code?.includes('popup') ||
+        err.code === 'auth/popup-blocked' ||
+        err.code === 'auth/popup-closed-by-user'
 
       if (isPopupError) {
         // Tratamento silencioso de erros de popup - apenas log em desenvolvimento

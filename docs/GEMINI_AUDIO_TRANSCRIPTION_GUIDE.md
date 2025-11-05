@@ -447,3 +447,10 @@ console.log(audio.lastTranscription.value);
 
 
 
+
+
+
+
+
+
+

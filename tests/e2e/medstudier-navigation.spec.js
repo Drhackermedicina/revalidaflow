@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('navegar para MedStudier chat e verificar autenticação', async ({ page }) => {
   // URL específica fornecida

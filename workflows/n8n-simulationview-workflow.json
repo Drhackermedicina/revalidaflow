@@ -1,0 +1,246 @@
+{
+  "name": "Análise de Respostas - SimulationView",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analisar-resposta",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "analisar-resposta"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "userId",
+              "name": "userId",
+              "value": "={{$json.userId}}",
+              "type": "string"
+            },
+            {
+              "id": "estacaoId",
+              "name": "estacaoId",
+              "value": "={{$json.estacaoId}}",
+              "type": "string"
+            },
+            {
+              "id": "pergunta",
+              "name": "pergunta",
+              "value": "={{$json.pergunta}}",
+              "type": "string"
+            },
+            {
+              "id": "respostaUsuario",
+              "name": "respostaUsuario",
+              "value": "={{$json.respostaUsuario}}",
+              "type": "string"
+            },
+            {
+              "id": "gabarito",
+              "name": "gabarito",
+              "value": "={{$json.gabarito}}",
+              "type": "string"
+            },
+            {
+              "id": "conversationHistory",
+              "name": "conversationHistory",
+              "value": "={{$json.conversationHistory}}",
+              "type": "array"
+            },
+            {
+              "id": "prompt",
+              "name": "prompt",
+              "value": "=Você é um avaliador médico especializado em exames clínicos OSCE para o REVALIDA.\n\nCONTEXTO:\nTítulo: {{$json.pergunta}}\n\nGABARITO:\n{{$json.gabarito}}\n\nRESPOSTA:\n{{$json.respostaUsuario}}\n\nAnalise e retorne APENAS JSON:\n{\n  \"pontuacao\": 0-100,\n  \"feedback\": \"texto\",\n  \"pontosFortes\": [],\n  \"pontosMelhorar\": [],\n  \"sugestoes\": []\n}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-node",
+      "name": "Set (Prompt)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Selecionar primeira chave disponível\nconst apiKeys = [\n  { provider: 'ZAI', model: 'glm-4.5', url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', key: $env.ZAI_API_KEY, headerKey: 'Authorization', headerValue: `Bearer ${$env.ZAI_API_KEY}` },\n  { provider: 'Gemini', model: 'gemini-2.5-flash', url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', key: $env.GOOGLE_API_KEY_1, headerKey: 'x-goog-api-key', headerValue: $env.GOOGLE_API_KEY_1 },\n  { provider: 'Gemini', model: 'gemini-2.5-flash', url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', key: $env.GOOGLE_API_KEY_2, headerKey: 'x-goog-api-key', headerValue: $env.GOOGLE_API_KEY_2 }\n].filter(item => item.key);\n\nconst selectedKey = apiKeys[0];\nconst prompt = $json.prompt;\n\nlet requestBody;\nif (selectedKey.provider === 'ZAI') {\n  requestBody = { model: 'glm-4.5', messages: [{ role: 'user', content: prompt }] };\n} else {\n  requestBody = { contents: [{ parts: [{ text: prompt }] }] };\n}\n\nreturn [{ json: { ...$json, apiKey: selectedKey.key, apiProvider: selectedKey.provider, apiUrl: selectedKey.url, headerKey: selectedKey.headerKey, headerValue: selectedKey.headerValue, requestBody, keyIndex: 0 } }];"
+      },
+      "id": "code-node",
+      "name": "Code (Selecionar Chave)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.apiUrl}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "={{$json.headerKey}}",
+              "value": "={{$json.headerValue}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{$json.requestBody}}",
+        "options": {}
+      },
+      "id": "http-request-node",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success-condition",
+              "leftValue": "={{$json.statusCode}}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-node",
+      "name": "IF (Sucesso?)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\nlet content = '';\n\nif (data.apiProvider === 'ZAI') {\n  content = data.body?.choices?.[0]?.message?.content || '';\n} else {\n  content = data.body?.candidates?.[0]?.content?.parts?.[0]?.text || '';\n}\n\nlet analysis;\ntry {\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { feedback: content };\n  analysis.chaveUsada = `${data.apiProvider} (${data.apiModel})`;\n} catch (e) {\n  analysis = { feedback: content, erro: e.message, chaveUsada: `${data.apiProvider} (${data.apiModel})` };\n}\n\nreturn [{ json: { ...data, analysis, success: true } }];"
+      },
+      "id": "function-node",
+      "name": "Function (Processar)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: $json.success, analysis: $json.analysis, metadata: { userId: $json.userId, estacaoId: $json.estacaoId, timestamp: $json.timestamp } } }}"
+      },
+      "id": "respond-node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set (Prompt)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set (Prompt)": {
+      "main": [
+        [
+          {
+            "node": "Code (Selecionar Chave)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (Selecionar Chave)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "IF (Sucesso?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF (Sucesso?)": {
+      "main": [
+        [
+          {
+            "node": "Function (Processar)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Function (Processar)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-11-03T14:00:00.000Z",
+  "versionId": "1"
+}
+
+
+

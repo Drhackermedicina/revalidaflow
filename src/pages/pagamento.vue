@@ -6,16 +6,6 @@ import { getAuthHeadersAsync } from '@/utils/authHeaders.js'
 
 const router = useRouter()
 
-// Dados do beneficiário (Mercado Pago)
-const dadosBeneficiario = {
-  nome: 'HELLITON JONATHAN FRIGO CECHINEL',
-  agencia: '0001',
-  conta: '55428346932',
-  chavePix: '07330107921', // CPF como chave PIX
-  // NOTA: Para testar, use uma conta DIFERENTE da que está escaneando
-  // Muitos apps bancários bloqueiam pagamentos para a própria chave PIX
-}
-
 // Estrutura de planos
 const planosDisponiveis = {
   revalidaFlowFull: {
@@ -57,8 +47,8 @@ const planosDisponiveis = {
         descricao: 'Estações ilimitadas com feedback detalhado',
         icone: 'ri-user-star-fill',
         quantidades: [
-          { min: 1, max: 9, valorUnitario: 10.00, label: 'Até 9 estações - R$ 10,00/estação' },
-          { min: 10, max: 14, valorUnitario: 8.90, label: '10-14 estações - R$ 8,90/estação' },
+          { min: 1, max: 5, valorUnitario: 9.90, label: '1-5 estações - R$ 9,90/estação' },
+          { min: 6, max: 14, valorUnitario: 8.90, label: '6-14 estações - R$ 8,90/estação' },
           { min: 15, max: 999, valorUnitario: 7.50, label: '15+ estações - R$ 7,50/estação' },
         ]
       },
@@ -80,45 +70,14 @@ const planosDisponiveis = {
   }
 }
 
-const formasPagamento = [
-  { id: 'pix', nome: 'PIX', icone: 'ri-qr-code-line', descricao: 'Aprovação instantânea' },
-  { id: 'boleto', nome: 'Boleto Bancário', icone: 'ri-barcode-line', descricao: 'Aprovação em até 3 dias úteis' },
-  { id: 'credito', nome: 'Cartão de Crédito', icone: 'ri-bank-card-line', descricao: 'Aprovação imediata' },
-]
-
-const bandeirasCartao = [
-  { id: 'visa', nome: 'Visa' },
-  { id: 'mastercard', nome: 'Mastercard' },
-  { id: 'elo', nome: 'Elo' },
-  { id: 'amex', nome: 'American Express' },
-  { id: 'hipercard', nome: 'Hipercard' },
-]
-
 // Estados
-const etapa = ref(1) // 1: Seleção de plano, 2: Forma de pagamento, 3: Confirmação
+const etapa = ref(1) // 1: Seleção de plano, 2: Confirmação/Pagamento
 const planoSelecionado = ref('')
 const periodoSelecionado = ref('')
 const subplanoSelecionado = ref('')
 const quantidadeEstacoes = ref(1)
-const formaPagamentoSelecionada = ref('')
 const processando = ref(false)
 const mensagemStatus = ref('')
-const pixCopiaCola = ref('')
-const pixQRCode = ref('')
-const aguardandoPagamento = ref(false)
-const pixValido = ref(false)
-const pixValidacaoMsg = ref('')
-const pixValidacaoDetalhes = ref([])
-
-// Dados do cartão (apenas para validação visual)
-const dadosCartao = ref({
-  numero: '',
-  nome: '',
-  validade: '',
-  cvv: '',
-  bandeira: '',
-  parcelas: 1
-})
 
 // Computed
 const planoAtual = computed(() => {
@@ -170,20 +129,6 @@ const podeProsseguir = computed(() => {
     return valorTotal.value > 0
   }
   
-  if (etapa.value === 2) {
-    if (!formaPagamentoSelecionada.value) return false
-    
-    if (formaPagamentoSelecionada.value === 'credito') {
-      return dadosCartao.value.numero.length >= 16 &&
-             dadosCartao.value.nome.length > 0 &&
-             dadosCartao.value.validade.length === 5 &&
-             dadosCartao.value.cvv.length >= 3 &&
-             dadosCartao.value.bandeira.length > 0
-    }
-    
-    return true
-  }
-  
   return false
 })
 
@@ -203,9 +148,12 @@ const selecionarPlano = (planoId) => {
   planoSelecionado.value = planoId
 }
 
-const avancarEtapa = () => {
+const avancarEtapa = async () => {
   if (podeProsseguir.value) {
-    etapa.value++
+    // Vai direto para finalização (etapa 2 = confirmação/pagamento)
+    etapa.value = 2
+    // Chama finalizarPagamento automaticamente
+    await finalizarPagamento()
   }
 }
 
@@ -221,20 +169,6 @@ const formatarMoeda = (valor) => {
     style: 'currency',
     currency: 'BRL'
   }).format(valor)
-}
-
-const formatarNumeroCartao = () => {
-  let numero = dadosCartao.value.numero.replace(/\D/g, '')
-  numero = numero.replace(/(\d{4})(?=\d)/g, '$1 ')
-  dadosCartao.value.numero = numero.trim()
-}
-
-const formatarValidade = () => {
-  let validade = dadosCartao.value.validade.replace(/\D/g, '')
-  if (validade.length >= 2) {
-    validade = validade.substring(0, 2) + '/' + validade.substring(2, 4)
-  }
-  dadosCartao.value.validade = validade
 }
 
 const finalizarPagamento = async () => {
@@ -286,11 +220,10 @@ const finalizarPagamento = async () => {
     const data = await response.json()
 
     if (data.success && data.checkout && data.checkout.initPoint) {
-      // Redirecionar para o checkout do Mercado Pago
-      mensagemStatus.value = 'Redirecionando para o checkout do Mercado Pago...'
-      
-      // Abrir checkout em nova aba ou redirecionar
+      // Redirecionar imediatamente para o checkout do Mercado Pago
+      // Não atualizar mensagemStatus para evitar mostrar "Pagamento Confirmado"
       window.location.href = data.checkout.initPoint
+      return // Não continua o código após redirecionar
     } else {
       throw new Error('Resposta inválida do servidor')
     }
@@ -301,449 +234,31 @@ const finalizarPagamento = async () => {
   }
 }
 
-const gerarPixPayload = () => {
-  // Gerar código PIX válido no formato EMV seguindo padrão do Banco Central
-  const valor = valorTotal.value.toFixed(2) // Formato: "94.99" (ponto decimal)
-  const chavePix = dadosBeneficiario.chavePix
-  const nomeRecebedor = dadosBeneficiario.nome.substring(0, 25).trim().toUpperCase()
-  const cidade = 'SAO MIGUEL DO IGUACU' // Cidade correta: São Miguel do Iguaçu - Paraná
-  
-  // Função auxiliar para criar campo EMV
-  const criarCampo = (id, valorCampo) => {
-    const tamanho = String(valorCampo.length).padStart(2, '0')
-    return id + tamanho + valorCampo
-  }
-  
-  // Montar payload EMV seguindo padrão PIX do Banco Central
-  // Ordem OBRIGATÓRIA dos campos (conforme especificação BCB)
-  const payload = []
-  
-  // 00 = Payload Format Indicator (fixo: 01)
-  payload.push(criarCampo('00', '01'))
-  
-  // 26 = Merchant Account Information (PIX) - obrigatório
-  // Subcampos: 00 = GUI, 01 = Chave PIX
-  const pixGui = 'br.gov.bcb.pix'
-  const pixSubCampos = criarCampo('00', pixGui) + criarCampo('01', chavePix)
-  payload.push(criarCampo('26', pixSubCampos))
-  
-  // 52 = Merchant Category Code (0000 = não especificado) - obrigatório
-  payload.push(criarCampo('52', '0000'))
-  
-  // 53 = Transaction Currency (986 = BRL) - obrigatório
-  payload.push(criarCampo('53', '986'))
-  
-  // 54 = Transaction Amount - obrigatório
-  payload.push(criarCampo('54', valor))
-  
-  // 58 = Country Code (BR) - obrigatório
-  payload.push(criarCampo('58', 'BR'))
-  
-  // 59 = Merchant Name (máximo 25 caracteres) - obrigatório
-  payload.push(criarCampo('59', nomeRecebedor))
-  
-  // 60 = Merchant City - obrigatório
-  payload.push(criarCampo('60', cidade))
-  
-  // Juntar todos os campos (sem CRC ainda)
-  let payloadStr = payload.join('')
-  
-  // Salvar o payload original para validação
-  const payloadOriginal = payloadStr
-  
-  // Calcular CRC16 sobre o payload completo (sem campo 63)
-  // O CRC é calculado sobre tudo ANTES de adicionar o campo 63
-  let crc = calcularCRC16(payloadOriginal)
-  
-  // Adicionar campo 63 com CRC16
-  // Formato: "63" + tamanho (sempre "04" para 4 hex) + CRC (4 hex)
-  const campo63 = criarCampo('63', crc)
-  payloadStr += campo63
-  
-  // NOTA: O CRC16 no padrão PIX é calculado ANTES de adicionar o campo 63
-  // Depois que adicionamos o campo 63, o código está completo
-  
-  // Debug final e validação
-  if (import.meta.env.DEV) {
-    console.log('✅ Código PIX gerado:', payloadStr)
-    console.log('   CRC16 calculado:', crc)
-    console.log('   Tamanho total:', payloadStr.length)
-    
-    // Validar CRC: usar o payload original que foi usado para calcular o CRC
-    const crcRecalculado = calcularCRC16(payloadOriginal)
-    
-    // Debug adicional
-    console.log('   Debug CRC:')
-    console.log('     - Tamanho payload original:', payloadOriginal.length)
-    console.log('     - Tamanho payload completo:', payloadStr.length)
-    console.log('     - Tamanho campo 63:', payloadStr.length - payloadOriginal.length, '(deve ser 8)')
-    console.log('     - Payload original:', payloadOriginal.substring(0, 50) + '...' + payloadOriginal.substring(payloadOriginal.length - 10))
-    
-    console.log('   Validação CRC:')
-    console.log('     - CRC original calculado:', crc)
-    console.log('     - CRC recalculado sobre payload original:', crcRecalculado)
-    const crcValido = crcRecalculado === crc
-    
-    // Testar com implementação alternativa
-    const crcAlternativo = calcularCRC16Alternativo(payloadOriginal)
-    console.log('     - CRC método alternativo:', crcAlternativo)
-    console.log('     - Resultado validação principal:', crcValido ? '✓ Correto' : `✗ Erro (diferença: ${crc} vs ${crcRecalculado})`)
-    console.log('     - Resultado método alternativo:', crcAlternativo === crc ? '✓ Correto' : `✗ Erro (diferença: ${crc} vs ${crcAlternativo})`)
-    
-    if (!crcValido) {
-      console.error('   ❌ PROBLEMA DETECTADO: CRC não valida!')
-      console.error('   O código PIX gerado está INCORRETO e não será aceito por apps bancários.')
-      
-      // Se o método alternativo funciona, usar ele
-      if (crcAlternativo === crc) {
-        console.warn('   ⚠️ O método alternativo valida corretamente!')
-      } else {
-        console.error('   ❌ Ambos os métodos falharam. Problema na estrutura do código PIX.')
-      }
-    }
-    
-    // Validar estrutura completa
-    const validacoes = []
-    if (payloadStr.length < 50) {
-      validacoes.push('⚠️ Código PIX muito curto!')
-    }
-    if (!payloadStr.startsWith('000201')) {
-      validacoes.push('❌ Código PIX não começa com 000201')
-    }
-    
-    // Validar que termina com CRC correto
-    const crcNoCodigo = payloadStr.substring(payloadStr.length - 4)
-    if (crcNoCodigo !== crc) {
-      validacoes.push(`❌ CRC no código (${crcNoCodigo}) não corresponde ao calculado (${crc})`)
-    }
-    
-    if (validacoes.length > 0) {
-      console.warn('⚠️ Validações:', validacoes)
-    }
-    
-    // Mostrar estrutura dos campos
-    console.log('   Estrutura dos campos:')
-    let pos = 0
-    while (pos < payloadOriginal.length) {
-      const campoId = payloadOriginal.substring(pos, pos + 2)
-      const tamanho = parseInt(payloadOriginal.substring(pos + 2, pos + 4))
-      const valorCampo = payloadOriginal.substring(pos + 4, pos + 4 + tamanho)
-      console.log(`     - Campo ${campoId}: ${valorCampo.substring(0, 30)}${valorCampo.length > 30 ? '...' : ''}`)
-      pos += 4 + tamanho
-      if (tamanho <= 0 || tamanho > 1000 || pos > payloadOriginal.length) break
-    }
-    
-    // Aviso importante sobre teste
-    if (crcValido && validacoes.length === 0) {
-      console.log('')
-      console.log('ℹ️  IMPORTANTE: Para testar o código PIX gerado:')
-      console.log('   1. O código está formatado corretamente (CRC válido)')
-      console.log('   2. Use um app bancário DE OUTRA CONTA para testar')
-      console.log('   3. Muitos apps bloqueiam pagamentos para a própria chave PIX')
-      console.log('   4. Se o erro persistir, pode ser necessário usar API do Mercado Pago')
-      console.log('')
-    }
-  }
-  
-  return payloadStr
-}
-
-const calcularCRC16 = (str) => {
-  // Implementação ALTERNATIVA e TESTADA do CRC16-CCITT-FALSE para PIX
-  // Esta implementação é baseada em bibliotecas testadas e validadas
-  // Polinômio: 0x1021, Valor inicial: 0xFFFF
-  
-  // Tabela de lookup pré-calculada para performance (opcional, mas usaremos cálculo direto)
-  let crc = 0xFFFF
-  const polynomial = 0x1021
-  
-  // Processar cada byte da string
-  for (let i = 0; i < str.length; i++) {
-    // Obter o byte (valor 0-255)
-    let byte = str.charCodeAt(i)
-    
-    // Garantir que está no range 0-255
-    if (byte > 255) {
-      byte = byte & 0xFF
-    }
-    
-    // XOR com os 8 bits mais significativos
-    crc ^= (byte << 8)
-    
-    // Processar 8 bits
-    for (let bit = 0; bit < 8; bit++) {
-      // Verificar bit mais significativo
-      if (crc & 0x8000) {
-        // Se bit 15 está setado: shift left e XOR com polinômio
-        crc = ((crc << 1) ^ polynomial) & 0xFFFF
-      } else {
-        // Se bit 15 não está setado: apenas shift left
-        crc = (crc << 1) & 0xFFFF
-      }
-    }
-  }
-  
-  // Retornar resultado em hexadecimal (4 dígitos, maiúsculo)
-  const result = crc.toString(16).toUpperCase().padStart(4, '0')
-  
-  // Debug
-  if (import.meta.env.DEV) {
-    console.log('🔢 CRC16 cálculo:', { 
-      inputLength: str.length,
-      inputStart: str.substring(0, 30),
-      inputEnd: str.substring(Math.max(0, str.length - 15)),
-      crcDecimal: crc,
-      crcHex: result,
-      crcBin: crc.toString(2).padStart(16, '0')
-    })
-  }
-  
-  return result
-}
-
-// Função ALTERNATIVA de CRC16 para comparação (usada apenas para debug)
-const calcularCRC16Alternativo = (str) => {
-  // Implementação alternativa baseada em algoritmos conhecidos
-  let crc = 0xFFFF
-  const polynomial = 0x1021
-  
-  for (let i = 0; i < str.length; i++) {
-    const byte = str.charCodeAt(i) & 0xFF
-    crc ^= (byte << 8)
-    
-    for (let j = 0; j < 8; j++) {
-      if (crc & 0x8000) {
-        crc = ((crc << 1) ^ polynomial) & 0xFFFF
-      } else {
-        crc = (crc << 1) & 0xFFFF
-      }
-    }
-  }
-  
-  return crc.toString(16).toUpperCase().padStart(4, '0')
-}
-
-const gerarQRCodePix = async (payload) => {
-  try {
-    // Validar payload antes de gerar QR Code
-    if (!payload || payload.length < 10) {
-      throw new Error('Payload PIX inválido ou muito curto')
-    }
-    
-    if (import.meta.env.DEV) {
-      console.log('📱 Gerando QR Code PIX:', { payloadLength: payload.length })
-    }
-    
-    // Usar API online para gerar QR Code (mais confiável que biblioteca local)
-    // Usar API que suporta melhor códigos PIX longos
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payload)}&margin=2&ecc=M`
-    
-    // Converter para data URL para uso local
-    const response = await fetch(qrCodeUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'image/png'
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error(`Erro HTTP: ${response.status}`)
-    }
-    
-    const blob = await response.blob()
-    
-    if (import.meta.env.DEV) {
-      console.log('✅ QR Code gerado com sucesso:', { blobSize: blob.size, blobType: blob.type })
-    }
-    
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        if (import.meta.env.DEV) {
-          console.log('📸 QR Code convertido para Data URL')
-        }
-        resolve(reader.result)
-      }
-      reader.onerror = (err) => {
-        console.error('❌ Erro ao converter QR Code:', err)
-        reject(err)
-      }
-      reader.readAsDataURL(blob)
-    })
-  } catch (err) {
-    console.error('❌ Erro ao gerar QR Code:', err)
-    // Fallback: retornar QR Code SVG simples
-    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZmZmIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm8gYW8gZ2VyYXIgUVJDb2RlPC90ZXh0Pjwvc3ZnPg=='
-  }
-}
-
-const validarCodigoPix = (codigoPix) => {
-  // Validação básica do código PIX EMV
-  const validacoes = []
-  
-  // 1. Verificar se começa com 000201
-  if (!codigoPix.startsWith('000201')) {
-    validacoes.push('❌ Código não começa com 000201')
-  }
-  
-  // 2. Verificar tamanho mínimo
-  if (codigoPix.length < 50) {
-    validacoes.push('❌ Código muito curto')
-  }
-  
-  // 3. Verificar se termina com campo 63 (CRC)
-  if (!codigoPix.includes('6304')) {
-    validacoes.push('❌ Campo 63 (CRC) não encontrado')
-  }
-  
-  // 4. Validar CRC
-  try {
-    const payloadSemCRC = codigoPix.substring(0, codigoPix.length - 8)
-    const crcNoCodigo = codigoPix.substring(codigoPix.length - 4)
-    const crcCalculado = calcularCRC16(payloadSemCRC)
-    
-    if (crcCalculado !== crcNoCodigo) {
-      validacoes.push(`❌ CRC inválido (esperado: ${crcCalculado}, encontrado: ${crcNoCodigo})`)
-    }
-  } catch (err) {
-    validacoes.push('❌ Erro ao validar CRC')
-  }
-  
-  // 5. Verificar campos obrigatórios (verificando estrutura EMV, não strings fixas)
-  const codigoSemCRC = codigoPix.substring(0, codigoPix.length - 8)
-  
-  // Campos obrigatórios no formato EMV: verificar por ID do campo, não valor fixo
-  const camposObrigatorios = [
-    { id: '00', obrigatorio: true }, // Payload Format Indicator
-    { id: '26', obrigatorio: true }, // Merchant Account Information
-    { id: '52', obrigatorio: true }, // Merchant Category Code
-    { id: '53', obrigatorio: true }, // Transaction Currency
-    { id: '54', obrigatorio: true }, // Transaction Amount
-    { id: '58', obrigatorio: true }, // Country Code
-    { id: '59', obrigatorio: true }, // Merchant Name
-    { id: '60', obrigatorio: true }, // Merchant City
-  ]
-  
-  let pos = 0
-  const camposEncontrados = []
-  
-  // Parsear campos EMV para verificar estrutura
-  while (pos < codigoSemCRC.length) {
-    if (pos + 4 > codigoSemCRC.length) break
-    
-    const campoId = codigoSemCRC.substring(pos, pos + 2)
-    const tamanhoStr = codigoSemCRC.substring(pos + 2, pos + 4)
-    const tamanho = parseInt(tamanhoStr)
-    
-    if (isNaN(tamanho) || tamanho < 0 || tamanho > 1000) {
-      break // Estrutura inválida
-    }
-    
-    camposEncontrados.push(campoId)
-    
-    // Avançar para próximo campo: ID (2) + tamanho (2) + valor (tamanho)
-    pos += 4 + tamanho
-  }
-  
-  // Verificar se todos os campos obrigatórios estão presentes
-  for (const campo of camposObrigatorios) {
-    if (campo.obrigatorio && !camposEncontrados.includes(campo.id)) {
-      validacoes.push(`❌ Campo obrigatório ${campo.id} não encontrado`)
-    }
-  }
-  
-  const valido = validacoes.length === 0
-  
-  return {
-    valido,
-    mensagens: validacoes.length > 0 ? validacoes : ['✓ Código PIX válido!'],
-    resumo: valido ? 'Código PIX válido e pronto para uso' : 'Código PIX com problemas detectados'
-  }
-}
-
-const confirmarPagamentoPix = () => {
-  // Em produção, isso seria uma chamada à API do Mercado Pago para verificar o pagamento
-  // Por enquanto, é uma confirmação manual do usuário
-  processando.value = true
-  mensagemStatus.value = 'Verificando pagamento...'
-  
-  // Simulação de verificação (em produção, seria polling ou webhook)
-  setTimeout(() => {
-    aguardandoPagamento.value = false
-    processando.value = false
-    mensagemStatus.value = 'Pagamento confirmado com sucesso!'
-  }, 2000)
-}
-
-const copiarCodigoPix = () => {
-  navigator.clipboard.writeText(pixCopiaCola.value)
-  mensagemStatus.value = 'Código PIX copiado! Cole no seu aplicativo bancário.'
-}
-
-const baixarQRCode = () => {
-  if (!pixQRCode.value) {
-    mensagemStatus.value = 'QR Code não disponível para download.'
-    return
-  }
-  
-  try {
-    // Converter Data URL para Blob
-    const base64Data = pixQRCode.value.split(',')[1]
-    const blob = base64ToBlob(base64Data, 'image/png')
-    
-    // Criar link de download
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `pix-qrcode-${Date.now()}.png`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    
-    mensagemStatus.value = 'QR Code baixado com sucesso!'
-  } catch (err) {
-    console.error('Erro ao baixar QR Code:', err)
-    mensagemStatus.value = 'Erro ao baixar QR Code. Tente novamente.'
-  }
-}
-
-const base64ToBlob = (base64, mimeType) => {
-  const byteCharacters = atob(base64)
-  const byteNumbers = new Array(byteCharacters.length)
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i)
-  }
-  const byteArray = new Uint8Array(byteNumbers)
-  return new Blob([byteArray], { type: mimeType })
-}
-
-const copiarChavePix = () => {
-  navigator.clipboard.writeText(dadosBeneficiario.chavePix)
-  mensagemStatus.value = 'Chave PIX copiada para a área de transferência!'
-}
-
 const voltarInicio = () => {
   router.push('/app/mentoria')
 }
 </script>
 
 <template>
-  <VContainer class="pagamento-container py-10">
-    <VRow justify="center">
-      <VCol cols="12" md="10" lg="8">
-        <VCard class="payment-card" elevation="12">
-          <VCardTitle class="payment-header pa-6">
-            <div class="d-flex align-center justify-space-between">
-              <div>
-                <h2 class="text-h4 font-weight-bold mb-1">Finalizar Assinatura</h2>
-                <p class="text-body-2 mb-0 opacity-90">Escolha seu plano e forma de pagamento</p>
+  <div class="pagamento-page">
+    <!-- Main Content -->
+    <VContainer class="pagamento-container py-10">
+      <div class="login-content">
+        <VRow justify="center">
+          <VCol cols="12" md="12" lg="8" xl="6">
+            <VCard class="payment-card login-card" elevation="12">
+          <div class="payment-header pa-6">
+            <div class="payment-header-content">
+              <div class="payment-header-main">
+                <h2 class="payment-title">Finalizar Assinatura</h2>
+                <p class="payment-subtitle">Escolha seu plano e finalize sua jornada médica</p>
               </div>
-              <VChip color="white" variant="flat" size="large">
-                Etapa {{ etapa }}/3
+              <VChip color="white" variant="flat" size="large" class="step-chip">
+                <VIcon icon="ri-progress-1" start size="16" />
+                Etapa {{ etapa }}/2
               </VChip>
             </div>
-          </VCardTitle>
+          </div>
 
           <VCardText class="pa-6 pa-md-8">
             <!-- ETAPA 1: SELEÇÃO DE PLANO -->
@@ -758,16 +273,19 @@ const voltarInicio = () => {
                   md="4"
                 >
                   <VCard
-                    :class="['plano-option', { 'selected': planoSelecionado === key }]"
+                    :class="['plano-option', 'login-card', { 'selected': planoSelecionado === key }]"
                     :color="planoSelecionado === key ? plano.cor : ''"
                     :variant="planoSelecionado === key ? 'tonal' : 'outlined'"
                     @click="selecionarPlano(key)"
                     hover
                   >
+                    <!-- Inner glow effect -->
+                    <div class="card-glow"></div>
+                    
                     <VCardText class="text-center pa-6">
-                      <VIcon :icon="plano.icone" size="48" :color="plano.cor" class="mb-3" />
-                      <h4 class="text-h6 font-weight-bold mb-2">{{ plano.nome }}</h4>
-                      <p class="text-body-2 text-medium-emphasis mb-0">{{ plano.descricao }}</p>
+                      <VIcon :icon="plano.icone" size="48" :color="plano.cor" class="mb-3 plan-icon" />
+                      <h4 class="text-h6 font-weight-bold mb-2 plan-title">{{ plano.nome }}</h4>
+                      <p class="text-body-2 text-medium-emphasis mb-0 plan-description">{{ plano.descricao }}</p>
                     </VCardText>
                   </VCard>
                 </VCol>
@@ -843,9 +361,15 @@ const voltarInicio = () => {
                     density="compact"
                     class="estacoes-valor-alert"
                   >
-                    <div v-for="faixa in planoAtual.subplanos[0].quantidades" :key="faixa.min">
-                      <div v-if="quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max" class="estacoes-valor-texto">
-                        {{ faixa.label }} = <strong class="estacoes-valor-moeda">{{ formatarMoeda(faixa.valorUnitario * quantidadeEstacoes) }}</strong>
+                    <div class="mb-2">
+                      <strong class="text-dark">Tabela de Preços:</strong>
+                    </div>
+                    <div v-for="faixa in planoAtual.subplanos[0].quantidades" :key="faixa.min" class="estacoes-faixa-item">
+                      <div :class="['estacoes-valor-texto', { 'estacoes-faixa-ativa': quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max }]">
+                        <span>{{ faixa.label }}</span>
+                        <span v-if="quantidadeEstacoes >= faixa.min && quantidadeEstacoes <= faixa.max" class="estacoes-valor-total">
+                          = {{ formatarMoeda(faixa.valorUnitario * quantidadeEstacoes) }}
+                        </span>
                       </div>
                     </div>
                   </VAlert>
@@ -864,315 +388,70 @@ const voltarInicio = () => {
                 block
                 size="x-large"
                 color="primary"
+                variant="elevated"
                 :disabled="!podeProsseguir"
                 @click="avancarEtapa"
+                class="continue-btn hover-lift"
+                :class="{ 'pulse-animation': podeProsseguir }"
               >
-                Continuar para Pagamento
+                <template v-slot:loader>
+                  <VProgressCircular
+                    indeterminate
+                    size="20"
+                    width="2"
+                    class="mr-2"
+                  />
+                  Processando...
+                </template>
                 <VIcon icon="ri-arrow-right-line" end />
+                Continuar para Pagamento
               </VBtn>
             </div>
 
-            <!-- ETAPA 2: FORMA DE PAGAMENTO -->
-            <div v-show="etapa === 2" class="etapa-pagamento">
-              <VBtn variant="text" class="mb-4" @click="voltarEtapa">
-                <VIcon icon="ri-arrow-left-line" start />
-                Voltar
-              </VBtn>
-
-              <h3 class="text-h5 font-weight-bold mb-6">Escolha a forma de pagamento</h3>
-
-              <VRow class="mb-6">
-                <VCol
-                  v-for="forma in formasPagamento"
-                  :key="forma.id"
-                  cols="12"
-                  md="4"
-                >
-                  <VCard
-                    :class="['forma-pagamento-option', { 'selected': formaPagamentoSelecionada === forma.id }]"
-                    :variant="formaPagamentoSelecionada === forma.id ? 'tonal' : 'outlined'"
-                    @click="formaPagamentoSelecionada = forma.id"
-                    hover
-                  >
-                    <VCardText class="text-center pa-6">
-                      <VIcon :icon="forma.icone" size="48" color="primary" class="mb-3" />
-                      <h4 class="text-h6 font-weight-bold mb-2">{{ forma.nome }}</h4>
-                      <p class="text-caption text-medium-emphasis mb-0">{{ forma.descricao }}</p>
-                    </VCardText>
-                  </VCard>
-                </VCol>
-              </VRow>
-
-              <!-- Formulário de Cartão de Crédito -->
-              <div v-if="formaPagamentoSelecionada === 'credito'" class="form-cartao mb-6">
-                <h4 class="text-h6 font-weight-bold mb-4">Dados do Cartão</h4>
-                <VRow>
-                  <VCol cols="12">
-                    <VTextField
-                      v-model="dadosCartao.numero"
-                      label="Número do Cartão"
-                      placeholder="0000 0000 0000 0000"
-                      variant="outlined"
-                      maxlength="19"
-                      @input="formatarNumeroCartao"
-                    >
-                      <template v-slot:prepend-inner>
-                        <VIcon icon="ri-bank-card-line" />
-                      </template>
-                    </VTextField>
-                  </VCol>
-                  <VCol cols="12">
-                    <VTextField
-                      v-model="dadosCartao.nome"
-                      label="Nome no Cartão"
-                      placeholder="Como está impresso no cartão"
-                      variant="outlined"
-                    />
-                  </VCol>
-                  <VCol cols="12" sm="4">
-                    <VTextField
-                      v-model="dadosCartao.validade"
-                      label="Validade"
-                      placeholder="MM/AA"
-                      variant="outlined"
-                      maxlength="5"
-                      @input="formatarValidade"
-                    />
-                  </VCol>
-                  <VCol cols="12" sm="4">
-                    <VTextField
-                      v-model="dadosCartao.cvv"
-                      label="CVV"
-                      placeholder="000"
-                      variant="outlined"
-                      maxlength="4"
-                      type="password"
-                    />
-                  </VCol>
-                  <VCol cols="12" sm="4">
-                    <VSelect
-                      v-model="dadosCartao.bandeira"
-                      :items="bandeirasCartao"
-                      item-title="nome"
-                      item-value="id"
-                      label="Bandeira"
-                      variant="outlined"
-                    />
-                  </VCol>
-                  <VCol cols="12">
-                    <VSelect
-                      v-model="dadosCartao.parcelas"
-                      :items="[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"
-                      label="Parcelas"
-                      variant="outlined"
-                    >
-                      <template v-slot:item="{ item, props }">
-                        <v-list-item v-bind="props">
-                          {{ item.value }}x de {{ formatarMoeda(valorTotal / item.value) }}
-                        </v-list-item>
-                      </template>
-                      <template v-slot:selection="{ item }">
-                        {{ item.value }}x de {{ formatarMoeda(valorTotal / item.value) }}
-                      </template>
-                    </VSelect>
-                  </VCol>
-                </VRow>
-              </div>
-
-              <!-- Resumo -->
-              <VCard variant="tonal" color="primary" class="mb-6 resumo-card">
-                <VCardText>
-                  <h4 class="text-h6 font-weight-bold mb-3 resumo-title">Resumo do Pedido</h4>
-                  <div class="d-flex justify-space-between mb-2 resumo-item">
-                    <span class="resumo-label">Plano:</span>
-                    <strong class="resumo-value">{{ planoAtual?.nome }}</strong>
-                  </div>
-                  <div class="d-flex justify-space-between mb-2 resumo-item">
-                    <span class="resumo-label">Valor:</span>
-                    <strong class="resumo-value resumo-valor">{{ formatarMoeda(valorTotal) }}</strong>
-                  </div>
-                  <VDivider class="my-3" />
-                  <div class="d-flex justify-space-between resumo-total">
-                    <span class="text-h6 resumo-label">Total:</span>
-                    <strong class="text-h6 resumo-valor-total">{{ formatarMoeda(valorTotal) }}</strong>
-                  </div>
-                </VCardText>
-              </VCard>
-
-              <VBtn
-                block
-                size="x-large"
-                color="success"
-                :disabled="!podeProsseguir"
-                :loading="processando"
-                @click="finalizarPagamento"
-              >
-                <VIcon icon="ri-check-line" start />
-                Finalizar Pagamento
-              </VBtn>
-            </div>
-
-            <!-- ETAPA 3: CONFIRMAÇÃO -->
-            <div v-show="etapa === 3" class="etapa-confirmacao text-center">
-              <!-- PIX - Aguardando Pagamento -->
-              <div v-if="formaPagamentoSelecionada === 'pix' && aguardandoPagamento">
+            <!-- ETAPA 2: CONFIRMAÇÃO/PAGAMENTO -->
+            <div v-show="etapa === 2" class="etapa-confirmacao text-center">
+              <!-- Aguardando criação do checkout -->
+              <div v-if="processando && !mensagemStatus.includes('Redirecionando')">
                 <VIcon
-                  icon="ri-qr-code-line"
+                  icon="ri-loader-4-line"
                   size="80"
                   color="primary"
+                  class="mb-4 animate-spin"
+                />
+                <h3 class="text-h4 font-weight-bold mb-3 text-dark">{{ mensagemStatus || 'Processando pagamento...' }}</h3>
+              </div>
+              
+              <!-- Mensagem de erro -->
+              <div v-else-if="mensagemStatus && mensagemStatus.includes('Erro')">
+                <VIcon
+                  icon="ri-error-warning-line"
+                  size="80"
+                  color="error"
                   class="mb-4"
                 />
-                <h3 class="text-h4 font-weight-bold mb-3 text-dark">Escaneie o QR Code</h3>
+                <h3 class="text-h4 font-weight-bold mb-3 text-dark">Erro no Pagamento</h3>
                 <p class="text-body-1 mb-6 text-dark">{{ mensagemStatus }}</p>
-
-                <!-- QR Code PIX -->
-                <VCard variant="outlined" class="mb-6 qr-code-card">
-                  <VCardText class="pa-6">
-                    <div v-if="pixQRCode" class="qr-code-wrapper mb-4">
-                      <img :src="pixQRCode" alt="QR Code PIX" class="qr-code-image" />
-                    </div>
-                    
-                    <VDivider class="my-4" />
-                    
-                    <p class="text-subtitle-2 text-dark mb-3">Ou copie o código PIX Copia e Cola:</p>
-                    <VTextarea
-                      :model-value="pixCopiaCola"
-                      readonly
-                      variant="outlined"
-                      rows="3"
-                      class="pix-code-textarea mb-3"
-                    />
-                    <VRow class="mt-3">
-                      <VCol cols="12" md="6">
-                        <VBtn
-                          block
-                          size="large"
-                          color="primary"
-                          @click="copiarCodigoPix"
-                        >
-                          <VIcon icon="ri-file-copy-line" start />
-                          Copiar Código PIX
-                        </VBtn>
-                      </VCol>
-                      <VCol cols="12" md="6">
-                        <VBtn
-                          block
-                          size="large"
-                          color="success"
-                          variant="tonal"
-                          @click="baixarQRCode"
-                        >
-                          <VIcon icon="ri-download-line" start />
-                          Baixar QR Code
-                        </VBtn>
-                      </VCol>
-                    </VRow>
-                  </VCardText>
-                </VCard>
-                
-                <!-- Validação do código PIX -->
-                <VAlert
-                  :color="pixValido ? 'success' : 'warning'"
-                  :variant="pixValido ? 'tonal' : 'outlined'"
-                  class="mb-4"
+                <VBtn
+                  size="large"
+                  color="primary"
+                  @click="voltarEtapa"
+                  class="me-3"
                 >
-                  <div class="d-flex align-start">
-                    <VIcon :icon="pixValido ? 'ri-checkbox-circle-fill' : 'ri-alert-line'" class="me-3 mt-1" />
-                    <div class="flex-grow-1">
-                      <strong class="text-dark d-block mb-2">{{ pixValidacaoMsg }}</strong>
-                      <div v-if="!pixValido && pixValidacaoDetalhes.length > 0" class="mb-2">
-                        <small class="text-dark d-block mb-1"><strong>Problemas detectados:</strong></small>
-                        <ul class="mb-0 text-dark" style="font-size: 0.875rem; padding-left: 1.5rem;">
-                          <li v-for="(msg, idx) in pixValidacaoDetalhes" :key="idx" class="mb-1">
-                            {{ msg }}
-                          </li>
-                        </ul>
-                      </div>
-                      <small class="text-dark d-block">
-                        {{ pixValido 
-                          ? '✓ O código PIX está formatado corretamente e pronto para uso.' 
-                          : '⚠ Verifique o console do navegador (F12) para mais detalhes técnicos.' }}
-                      </small>
-                    </div>
-                  </div>
-                </VAlert>
-
-                <VCard variant="tonal" color="info" class="mb-6">
-                  <VCardText class="text-left">
-                    <h4 class="text-subtitle-1 font-weight-bold mb-3 text-dark">Dados para Pagamento</h4>
-                    <div class="pix-dados">
-                      <p class="mb-2 text-dark"><strong>Beneficiário:</strong> {{ dadosBeneficiario.nome }}</p>
-                      <p class="mb-2 text-dark"><strong>Instituição:</strong> Mercado Pago</p>
-                      <p class="mb-2 text-dark"><strong>Valor:</strong> {{ formatarMoeda(valorTotal) }}</p>
-                    </div>
-                  </VCardText>
-                </VCard>
-                
-                <!-- Links para validadores online -->
-                <VCard variant="outlined" class="mb-6">
-                  <VCardTitle class="text-h6 text-dark">
-                    <VIcon icon="ri-information-line" class="me-2" />
-                    Validadores Online
-                  </VCardTitle>
-                  <VCardText>
-                    <p class="text-body-2 text-dark mb-3">
-                      Teste seu código PIX ou QR Code em validadores online:
-                    </p>
-                    <VList density="compact">
-                      <VListItem
-                        prepend-icon="ri-global-line"
-                        title="ZXing Decoder (QR Code)"
-                        subtitle="Decodifica QR Codes online"
-                        href="https://zxing.org/w/decode.jspx"
-                        target="_blank"
-                        class="text-dark"
-                      />
-                      <VListItem
-                        prepend-icon="ri-qr-code-line"
-                        title="Online Barcode Reader"
-                        subtitle="Leitor de QR Code e códigos de barras"
-                        href="https://online-barcode-reader.inliteresearch.com/"
-                        target="_blank"
-                        class="text-dark"
-                      />
-                      <VListItem
-                        prepend-icon="ri-checkbox-circle-line"
-                        title="Validador PIX (Gerador)"
-                        subtitle="Valida estrutura do código PIX EMV"
-                        href="https://github.com/renatomb/php-pix"
-                        target="_blank"
-                        class="text-dark"
-                      />
-                    </VList>
-                    <VAlert type="info" variant="text" density="compact" class="mt-3">
-                      <small class="text-dark">
-                        <strong>Dica:</strong> Faça upload do QR Code gerado ou cole o código PIX Copia e Cola nos validadores acima para verificar se está formatado corretamente.
-                      </small>
-                    </VAlert>
-                  </VCardText>
-                </VCard>
-
-                <VAlert type="info" variant="tonal" class="mb-6 status-alert">
-                  <div class="text-center">
-                    <p class="text-body-1 mb-4 text-dark">
-                      <strong>Instruções:</strong> Escaneie o QR Code acima com o app do seu banco ou copie o código PIX e cole no seu aplicativo bancário para realizar o pagamento.
-                    </p>
-                    <VBtn
-                      size="large"
-                      color="success"
-                      :loading="processando"
-                      @click="confirmarPagamentoPix"
-                      class="px-8"
-                    >
-                      <VIcon icon="ri-check-line" start />
-                      Já realizei o pagamento
-                    </VBtn>
-                  </div>
-                </VAlert>
+                  <VIcon icon="ri-arrow-left-line" start />
+                  Voltar
+                </VBtn>
+                <VBtn
+                  size="large"
+                  color="success"
+                  @click="finalizarPagamento"
+                >
+                  <VIcon icon="ri-refresh-line" start />
+                  Tentar Novamente
+                </VBtn>
               </div>
-
-              <!-- Pagamento Confirmado -->
-              <div v-else>
+              
+              <!-- Pagamento Confirmado - só aparece quando realmente confirmado (via webhook/retorno) -->
+              <div v-else-if="mensagemStatus && mensagemStatus.includes('confirmado') && !processando">
                 <VIcon
                   icon="ri-checkbox-circle-fill"
                   size="80"
@@ -1196,56 +475,214 @@ const voltarInicio = () => {
                   Voltar para Início
                 </VBtn>
               </div>
-            </div>
+              
+              <!-- Fallback: apenas loading se nenhuma das condições acima foi atendida -->
+              <div v-else>
+                <VIcon
+                  icon="ri-loader-4-line"
+                  size="80"
+                  color="primary"
+                  class="mb-4 animate-spin"
+                />
+                <h3 class="text-h4 font-weight-bold mb-3 text-dark">Redirecionando para o Mercado Pago...</h3>
+                <p class="text-body-1 mb-6 text-dark">Aguarde, você será redirecionado automaticamente.</p>
+              </div>
+          </div>
           </VCardText>
-        </VCard>
-      </VCol>
-    </VRow>
-  </VContainer>
+            </VCard>
+          </VCol>
+        </VRow>
+      </div>
+    </VContainer>
+  </div>
 </template>
 
 <style scoped lang="scss">
-.pagamento-container {
-  background: radial-gradient(circle at top, rgba(124, 77, 255, 0.15), transparent 55%);
+// Import all modular styles
+@import '@/assets/styles/login/variables.scss';
+@import '@/assets/styles/login/animations.scss';
+@import '@/assets/styles/login/background.scss';
+@import '@/assets/styles/login/card.scss';
+@import '@/assets/styles/login/typography.scss';
+@import '@/assets/styles/login/responsive.scss';
+
+.pagamento-page {
   min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1rem;
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(135deg, #1a0033 0%, #330066 50%, #4d0099 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+.login-content {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  max-width: 1800px;
+}
+
+.pagamento-container {
+  position: relative;
+  z-index: 10;
+  width: 100%;
 }
 
 .payment-card {
-  background: rgba(255, 255, 255, 0.98) !important;
-  backdrop-filter: blur(20px);
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
   border-radius: 24px !important;
   overflow: hidden;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  transition: all var(--transition-medium);
+  
+  // Inner glow effect
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(140, 87, 255, 0.5),
+      transparent
+    );
+    animation: shimmer 3s infinite;
+    z-index: 1;
+  }
+
+  &:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: var(--shadow-card-hover);
+    border-color: rgba(140, 87, 255, 0.3);
+  }
 }
 
 // Garantir visibilidade de todos os textos
 h3, h4, h5, p, span, label {
-  color: #333 !important;
+  color: rgba(255, 255, 255, 0.95) !important;
 }
 
 .text-dark {
-  color: #333 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
 }
 
 .etapa-planos,
-.etapa-pagamento,
 .etapa-confirmacao {
   h3, h4, h5 {
-    color: #1a1a1a !important;
+    color: rgba(255, 255, 255, 0.98) !important;
   }
   
   p, span {
-    color: #666 !important;
+    color: rgba(255, 255, 255, 0.85) !important;
   }
 }
 
 .payment-header {
-  background: linear-gradient(135deg, #7c4dff 0%, #00bcd4 100%);
+  background: linear-gradient(135deg, #8C57FF 0%, #00B4D8 50%, #52B788 100%) !important;
+  background-size: 200% 200% !important;
+  animation: gradient-shift 8s ease infinite;
   color: white !important;
+  position: relative;
+  overflow: visible !important;
+  z-index: 1000 !important;
+  margin-bottom: 2rem;
+  padding: 3rem 1.5rem !important;
+  border-radius: 24px 24px 0 0;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.15),
+      transparent
+    );
+    animation: shimmer 4s infinite;
+    z-index: 1;
+  }
+}
 
-  h2, p {
-    color: white !important;
+.payment-header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1001 !important;
+  text-align: center;
+  width: 100%;
+  
+  @media (min-width: 960px) {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.payment-header-main {
+  margin-bottom: 1.5rem;
+  
+  @media (min-width: 960px) {
+    margin-bottom: 0;
+  }
+}
+
+.payment-title {
+  font-size: 2.5rem !important;
+  font-weight: 800 !important;
+  color: white !important;
+  margin: 0 0 1rem 0 !important;
+  padding: 0 !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 20px rgba(140, 87, 255, 0.3) !important;
+  line-height: 1.2 !important;
+  
+  @media (max-width: 960px) {
+    font-size: 2rem !important;
+  }
+  
+  @media (max-width: 600px) {
+    font-size: 1.5rem !important;
+  }
+}
+
+.payment-subtitle {
+  font-size: 1.125rem !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.98) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+  line-height: 1.5 !important;
+  opacity: 0.95;
+  
+  @media (max-width: 960px) {
+    font-size: 1rem !important;
+  }
+  
+  @media (max-width: 600px) {
+    font-size: 0.9rem !important;
+  }
+}
+
+.step-chip {
+  margin-top: 0.5rem;
+  
+  @media (min-width: 960px) {
+    margin-top: 0;
   }
 }
 
@@ -1253,86 +690,108 @@ h3, h4, h5, p, span, label {
 .subplano-option,
 .forma-pagamento-option {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-medium);
   border-width: 2px !important;
-  background: white !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border-color: var(--glass-border) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
 
   &.selected {
-    transform: scale(1.02);
-    box-shadow: 0 8px 24px rgba(124, 77, 255, 0.25);
+    transform: scale(1.02) translateY(-2px);
+    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3) !important;
+    border-color: rgba(140, 87, 255, 0.5) !important;
+    background: rgba(140, 87, 255, 0.1) !important;
   }
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 28px rgba(140, 87, 255, 0.2) !important;
+    border-color: rgba(140, 87, 255, 0.4) !important;
   }
   
   h4 {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
   }
   
   p {
-    color: #666 !important;
+    color: rgba(255, 255, 255, 0.8) !important;
   }
 }
 
 .periodo-radio {
   .periodo-item {
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--glass-border) !important;
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 12px;
-    transition: all 0.3s ease;
-    background: white !important;
+    transition: all var(--transition-medium);
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px);
 
     &:hover {
-      background: rgba(124, 77, 255, 0.05);
-      border-color: rgba(124, 77, 255, 0.3);
+      background: rgba(140, 87, 255, 0.15) !important;
+      border-color: rgba(140, 87, 255, 0.4) !important;
+      transform: translateX(4px);
     }
   }
 
   .periodo-label {
     width: 100%;
+    gap: 24px; // Espaçamento entre o texto do período e o valor
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     
     .periodo-label-text {
-      color: #333 !important;
+      color: rgba(255, 255, 255, 0.95) !important;
+      flex: 1; // Permite que o texto ocupe o espaço disponível
+      margin-right: auto; // Empurra para a esquerda
+      text-align: left;
     }
     
     .periodo-valor {
-      color: #1a1a1a !important;
+      color: rgba(255, 255, 255, 0.98) !important;
       font-weight: 700 !important;
+      margin-left: auto; // Empurra o valor para a direita
+      flex-shrink: 0; // Impede que o valor seja comprimido
+      white-space: nowrap; // Evita quebra de linha no valor
+      text-align: right; // Alinha o texto do valor à direita
+      min-width: 100px; // Garante largura mínima para alinhamento
     }
   }
 }
 
 .form-cartao {
-  background: white;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--glass-shadow);
 }
 
 .pix-info {
   text-align: left;
-  color: #333 !important;
+  color: rgba(255, 255, 255, 0.95) !important;
   
   p {
     margin-bottom: 8px;
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
   }
 }
 
 .pix-dados {
   p {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
   }
 }
 
 // Estilos para QR Code PIX
 .qr-code-card {
-  background: white !important;
-  border: 2px solid rgba(124, 77, 255, 0.2) !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border: 2px solid rgba(140, 87, 255, 0.3) !important;
 }
 
 .qr-code-wrapper {
@@ -1340,9 +799,9 @@ h3, h4, h5, p, span, label {
   justify-content: center;
   align-items: center;
   padding: 20px;
-  background: white;
+  background: rgba(255, 255, 255, 0.98);
   border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .qr-code-image {
@@ -1357,103 +816,202 @@ h3, h4, h5, p, span, label {
   font-size: 12px;
   
   :deep(.v-field__input) {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
   }
 }
 
 .status-alert {
-  background: rgba(124, 77, 255, 0.1) !important;
+  background: rgba(140, 87, 255, 0.15) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(140, 87, 255, 0.3) !important;
   
   strong, span {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
   }
 }
 
 // Estilos para resumo de valores - garantir visibilidade
 .resumo-valor-alert {
+  background: rgba(140, 87, 255, 0.15) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(140, 87, 255, 0.3) !important;
+  
   .resumo-label {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
   }
   
   .resumo-valor {
-    color: #1a1a1a !important;
+    color: rgba(255, 255, 255, 1) !important;
     font-weight: 700 !important;
   }
 }
 
 .resumo-card {
   .resumo-title {
-    color: #1a1a1a !important;
+    color: rgba(255, 255, 255, 0.98) !important;
   }
   
   .resumo-label {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
   }
   
   .resumo-value {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
   }
   
   .resumo-valor {
-    color: #1a1a1a !important;
+    color: rgba(255, 255, 255, 1) !important;
     font-weight: 700 !important;
   }
   
   .resumo-valor-total {
-    color: #000 !important;
+    color: rgba(255, 255, 255, 1) !important;
     font-weight: 800 !important;
   }
   
-  // Garantir que texto dentro do VCardText tenha cor escura
+  // Garantir que texto dentro do VCardText tenha cor clara
   :deep(.v-card-text) {
     span, strong {
-      color: #333 !important;
+      color: rgba(255, 255, 255, 0.95) !important;
     }
   }
 }
 
 // Garantir labels visíveis
 :deep(.v-label) {
-  color: #333 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
 }
 
 // Valores de subplanos visíveis
 .subplano-valor-fixo {
-  color: #1a7f3a !important;
+  color: var(--medical-green) !important;
   font-weight: 700 !important;
+  text-shadow: 0 0 10px rgba(82, 183, 136, 0.5);
 }
 
 // Valores no alerta de estações
 .estacoes-valor-alert {
+  background: rgba(140, 87, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(140, 87, 255, 0.2) !important;
+  
+  .estacoes-faixa-item {
+    margin-bottom: 8px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
   .estacoes-valor-texto {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    
+    &.estacoes-faixa-ativa {
+      background-color: rgba(140, 87, 255, 0.2);
+      padding-left: 8px;
+      padding-right: 8px;
+      font-weight: 600;
+      border: 1px solid rgba(140, 87, 255, 0.4);
+    }
+    
+    span:first-child {
+      flex: 1;
+      text-align: left;
+    }
+  }
+  
+  .estacoes-valor-total {
+    color: rgba(255, 255, 255, 1) !important;
+    font-weight: 700 !important;
+    margin-left: 16px; // Espaçamento adicional antes do valor
+    white-space: nowrap; // Evita quebra de linha no valor
+    text-align: right;
+    min-width: 120px; // Garante largura mínima para alinhamento
   }
   
   .estacoes-valor-moeda {
-    color: #1a1a1a !important;
+    color: rgba(255, 255, 255, 1) !important;
     font-weight: 700 !important;
+    margin-left: 12px; // Espaçamento adicional antes do valor (depois do "=")
+    white-space: nowrap; // Evita quebra de linha no valor
   }
 }
 
 :deep(.v-field__input) {
-  color: #333 !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
 }
 
 :deep(.v-selection-control-group) {
   label {
-    color: #333 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
   }
+}
+
+:deep(.v-field--focused .v-field__input) {
+  color: rgba(255, 255, 255, 1) !important;
+}
+
+:deep(.v-text-field__input) {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+:deep(.v-card-text),
+:deep(.v-card-title),
+:deep(.v-alert__content) {
+  color: rgba(255, 255, 255, 0.95) !important;
+  
+  * {
+    color: inherit;
+  }
+}
+
+// Animação de spin para loader
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+// Global animations
+.fade-slide-enter-active {
+  transition: all 0.8s var(--transition-smooth);
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+// Ensure proper stacking
+.login-background {
+  z-index: 1;
+}
+
+.login-content {
+  z-index: 10;
 }
 
 @media (max-width: 960px) {
   .payment-header {
-    h2 {
-      font-size: 1.5rem !important;
-    }
+    padding: 2.5rem 1rem !important;
   }
 
-  .plano-option,
-  .forma-pagamento-option {
+  .plano-option {
     margin-bottom: 16px;
   }
   
@@ -1461,4 +1019,271 @@ h3, h4, h5, p, span, label {
     max-width: 250px;
   }
 }
-</style>
+
+// Enhanced Button Styles
+.continue-btn {
+  position: relative;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  height: 56px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  background: var(--title-gradient) !important;
+  border: none;
+  box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3) !important;
+  transition: all var(--transition-medium);
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.6s;
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(140, 87, 255, 0.4) !important;
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(-1px) scale(1.01);
+  }
+  
+  &.pulse-animation {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+}
+
+.hover-lift {
+  transition: all var(--transition-medium);
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.pulse-animation {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.5), 0 0 20px rgba(140, 87, 255, 0.3);
+  }
+}
+
+.step-chip {
+  animation: slideInRight 0.6s ease-out;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  
+  .v-icon {
+    animation: rotate 2s linear infinite;
+  }
+}
+
+// Enhanced Card Hover Effects
+.payment-card {
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(140, 87, 255, 0.5),
+      transparent
+    );
+    animation: shimmer 3s infinite;
+    z-index: 1;
+  }
+
+  &:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-card-hover);
+    border-color: rgba(140, 87, 255, 0.3);
+  }
+}
+
+// Responsive Enhancements
+@media (max-width: 1200px) {
+  .login-content {
+    max-width: 1600px;
+  }
+  
+  .payment-card .login-card-content {
+    padding: 2.5rem;
+  }
+}
+
+@media (max-width: 1400px) {
+  .login-content {
+    max-width: 1400px;
+  }
+}
+
+@media (max-width: 960px) {
+  .login-content {
+    max-width: 100%;
+    padding: 0 1rem;
+  }
+  
+  .payment-card .login-card-content {
+    padding: 2rem;
+  }
+  
+  .payment-header {
+    padding: 2.5rem 1rem !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .payment-card {
+    border-radius: 20px;
+    margin: 0.5rem;
+  }
+  
+  .payment-card .login-card-content {
+    padding: 1.5rem;
+  }
+  
+  .payment-header {
+    padding: 2rem 1rem !important;
+  }
+  
+  .continue-btn {
+    height: 48px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .payment-card .login-card-content {
+    padding: 1.25rem;
+  }
+  
+  // Additional mobile optimizations can be added here if needed
+}
+
+// Additional animations
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Enhanced Plan Card Styles
+.plano-option.login-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 24px !important;
+  overflow: hidden;
+  transition: all var(--transition-medium);
+  position: relative;
+  box-shadow: var(--glass-shadow) !important;
+  
+  .card-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(140, 87, 255, 0.5),
+      transparent
+    );
+    animation: shimmer 3s infinite;
+    z-index: 1;
+  }
+  
+  &.selected {
+    transform: scale(1.02) translateY(-2px);
+    box-shadow: 0 8px 24px rgba(140, 87, 255, 0.3) !important;
+    border-color: rgba(140, 87, 255, 0.5) !important;
+    background: rgba(140, 87, 255, 0.1) !important;
+  }
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(140, 87, 255, 0.2) !important;
+    border-color: rgba(140, 87, 255, 0.4) !important;
+  }
+  
+  .plan-icon {
+    filter: drop-shadow(0 4px 12px rgba(140, 87, 255, 0.6)) drop-shadow(0 0 8px rgba(140, 87, 255, 0.4));
+    animation: float-icon 3s ease-in-out infinite;
+  }
+  
+  .plan-title {
+    background: linear-gradient(135deg, #8C57FF 0%, #00B4D8 50%, #52B788 100%);
+    background-size: 200% 200%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradient-shift 8s ease infinite;
+    
+    /* Fallback */
+    color: #8C57FF;
+  }
+  
+  .plan-description {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
+  
+  /* Icon animation delays */
+  &:nth-child(1) .plan-icon { animation-delay: 0s; }
+  &:nth-child(2) .plan-icon { animation-delay: 0.5s; }
+  &:nth-child(3) .plan-icon { animation-delay: 1s; }
+}
+
+  </style>

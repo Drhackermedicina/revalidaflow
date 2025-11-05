@@ -25,7 +25,7 @@ export function useRegister() {
     aceitouTermos: false,
     inviteCode: '',
   })
-  
+
   console.log('[useRegister] Estado inicial criado:', {
     loading: loading.value,
     error: error.value,
@@ -139,10 +139,10 @@ export function useRegister() {
 
       // Detectar especificamente erros de popup/policy
       const isPopupError = e.message?.includes('popup') ||
-                          e.message?.includes('Cross-Origin') ||
-                          e.code?.includes('popup') ||
-                          e.code === 'auth/popup-blocked' ||
-                          e.code === 'auth/popup-closed-by-user'
+        e.message?.includes('Cross-Origin') ||
+        e.code?.includes('popup') ||
+        e.code === 'auth/popup-blocked' ||
+        e.code === 'auth/popup-closed-by-user'
 
       if (isPopupError) {
         console.warn(`[${loginTime}] loginComGoogle: [${loginId}] 🚨 ERRO DE POPUP DETECTADO - Tentando fallback para redirect:`, e.message);
@@ -225,10 +225,10 @@ export function useRegister() {
       }
 
       console.log(`[Register] CPF ${cpfNumerico} é único. Prosseguindo com a criação do usuário.`)
-      
+
       const trialDays = Number.parseInt(import.meta.env.VITE_TRIAL_DAYS || '14', 10)
       const trialExpiresAt = Timestamp.fromDate(new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000))
-      
+
       const userData = {
         nome: form.value.nome,
         sobrenome: form.value.sobrenome,

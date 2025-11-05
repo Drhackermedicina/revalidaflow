@@ -260,18 +260,11 @@ const produtos = [
   }
 ]
 
-const whatsappBase = '5511999999999'
-
 const scrollTo = section => {
   if (section?.value) section.value.scrollIntoView({ behavior: 'smooth' })
 }
 
 const whatsUrl = (numero, mensagem) => `https://wa.me/${numero.replace(/\D/g, '')}?text=${encodeURIComponent(mensagem)}`
-
-const entrarEmContato = produto => {
-  const message = `Olá! Gostaria de saber mais sobre o plano "${produto.titulo}" da mentoria.`
-  window.open(`https://wa.me/${whatsappBase}?text=${encodeURIComponent(message)}`, '_blank')
-}
 
 const entrarEmContatoGeral = () => {
   const message = 'Olá! Vi a Mentoria Ativa Med no Revalida Flow e gostaria de agendar uma conversa sobre os planos disponíveis.'

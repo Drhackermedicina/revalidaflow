@@ -35,6 +35,7 @@ import SimulationSidebar from '@/components/SimulationSidebar.vue'
 import CandidateChecklist from '@/components/CandidateChecklist.vue'
 import ActorScriptPanel from '@/components/ActorScriptPanel.vue'
 import CandidateContentPanel from '@/components/CandidateContentPanel.vue'
+import SimulationAiFeedbackCard from '@/components/SimulationAiFeedbackCard.vue'
 import ImageZoomModal from '@/components/ImageZoomModal.vue'
 import ImpressosModal from '@/components/ImpressosModal.vue'
 import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue'
@@ -55,6 +56,9 @@ import { useInviteLinkGeneration } from '@/composables/useInviteLinkGeneration.j
 import { deleteInviteFromFirestore } from '@/utils/simulationInviteCleanup.js'
 
 // Composables de Gravação
+import { useAiEvaluation } from '@/composables/useAiEvaluation.js'
+import { useContinuousRecording } from '@/composables/useContinuousRecording.js'
+import { useCandidateAudioTranscription } from '@/composables/useCandidateAudioTranscription.js'
 // Utils de Formatação
 
 // Bibliotecas Externas
@@ -66,6 +70,20 @@ function handleZoomImageError(_err) {
 }
 function handleZoomImageLoad(_event) {
   // Carregamento de imagem completo
+}
+
+function stripHtmlContent(value) {
+  if (!value || typeof value !== 'string') return ''
+
+  return value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 // Funções de formatação memoizadas
@@ -423,50 +441,67 @@ const enableAIEvaluation = ref(false)
 const showAIEvaluationDialog = ref(false)
 const aiEvaluationDialogShown = ref(false)
 
+const ensureStationSummary = () => {
+  if (!simulationEnded.value) return
+  if (aiEvaluationResult.value) return
+
+  const feedback = checklistData.value?.feedbackEstacao
+  const resumoTecnico = typeof feedback?.resumoTecnico === 'string'
+    ? stripHtmlContent(feedback.resumoTecnico)
+    : ''
+
+  if (!resumoTecnico) return
+
+  const tema = stripHtmlContent(
+    stationData.value?.tituloEstacao ||
+    stationData.value?.titulo ||
+    ''
+  )
+
+  const contexto = stripHtmlContent(
+    stationData.value?.instrucoesParticipante?.descricaoCasoCompleta ||
+    stationData.value?.informacoesEssenciais?.contextoClinico ||
+    ''
+  )
+
+  aiEvaluationResult.value = {
+    scores: {},
+    total: null,
+    details: [],
+    performance: {
+      temaEstacao: tema || null,
+      resumoEstacao: resumoTecnico,
+      contextoClinico: contexto,
+      visaoGeral: resumoTecnico || 'Consulte o resumo técnico desta estação para relembrar os principais achados.',
+      pontosFortes: [],
+      pontosDeMelhoria: [],
+      recomendacoesOSCE: [],
+      indicadoresCriticos: []
+    },
+    metadata: {
+      generatedBy: {
+        displayName: 'Resumo técnico da estação'
+      },
+      source: 'station-feedback',
+      timestamp: new Date().toISOString()
+    }
+  }
+}
+
 // Função para lidar com aceite da avaliação por IA
 const handleAIEvaluationAccept = async () => {
   showAIEvaluationDialog.value = false
   enableAIEvaluation.value = true
 
-  logger.info('[IA_EVALUATION] 🤖 Candidato aceitou avaliação por IA, iniciando...');
+  logger.info('[IA_EVALUATION] ?? Candidato optou por receber avalia��o por IA.');
 
-  try {
-    // ✅ NOVO: Sincronizar histórico de conversa com backend antes de avaliar
-    logger.info('[IA_EVALUATION] 🔄 Sincronizando histórico de conversa antes da avaliação...');
-    
-    const syncedHistory = await syncConversationHistory();
-    
-    if (syncedHistory.length === 0) {
-      logger.warn('[IA_EVALUATION] ⚠️ Histórico de conversa vazio após sincronização');
-      showNotification(
-        'Não há histórico de conversa para avaliar. A avaliação pode ser imprecisa.',
-        'warning'
-      );
-    } else {
-      logger.info('[IA_EVALUATION] ✅ Histórico sincronizado', {
-        entries: syncedHistory.length
-      });
-    }
-
-    // Executar avaliação com histórico sincronizado
-    const result = await runAiEvaluation();
-    
-    if (result) {
-      // Armazenar resultado da avaliação por IA
-      aiEvaluationResult.value = result
-      logger.info('[IA_EVALUATION] ✅ Avaliação por IA concluída com sucesso', {
-        scoresCount: Object.keys(result.scores || {}).length,
-        totalScore: result.total,
-        conversationEntries: syncedHistory.length
-      });
-      showNotification('Avaliação por IA concluída! Verifique os resultados.', 'success');
-    } else {
-      logger.warn('[IA_EVALUATION] ⚠️ Avaliação por IA retornou resultado vazio');
-      showNotification('Avaliação por IA não foi possível', 'warning');
-    }
-  } catch (error) {
-    logger.error('[IA_EVALUATION] ❌ Erro na avaliação por IA', error);
-    showNotification('Erro na avaliação por IA', 'error');
+  if (simulationEnded.value) {
+    await executeAiEvaluation({ reason: 'candidate-opt-in-post-simulation' }).catch(() => {})
+  } else {
+    showNotification(
+      'A avalia��o por IA ser� executada automaticamente ao final da esta��o.',
+      'info'
+    )
   }
 }
 
@@ -474,8 +509,51 @@ const handleAIEvaluationAccept = async () => {
 const handleAIEvaluationDecline = () => {
   showAIEvaluationDialog.value = false
   enableAIEvaluation.value = false
-  logger.info('[IA_EVALUATION] ?? Candidato recusou avaliação por IA');
+  logger.info('[IA_EVALUATION] ?? Candidato recusou avalia��o por IA');
+
+  if (simulationEnded.value) {
+    ensureStationSummary();
+  }
 }
+
+// ✅ NOVO: Função para notificar N8N sobre análise de resposta
+const notifyN8NWorkflow = async (data) => {
+  const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/analisar-resposta';
+  const n8nEnabled = import.meta.env.VITE_N8N_ENABLED === 'true' || import.meta.env.DEV;
+
+  if (!n8nEnabled || !n8nWebhookUrl) {
+    logger.debug('[N8N_WORKFLOW] ⚠️ N8N não configurado, ignorando notificação');
+    return;
+  }
+
+  try {
+    logger.info('[N8N_WORKFLOW] 📡 Notificando N8N para análise de resposta...', {
+      userId: data.userId,
+      estacaoId: data.estacaoId,
+      hasConversationHistory: data.conversationHistory?.length > 0
+    });
+
+    const response = await fetch(n8nWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (response.ok) {
+      logger.info('[N8N_WORKFLOW] ✅ N8N notificado com sucesso');
+    } else {
+      logger.warn('[N8N_WORKFLOW] ⚠️ N8N retornou erro', {
+        status: response.status,
+        statusText: response.statusText
+      });
+    }
+  } catch (error) {
+    logger.warn('[N8N_WORKFLOW] ⚠️ Erro ao notificar N8N (não crítico)', {
+      error: error.message
+    });
+    // Não rejeitar a promise - o N8N é opcional
+  }
+};
 
 // ✅ NOVO: Função para sincronizar histórico de conversa com backend
 const syncConversationHistory = () => {
@@ -537,7 +615,87 @@ const syncConversationHistory = () => {
   });
 }
 
-// Aliases para manter compatibilidade com template (funções já têm debounce interno)
+const executeAiEvaluation = async ({ reason = 'automatic' } = {}) => {
+  if (!enableAIEvaluation.value) {
+    logger.info('[IA_EVALUATION] ?? Avaliacao por IA nao habilitada; execucao ignorada.', { reason });
+    ensureStationSummary();
+    return null;
+  }
+
+  if (aiEvaluationSubmitted.value && aiEvaluationResult.value) {
+    logger.info('[IA_EVALUATION] ?? Avaliacao por IA ja concluida anteriormente; reutilizando resultado.');
+    return aiEvaluationResult.value;
+  }
+
+  if (submittingEvaluation.value) {
+    logger.info('[IA_EVALUATION] ?? Avaliacao por IA em andamento; aguardando finalizacao.');
+    return null;
+  }
+
+  logger.info('[IA_EVALUATION] ?? Disparando avaliacao por IA', { reason });
+
+  try {
+    logger.info('[IA_EVALUATION] ?? Sincronizando historico antes de avaliar...');
+    const syncedHistory = await syncConversationHistory();
+
+    if (syncedHistory.length === 0) {
+      logger.warn('[IA_EVALUATION] ?? Historico de conversa vazio apos sincronizacao');
+      showNotification(
+        'Nao ha historico de conversa para avaliar. A avaliacao pode ser imprecisa.',
+        'warning'
+      );
+    } else {
+      logger.info('[IA_EVALUATION] ? Historico sincronizado', {
+        entries: syncedHistory.length
+      });
+    }
+
+    const result = await runAiEvaluation();
+
+    if (result) {
+      aiEvaluationResult.value = result;
+      logger.info('[IA_EVALUATION] ? Avaliacao por IA concluida com sucesso', {
+        scoresCount: Object.keys(result.scores || {}).length,
+        totalScore: result.total,
+        conversationEntries: syncedHistory.length
+      });
+      showNotification('Avaliacao por IA concluida! Verifique os resultados.', 'success');
+
+      // ✅ NOVO: Notificar N8N sobre análise de resposta (opcional, assíncrono)
+      if (stationData.value && checklistData.value) {
+        notifyN8NWorkflow({
+          userId: currentUser.value?.uid || '',
+          estacaoId: stationId.value,
+          pergunta: stationData.value.tituloEstacao || stationData.value.titulo || '',
+          respostaUsuario: syncedHistory
+            .filter(entry => entry.role === 'user' || entry.speakerId === currentUser.value?.uid)
+            .map(entry => entry.content)
+            .join('\n'),
+          gabarito: checklistData.value.itensAvaliacao
+            ?.map(item => `${item.titulo}: ${item.descricao || ''}`)
+            .join('\n') || '',
+          conversationHistory: syncedHistory,
+          aiEvaluationResult: result,
+          timestamp: new Date().toISOString()
+        }).catch(err => {
+          logger.debug('[N8N_WORKFLOW] Falha ao notificar N8N (não crítico)', err);
+        });
+      }
+
+      return result;
+    }
+
+    logger.warn('[IA_EVALUATION] ?? Avaliacao por IA retornou resultado vazio');
+    showNotification('Avaliacao por IA nao foi possivel', 'warning');
+    ensureStationSummary();
+    return null;
+  } catch (error) {
+    logger.error('[IA_EVALUATION] ? Erro na avaliacao por IA', error);
+    showNotification('Erro na avaliacao por IA', 'error');
+    ensureStationSummary();
+    throw error;
+  }
+}// Aliases para manter compatibilidade com template (funções já têm debounce interno)
 const debouncedToggleParagraphMark = toggleParagraphMark;
 const debouncedToggleScriptContext = toggleScriptContext;
 
@@ -1448,6 +1606,28 @@ watch(simulationEnded, async (newValue) => {
       aiEvaluationDialogShown.value = true;
       logger.info('[IA_EVALUATION] ?? Diálogo de avaliação por IA disponibilizado para o candidato');
     }
+
+    // ✅ NOVO: Notificar N8N quando simulação termina (opcional, assíncrono)
+    // Isso permite que o workflow N8N analise a simulação mesmo sem avaliação por IA
+    if (stationData.value && conversationHistory.value.length > 0) {
+      notifyN8NWorkflow({
+        userId: currentUser.value?.uid || '',
+        estacaoId: stationId.value,
+        pergunta: stationData.value.tituloEstacao || stationData.value.titulo || '',
+        respostaUsuario: conversationHistory.value
+          .filter(entry => entry.role === 'user' || entry.speakerId === currentUser.value?.uid)
+          .map(entry => entry.content)
+          .join('\n'),
+        gabarito: checklistData.value.itensAvaliacao
+          ?.map(item => `${item.titulo}: ${item.descricao || ''}`)
+          .join('\n') || '',
+        conversationHistory: conversationHistory.value,
+        simulationEnded: true,
+        timestamp: new Date().toISOString()
+      }).catch(err => {
+        logger.debug('[N8N_WORKFLOW] Falha ao notificar N8N (não crítico)', err);
+      });
+    }
   }
 });
 
@@ -2096,3 +2276,5 @@ function toggleCollapse() {
 <style scoped lang="scss">
 @import '@/assets/styles/simulation-view.scss';
 </style>
+
+

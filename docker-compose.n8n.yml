@@ -1,0 +1,56 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n-local
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - TZ=America/Sao_Paulo
+      - N8N_METRICS=false
+      - N8N_LOG_LEVEL=info
+      # ============================================================================
+      # API Keys do Google Gemini (Backend)
+      # ============================================================================
+      - GOOGLE_API_KEY_1=AIzaSyB6Lj_5p11hJKbZAnb3oRK5h3lxgVZIl8U
+      - GOOGLE_API_KEY_2=AIzaSyAlvMR2zOJDZbwBBpP0sl1JHp2fb9uQiy4
+      # ============================================================================
+      # API Keys do Google Gemini (Frontend - também disponíveis para N8N)
+      # ============================================================================
+      - VITE_GOOGLE_API_KEY_1=AIzaSyB6Lj_5p11hJKbZAnb3oRK5h3lxgVZIl8U
+      - VITE_GOOGLE_API_KEY_2=AIzaSyAlvMR2zOJDZbwBBpP0sl1JHp2fb9uQiy4
+      - VITE_GOOGLE_API_KEY_3=AIzaSyB7Pm5fFzuSxxLI4ogBgJoUxukDW-wCP4g
+      - VITE_GOOGLE_API_KEY_6=AIzaSyDAbZJiK4EaTJkMfl3D0kreBPxFuoEuAUY
+      # ============================================================================
+      # API Key ZAI (Zhipu AI - GLM-4.5/GLM-4.6)
+      # ============================================================================
+      - ZAI_API_KEY=8a02b7c0d6564feea066b7e897207484.8kwdZuX7C70OLUBC
+      - VITE_ZAI_API_KEY=8a02b7c0d6564feea066b7e897207484.8kwdZuX7C70OLUBC
+    volumes:
+      - n8n_data:/home/node/.n8n
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5678/healthz",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  n8n_data:
+    driver: local

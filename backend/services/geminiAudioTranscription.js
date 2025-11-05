@@ -24,6 +24,22 @@ class GeminiAudioTranscription {
     this.currentKeyIndex = 0
   }
 
+  getKeyStats() {
+    const pool = Array.isArray(this.keyPool) ? this.keyPool : []
+    const total = pool.length
+    const active = pool.filter(item => item.active).length
+    return {
+      total,
+      active,
+      inactive: total - active,
+      failures: pool.map((item, index) => ({
+        index,
+        failures: item.failures,
+        active: item.active
+      }))
+    }
+  }
+
   _loadApiKeys() {
     const keys = new Set()
 
@@ -308,15 +324,34 @@ Transcreva EXATAMENTE o que foi dito, mantendo termos médicos e contexto clíni
 }
 
 let instance = null
+let initializationError = null
 
 function getGeminiAudioTranscription() {
-  if (!instance) {
-    instance = new GeminiAudioTranscription()
+  if (instance) {
+    return instance
   }
-  return instance
+
+  if (initializationError) {
+    throw initializationError
+  }
+
+  try {
+    instance = new GeminiAudioTranscription()
+    return instance
+  } catch (error) {
+    initializationError = error
+    console.error('❌ [GEMINI_AUDIO] Erro ao inicializar serviço de transcrição:', error.message)
+    throw error
+  }
+}
+
+function resetInstance() {
+  instance = null
+  initializationError = null
 }
 
 module.exports = {
   GeminiAudioTranscription,
-  getGeminiAudioTranscription
+  getGeminiAudioTranscription,
+  resetInstance
 }

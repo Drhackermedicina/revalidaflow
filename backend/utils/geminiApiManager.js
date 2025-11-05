@@ -59,31 +59,36 @@ class GeminiAPIManager {
         }
       }
     } else if (type === 'paid') {
-      // Carregar chave paga (GOOGLE_API_KEY_8) do .env
-      const key = process.env.GOOGLE_API_KEY_8;
+      // Carregar chaves pagas (GOOGLE_API_KEY_X, para X >= 8) do .env
+      // Nota: GOOGLE_API_KEY_8 foi removida após teste, não há chaves pagas ativas
+      // Mantendo estrutura para futuras chaves pagas
+      for (let index = 8; index <= 20; index++) {
+        const keyEnv = `GOOGLE_API_KEY_${index}`;
+        const key = process.env[keyEnv];
 
-      if (key) {
-        const keyData = {
-          key: key,
-          type: type,
-          index: 8,
-          dailyQuota: 999999, // Quota alta para chave paga
-          used: 0,
-          lastUsed: null,
-          errors: 0,
-          isActive: true
-        };
-
-        keys.push(keyData);
-
-        // Inicializar cache de quota
-        const cacheKey = this.getCacheKey(key);
-        if (this.quotaCache && !this.quotaCache.has(cacheKey)) {
-          this.quotaCache.set(cacheKey, {
+        if (key) {
+          const keyData = {
+            key: key,
+            type: type,
+            index: index,
+            dailyQuota: 999999, // Quota alta para chave paga
             used: 0,
-            date: new Date().toDateString(),
-            errors: 0
-          });
+            lastUsed: null,
+            errors: 0,
+            isActive: true
+          };
+
+          keys.push(keyData);
+
+          // Inicializar cache de quota
+          const cacheKey = this.getCacheKey(key);
+          if (this.quotaCache && !this.quotaCache.has(cacheKey)) {
+            this.quotaCache.set(cacheKey, {
+              used: 0,
+              date: new Date().toDateString(),
+              errors: 0
+            });
+          }
         }
       }
     }

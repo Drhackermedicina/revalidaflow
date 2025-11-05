@@ -16,6 +16,17 @@
       "env": {
         "DEFAULT_MINIMUM_TOKENS": ""
       }
+    },
+    "n8n-local": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@kernel.salacoste/n8n-workflow-builder"
+      ],
+      "env": {
+        "N8N_HOST": "http://localhost:5678/api/v1",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YzUxY2FiMi1hMGNiLTRhZTctODFjZS02YTQ3YTcyNTllMDAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYyMTg3MDkwfQ.C9UC8c1665hT2G0S3mPE_tyOvsI3tLEKpvmt94_u4Gw"
+      }
     }
   }
 }

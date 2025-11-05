@@ -11,6 +11,12 @@ export const config = {
     retries: 3
   },
 
+  // N8N Workflow Configuration
+  n8n: {
+    webhookUrl: import.meta.env.VITE_N8N_WEBHOOK_URL || (import.meta.env.DEV ? 'http://localhost:5678/webhook/analisar-resposta' : ''),
+    enabled: import.meta.env.VITE_N8N_ENABLED === 'true' || import.meta.env.DEV
+  },
+
   // Firebase Configuration
   firebase: {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",

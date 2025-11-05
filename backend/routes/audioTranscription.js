@@ -198,11 +198,14 @@ router.post('/transcribe-chunks', upload.array('audioChunks', 20), async (req, r
 router.get('/test', async (req, res) => {
   try {
     const transcriptionService = getGeminiAudioTranscription();
+    const stats = transcriptionService.getKeyStats();
     
     res.json({
       success: true,
       message: 'Serviço de transcrição Gemini 2.0 Flash disponível',
-      keysLoaded: transcriptionService.apiKeys.length,
+      keysLoaded: stats.total,
+      activeKeys: stats.active,
+      inactiveKeys: stats.inactive,
       model: 'gemini-2.0-flash-exp',
       maxAudioDuration: '8.4 horas',
       maxFileSize: '25MB por chunk',
@@ -215,7 +218,9 @@ router.get('/test', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Serviço de transcrição indisponível',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -227,12 +232,15 @@ router.get('/test', async (req, res) => {
 router.get('/health', async (req, res) => {
   try {
     const transcriptionService = getGeminiAudioTranscription();
+    const stats = transcriptionService.getKeyStats();
     
     res.json({
       status: 'healthy',
       service: 'Gemini Audio Transcription',
       model: 'gemini-2.0-flash-exp',
-      keysLoaded: transcriptionService.apiKeys.length,
+      keysLoaded: stats.total,
+      activeKeys: stats.active,
+      inactiveKeys: stats.inactive,
       capabilities: {
         maxAudioDuration: '8.4 horas',
         maxFileSize: '25MB',
@@ -247,19 +255,27 @@ router.get('/health', async (req, res) => {
         streaming: false,
         chunking: true
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      keyStatus: stats.failures
     });
 
   } catch (error) {
     res.status(503).json({
       status: 'unhealthy',
       error: error.message,
+      details: error.stack || undefined,
       timestamp: new Date().toISOString()
     });
   }
 });
 
 module.exports = router;
+
+
+
+
+
+
 
 
 

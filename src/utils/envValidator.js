@@ -31,10 +31,6 @@ class EnvironmentValidator {
     this.sensitiveVars.add('GEMINI_API_KEY')
     this.sensitiveVars.add('GOOGLE_API_KEY_1')
     this.sensitiveVars.add('GOOGLE_API_KEY_2')
-    this.sensitiveVars.add('GOOGLE_API_KEY_3')
-    this.sensitiveVars.add('GOOGLE_API_KEY_6')
-    this.sensitiveVars.add('GOOGLE_API_KEY_7')
-    this.sensitiveVars.add('GOOGLE_API_KEY_8')
     this.sensitiveVars.add('GOOGLE_DRIVE_CREDENTIALS')
     this.sensitiveVars.add('VITE_SENTRY_DSN')
   }

@@ -261,6 +261,47 @@ async function consultarPagamento(paymentId) {
 }
 
 /**
+ * Buscar pagamentos pelo external_reference
+ * @param {string} referenceId - Identificador externo usado na criação da preferência
+ * @returns {Promise<Array<Object>>} Lista de pagamentos encontrados
+ */
+async function buscarPagamentosPorReferencia(referenceId) {
+  if (!ensureInitialized()) {
+    throw new Error('Mercado Pago não está configurado corretamente');
+  }
+
+  if (!referenceId) {
+    throw new Error('referenceId é obrigatório');
+  }
+
+  try {
+    const searchResponse = await paymentClient.search({
+      options: {
+        external_reference: referenceId,
+        sort: 'date_created',
+        criteria: 'desc',
+        limit: 10
+      }
+    });
+
+    const results = Array.isArray(searchResponse?.results) ? searchResponse.results : [];
+
+    logger.info('Pagamentos buscados por referência', {
+      referenceId,
+      totalResultados: results.length
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('Erro ao buscar pagamentos por referência', {
+      error: error.message,
+      referenceId
+    });
+    throw error;
+  }
+}
+
+/**
  * Processar notificação de webhook
  * @param {Object} notification - Dados da notificação
  * @returns {Promise<Object>} Dados do pagamento processado
@@ -302,6 +343,7 @@ module.exports = {
   isInitialized: () => ensureInitialized(),
   criarPreferenciaPagamento,
   consultarPagamento,
+  buscarPagamentosPorReferencia,
   processarWebhook,
   initializeMercadoPago,
   ensureInitialized

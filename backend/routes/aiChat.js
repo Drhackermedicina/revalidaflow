@@ -217,7 +217,9 @@ class AIChatManager {
             prompt += `   CONTEXTO: ${item.contextoOuPerguntaChave}\n`;
           }
           if (item.informacao) {
-            prompt += `   RESPOSTA: ${item.informacao}\n`;
+            // Limpar instruções de atuação do script antes de incluir no prompt
+            const cleanedInfo = this.cleanPatientScript(item.informacao);
+            prompt += `   RESPOSTA: ${cleanedInfo}\n`;
           }
           prompt += `\n`;
         }
@@ -259,7 +261,12 @@ class AIChatManager {
     prompt += `6. Adapte-se ao contexto da conversa anterior\n`;
     prompt += `7. JAMAIS use "não" redundante no final das frases:\n`;
     prompt += `   - PROIBIDO: "Não fumo, não."\n`;
-    prompt += `   - CORRETO: "Não fumo."\n\n`;
+    prompt += `   - CORRETO: "Não fumo."\n`;
+    prompt += `8. ⚠️ CRÍTICO - NÃO reproduza instruções de atuação:\n`;
+    prompt += `   - PROIBIDO: "(pausa)", "(suspira)", "(fala entrecortada)", "(respira com dificuldade)"\n`;
+    prompt += `   - PROIBIDO: direções cênicas, reticências excessivas (...)\n`;
+    prompt += `   - CORRETO: Fale apenas o diálogo direto do paciente de forma natural e fluida\n`;
+    prompt += `   - Use linguagem contínua sem interrupções artificiais\n\n`;
 
     // Regras especiais para controle da conversa
     prompt += `REGRAS ESPECIAIS:\n`;
@@ -319,6 +326,33 @@ class AIChatManager {
       }
     }
     return { hasVagueRequests, count, lastVague };
+  }
+
+  /**
+   * Remove instruções de atuação e direções cênicas do texto do script
+   * @param {string} scriptText - Texto original do script
+   * @returns {string} Texto limpo sem instruções de atuação
+   */
+  cleanPatientScript(scriptText) {
+    if (!scriptText) return scriptText;
+
+    return scriptText
+      // Remove instruções entre parênteses (ex: "(pausa)", "(suspira)", "(fala entrecortada)")
+      .replace(/\([^)]*\)/g, '')
+      // Remove colchetes com instruções [ex: "[gesticula]"]
+      .replace(/\[[^\]]*\]/g, '')
+      // Remove reticências excessivas e substitui por pontos normais
+      .replace(/\.{3,}/g, '. ')
+      // Remove múltiplos espaços consecutivos
+      .replace(/\s+/g, ' ')
+      // Remove espaços no início e fim
+      .trim()
+      // Remove pontos duplos que podem ter sobrado
+      .replace(/\.+/g, '.')
+      // Remove espaços antes de pontuação
+      .replace(/\s+([.!?])/g, '$1')
+      // Remove pontos seguidos de espaço e vírgula
+      .replace(/\.\s*,/g, ',');
   }
 
   extractPatientInfo(patientScript) {
@@ -450,9 +484,9 @@ class AIChatManager {
 
     // Verificar múltiplas estruturas possíveis de materiais
     const availableMaterials = stationData?.materiaisImpressos ||
-                              stationData?.materiais ||
-                              stationData?.materiaisDisponiveis?.materiaisImpressos ||
-                              [];
+      stationData?.materiais ||
+      stationData?.materiaisDisponiveis?.materiaisImpressos ||
+      [];
 
     const patientScript = stationData?.materiaisDisponiveis?.informacoesVerbaisSimulado || [];
 
@@ -701,10 +735,10 @@ class AIChatManager {
     try {
       const genAI = new GoogleGenerativeAI(keyData.key);
       const model = genAI.getGenerativeModel({
-        model: options.model || "gemini-2.5-flash"
+        model: options.model || "gemini-1.5-flash"  // Modelo mais rápido para melhor performance
       });
 
-      console.log(`🧠 Enviando análise semântica para Gemini 2.5 Flash (chave ${keyData.index})`);
+      console.log(`🧠 Enviando análise semântica para ${options.model || "gemini-1.5-flash"} (chave ${keyData.index})`);
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
@@ -881,18 +915,18 @@ function buildStationContext(stationData = {}) {
 
   const roteiro = roteiroArray.length
     ? roteiroArray.map((item, index) => {
-        const contexto = sanitizeRichText(item?.contextoOuPerguntaChave || '');
-        const informacao = sanitizeRichText(item?.informacao || '');
-        return `Seção ${index + 1}:\nContexto: ${contexto}\nInformação: ${informacao}`;
-      }).join('\n\n')
+      const contexto = sanitizeRichText(item?.contextoOuPerguntaChave || '');
+      const informacao = sanitizeRichText(item?.informacao || '');
+      return `Seção ${index + 1}:\nContexto: ${contexto}\nInformação: ${informacao}`;
+    }).join('\n\n')
     : 'Roteiro verbal não disponível.';
 
   const materiaisDisponiveis = Array.isArray(stationData?.materiaisDisponiveis?.impressos)
     ? stationData.materiaisDisponiveis.impressos.map((item, index) => {
-        const titulo = sanitizeRichText(item?.tituloImpresso || item?.titulo || `Impresso ${index + 1}`);
-        const tipo = sanitizeRichText(item?.tipoConteudo || 'não informado');
-        return `${titulo} (${tipo})`;
-      }).join('\n')
+      const titulo = sanitizeRichText(item?.tituloImpresso || item?.titulo || `Impresso ${index + 1}`);
+      const tipo = sanitizeRichText(item?.tipoConteudo || 'não informado');
+      return `${titulo} (${tipo})`;
+    }).join('\n')
     : 'Nenhum impresso cadastrado.';
 
   return {
@@ -913,8 +947,8 @@ function buildSimulationFeedbackPrompt({ stationData = {}, checklistData = {}, c
     Array.isArray(stationData?.objetivosAprendizado)
       ? stationData.objetivosAprendizado.join('\n')
       : stationData?.objetivosAprendizado ||
-        stationData?.instrucoesParticipante?.tarefasPrincipais?.join('\n') ||
-        ''
+      stationData?.instrucoesParticipante?.tarefasPrincipais?.join('\n') ||
+      ''
   );
   const metadataInfo = Object.entries(metadata || {})
     .map(([key, value]) => `${key}: ${sanitizeRichText(value)}`)
@@ -1332,10 +1366,10 @@ router.post('/evaluate-pep', async (req, res) => {
 
 CONVERSA COMPLETA:
 ${conversationHistory.map((msg, i) => {
-  const role = msg.role === 'candidate' || msg.sender === 'candidate' ? 'Médico' : 'Paciente';
-  const content = msg.content || msg.message || '';
-  return `${i + 1}. ${role}: ${content}`;
-}).join('\n')}
+      const role = msg.role === 'candidate' || msg.sender === 'candidate' ? 'Médico' : 'Paciente';
+      const content = msg.content || msg.message || '';
+      return `${i + 1}. ${role}: ${content}`;
+    }).join('\n')}
 
 ITENS DO CHECKLIST PARA AVALIAR:
 `;

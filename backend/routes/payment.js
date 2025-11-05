@@ -174,6 +174,88 @@ router.get('/status/:referenceId', optionalAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/payment/reference/:referenceId
+ * Consultar pagamentos utilizando o external_reference usado na criação da preferência
+ */
+router.get('/reference/:referenceId', optionalAuth, async (req, res) => {
+  const { referenceId } = req.params;
+
+  if (!referenceId) {
+    return res.status(400).json({
+      success: false,
+      error: 'referenceId_obrigatorio',
+      message: 'Informe o identificador de referência do pagamento.'
+    });
+  }
+
+  try {
+    const pagamentos = await mercadopagoService.buscarPagamentosPorReferencia(referenceId);
+
+    if (!pagamentos || pagamentos.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'pagamento_nao_encontrado',
+        message: 'Nenhum pagamento encontrado para a referência informada.'
+      });
+    }
+
+    const pagamentoMaisRecente = pagamentos[0];
+
+    return res.json({
+      success: true,
+      payment: pagamentoMaisRecente,
+      payments: pagamentos
+    });
+  } catch (error) {
+    logger.error('Erro ao consultar pagamento por referência', {
+      error: error.message,
+      referenceId
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'erro_ao_consultar_pagamento',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/payment/details/:paymentId
+ * Consultar detalhes de um pagamento diretamente no Mercado Pago
+ */
+router.get('/details/:paymentId', optionalAuth, async (req, res) => {
+  const { paymentId } = req.params;
+
+  if (!paymentId) {
+    return res.status(400).json({
+      error: 'paymentId obrigatório',
+      message: 'Informe o identificador do pagamento do Mercado Pago'
+    });
+  }
+
+  try {
+    const pagamento = await mercadopagoService.consultarPagamento(paymentId);
+
+    return res.json({
+      success: true,
+      payment: pagamento
+    });
+  } catch (error) {
+    logger.error('Erro ao consultar detalhes do pagamento', {
+      error: error.message,
+      paymentId
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'Erro ao consultar pagamento',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
 
 

@@ -30,8 +30,8 @@ const getCurrentLogLevel = () => {
     return LOG_LEVELS.DEBUG
   }
   
-  // Desenvolvimento padrão: INFO
-  return LOG_LEVELS.INFO
+  // Desenvolvimento padrão: WARN para reduzir ruído
+  return LOG_LEVELS.WARN
 }
 
 class Logger {

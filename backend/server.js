@@ -291,6 +291,9 @@ app.use('/api/', (req, res, next) => {
   if (
     req.path === '/payment/webhook' ||
     req.path === '/payment/webhook/' ||
+    req.path.startsWith('/payment/details') ||
+    req.path.startsWith('/payment/reference') ||
+    req.path.startsWith('/payment/status') ||
     req.path.startsWith('/audio-transcription')
   ) {
     return next();

@@ -238,4 +238,20 @@ defineProps({
 .text-body-1 {
   font-size: 0.9rem !important;
 }
+
+.laudo-impresso {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: rgba(var(--v-theme-surface-variant), 0.1);
+  border-radius: 4px;
+}
+
+.laudo-impresso pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+}
 </style>

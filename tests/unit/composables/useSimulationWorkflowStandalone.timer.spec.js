@@ -8,7 +8,7 @@ describe('useSimulationWorkflowStandalone - timer display update', () => {
     const timerDisplay = ref('00:00')
     const selectedDurationMinutes = ref(10)
 
-    const wf = useSimulationWorkflowStandalone({ simulationTimeSeconds, timerDisplay, selectedDurationMinutes })
+    useSimulationWorkflowStandalone({ simulationTimeSeconds, timerDisplay, selectedDurationMinutes })
 
     // inicial
     expect(timerDisplay.value).toBe('10:00')
