@@ -1,0 +1,461 @@
+// ============================================================================
+// 🎨 MODERN DESIGN TOKENS - REVALIDAFLOW
+// ============================================================================
+// Tokens CSS para glassmorphism, gradientes e efeitos modernos
+// Compatível com temas claro e escuro do Vuetify
+
+// ============================================================================
+// 🌈 GRADIENTES PRINCIPAIS
+// ============================================================================
+
+:root {
+  // Gradientes de Marca
+  --rf-gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --rf-gradient-primary-soft: linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.35) 100%);
+  --rf-gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --rf-gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --rf-gradient-warning: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  
+  // Gradientes de Fundo
+  --rf-bg-gradient-light: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --rf-bg-gradient-dark: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  
+  // Gradientes para Cards
+  --rf-card-gradient-light: linear-gradient(145deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85));
+  --rf-card-gradient-dark: linear-gradient(145deg, rgba(87, 63, 170, 0.9), rgba(29, 21, 78, 0.78));
+  
+  // Gradientes de Texto
+  --rf-text-gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --rf-text-gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  
+  // Cores Temáticas
+  --rf-inep-color: #2563eb;
+  --rf-revalida-color: #16a34a;
+}
+
+// ============================================================================
+// 💎 GLASSMORPHISM - EFEITOS DE VIDRO
+// ============================================================================
+
+:root {
+  // Fundos Glass
+  --rf-glass-bg-light: rgba(255, 255, 255, 0.25);
+  --rf-glass-bg-dark: rgba(94, 76, 180, 0.45);
+  --rf-glass-bg: rgba(255, 255, 255, 0.25); // Padrão light
+  
+  // Bordas Glass
+  --rf-glass-border-light: rgba(255, 255, 255, 0.2);
+  --rf-glass-border-dark: rgba(193, 174, 255, 0.35);
+  --rf-glass-border: rgba(255, 255, 255, 0.2); // Padrão light
+  
+  // Blur
+  --rf-glass-blur: blur(20px);
+  --rf-glass-blur-strong: blur(30px);
+  --rf-glass-blur-subtle: blur(10px);
+}
+
+// ============================================================================
+// 🌟 SOMBRAS MODERNAS
+// ============================================================================
+
+:root {
+  // Sombras para Cards
+  --rf-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --rf-shadow-card-hover: 0 20px 40px rgba(0, 0, 0, 0.12);
+  --rf-shadow-card-dark: 0 18px 42px rgba(24, 15, 56, 0.45);
+  
+  // Sombras para Hero
+  --rf-shadow-hero: 0 25px 50px rgba(0, 0, 0, 0.15);
+  --rf-shadow-hero-dark: 0 32px 68px rgba(31, 18, 73, 0.5);
+  
+  // Sombras Coloridas
+  --rf-shadow-primary: 0 12px 28px rgba(102, 126, 234, 0.28);
+  --rf-shadow-primary-hover: 0 16px 34px rgba(102, 126, 234, 0.38);
+  --rf-shadow-success: 0 12px 28px rgba(22, 163, 74, 0.28);
+  --rf-shadow-accent: 0 12px 28px rgba(240, 147, 251, 0.28);
+  
+  // Sombras Internas
+  --rf-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  --rf-shadow-inset-strong: inset 0 4px 8px rgba(0, 0, 0, 0.12);
+  
+  // Gradientes padrão
+  --rf-card-gradient: var(--rf-card-gradient-light);
+  --rf-bg-gradient: var(--rf-bg-gradient-light);
+}
+
+// ============================================================================
+// 🎯 BORDAS E RAIOS
+// ============================================================================
+
+:root {
+  --rf-radius-sm: 12px;
+  --rf-radius-md: 16px;
+  --rf-radius-lg: 20px;
+  --rf-radius-xl: 24px;
+  --rf-radius-2xl: 28px;
+  --rf-radius-full: 9999px;
+}
+
+// ============================================================================
+// ✨ EFEITOS DE ILUMINAÇÃO
+// ============================================================================
+
+:root {
+  // Overlays de Luz
+  --rf-light-overlay: radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%);
+  --rf-light-overlay-alt: radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%);
+  
+  // Glow Effects
+  --rf-glow-primary: 0 0 20px rgba(102, 126, 234, 0.3);
+  --rf-glow-success: 0 0 20px rgba(22, 163, 74, 0.3);
+  --rf-glow-accent: 0 0 20px rgba(240, 147, 251, 0.3);
+}
+
+// ============================================================================
+// 📐 ESPAÇAMENTOS E TAMANHOS
+// ============================================================================
+
+:root {
+  --rf-spacing-xs: 0.5rem;
+  --rf-spacing-sm: 1rem;
+  --rf-spacing-md: 1.5rem;
+  --rf-spacing-lg: 2rem;
+  --rf-spacing-xl: 3rem;
+  --rf-spacing-2xl: 4rem;
+}
+
+// ============================================================================
+// 🎬 ANIMAÇÕES E TRANSIÇÕES
+// ============================================================================
+
+:root {
+  // Durações
+  --rf-transition-fast: 0.2s;
+  --rf-transition-normal: 0.3s;
+  --rf-transition-slow: 0.5s;
+  
+  // Easing
+  --rf-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --rf-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --rf-ease-in-out: cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+// ============================================================================
+// 🌙 DARK MODE OVERRIDES
+// ============================================================================
+
+.v-theme--dark {
+  // Ajustar tokens para dark mode
+  --rf-card-gradient: var(--rf-card-gradient-dark);
+  --rf-glass-bg: var(--rf-glass-bg-dark);
+  --rf-glass-border: var(--rf-glass-border-dark);
+  --rf-bg-gradient: var(--rf-bg-gradient-dark);
+  --rf-shadow-card: var(--rf-shadow-card-dark);
+  --rf-shadow-hero: var(--rf-shadow-hero-dark);
+  --rf-text-gradient-primary: linear-gradient(135deg, #c8b8ff 0%, #67e1ff 100%);
+}
+
+.v-theme--light {
+  // Tokens para light mode
+  --rf-card-gradient: var(--rf-card-gradient-light);
+  --rf-glass-bg: var(--rf-glass-bg-light);
+  --rf-glass-border: var(--rf-glass-border-light);
+  --rf-bg-gradient: var(--rf-bg-gradient-light);
+}
+
+// ============================================================================
+// 🎨 CLASSES UTILITÁRIAS - GLASSMORPHISM
+// ============================================================================
+
+.rf-glass-card {
+  background: linear-gradient(135deg, rgba(126, 87, 255, 0.18), rgba(34, 197, 255, 0.08)), var(--rf-glass-bg);
+  backdrop-filter: var(--rf-glass-blur);
+  border: 1px solid var(--rf-glass-border);
+  border-radius: var(--rf-radius-xl);
+  box-shadow: var(--rf-shadow-card);
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
+  
+  &:hover {
+    box-shadow: var(--rf-shadow-card-hover);
+  }
+}
+
+.rf-glass-card-strong {
+  background: linear-gradient(145deg, rgba(126, 87, 255, 0.24), rgba(34, 197, 255, 0.12)), var(--rf-glass-bg);
+  backdrop-filter: var(--rf-glass-blur-strong);
+  border: 1px solid var(--rf-glass-border);
+  border-radius: var(--rf-radius-xl);
+  box-shadow: var(--rf-shadow-hero);
+}
+
+// ============================================================================
+// 🎯 CLASSES UTILITÁRIAS - HOVER EFFECTS
+// ============================================================================
+
+.rf-hover-lift {
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
+  
+  &:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--rf-shadow-card-hover);
+  }
+}
+
+.rf-hover-lift-subtle {
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
+  
+  &:hover {
+    transform: translateY(-3px);
+  }
+}
+
+.rf-hover-scale {
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
+  
+  &:hover {
+    transform: scale(1.02);
+  }
+}
+
+.rf-hover-glow {
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
+  
+  &:hover {
+    box-shadow: var(--rf-glow-primary);
+  }
+}
+
+// ============================================================================
+// ✨ CLASSES UTILITÁRIAS - ANIMAÇÕES
+// ============================================================================
+
+.rf-animated-shimmer {
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: rf-shimmer 3s infinite;
+  }
+}
+
+.rf-animated-glare {
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left var(--rf-transition-slow);
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+}
+
+.rf-animated-pulse {
+  animation: rf-pulse 2s ease-in-out infinite;
+}
+
+.rf-animated-float {
+  animation: rf-float 6s ease-in-out infinite;
+}
+
+// ============================================================================
+// 🎨 CLASSES UTILITÁRIAS - GRADIENTES DE TEXTO
+// ============================================================================
+
+.rf-text-gradient-primary {
+  background: var(--rf-text-gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+.rf-text-gradient-accent {
+  background: var(--rf-text-gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+// ============================================================================
+// 🎬 KEYFRAMES - ANIMAÇÕES
+// ============================================================================
+
+@keyframes rf-shimmer {
+  0% { 
+    left: -100%; 
+  }
+  100% { 
+    left: 100%; 
+  }
+}
+
+@keyframes rf-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% { 
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+@keyframes rf-float {
+  0%, 100% { 
+    transform: translateY(0); 
+  }
+  50% { 
+    transform: translateY(-10px); 
+  }
+}
+
+@keyframes rf-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rf-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rf-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// ============================================================================
+// 🎯 CLASSES UTILITÁRIAS - BACKGROUNDS
+// ============================================================================
+
+.rf-bg-gradient-primary {
+  background: var(--rf-gradient-primary);
+}
+
+.rf-bg-gradient-accent {
+  background: var(--rf-gradient-accent);
+}
+
+.rf-bg-gradient-success {
+  background: var(--rf-gradient-success);
+}
+
+// ============================================================================
+// 📱 RESPONSIVIDADE
+// ============================================================================
+
+@media (max-width: 768px) {
+  :root {
+    --rf-radius-xl: 20px;
+    --rf-radius-2xl: 24px;
+    --rf-spacing-xl: 2rem;
+    --rf-spacing-2xl: 3rem;
+  }
+  
+  .rf-hover-lift:hover {
+    transform: translateY(-3px);
+  }
+  
+  // Desabilitar animações pesadas em mobile
+  .rf-animated-shimmer::after {
+    animation: none;
+  }
+}
+
+// ============================================================================
+// 🎨 CLASSES UTILITÁRIAS - OVERLAYS
+// ============================================================================
+
+.rf-light-overlay {
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--rf-light-overlay);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.rf-light-overlay-alt {
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--rf-light-overlay-alt);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+// ============================================================================
+// 🎯 CLASSES UTILITÁRIAS - BADGES E CHIPS
+// ============================================================================
+
+.rf-badge-modern {
+  background: var(--rf-gradient-accent);
+  color: white;
+  border-radius: var(--rf-radius-full);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  box-shadow: var(--rf-shadow-accent);
+  animation: rf-pulse 2s infinite;
+}
+
+.rf-chip-glass {
+  background: var(--rf-glass-bg);
+  backdrop-filter: var(--rf-glass-blur);
+  border: 1px solid var(--rf-glass-border);
+  border-radius: var(--rf-radius-full);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+}
+

@@ -70,22 +70,24 @@ function onClearSelection() {
 </script>
 
 <template>
-  <v-card class="candidate-search-card mb-6" elevation="12" rounded="xl">
-    <div class="card-overlay" />
+  <v-card class="candidate-search-card rf-glass-card rf-hover-lift-subtle rf-animated-shimmer mb-6" elevation="0" rounded="xl">
+    <div class="card-overlay rf-light-overlay" />
+    <div class="card-decoration" />
+    
     <v-card-text class="card-body">
       <div class="card-header">
-        <div class="card-header-icon">
-          <v-icon size="28" color="primary">ri-user-search-line</v-icon>
+        <div class="card-header-icon rf-animated-float">
+          <v-icon size="32" color="primary">ri-user-search-line</v-icon>
         </div>
         <div class="card-header-text">
-          <div class="card-title">Buscar candidato</div>
+          <div class="card-title rf-text-gradient-primary">Buscar candidato</div>
           <div class="card-subtitle">
             Escolha o parceiro de treino que assumirá o papel de médico avaliado.
           </div>
         </div>
         <v-chip
           v-if="selectedCandidate"
-          class="selected-chip ms-auto"
+          class="selected-chip ms-auto rf-animated-pulse"
           color="success"
           variant="tonal"
           size="small"
@@ -202,23 +204,44 @@ function onClearSelection() {
   </v-card>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .candidate-search-card {
   position: relative;
   overflow: hidden;
-  width: min(520px, 92vw);
+  width: min(600px, 92vw);
   margin: 0 auto;
-  background: linear-gradient(150deg, rgba(124, 77, 255, 0.24) 0%, rgba(41, 121, 255, 0.16) 42%, rgba(4, 21, 61, 0.3) 100%);
-  border: 1px solid rgba(var(--v-theme-primary), 0.3);
-  box-shadow: 0 32px 56px rgba(15, 9, 45, 0.3);
-  min-height: 360px;
+  background: var(--rf-glass-bg);
+  backdrop-filter: var(--rf-glass-blur-strong);
+  border: 2px solid var(--rf-glass-border);
+  box-shadow: var(--rf-shadow-hero);
+  min-height: 380px;
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
+  
+  &:hover {
+    box-shadow: 0 35px 70px rgba(0, 0, 0, 0.2);
+    border-color: rgba(var(--v-theme-primary), 0.4);
+  }
 }
 
 .card-overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 55%);
-  opacity: 0.9;
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card-decoration {
+  position: absolute;
+  top: -30%;
+  right: -15%;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: rf-pulse 4s ease-in-out infinite;
 }
 
 .card-body {
@@ -240,26 +263,35 @@ function onClearSelection() {
 .card-header-icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: rgba(var(--v-theme-primary), 0.18);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--rf-radius-lg);
+  background: var(--rf-gradient-primary-soft);
+  box-shadow: var(--rf-shadow-card);
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
+  
+  .candidate-search-card:hover & {
+    transform: scale(1.05) rotate(5deg);
+    box-shadow: var(--rf-shadow-primary);
+  }
 }
 
 .card-header-text {
   flex: 1;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(var(--v-theme-on-surface), 0.95);
 }
 
 .card-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 4px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
 }
 
 .card-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   opacity: 0.75;
+  line-height: 1.5;
 }
 
 .selected-chip {
@@ -271,9 +303,17 @@ function onClearSelection() {
   display: flex;
   align-items: center;
   gap: 12px;
-  background-color: rgba(21, 101, 192, 0.16) !important;
-  border: 1px solid rgba(var(--v-theme-primary), 0.35);
+  background: var(--rf-glass-bg) !important;
+  backdrop-filter: var(--rf-glass-blur);
+  border: 2px solid rgba(var(--v-theme-success), 0.4);
   min-height: 96px;
+  box-shadow: var(--rf-shadow-success);
+  transition: all var(--rf-transition-normal);
+  
+  &:hover {
+    border-color: rgba(var(--v-theme-success), 0.6);
+    transform: translateY(-2px);
+  }
 }
 
 .selected-info {
@@ -297,47 +337,93 @@ function onClearSelection() {
 }
 
 .candidate-search-input :deep(.v-field) {
-  border-radius: 18px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  background: rgba(11, 18, 43, 0.65);
-  backdrop-filter: blur(10px);
+  border-radius: var(--rf-radius-lg);
+  box-shadow: var(--rf-shadow-card);
+  background: var(--rf-glass-bg);
+  backdrop-filter: var(--rf-glass-blur);
+  border: 2px solid var(--rf-glass-border);
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
 }
 
 .candidate-search-input :deep(.v-field:hover) {
-  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-primary), 0.4);
+  border-color: rgba(var(--v-theme-primary), 0.4);
+  box-shadow: var(--rf-shadow-primary);
+  transform: translateY(-2px);
+}
+
+.candidate-search-input :deep(.v-field:focus-within) {
+  border-color: rgba(var(--v-theme-primary), 0.6);
+  box-shadow: var(--rf-shadow-primary-hover);
 }
 
 .candidate-search-input :deep(.v-field__input) {
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 0.95rem;
+  color: rgba(var(--v-theme-on-surface), 0.95);
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .candidate-search-input :deep(.v-label) {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  font-weight: 500;
 }
 
 .suggestions-card {
-  border-radius: 18px;
+  border-radius: var(--rf-radius-lg);
   overflow: hidden;
-  backdrop-filter: blur(14px);
-  background: rgba(10, 13, 32, 0.92);
+  backdrop-filter: var(--rf-glass-blur);
+  background: var(--rf-glass-bg);
+  border: 2px solid var(--rf-glass-border);
+  box-shadow: var(--rf-shadow-hero);
 }
 
 .candidate-suggestion-item {
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
+  border-radius: var(--rf-radius-md);
+  margin: 0.25rem 0.5rem;
 }
 
 .candidate-suggestion-item:hover {
-  background-color: rgba(var(--v-theme-primary), 0.12);
-  transform: translateX(4px);
+  background: var(--rf-gradient-primary-soft);
+  transform: translateX(6px) scale(1.02);
+  box-shadow: var(--rf-shadow-card);
 }
 
 .candidate-suggestion-item :deep(.v-list-item-subtitle) {
   opacity: 0.7;
 }
 
+// Dark mode
+.v-theme--dark {
+  .candidate-search-card {
+    background: rgba(30, 30, 30, 0.95);
+    border-color: rgba(255, 255, 255, 0.15);
+    
+    &:hover {
+      border-color: rgba(var(--v-theme-primary), 0.5);
+    }
+  }
+  
+  .card-title {
+    color: rgba(255, 255, 255, 0.95);
+  }
+  
+  .card-subtitle {
+    color: rgba(255, 255, 255, 0.75);
+  }
+  
+  .card-decoration {
+    background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%);
+  }
+}
+
+// Responsividade
 @media (max-width: 600px) {
+  .candidate-search-card {
+    width: 95vw;
+    min-height: 340px;
+  }
+  
   .card-body {
     padding: 28px 22px;
   }
@@ -345,20 +431,37 @@ function onClearSelection() {
   .card-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .card-header-icon {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .card-title {
+    font-size: 1.1rem;
+  }
+  
+  .card-subtitle {
+    font-size: 0.875rem;
   }
 
   .selected-banner {
     flex-direction: column;
     align-items: flex-start;
     width: 100%;
-  }
-
-  .candidate-search-card {
-    min-height: 320px;
-  }
-
-  .selected-banner {
     min-height: auto;
+    padding: 1rem;
+  }
+  
+  .selected-chip {
+    margin-left: 0 !important;
+    margin-top: 0.5rem;
+  }
+  
+  .candidate-suggestion-item:hover {
+    transform: translateX(3px) scale(1.01);
   }
 }
 </style>

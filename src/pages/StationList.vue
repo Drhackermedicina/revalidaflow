@@ -11,7 +11,8 @@ import CandidateSearchBar from '@/components/search/CandidateSearchBar.vue'
 import SequentialConfigPanel from '@/components/sequential/SequentialConfigPanel.vue'
 import ModeSelectionCard from '@/components/station/ModeSelectionCard.vue'
 import SectionHeroCard from '@/components/station/SectionHeroCard.vue'
-import StationListHeader from '@/components/station/StationListHeader.vue'
+import HeroIntroCard from '@/components/station/HeroIntroCard.vue'
+import SelectedCandidateCard from '@/components/station/SelectedCandidateCard.vue'
 import AdminUploadCard from '@/components/admin/AdminUploadCard.vue'
 import stationRepository from '@/repositories/stationRepository'
 
@@ -424,7 +425,20 @@ function applyRouteState() {
 <template>
   <!-- Hero Section Moderno -->
   <v-container fluid class="pa-0 main-content-container">
-    <v-row>
+    <!-- Hero Intro Card - Apenas quando ainda não escolheu o modo -->
+    <v-row v-if="!selectedMode && !shouldShowCandidateSearch">
+      <v-col cols="12" class="py-8">
+        <HeroIntroCard
+          title="Como você quer treinar hoje?"
+          subtitle="Escolha entre treinamento individual ou simulação completa sequencial"
+          icon="ri-stethoscope-line"
+          :station-count="allStationsForCounts.length"
+        />
+      </v-col>
+    </v-row>
+    
+    <!-- Hero Section Simples (para estado inicial de busca) -->
+    <v-row v-if="shouldShowCandidateSearch">
       <v-col cols="12" class="text-center py-12 hero-section-modern">
         <h1 class="display-lg mb-4">
           <span class="gradient-text">Estações de Simulação</span>
@@ -437,145 +451,158 @@ function applyRouteState() {
 
     <v-row>
       <v-col cols="12" md="12" class="mx-auto section-container">
-        <AdminUploadCard v-if="isAdmin" @navigate-to-upload="goToAdminUpload" />
-
-        <div v-if="shouldShowCandidateSearch" class="candidate-search-section">
-          <CandidateSearchBar
-            v-model="candidateSearchQuery"
-            v-model:show-suggestions="showCandidateSuggestions"
-            :suggestions="candidateSearchSuggestions"
-            :loading="isLoadingCandidateSearch"
-            :selected-candidate="selectedCandidate"
-            @search="searchCandidates"
-            @select-candidate="selectCandidate"
-            @clear-selection="clearCandidateSelection"
+        <div class="page-content">
+          <AdminUploadCard
+            v-if="isAdmin"
+            class="admin-card"
+            @navigate-to-upload="goToAdminUpload"
           />
 
-          <div class="d-flex justify-center mt-6">
-            <v-btn
-              class="modern-btn outline-btn"
-              variant="outlined"
-              size="large"
-              @click="viewStationsDirectly"
-            >
-              <VIcon icon="ri-eye-line" class="mr-2" :tabindex="undefined" />
-              Explorar Estações sem Seleção
-            </v-btn>
-          </div>
-        </div>
+          <div v-if="shouldShowCandidateSearch" class="candidate-search-section">
+            <CandidateSearchBar
+              v-model="candidateSearchQuery"
+              v-model:show-suggestions="showCandidateSuggestions"
+              :suggestions="candidateSearchSuggestions"
+              :loading="isLoadingCandidateSearch"
+              :selected-candidate="selectedCandidate"
+              @search="searchCandidates"
+              @select-candidate="selectCandidate"
+              @clear-selection="clearCandidateSelection"
+            />
 
-        <div v-if="shouldShowModeSelection" class="mode-selection-container hero-card-modern">
-          <div class="text-center mb-8">
-            <h2 class="heading-lg mb-4 gradient-text">Escolha o Modo de Treinamento</h2>
-            <p class="body-md text-medium-emphasis">
-              Selecione como deseja realizar suas simulações médicas
-            </p>
-          </div>
-          
-          <v-row>
-            <v-col cols="12" md="6" class="mb-4">
-              <ModeSelectionCard
-                title="Treinamento Simples"
-                description="Pratique uma estação por vez, no seu próprio ritmo e horário"
-                icon="ri-user-follow-line"
-                color="success"
-                duration="~ 15 minutos por estação"
-                @select="handleModeSelection('simple-training')"
-              />
-            </v-col>
-            <v-col cols="12" md="6" class="mb-4">
-              <ModeSelectionCard
-                title="Simulação Completa"
-                description="Experimente múltiplas estações em sequência realista"
-                icon="ri-play-list-line"
-                color="primary"
-                duration="~ 60-90 minutos total"
-                @select="handleModeSelection('simulation')"
-              />
-            </v-col>
-          </v-row>
-        </div>
-
-        <StationListHeader
-          v-if="shouldShowStationList"
-          :selected-candidate="selectedCandidate"
-          :selected-mode="selectedMode"
-          :mode-title="modeInfo?.title"
-          :mode-description="modeInfo?.description"
-          @back-to-mode-selection="handleBackToModeSelection"
-          @change-candidate="handleChangeCandidate"
-        />
-
-        <SequentialConfigPanel
-          v-if="isSimulationModeActive && shouldShowStationList"
-          :show="showSequentialConfig"
-          :selected-stations="selectedStationsSequence"
-          @toggle="toggleSequentialConfig"
-          @move-station="moveStationInSequence"
-          @remove-station="removeFromSequence"
-          @start="handleStartSequentialSimulation"
-          @reset="resetSequentialConfig"
-        />
-
-        <!-- Seção de Cards Hero Modernos -->
-        <div v-if="shouldShowStationList" class="hero-cards-section">
-          <div class="text-center mb-8">
-            <h3 class="heading-md mb-4">Escolha a Categoria</h3>
-            <p class="body-md text-medium-emphasis">
-              Acesse diferentes tipos de estações organizadas por origem
-            </p>
-          </div>
-          
-          <v-row class="justify-center">
-            <v-col cols="12" sm="6" md="5" lg="4" class="d-flex justify-center mb-6">
-              <div class="hero-card-wrapper">
-                <SectionHeroCard
-                  title="INEP — Provas Anteriores"
-                  subtitle="Acesse estações organizadas por período de exame"
-                  :image="inepIcon"
-                  :badge-count="inepTotalAll"
-                  color="primary"
-                  gradient-start="#ECF4FF"
-                  gradient-end="#F7FAFF"
-                  @click="openInepSection"
-                />
-              </div>
-            </v-col>
-            <v-col cols="12" sm="6" md="5" lg="4" class="d-flex justify-center mb-6">
-              <div class="hero-card-wrapper">
-                <SectionHeroCard
-                  title="REVALIDA FLOW"
-                  subtitle="Estações organizadas por especialidade médica"
-                  image="/botaosemfundo.png"
-                  :badge-count="revalidaTotalAll"
-                  color="success"
-                  gradient-start="#E9F7EF"
-                  gradient-end="#F5FBF7"
-                  @click="openRevalidaSection"
-                />
-              </div>
-            </v-col>
-          </v-row>
-        </div>
-
-        <!-- Loading State Modernizado -->
-        <div v-if="shouldShowStationList" ref="loadMoreSentinel" class="load-more-sentinel" />
-        
-        <v-row v-if="shouldShowStationList && isLoadingMoreStations" class="mt-8">
-          <v-col cols="12" class="text-center">
-            <div class="loading-container">
-              <v-progress-circular
-                indeterminate
-                size="48"
-                width="4"
-                color="primary"
-                class="mb-4"
-              />
-              <div class="body-md text-medium-emphasis">Carregando mais estações...</div>
+            <div class="d-flex justify-center mt-6">
+              <v-btn
+                class="modern-btn outline-btn"
+                variant="outlined"
+                size="large"
+                @click="viewStationsDirectly"
+              >
+                <VIcon icon="ri-eye-line" class="mr-2" :tabindex="undefined" />
+                Explorar Estações sem Seleção
+              </v-btn>
             </div>
-          </v-col>
-        </v-row>
+          </div>
 
+          <div v-if="shouldShowModeSelection" class="mode-selection-container hero-card-modern">
+            <div class="text-center mb-8">
+              <h2 class="heading-lg mb-4 gradient-text">Escolha o Modo de Treinamento</h2>
+              <p class="body-md text-medium-emphasis">
+                Selecione como deseja realizar suas simulações médicas
+              </p>
+            </div>
+            
+            <v-row>
+              <v-col cols="12" md="6" class="mb-4">
+                <ModeSelectionCard
+                  title="Treinamento Simples"
+                  description="Pratique uma estação por vez, no seu próprio ritmo e horário"
+                  icon="ri-user-follow-line"
+                  color="success"
+                  duration="~ 15 minutos por estação"
+                  @select="handleModeSelection('simple-training')"
+                />
+              </v-col>
+              <v-col cols="12" md="6" class="mb-4">
+                <ModeSelectionCard
+                  title="Simulação Completa"
+                  description="Experimente múltiplas estações em sequência realista"
+                  icon="ri-play-list-line"
+                  color="primary"
+                  duration="~ 60-90 minutos total"
+                  @select="handleModeSelection('simulation')"
+                />
+              </v-col>
+            </v-row>
+          </div>
+
+          <div
+            v-if="shouldShowStationList && selectedMode && selectedCandidate"
+            class="selected-candidate-wrapper"
+          >
+            <SelectedCandidateCard
+              :candidate="selectedCandidate"
+              @back="handleBackToModeSelection"
+              @change="handleChangeCandidate"
+            />
+          </div>
+
+          <SequentialConfigPanel
+            v-if="isSimulationModeActive && shouldShowStationList"
+            class="sequential-panel"
+            :show="showSequentialConfig"
+            :selected-stations="selectedStationsSequence"
+            @toggle="toggleSequentialConfig"
+            @move-station="moveStationInSequence"
+            @remove-station="removeFromSequence"
+            @start="handleStartSequentialSimulation"
+            @reset="resetSequentialConfig"
+          />
+
+          <!-- Seção de Cards Hero Modernos - Apenas após escolher o modo -->
+          <div v-if="shouldShowStationList && selectedMode" class="hero-cards-section">
+            <div class="text-center mb-8">
+              <h3 class="heading-md mb-4">Escolha a Categoria</h3>
+              <p class="body-md text-medium-emphasis">
+                Acesse diferentes tipos de estações organizadas por origem
+              </p>
+            </div>
+            
+            <v-row class="justify-center">
+              <v-col cols="12" sm="6" md="5" lg="4" class="d-flex justify-center mb-6">
+                <div class="hero-card-wrapper">
+                  <SectionHeroCard
+                    title="INEP — Provas Anteriores"
+                    subtitle="Acesse estações organizadas por período de exame oficial"
+                    :image="inepIcon"
+                    :badge-count="inepTotalAll"
+                    color="primary"
+                    gradient-start="#ECF4FF"
+                    gradient-end="#F7FAFF"
+                    cta-label="Explorar INEP"
+                    cta-icon="ri-arrow-right-line"
+                    decorative-icon="ri-government-line"
+                    @click="openInepSection"
+                  />
+                </div>
+              </v-col>
+              <v-col cols="12" sm="6" md="5" lg="4" class="d-flex justify-center mb-6">
+                <div class="hero-card-wrapper">
+                  <SectionHeroCard
+                    title="REVALIDA FLOW"
+                    subtitle="Estações organizadas por especialidade médica para treino focado"
+                    image="/botaosemfundo.png"
+                    :badge-count="revalidaTotalAll"
+                    color="success"
+                    gradient-start="#E9F7EF"
+                    gradient-end="#F5FBF7"
+                    cta-label="Explorar Especialidades"
+                    cta-icon="ri-arrow-right-line"
+                    decorative-icon="ri-heart-pulse-line"
+                    @click="openRevalidaSection"
+                  />
+                </div>
+              </v-col>
+            </v-row>
+          </div>
+
+          <!-- Loading State Modernizado -->
+          <div v-if="shouldShowStationList" ref="loadMoreSentinel" class="load-more-sentinel" />
+          
+          <v-row v-if="shouldShowStationList && isLoadingMoreStations" class="mt-8">
+            <v-col cols="12" class="text-center">
+              <div class="loading-container">
+                <v-progress-circular
+                  indeterminate
+                  size="48"
+                  width="4"
+                  color="primary"
+                  class="mb-4"
+                />
+                <div class="body-md text-medium-emphasis">Carregando mais estações...</div>
+              </div>
+            </v-col>
+          </v-row>
+        </div>
       </v-col>
     </v-row>
   </v-container>
@@ -606,6 +633,14 @@ function applyRouteState() {
   --shadow-card: 0 4px 20px rgba(0,0,0,0.08);
   --shadow-hover: 0 20px 40px rgba(0,0,0,0.12);
   --shadow-hero: 0 25px 50px rgba(0,0,0,0.15);
+}
+:deep(.v-theme--dark) {
+  --bg-gradient: linear-gradient(170deg, #1d1237 0%, #0f0a23 100%);
+  --card-gradient: linear-gradient(155deg, rgba(126, 87, 255, 0.22), rgba(34, 197, 255, 0.1));
+  --glass-border: rgba(193, 174, 255, 0.35);
+  --shadow-card: 0 18px 42px rgba(24, 15, 56, 0.55);
+  --shadow-hover: 0 26px 54px rgba(24, 15, 56, 0.6);
+  --shadow-hero: 0 32px 68px rgba(31, 18, 73, 0.58);
 }
 
 // ============================================================================
@@ -916,6 +951,57 @@ function applyRouteState() {
   padding: 3rem 2rem;
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-card);
+}
+
+.selected-candidate-wrapper {
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+}
+
+.page-content {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.page-content > * {
+  margin-bottom: 0 !important;
+}
+
+.page-content :deep(.admin-card) {
+  border-radius: 20px;
+  background: linear-gradient(155deg, rgba(255, 138, 128, 0.18), rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: var(--shadow-card);
+}
+
+.page-content :deep(.admin-card .v-card-text) {
+  padding-inline: 1.5rem;
+}
+
+.page-content :deep(.sequential-panel > .v-card) {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(160deg, rgba(126, 87, 255, 0.16), rgba(34, 197, 255, 0.06)), rgba(18, 16, 43, 0.6);
+  box-shadow: var(--shadow-card);
+}
+
+.page-content :deep(.sequential-panel > .v-card:first-of-type) {
+  background: linear-gradient(145deg, rgba(126, 87, 255, 0.16), rgba(34, 197, 255, 0.06));
+}
+
+.page-content :deep(.sequential-panel .v-card-title) {
+  background: linear-gradient(135deg, rgba(126, 87, 255, 0.3), rgba(34, 197, 255, 0.25));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.page-content :deep(.sequential-panel .v-alert) {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
 }
 
 // ============================================================================

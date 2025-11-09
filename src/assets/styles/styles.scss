@@ -1,5 +1,10 @@
 // Write your overrides
 
+// ============================================================================
+// 🎨 IMPORTAR TOKENS MODERNOS
+// ============================================================================
+@import './modern-tokens.scss';
+
 /* Correção para avisos de aria-hidden em ícones SVG do Vuetify/Iconify */
 /* Previne que SVGs com aria-hidden recebam foco, eliminando conflito de acessibilidade */
 .v-icon svg[aria-hidden="true"] {

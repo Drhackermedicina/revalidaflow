@@ -111,6 +111,241 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
     simulationStarted.value
   )
 
+  function isFormalRequest(text) {
+    if (!text) return false
+    const normalized = text.trim().toLowerCase()
+    return (
+      normalized.startsWith('solicito ') ||
+      normalized.startsWith('solicita ') ||
+      normalized.startsWith('solicitar ') ||
+      normalized.startsWith('eu quero ')
+    )
+  }
+
+  function normalizeText(str = '') {
+    return String(str || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  function stripRequestPrefix(message = '') {
+    const prefixes = ['solicito ', 'solicita ', 'solicitar ', 'eu quero ']
+    let text = message.toLowerCase().trim()
+    for (const prefix of prefixes) {
+      if (text.startsWith(prefix)) {
+        text = text.slice(prefix.length)
+        break
+      }
+    }
+    return text
+  }
+
+  const synonymGroups = [
+    ['raio x', 'raiox', 'raio-x', 'rx', 'radiografia', 'radiografias'],
+    ['torax', 'torac', 'tx', 'peito'],
+    ['abdomen', 'abdomem'],
+    ['tomografia', 'tc', 'tomo'],
+    ['ressonancia', 'rm'],
+    ['ultrassom', 'usg', 'ultrassonografia', 'ecografia'],
+    ['eletrocardiograma', 'ecg'],
+    ['hemograma', 'hemograma completo'],
+    ['glicemia', 'glicemia capilar'],
+    ['sinais vitais', 'ssvv', 'sinais'],
+    ['exame fisico', 'semiologia', 'propedeutica']
+  ].map(group => group.map(term => normalizeText(term)))
+
+  function expandSynonyms(text) {
+    let expanded = text
+    for (const group of synonymGroups) {
+      if (group.some(term => expanded.includes(term))) {
+        group.forEach(term => {
+          if (!expanded.includes(term)) {
+            expanded += ` ${term}`
+          }
+        })
+      }
+    }
+    return expanded
+  }
+
+  function tokenSet(str) {
+    return new Set(str.split(' ').filter(Boolean))
+  }
+
+  function jaccardSimilarity(a, b) {
+    const setA = tokenSet(a)
+    const setB = tokenSet(b)
+    const intersection = [...setA].filter(item => setB.has(item)).length
+    const union = new Set([...setA, ...setB]).size || 1
+    return intersection / union
+  }
+
+  function includesAny(text, keywords) {
+    return keywords.some(keyword => text.includes(keyword))
+  }
+
+  function collectMaterialsByKeywords(materials, keywords) {
+    const matches = new Set()
+    materials.forEach(material => {
+      const normalized = normalizeText([
+        material.tituloImpresso,
+        material.titulo,
+        material.tipoConteudo,
+        material.descricao,
+        material.categoria,
+        material.subcategoria,
+        Array.isArray(material.palavrasChave) ? material.palavrasChave.join(' ') : '',
+        material.conteudo?.texto,
+        material.conteudo?.textoDescritivo,
+        material.conteudo?.laudo,
+      ].filter(Boolean).join(' '))
+
+      if (keywords.some(keyword => normalized.includes(keyword))) {
+        const id = material.idImpresso || material.id
+        if (id) {
+          matches.add(id)
+        }
+      }
+    })
+    return matches
+  }
+
+  function extractMaterialFields(material) {
+    const title = normalizeText([material.tituloImpresso, material.titulo].filter(Boolean).join(' '))
+
+    const contentParts = []
+    const content = material.conteudo
+    if (typeof content === 'string') {
+      contentParts.push(content)
+    } else if (content && typeof content === 'object') {
+      Object.values(content).forEach(value => {
+        if (!value) return
+        if (typeof value === 'string') {
+          contentParts.push(value)
+        } else if (Array.isArray(value)) {
+          contentParts.push(value.join(' '))
+        } else if (typeof value === 'object') {
+          contentParts.push(Object.values(value).join(' '))
+        }
+      })
+    }
+
+    const bag = normalizeText([
+      material.tipoConteudo,
+      material.descricao,
+      material.categoria,
+      material.subcategoria,
+      Array.isArray(material.palavrasChave) ? material.palavrasChave.join(' ') : '',
+      ...contentParts,
+    ].filter(Boolean).join(' '))
+
+    return {
+      title,
+      bag,
+      tipo: (material.tipoConteudo || '').toLowerCase(),
+    }
+  }
+
+  function findSpecificMaterial(candidateMessage, materials) {
+    if (!candidateMessage || !Array.isArray(materials) || materials.length === 0) {
+      return null
+    }
+
+    const request = stripRequestPrefix(candidateMessage)
+    const expandedRequest = expandSynonyms(normalizeText(request))
+
+    let bestMatch = { material: null, score: 0 }
+
+    materials.forEach(material => {
+      const { title, bag, tipo } = extractMaterialFields(material)
+      if (!title && !bag) return
+
+      const titleScore = jaccardSimilarity(expandedRequest, title)
+      const bagScore = tipo.includes('imagem') ? 0 : jaccardSimilarity(expandedRequest, bag)
+
+      let bonus = 0
+      if (includesAny(title, ['raio x', 'raio-x', 'rx', 'radiografia']) &&
+        includesAny(expandedRequest, ['raio x', 'raio-x', 'rx', 'radiografia'])) {
+        bonus += 0.2
+      }
+      if (includesAny(title, ['torax', 'torac']) &&
+        includesAny(expandedRequest, ['torax', 'torac'])) {
+        bonus += 0.1
+      }
+
+      let score = titleScore * 0.8 + bagScore * 0.2 + bonus
+      if (tipo.includes('imagem')) {
+        score = titleScore + bonus
+      }
+
+      if (score > bestMatch.score) {
+        bestMatch = { material, score }
+      }
+    })
+
+    if (bestMatch.material && bestMatch.score >= 0.2) {
+      return bestMatch.material.idImpresso || bestMatch.material.id || null
+    }
+
+    const bannedTokens = new Set(['exame', 'exames', 'fisico', 'físico', 'fisica', 'física', 'fisicos', 'físicos'])
+    const requestTokens = [...tokenSet(expandedRequest)].filter(token => token.length > 2 && !bannedTokens.has(token))
+    for (const material of materials) {
+      const titleTokens = tokenSet(normalizeText(material.tituloImpresso || material.titulo || ''))
+      if (requestTokens.some(token => titleTokens.has(token))) {
+        return material.idImpresso || material.id || null
+      }
+    }
+
+    return null
+  }
+
+  function handleMaterialRequest(candidateMessage) {
+    if (!isFormalRequest(candidateMessage) || !stationData.value) {
+      return { status: 'none' }
+    }
+
+    const materials = getAllStationMaterials()
+    if (!materials.length) {
+      return { status: 'not_found', message: 'Não está disponível esse exame.' }
+    }
+
+    const normalizedRequest = normalizeText(stripRequestPrefix(candidateMessage))
+    const matchedIds = new Set()
+
+    const labRequestKeywords = ['exame labor', 'exames labor', 'laborator', 'laboratorio', 'laboratoriais']
+    if (labRequestKeywords.some(keyword => normalizedRequest.includes(keyword))) {
+      const labMaterialKeywords = [
+        'lab', 'hemograma', 'hemat', 'bioquim', 'glic', 'ureia', 'creatinina', 'gasometr',
+        'coagul', 'urina', 'urinalise', 'cultura', 'paras', 'eletr', 'sodio', 'potassio',
+        'colesterol', 'enzim'
+      ]
+      collectMaterialsByKeywords(materials, labMaterialKeywords).forEach(id => matchedIds.add(id))
+    }
+
+    if (!matchedIds.size) {
+      const specificId = findSpecificMaterial(candidateMessage, materials)
+      if (specificId) {
+        matchedIds.add(specificId)
+      }
+    }
+
+    if (matchedIds.size) {
+      matchedIds.forEach(id => {
+        const key = String(id)
+        if (key && !releasedData.value[key]) {
+          releaseMaterialById(id)
+        }
+      })
+      return { status: 'released', message: 'Considere solicitado.' }
+    }
+
+    return { status: 'not_found', message: 'Não está disponível esse exame.' }
+  }
+
   async function resolveAuthContext() {
     const user = currentUser.value
     if (!user || typeof user.getIdToken !== 'function') {
@@ -152,6 +387,11 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
   }
 
   async function processAIResponse(candidateMessage) {
+    const materialOutcome = handleMaterialRequest(candidateMessage)
+    if (materialOutcome.status === 'released' || materialOutcome.status === 'not_found') {
+      return materialOutcome.message
+    }
+
     try {
       const authContext = await resolveAuthContext()
       if (!authContext.token || !authContext.userId) {

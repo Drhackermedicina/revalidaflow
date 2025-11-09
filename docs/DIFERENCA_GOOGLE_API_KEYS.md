@@ -254,3 +254,5 @@ GOOGLE_API_KEY_1=AIzaSy...       ❌ NÃO será exposta (apenas backend)
 
 
 
+
+

@@ -152,8 +152,6 @@ const {
 });
 
 const speechBuffer = ref('')
-const pendingAutoSend = ref(false)
-const manualStopActive = ref(false)
 
 function combineSpeechSegments(...segments) {
   return segments
@@ -187,9 +185,6 @@ function handleTranscriptEnd(finalChunk) {
   if (!chunk) return
   speechBuffer.value = combineSpeechSegments(speechBuffer.value, chunk)
   currentMessage.value = speechBuffer.value
-  if (pendingAutoSend.value) {
-    autoSendCurrentMessage()
-  }
 }
 
 function handleSendMessage(messageOverride) {
@@ -199,26 +194,9 @@ function handleSendMessage(messageOverride) {
   if (!rawMessage?.trim()) return
   sendMessage(rawMessage)
   speechBuffer.value = ''
-  pendingAutoSend.value = false
 }
 
-function autoSendCurrentMessage() {
-  const message = currentMessage.value.trim()
-  if (!message) {
-    pendingAutoSend.value = false
-    manualStopActive.value = false
-    return
-  }
-  pendingAutoSend.value = false
-  manualStopActive.value = false
-  handleSendMessage(message)
-}
-
-function handleListeningEnd() {
-  if (manualStopActive.value || !autoRecordMode.value) {
-    autoSendCurrentMessage()
-  }
-}
+function handleListeningEnd() {}
 
 function handleChatKeyPress(event) {
   if (event.key === 'Enter' && !event.shiftKey) {
@@ -228,15 +206,11 @@ function handleChatKeyPress(event) {
 }
 
 function handleStartListening() {
-  pendingAutoSend.value = false
   speechBuffer.value = currentMessage.value.trim()
   startListening()
 }
 
 function handleStopListening() {
-  pendingAutoSend.value = true
-  // Indica explicitamente para o composable que foi parada manual
-  manualStopActive.value = true
   stopListening()
 }
 
@@ -299,6 +273,24 @@ const candidateReceivedScores = ref({}); // Variável que faltava
 
 const actorScriptSections = computed(() => stationData.value?.materiaisDisponiveis?.informacoesVerbaisSimulado || [])
 const allStationImpressos = computed(() => collectAllStationMaterials(stationData.value))
+const allowedActorTags = ['p', 'strong', 'em', 'u', 'br', 'ol', 'ul', 'li']
+
+function sanitizeActorScriptHtml(text = '') {
+  if (!text || typeof text !== 'string') {
+    return ''
+  }
+  let sanitized = text
+  sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+  sanitized = sanitized.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+  sanitized = sanitized.replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+
+  const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g
+  sanitized = sanitized.replace(tagRegex, (match, tagName) => {
+    return allowedActorTags.includes(tagName.toLowerCase()) ? match : ''
+  })
+
+  return sanitized
+}
 
 const pendingImpressos = computed(() => {
   const released = releasedData.value || {}
@@ -313,13 +305,11 @@ const pendingImpressos = computed(() => {
 watch(currentMessage, (val, oldVal) => {
   if (!val && oldVal) {
     speechBuffer.value = ''
-    pendingAutoSend.value = false
   }
 })
 
 watch(autoRecordMode, (value) => {
   if (value) {
-    pendingAutoSend.value = false
     speechBuffer.value = ''
   }
 })
@@ -341,7 +331,6 @@ async function loadSimulationData(currentStationId, { preserveWorkflowState = fa
   showPepCorrection.value = false
   conversationHistory.value = []
   speechBuffer.value = ''
-  pendingAutoSend.value = false
   logger.debug('Histórico de conversa limpo para nova estação:', currentStationId)
 
   try {
@@ -608,7 +597,6 @@ watch(simulationEnded, async (ended) => {
   stopSpeaking()
   showPepCorrection.value = false
   speechBuffer.value = ''
-  pendingAutoSend.value = false
 
   if (autoEvaluateEnabled.value) {
     try {
@@ -635,7 +623,6 @@ watch(simulationStarted, (newValue) => {
   if (newValue) {
     logger.debug('Simulação IA iniciada - status "treinando_com_ia" ativo')
     speechBuffer.value = ''
-    pendingAutoSend.value = false
     if (autoRecordMode.value) {
       startListening()
     } else {
@@ -653,14 +640,13 @@ watch(simulationStarted, (newValue) => {
         inputEl.focus()
       }
     })
-  } else {
-    autoRecordMode.value = false
-    stopListening()
-    stopSpeaking()
-    showMicHint.value = false
-    speechBuffer.value = ''
-    pendingAutoSend.value = false
-    if (micHintTimer) {
+    } else {
+      autoRecordMode.value = false
+      stopListening()
+      stopSpeaking()
+      showMicHint.value = false
+      speechBuffer.value = ''
+      if (micHintTimer) {
       clearTimeout(micHintTimer)
       micHintTimer = null
     }
@@ -981,7 +967,11 @@ onMounted(async () => {
                         class="mb-4"
                       >
                         <h6 class="text-subtitle-1 text-primary" v-if="section.contextoOuPerguntaChave">{{ section.contextoOuPerguntaChave }}</h6>
-                        <p class="text-body-2" v-if="section.informacao">{{ section.informacao }}</p>
+                        <div
+                          class="text-body-2 actor-script-text"
+                          v-if="section.informacao"
+                          v-html="sanitizeActorScriptHtml(section.informacao)"
+                        ></div>
                       </div>
                     </v-card-text>
                   </v-card>
@@ -1666,4 +1656,3 @@ onMounted(async () => {
   }
 }
 </style>
-

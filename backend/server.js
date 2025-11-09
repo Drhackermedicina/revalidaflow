@@ -1195,10 +1195,10 @@ function startSessionTimer(sessionId, durationSeconds, onTick, onEnd) {
 
 function stopSessionTimer(sessionId, reason) {
   const timerManager = getTimerManager();
-  
+
   // Parar timer no TimerManager
   timerManager.stopTimer(sessionId, reason);
-  
+
   sessionIntegration.updateTimer(sessionId, {
     isPaused: true,
     endTime: new Date()
@@ -1425,7 +1425,7 @@ io.on('connection', (socket) => {
         isReconnection = true;
         existingParticipant.socketId = socket.id;
         existingParticipant.disconnectedAt = null; // Limpar flag de desconexão
-        
+
         socketLogger.info('Usuário reconectado à sessão', {
           sessionId,
           userId,
@@ -1433,12 +1433,12 @@ io.on('connection', (socket) => {
           displayName,
           timeSinceDisconnect: (new Date() - new Date(existingParticipant.disconnectedAt)) / 1000
         });
-        
+
         // Se for ator/avaliador se reconectando e a simulação estava pausada
         if ((role === 'actor' || role === 'evaluator')) {
           const timerManager = getTimerManager();
           const timerData = timerManager.getTimer(sessionId);
-          
+
           if (timerData && timerData.isPaused && timerData.pauseReason === 'actor_disconnected') {
             // Não continuar automaticamente, apenas notificar que pode ser continuado
             socketLogger.info('Ator/avaliador reconectado, simulação continua pausada', {
@@ -1447,7 +1447,7 @@ io.on('connection', (socket) => {
             });
           }
         }
-        
+
         // Notificar outros participantes sobre a reconexão
         socket.to(sessionId).emit('SERVER_PARTNER_RECONNECTED', {
           message: 'Seu parceiro de simulação se reconectou.',
@@ -1457,7 +1457,7 @@ io.on('connection', (socket) => {
         });
       }
     }
-    
+
     // Se não for reconexão, adicionar novo participante
     if (!isReconnection) {
       session.participants.set(userId, {
@@ -1655,29 +1655,29 @@ io.on('connection', (socket) => {
     socket.on('CLIENT_TIMER_SYNC_REQUEST', (data) => {
       const { sessionId: targetSessionId, estimatedRemaining } = data;
       const session = sessions.get(targetSessionId);
-      
+
       if (!session || !session.timer) {
-        socketLogger.warn('Sessão ou timer não encontrado para sincronização', { 
-          sessionId: targetSessionId 
+        socketLogger.warn('Sessão ou timer não encontrado para sincronização', {
+          sessionId: targetSessionId
         });
         return;
       }
-      
+
       const timerManager = getTimerManager();
       const timerData = timerManager.getTimer(targetSessionId);
-      
+
       if (timerData) {
         // Ajustar timer com base no tempo estimado do cliente
         const adjustedRemaining = Math.min(
-          timerData.remainingSeconds, 
+          timerData.remainingSeconds,
           Math.max(0, estimatedRemaining || timerData.remainingSeconds)
         );
-        
+
         timerManager.syncTimer(targetSessionId, {
           remainingSeconds: adjustedRemaining,
           isPaused: timerData.isPaused // Manter estado de pausa
         });
-        
+
         socketLogger.info('Timer sincronizado para cliente reconectado', {
           sessionId: targetSessionId,
           originalTime: timerData.remainingSeconds,
@@ -1685,7 +1685,7 @@ io.on('connection', (socket) => {
           isPaused: timerData.isPaused,
           estimatedByClient: estimatedRemaining
         });
-        
+
         // Enviar estado atualizado para o cliente
         socket.emit('TIMER_SYNC_RESPONSE', {
           sessionId: targetSessionId,
@@ -1700,35 +1700,35 @@ io.on('connection', (socket) => {
     socket.on('CLIENT_PAUSE_SIMULATION', (data) => {
       const { sessionId: targetSessionId } = data;
       const session = sessions.get(targetSessionId);
-      
+
       if (!session) {
         socketLogger.warn('Sessão não encontrada para pausa', { sessionId: targetSessionId });
         return;
       }
-      
+
       const participant = session.participants.get(userId);
       if (!participant || (participant.role !== 'actor' && participant.role !== 'evaluator')) {
-        socketLogger.warn('Usuário não autorizado para pausar simulação', { 
-          sessionId: targetSessionId, 
+        socketLogger.warn('Usuário não autorizado para pausar simulação', {
+          sessionId: targetSessionId,
           userId,
-          role: participant?.role 
+          role: participant?.role
         });
         return;
       }
-      
+
       const timerManager = getTimerManager();
       const timerData = timerManager.getTimer(targetSessionId);
-      
+
       if (timerData && !timerData.isPaused) {
         timerManager.pauseTimer(targetSessionId, 'manual_pause');
-        
+
         sessionIntegration.updateTimer(targetSessionId, {
           isPaused: true,
           pausedAt: new Date()
         }).catch(error => {
           sessionLogger.warn('Erro ao atualizar estado de pausa no SessionIntegration', error.message);
         });
-        
+
         // Notificar todos na sessão sobre a pausa
         io.to(targetSessionId).emit('SIMULATION_PAUSED', {
           pausedBy: {
@@ -1738,7 +1738,7 @@ io.on('connection', (socket) => {
           },
           pausedAt: new Date().toISOString()
         });
-        
+
         socketLogger.info('Simulação pausada', {
           sessionId: targetSessionId,
           pausedBy: participant.displayName
@@ -1749,35 +1749,35 @@ io.on('connection', (socket) => {
     socket.on('CLIENT_RESUME_SIMULATION', (data) => {
       const { sessionId: targetSessionId } = data;
       const session = sessions.get(targetSessionId);
-      
+
       if (!session) {
         socketLogger.warn('Sessão não encontrada para continuar', { sessionId: targetSessionId });
         return;
       }
-      
+
       const participant = session.participants.get(userId);
       if (!participant || (participant.role !== 'actor' && participant.role !== 'evaluator')) {
-        socketLogger.warn('Usuário não autorizado para continuar simulação', { 
-          sessionId: targetSessionId, 
+        socketLogger.warn('Usuário não autorizado para continuar simulação', {
+          sessionId: targetSessionId,
           userId,
-          role: participant?.role 
+          role: participant?.role
         });
         return;
       }
-      
+
       const timerManager = getTimerManager();
       const timerData = timerManager.getTimer(targetSessionId);
-      
+
       if (timerData && timerData.isPaused) {
         timerManager.startTimer(targetSessionId);
-        
+
         sessionIntegration.updateTimer(targetSessionId, {
           isPaused: false,
           resumedAt: new Date()
         }).catch(error => {
           sessionLogger.warn('Erro ao atualizar estado de continuação no SessionIntegration', error.message);
         });
-        
+
         // Notificar todos na sessão sobre a continuação
         io.to(targetSessionId).emit('SIMULATION_RESUMED', {
           resumedBy: {
@@ -1787,7 +1787,7 @@ io.on('connection', (socket) => {
           },
           resumedAt: new Date().toISOString()
         });
-        
+
         socketLogger.info('Simulação continuada', {
           sessionId: targetSessionId,
           resumedBy: participant.displayName
@@ -1914,48 +1914,48 @@ io.on('connection', (socket) => {
           sessionId: targetSessionId  // Incluir sessionId no payload para validação no frontend
         });
 
-    // Liberação de PEP pelo ator/avaliador
-    socket.on('ACTOR_RELEASE_PEP', (data) => {
-      console.log('[PEP_DEBUG_BACKEND] 📥 Recebido ACTOR_RELEASE_PEP');
-      console.log('[PEP_DEBUG_BACKEND]   - data:', data);
-      
-      // VALIDAÇÃO: Garantir que o sessionId do payload corresponde à sessão do socket
-      const targetSessionId = data?.sessionId || sessionId;
-      const targetSession = sessions.get(targetSessionId);
+        // Liberação de PEP pelo ator/avaliador
+        socket.on('ACTOR_RELEASE_PEP', (data) => {
+          console.log('[PEP_DEBUG_BACKEND] 📥 Recebido ACTOR_RELEASE_PEP');
+          console.log('[PEP_DEBUG_BACKEND]   - data:', data);
 
-      if (!targetSession) {
-        console.log('[PEP_DEBUG_BACKEND] ❌ Sessão não encontrada para liberação de PEP', { targetSessionId });
-        pepLogger.warn('Sessão não encontrada para liberação de PEP', { targetSessionId });
-        return;
-      }
+          // VALIDAÇÃO: Garantir que o sessionId do payload corresponde à sessão do socket
+          const targetSessionId = data?.sessionId || sessionId;
+          const targetSession = sessions.get(targetSessionId);
 
-      const participant = targetSession.participants.get(userId);
-      if (participant && (participant.role === 'actor' || participant.role === 'evaluator')) {
-        console.log('[PEP_DEBUG_BACKEND] ✅ Liberando PEP', {
-          targetSessionId,
-          actor: participant.displayName,
-          userId,
-          participants: targetSession.participants.size
+          if (!targetSession) {
+            console.log('[PEP_DEBUG_BACKEND] ❌ Sessão não encontrada para liberação de PEP', { targetSessionId });
+            pepLogger.warn('Sessão não encontrada para liberação de PEP', { targetSessionId });
+            return;
+          }
+
+          const participant = targetSession.participants.get(userId);
+          if (participant && (participant.role === 'actor' || participant.role === 'evaluator')) {
+            console.log('[PEP_DEBUG_BACKEND] ✅ Liberando PEP', {
+              targetSessionId,
+              actor: participant.displayName,
+              userId,
+              participants: targetSession.participants.size
+            });
+
+            // Emitir para TODOS na sessão (incluindo o candidato)
+            const payload = {
+              shouldBeVisible: true,
+              sessionId: targetSessionId  // Incluir sessionId no payload para validação no frontend
+            };
+
+            console.log('[PEP_DEBUG_BACKEND] 📤 Emitindo CANDIDATE_RECEIVE_PEP_VISIBILITY');
+            console.log('[PEP_DEBUG_BACKEND]   - payload:', payload);
+
+            io.to(targetSessionId).emit('CANDIDATE_RECEIVE_PEP_VISIBILITY', payload);
+
+            console.log('[PEP_DEBUG_BACKEND] ✅ Evento CANDIDATE_RECEIVE_PEP_VISIBILITY emitido', { targetSessionId });
+            pepLogger.debug('Evento CANDIDATE_RECEIVE_PEP_VISIBILITY emitido', { targetSessionId });
+          } else {
+            console.log('[PEP_DEBUG_BACKEND] ❌ Usuário não autorizado para liberar PEP', { userId, targetSessionId });
+            pepLogger.warn('Usuário não autorizado para liberar PEP', { userId, targetSessionId });
+          }
         });
-
-        // Emitir para TODOS na sessão (incluindo o candidato)
-        const payload = {
-          shouldBeVisible: true,
-          sessionId: targetSessionId  // Incluir sessionId no payload para validação no frontend
-        };
-        
-        console.log('[PEP_DEBUG_BACKEND] 📤 Emitindo CANDIDATE_RECEIVE_PEP_VISIBILITY');
-        console.log('[PEP_DEBUG_BACKEND]   - payload:', payload);
-        
-        io.to(targetSessionId).emit('CANDIDATE_RECEIVE_PEP_VISIBILITY', payload);
-
-        console.log('[PEP_DEBUG_BACKEND] ✅ Evento CANDIDATE_RECEIVE_PEP_VISIBILITY emitido', { targetSessionId });
-        pepLogger.debug('Evento CANDIDATE_RECEIVE_PEP_VISIBILITY emitido', { targetSessionId });
-      } else {
-        console.log('[PEP_DEBUG_BACKEND] ❌ Usuário não autorizado para liberar PEP', { userId, targetSessionId });
-        pepLogger.warn('Usuário não autorizado para liberar PEP', { userId, targetSessionId });
-      }
-    });
         pepLogger.debug('Evento CANDIDATE_RECEIVE_PEP_VISIBILITY emitido', { targetSessionId });
       } else {
         pepLogger.warn('Usuário não autorizado para liberar PEP', { userId, targetSessionId });
@@ -1963,15 +1963,52 @@ io.on('connection', (socket) => {
     });
 
     // Ator/Avaliador envia atualizações de pontuação em tempo real
-    
+
     socket.on('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', (data) => {
-    // Ator/Avaliador envia atualizações de pontuação em tempo real
-    
-    socket.on('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', (data) => {
-      console.log('[PEP_DEBUG_BACKEND] 📥 Recebido EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE');
-      console.log('[PEP_DEBUG_BACKEND]   - data:', data);
-      console.log('[PEP_DEBUG_BACKEND]   - sessionId:', sessionId);
-      
+      // Ator/Avaliador envia atualizações de pontuação em tempo real
+
+      socket.on('EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE', (data) => {
+        console.log('[PEP_DEBUG_BACKEND] 📥 Recebido EVALUATOR_SCORES_UPDATED_FOR_CANDIDATE');
+        console.log('[PEP_DEBUG_BACKEND]   - data:', data);
+        console.log('[PEP_DEBUG_BACKEND]   - sessionId:', sessionId);
+
+        if (!session) return;
+        const participant = session.participants.get(userId);
+        // Apenas ator ou avaliador pode enviar estas atualizações
+        if (participant && (participant.role === 'actor' || participant.role === 'evaluator')) {
+          const { scores = {}, totalScore = 0, details = null, performance = null, markedPepItems = {} } = data;
+          const payload = {
+            scores,
+            totalScore
+
+          };
+
+          if (details) {
+            payload.details = details;
+          }
+          if (performance) {
+            payload.performance = performance;
+          }
+          if (markedPepItems) {
+            payload.markedPepItems = markedPepItems;
+          }
+
+          console.log('[PEP_DEBUG_BACKEND] 📤 Enviando CANDIDATE_RECEIVE_UPDATED_SCORES para todos na sessão');
+          console.log('[PEP_DEBUG_BACKEND]   - payload:', payload);
+
+          // Envia as notas atualizadas para todos na sessão (incluindo o candidato)
+          io.to(sessionId).emit('CANDIDATE_RECEIVE_UPDATED_SCORES', payload);
+          session.aiPepEvaluation = {
+            scores,
+            totalScore,
+            details: details || null,
+            performance: performance || null,
+            markedPepItems: markedPepItems || {},
+            updatedAt: new Date().toISOString()
+          };
+          pepLogger.debug('Pontuações atualizadas enviadas', { sessionId, totalScore });
+        }
+      });
       if (!session) return;
       const participant = session.participants.get(userId);
       // Apenas ator ou avaliador pode enviar estas atualizações
@@ -1980,44 +2017,7 @@ io.on('connection', (socket) => {
         const payload = {
           scores,
           totalScore
-        
-        };
 
-        if (details) {
-          payload.details = details;
-        }
-        if (performance) {
-          payload.performance = performance;
-        }
-        if (markedPepItems) {
-          payload.markedPepItems = markedPepItems;
-        }
-
-        console.log('[PEP_DEBUG_BACKEND] 📤 Enviando CANDIDATE_RECEIVE_UPDATED_SCORES para todos na sessão');
-        console.log('[PEP_DEBUG_BACKEND]   - payload:', payload);
-        
-        // Envia as notas atualizadas para todos na sessão (incluindo o candidato)
-        io.to(sessionId).emit('CANDIDATE_RECEIVE_UPDATED_SCORES', payload);
-        session.aiPepEvaluation = {
-          scores,
-          totalScore,
-          details: details || null,
-          performance: performance || null,
-          markedPepItems: markedPepItems || {},
-          updatedAt: new Date().toISOString()
-        };
-        pepLogger.debug('Pontuações atualizadas enviadas', { sessionId, totalScore });
-      }
-    });
-      if (!session) return;
-      const participant = session.participants.get(userId);
-      // Apenas ator ou avaliador pode enviar estas atualizações
-      if (participant && (participant.role === 'actor' || participant.role === 'evaluator')) {
-        const { scores = {}, totalScore = 0, details = null, performance = null, markedPepItems = {} } = data;
-        const payload = {
-          scores,
-          totalScore
-        
         };
 
         if (details) {
@@ -2127,7 +2127,7 @@ io.on('connection', (socket) => {
         const participant = session.participants.get(userId);
         participant.disconnectedAt = new Date();
         participant.socketId = null; // Limpar referência do socket
-        
+
         socketLogger.info('Usuário marcado como desconectado (mantido para reconexão)', {
           sessionId,
           userId,
@@ -2140,14 +2140,14 @@ io.on('connection', (socket) => {
         let shouldPauseSimulation = false;
         if (participant.role === 'actor' || participant.role === 'evaluator') {
           shouldPauseSimulation = true;
-          
+
           // Pausar timer automaticamente
           const timerManager = getTimerManager();
           const timerData = timerManager.getTimer(sessionId);
-          
+
           if (timerData && !timerData.isPaused) {
             timerManager.pauseTimer(sessionId, 'actor_disconnected');
-            
+
             sessionIntegration.updateTimer(sessionId, {
               isPaused: true,
               pausedAt: new Date(),
@@ -2155,7 +2155,7 @@ io.on('connection', (socket) => {
             }).catch(error => {
               sessionLogger.warn('Erro ao atualizar estado de pausa automática', error.message);
             });
-            
+
             socketLogger.info('Simulação pausada automaticamente (ator/avaliador desconectado)', {
               sessionId,
               disconnectedUser: participant.displayName
@@ -2170,7 +2170,7 @@ io.on('connection', (socket) => {
         }));
 
         io.to(sessionId).emit('SERVER_PARTNER_LEFT', {
-          message: shouldPauseSimulation 
+          message: shouldPauseSimulation
             ? `Seu parceiro (${participant.role === 'actor' ? 'Ator' : 'Avaliador'}) se desconectou. A simulação foi pausada automaticamente e aguardará a reconexão por 2 minutos.`
             : 'Seu parceiro de simulação se desconectou. A simulação continuará aguardando a reconexão.',
           participants: remainingParticipants,
@@ -2184,12 +2184,12 @@ io.on('connection', (socket) => {
           const currentSession = sessions.get(sessionId);
           if (currentSession && currentSession.participants.has(userId)) {
             const participantData = currentSession.participants.get(userId);
-            
+
             // Se ainda está desconectado após 2 minutos, remover permanentemente
             if (participantData.disconnectedAt) {
               const now = new Date();
               const timeSinceDisconnect = (now - participantData.disconnectedAt) / 1000;
-              
+
               if (timeSinceDisconnect > 120) { // 2 minutos
                 currentSession.participants.delete(userId);
                 socketLogger.info('Usuário removido permanentemente (tempo de reconexão expirado)', {

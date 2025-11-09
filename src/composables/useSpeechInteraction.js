@@ -216,7 +216,7 @@ export function useSpeechInteraction({ stationData, onTranscript, onTranscriptEn
 
       const { age } = extractPatientDemographics()
       const { rate, pitch } = getVoiceParametersForAge(age)
-      utterance.rate = Math.min(rate * 1.2, 2)
+      utterance.rate = Math.min(rate * 1.25, 2)
       utterance.pitch = pitch
 
       utterance.onstart = () => { isSpeaking.value = true }
