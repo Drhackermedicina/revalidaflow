@@ -272,38 +272,24 @@ function onClearSelection() {
   overflow: hidden;
   width: min(600px, 92vw);
   margin: 0 auto;
-  background: var(--rf-glass-bg);
-  backdrop-filter: var(--rf-glass-blur-strong);
-  border: 2px solid var(--rf-glass-border);
-  box-shadow: var(--rf-shadow-hero);
+  background: rgba(48, 37, 88, 0.92);
+  border: 1px solid rgba(193, 174, 255, 0.18);
+  box-shadow: var(--rf-shadow-card);
   min-height: 380px;
   transition: all var(--rf-transition-normal) var(--rf-ease-smooth);
   
   &:hover {
-    box-shadow: 0 35px 70px rgba(0, 0, 0, 0.2);
-    border-color: rgba(var(--v-theme-primary), 0.4);
+    box-shadow: var(--rf-shadow-card-hover);
+    border-color: rgba(193, 174, 255, 0.28);
   }
 }
 
 .card-overlay {
-  position: absolute;
-  inset: 0;
-  opacity: 0.6;
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 .card-decoration {
-  position: absolute;
-  top: -30%;
-  right: -15%;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-  animation: rf-pulse 4s ease-in-out infinite;
+  display: none;
 }
 
 .card-body {
@@ -492,11 +478,12 @@ function onClearSelection() {
 // Dark mode
 .v-theme--dark {
   .candidate-search-card {
-    background: rgba(30, 30, 30, 0.95);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(41, 31, 72, 0.94);
+    border-color: rgba(193, 174, 255, 0.2);
+    box-shadow: var(--rf-shadow-card);
     
     &:hover {
-      border-color: rgba(var(--v-theme-primary), 0.5);
+      border-color: rgba(193, 174, 255, 0.32);
     }
   }
   
