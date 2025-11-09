@@ -2,7 +2,7 @@
 
 Este documento rastreia o status de implementação de todas as features do produto, comparando com o PRD.
 
-**Última atualização**: 2025-01-12
+**Última atualização**: 2025-11-09
 **Versão do PRD**: 1.0.0
 
 ---
@@ -441,15 +441,15 @@ Este documento rastreia o status de implementação de todas as features do prod
 
 ## 📊 Estatísticas de Código
 
-**Última atualização**: 2025-01-12
+**Última atualização**: 2025-11-09
 
 ```
 📁 Estrutura do Projeto
-├── Páginas (src/pages/): 43 arquivos
-├── Componentes (src/components/): 45+ arquivos
-├── Composables (src/composables/): 43 arquivos
+├── Páginas (src/pages/): 36 arquivos
+├── Componentes (src/components/): 58 arquivos
+├── Composables (src/composables/): 54 arquivos
 ├── Stores (src/stores/): 3 arquivos
-├── Services (src/services/): 4 arquivos
+├── Services (src/services/): 10 arquivos
 └── Utils (src/utils/): 10+ arquivos
 
 📈 Linhas de Código (estimativa)
@@ -483,7 +483,7 @@ Este documento rastreia o status de implementação de todas as features do prod
 
 **Dica**: Execute `npm run update-prd` para atualizar contadores automaticamente!
 
-**Última sincronização**: 2025-01-12 15:30 BRT
+**Última sincronização**: 2025-11-09 16:48 BRT
 
 ---
 

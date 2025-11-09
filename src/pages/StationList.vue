@@ -11,7 +11,6 @@ import CandidateSearchBar from '@/components/search/CandidateSearchBar.vue'
 import SequentialConfigPanel from '@/components/sequential/SequentialConfigPanel.vue'
 import ModeSelectionCard from '@/components/station/ModeSelectionCard.vue'
 import SectionHeroCard from '@/components/station/SectionHeroCard.vue'
-import HeroIntroCard from '@/components/station/HeroIntroCard.vue'
 import SelectedCandidateCard from '@/components/station/SelectedCandidateCard.vue'
 import AdminUploadCard from '@/components/admin/AdminUploadCard.vue'
 import stationRepository from '@/repositories/stationRepository'
@@ -73,6 +72,7 @@ const {
   candidateSearchQuery,
   candidateSearchSuggestions,
   showCandidateSuggestions,
+  recentCandidates,
   isLoadingCandidateSearch,
   searchCandidates,
   selectCandidate,
@@ -274,6 +274,8 @@ function expandFirstSection() {
 onMounted(async () => {
   document.documentElement.classList.add('station-list-page-active')
 
+  clearCandidateSelection()
+
   await fetchStations()
   clearSearchFields()
 
@@ -300,7 +302,6 @@ onMounted(async () => {
     intersectionObserver.observe(loadMoreSentinel.value)
   }
 
-  await restoreCandidateFromSession()
   applyRouteState()
   // Carrega todas as estações para contadores precisos por prefixo (INEP x REVALIDA)
   try {
@@ -377,28 +378,6 @@ function setModeQuery(mode) {
   router.replace({ query: newQuery }).catch(() => {})
 }
 
-async function restoreCandidateFromSession() {
-  if (selectedCandidate.value || typeof window === 'undefined') return
-
-  const stored = sessionStorage.getItem('selectedCandidate')
-  if (!stored) return
-
-  try {
-    const candidate = JSON.parse(stored)
-    if (candidate?.uid) {
-      const nameParts = (candidate.name || '').trim().split(/\s+/).filter(Boolean)
-      const normalizedCandidate = {
-        ...candidate,
-        nome: candidate.nome || nameParts[0] || '',
-        sobrenome: candidate.sobrenome || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''),
-      }
-      await selectCandidate(normalizedCandidate)
-    }
-  } catch (error) {
-    sessionStorage.removeItem('selectedCandidate')
-  }
-}
-
 function applyRouteState() {
   const modeFromRoute = route.query.mode
 
@@ -414,40 +393,13 @@ function applyRouteState() {
 
   selectedMode.value = null
   showSequentialConfig.value = false
-  if (selectedCandidate.value) {
-    currentState.value = 'candidate-selected'
-  } else {
-    currentState.value = 'initial'
-  }
+  currentState.value = 'initial'
 }
 </script>
 
 <template>
   <!-- Hero Section Moderno -->
   <v-container fluid class="pa-0 main-content-container">
-    <!-- Hero Intro Card - Apenas quando ainda não escolheu o modo -->
-    <v-row v-if="!selectedMode && !shouldShowCandidateSearch">
-      <v-col cols="12" class="py-8">
-        <HeroIntroCard
-          title="Como você quer treinar hoje?"
-          subtitle="Escolha entre treinamento individual ou simulação completa sequencial"
-          icon="ri-stethoscope-line"
-          :station-count="allStationsForCounts.length"
-        />
-      </v-col>
-    </v-row>
-    
-    <!-- Hero Section Simples (para estado inicial de busca) -->
-    <v-row v-if="shouldShowCandidateSearch">
-      <v-col cols="12" class="text-center py-12 hero-section-modern">
-        <h1 class="display-lg mb-4">
-          <span class="gradient-text">Estações de Simulação</span>
-        </h1>
-        <p class="body-lg text-medium-emphasis mb-8 max-width-600 mx-auto">
-          Escolha entre treinamento individual ou simulação completa sequencial
-        </p>
-      </v-col>
-    </v-row>
 
     <v-row>
       <v-col cols="12" md="12" class="mx-auto section-container">
@@ -463,24 +415,14 @@ function applyRouteState() {
               v-model="candidateSearchQuery"
               v-model:show-suggestions="showCandidateSuggestions"
               :suggestions="candidateSearchSuggestions"
+              :recent-suggestions="recentCandidates"
               :loading="isLoadingCandidateSearch"
               :selected-candidate="selectedCandidate"
               @search="searchCandidates"
               @select-candidate="selectCandidate"
               @clear-selection="clearCandidateSelection"
+              @explore="viewStationsDirectly"
             />
-
-            <div class="d-flex justify-center mt-6">
-              <v-btn
-                class="modern-btn outline-btn"
-                variant="outlined"
-                size="large"
-                @click="viewStationsDirectly"
-              >
-                <VIcon icon="ri-eye-line" class="mr-2" :tabindex="undefined" />
-                Explorar Estações sem Seleção
-              </v-btn>
-            </div>
           </div>
 
           <div v-if="shouldShowModeSelection" class="mode-selection-container hero-card-modern">
@@ -852,33 +794,11 @@ function applyRouteState() {
 // ============================================================================
 
 .hero-section-modern {
-  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-  backdrop-filter: blur(10px);
-  position: relative;
-  overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle at 50% 50%, rgba(102,126,234,0.1) 0%, transparent 70%);
-    animation: float 8s ease-in-out infinite;
-  }
-  
-  .gradient-text {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 800;
-  }
+  display: none;
 }
 
 .candidate-search-section {
-  margin: 3rem 0;
+  margin: 3rem 0 2rem;
   text-align: center;
 }
 

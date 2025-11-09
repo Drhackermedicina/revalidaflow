@@ -16,6 +16,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  recentSuggestions: {
+    type: Array,
+    default: () => []
+  },
   showSuggestions: {
     type: Boolean,
     default: false
@@ -36,7 +40,8 @@ const emit = defineEmits([
   'search',
   'focus',
   'select-candidate',
-  'clear-selection'
+  'clear-selection',
+  'explore'
 ])
 
 const searchQuery = computed({
@@ -49,12 +54,19 @@ const showSuggestionsModel = computed({
   set: (value) => emit('update:showSuggestions', value)
 })
 
+const hasRecentSuggestions = computed(() => {
+  return props.recentSuggestions && props.recentSuggestions.length > 0
+})
+
 function onInput() {
   emit('search')
 }
 
 function onFocus() {
-  if (searchQuery.value) {
+  emit('focus')
+  if (!searchQuery.value && hasRecentSuggestions.value) {
+    emit('update:showSuggestions', true)
+  } else if (searchQuery.value) {
     emit('search')
   }
   emit('focus')
@@ -62,6 +74,12 @@ function onFocus() {
 
 function onSelectCandidate(candidate) {
   emit('select-candidate', candidate)
+  emit('update:showSuggestions', false)
+}
+
+function onExploreClick() {
+  emit('update:showSuggestions', false)
+  emit('explore')
 }
 
 function onClearSelection() {
@@ -139,6 +157,8 @@ function onClearSelection() {
           offset="8"
           transition="scale-transition"
           max-height="340"
+          :open-on-click="false"
+          :open-on-focus="false"
         >
           <template #activator="{ props: menuProps }">
             <v-text-field
@@ -146,6 +166,9 @@ function onClearSelection() {
               v-model="searchQuery"
               :label="selectedCandidate ? 'Buscar outro candidato' : 'Digite o nome ou e-mail'"
               placeholder="Ex: Joana Carvalho"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
               prepend-inner-icon="ri-search-line"
               :append-inner-icon="loading ? undefined : 'ri-sparkling-2-line'"
               variant="solo-filled"
@@ -162,7 +185,7 @@ function onClearSelection() {
           </template>
 
           <v-card
-            v-if="suggestions.length || (!loading && searchQuery)"
+            v-if="suggestions.length || (!loading && searchQuery) || (hasRecentSuggestions && !searchQuery)"
             elevation="12"
             class="suggestions-card"
           >
@@ -192,6 +215,32 @@ function onClearSelection() {
                 </v-list-item>
               </v-list>
             </template>
+            <template v-else-if="hasRecentSuggestions && !searchQuery">
+              <v-list density="comfortable">
+                <v-list-subheader class="text-uppercase text-caption">
+                  Buscados recentemente
+                </v-list-subheader>
+                <v-divider />
+                <v-list-item
+                  v-for="candidate in recentSuggestions"
+                  :key="candidate.uid"
+                  @click="onSelectCandidate(candidate)"
+                  class="candidate-suggestion-item"
+                >
+                  <template #prepend>
+                    <v-avatar size="40" class="me-3 elevation-1">
+                      <v-img v-if="candidate.photoURL" :src="candidate.photoURL" />
+                      <v-icon v-else>ri-user-3-line</v-icon>
+                    </v-avatar>
+                  </template>
+                  <v-list-item-title>{{ candidate.nome }}</v-list-item-title>
+                  <v-list-item-subtitle>{{ candidate.email }}</v-list-item-subtitle>
+                  <template #append>
+                    <v-icon size="18" color="primary">ri-arrow-right-line</v-icon>
+                  </template>
+                </v-list-item>
+              </v-list>
+            </template>
             <template v-else>
               <v-card-text class="py-5 px-6 text-center text-body-2 text-medium-emphasis">
                 Nenhum candidato encontrado para <strong>{{ searchQuery }}</strong>.
@@ -199,6 +248,19 @@ function onClearSelection() {
             </template>
           </v-card>
         </v-menu>
+      </div>
+
+      <div class="explore-wrapper mt-6">
+        <span class="explore-text">ou</span>
+        <v-btn
+          class="explore-btn"
+          variant="flat"
+          color="success"
+          prepend-icon="ri-eye-line"
+          @click="onExploreClick"
+        >
+          Explorar Estações sem Seleção
+        </v-btn>
       </div>
     </v-card-text>
   </v-card>
@@ -391,6 +453,40 @@ function onClearSelection() {
 
 .candidate-suggestion-item :deep(.v-list-item-subtitle) {
   opacity: 0.7;
+}
+
+.explore-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.explore-text {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.75rem;
+  color: rgba(224, 220, 255, 0.64);
+}
+
+.explore-btn {
+  border-radius: 999px !important;
+  padding-inline: 2.2rem !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  background: linear-gradient(135deg, rgba(79, 255, 178, 0.85), rgba(22, 200, 132, 0.85)) !important;
+  color: rgba(14, 36, 24, 0.92) !important;
+  box-shadow: 0 18px 32px rgba(22, 200, 132, 0.35) !important;
+}
+
+.explore-btn:hover {
+  box-shadow: 0 22px 44px rgba(22, 200, 132, 0.45) !important;
+}
+
+.explore-btn :deep(.v-btn__prepend) {
+  margin-inline-end: 0.75rem;
+  color: rgba(14, 36, 24, 0.92) !important;
 }
 
 // Dark mode

@@ -212,14 +212,20 @@ function onSelect() {
   font-weight: 600;
   padding: 0.75rem 1.25rem;
   transition: all var(--rf-transition-normal);
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: rgba(245, 244, 255, 0.95) !important;
+  border-radius: var(--rf-radius-full);
+  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.25);
   
   :deep(.v-icon) {
-    opacity: 0.8;
+    opacity: 1;
+    color: rgba(245, 244, 255, 0.98) !important;
   }
 }
 
 .mode-selection-card:hover .duration-chip {
   transform: scale(1.05);
+  box-shadow: 0 14px 30px rgba(102, 126, 234, 0.35);
 }
 
 .selection-indicator {

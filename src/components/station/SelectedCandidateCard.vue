@@ -75,8 +75,9 @@ const emit = defineEmits(['back', 'change'])
   box-shadow: 0 12px 30px rgba(102, 126, 234, 0.25);
 
   :deep(.v-icon) {
-    color: rgba(239, 233, 255, 0.96);
+    color: rgba(244, 241, 255, 0.98) !important;
     opacity: 0.95;
+    filter: drop-shadow(0 8px 20px rgba(102, 126, 234, 0.4));
   }
 }
 
@@ -89,15 +90,15 @@ const emit = defineEmits(['back', 'change'])
 .candidate-label {
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(222, 217, 255, 0.7);
+  color: rgba(230, 225, 255, 0.72);
 }
 
 .candidate-name {
-  color: rgba(243, 241, 255, 0.95);
+  color: rgba(247, 245, 255, 0.97);
 }
 
 .candidate-email {
-  color: rgba(224, 220, 255, 0.75);
+  color: rgba(226, 222, 255, 0.78);
 }
 
 .card-actions {

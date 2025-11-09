@@ -144,163 +144,93 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
     return text
   }
 
-  const synonymGroups = [
-    ['raio x', 'raiox', 'raio-x', 'rx', 'radiografia', 'radiografias'],
-    ['torax', 'torac', 'tx', 'peito'],
-    ['abdomen', 'abdomem'],
-    ['tomografia', 'tc', 'tomo'],
-    ['ressonancia', 'rm'],
-    ['ultrassom', 'usg', 'ultrassonografia', 'ecografia'],
-    ['eletrocardiograma', 'ecg'],
-    ['hemograma', 'hemograma completo'],
-    ['glicemia', 'glicemia capilar'],
-    ['sinais vitais', 'ssvv', 'sinais'],
-    ['exame fisico', 'semiologia', 'propedeutica']
-  ].map(group => group.map(term => normalizeText(term)))
+  const titleStopWords = new Set(['exame', 'exames'])
+  const tokenAliases = new Map([
+    ['laboratorio', 'laboratoriais'],
+    ['laboratorios', 'laboratoriais'],
+    ['laboratorial', 'laboratoriais'],
+    ['laboratoria', 'laboratoriais'],
+    ['laboratoriais', 'laboratoriais'],
+  ])
 
-  function expandSynonyms(text) {
-    let expanded = text
-    for (const group of synonymGroups) {
-      if (group.some(term => expanded.includes(term))) {
-        group.forEach(term => {
-          if (!expanded.includes(term)) {
-            expanded += ` ${term}`
-          }
-        })
-      }
-    }
-    return expanded
+  function applyAliasesToString(text = '') {
+    const normalized = normalizeText(text)
+    if (!normalized) return ''
+    return normalized
+      .split(' ')
+      .map(token => tokenAliases.get(token) || token)
+      .join(' ')
+      .trim()
   }
 
-  function tokenSet(str) {
-    return new Set(str.split(' ').filter(Boolean))
+  function tokenizeForMatching(text = '') {
+    return applyAliasesToString(text)
+      .split(' ')
+      .filter(token => token && token.length > 1 && !titleStopWords.has(token))
   }
 
-  function jaccardSimilarity(a, b) {
-    const setA = tokenSet(a)
-    const setB = tokenSet(b)
-    const intersection = [...setA].filter(item => setB.has(item)).length
-    const union = new Set([...setA, ...setB]).size || 1
-    return intersection / union
+  function normalizedStringWithoutStops(text = '') {
+    return tokenizeForMatching(text).join(' ').trim()
   }
 
-  function includesAny(text, keywords) {
-    return keywords.some(keyword => text.includes(keyword))
-  }
-
-  function collectMaterialsByKeywords(materials, keywords) {
-    const matches = new Set()
-    materials.forEach(material => {
-      const normalized = normalizeText([
-        material.tituloImpresso,
-        material.titulo,
-        material.tipoConteudo,
-        material.descricao,
-        material.categoria,
-        material.subcategoria,
-        Array.isArray(material.palavrasChave) ? material.palavrasChave.join(' ') : '',
-        material.conteudo?.texto,
-        material.conteudo?.textoDescritivo,
-        material.conteudo?.laudo,
-      ].filter(Boolean).join(' '))
-
-      if (keywords.some(keyword => normalized.includes(keyword))) {
-        const id = material.idImpresso || material.id
-        if (id) {
-          matches.add(id)
-        }
-      }
-    })
-    return matches
-  }
-
-  function extractMaterialFields(material) {
-    const title = normalizeText([material.tituloImpresso, material.titulo].filter(Boolean).join(' '))
-
-    const contentParts = []
-    const content = material.conteudo
-    if (typeof content === 'string') {
-      contentParts.push(content)
-    } else if (content && typeof content === 'object') {
-      Object.values(content).forEach(value => {
-        if (!value) return
-        if (typeof value === 'string') {
-          contentParts.push(value)
-        } else if (Array.isArray(value)) {
-          contentParts.push(value.join(' '))
-        } else if (typeof value === 'object') {
-          contentParts.push(Object.values(value).join(' '))
-        }
-      })
+  function buildTokenMatchInfo(message, title) {
+    const normalizedMessage = applyAliasesToString(message)
+    const normalizedTitle = applyAliasesToString(title)
+    if (!normalizedTitle) {
+      return { tokens: [], matches: 0, ratio: 0, consecutiveHit: false, literalHit: false }
     }
 
-    const bag = normalizeText([
-      material.tipoConteudo,
-      material.descricao,
-      material.categoria,
-      material.subcategoria,
-      Array.isArray(material.palavrasChave) ? material.palavrasChave.join(' ') : '',
-      ...contentParts,
-    ].filter(Boolean).join(' '))
+    const messageNoStops = normalizedStringWithoutStops(normalizedMessage)
+    const titleNoStops = normalizedStringWithoutStops(normalizedTitle)
+
+    const literalHit = Boolean(titleNoStops && messageNoStops.includes(titleNoStops))
+
+    const titleTokens = tokenizeForMatching(normalizedTitle)
+    const messageTokensSet = new Set(tokenizeForMatching(normalizedMessage))
+    const matches = titleTokens.filter(token => messageTokensSet.has(token))
+    const ratio = titleTokens.length ? matches.length / titleTokens.length : 0
+
+    let consecutiveHit = false
+    if (titleTokens.length >= 2) {
+      for (let i = 0; i < titleTokens.length - 1; i++) {
+        const phrase = `${titleTokens[i]} ${titleTokens[i + 1]}`
+        if (messageNoStops.includes(phrase)) {
+          consecutiveHit = true
+          break
+        }
+      }
+    }
 
     return {
-      title,
-      bag,
-      tipo: (material.tipoConteudo || '').toLowerCase(),
+      tokens: titleTokens,
+      matches: matches.length,
+      ratio,
+      consecutiveHit,
+      literalHit,
     }
   }
 
-  function findSpecificMaterial(candidateMessage, materials) {
-    if (!candidateMessage || !Array.isArray(materials) || materials.length === 0) {
-      return null
+  function doesRequestMatchMaterialTitle(message, material) {
+    const title = material?.tituloImpresso || material?.titulo || ''
+    if (!title) return { matched: false, score: 0 }
+
+    const { tokens, matches, ratio, consecutiveHit, literalHit } = buildTokenMatchInfo(message, title)
+    if (!tokens.length) {
+      return { matched: false, score: 0 }
     }
 
-    const request = stripRequestPrefix(candidateMessage)
-    const expandedRequest = expandSynonyms(normalizeText(request))
-
-    let bestMatch = { material: null, score: 0 }
-
-    materials.forEach(material => {
-      const { title, bag, tipo } = extractMaterialFields(material)
-      if (!title && !bag) return
-
-      const titleScore = jaccardSimilarity(expandedRequest, title)
-      const bagScore = tipo.includes('imagem') ? 0 : jaccardSimilarity(expandedRequest, bag)
-
-      let bonus = 0
-      if (includesAny(title, ['raio x', 'raio-x', 'rx', 'radiografia']) &&
-        includesAny(expandedRequest, ['raio x', 'raio-x', 'rx', 'radiografia'])) {
-        bonus += 0.2
-      }
-      if (includesAny(title, ['torax', 'torac']) &&
-        includesAny(expandedRequest, ['torax', 'torac'])) {
-        bonus += 0.1
-      }
-
-      let score = titleScore * 0.8 + bagScore * 0.2 + bonus
-      if (tipo.includes('imagem')) {
-        score = titleScore + bonus
-      }
-
-      if (score > bestMatch.score) {
-        bestMatch = { material, score }
-      }
-    })
-
-    if (bestMatch.material && bestMatch.score >= 0.2) {
-      return bestMatch.material.idImpresso || bestMatch.material.id || null
+    if (literalHit) {
+      return { matched: true, score: 1 }
     }
 
-    const bannedTokens = new Set(['exame', 'exames', 'fisico', 'físico', 'fisica', 'física', 'fisicos', 'físicos'])
-    const requestTokens = [...tokenSet(expandedRequest)].filter(token => token.length > 2 && !bannedTokens.has(token))
-    for (const material of materials) {
-      const titleTokens = tokenSet(normalizeText(material.tituloImpresso || material.titulo || ''))
-      if (requestTokens.some(token => titleTokens.has(token))) {
-        return material.idImpresso || material.id || null
-      }
-    }
+    const tokenThreshold = tokens.length <= 2 ? tokens.length : Math.max(2, Math.ceil(tokens.length * 0.6))
+    const matchedByTokens = matches >= tokenThreshold
+    const matchedWithConsecutive = consecutiveHit && matches >= 2
 
-    return null
+    const matched = matchedByTokens || matchedWithConsecutive
+    const score = Math.max(ratio, matches / tokens.length)
+
+    return { matched, score }
   }
 
   function handleMaterialRequest(candidateMessage) {
@@ -310,40 +240,38 @@ export function useAiChat({ stationData, simulationStarted, speakText, scrollToB
 
     const materials = getAllStationMaterials()
     if (!materials.length) {
-      return { status: 'not_found', message: 'Não está disponível esse exame.' }
+      return { status: 'not_found', message: 'Não está disponível esse impresso.' }
     }
 
-    const normalizedRequest = normalizeText(stripRequestPrefix(candidateMessage))
-    const matchedIds = new Set()
+    const cleanedMessage = stripRequestPrefix(candidateMessage)
+    const matchedMaterials = []
 
-    const labRequestKeywords = ['exame labor', 'exames labor', 'laborator', 'laboratorio', 'laboratoriais']
-    if (labRequestKeywords.some(keyword => normalizedRequest.includes(keyword))) {
-      const labMaterialKeywords = [
-        'lab', 'hemograma', 'hemat', 'bioquim', 'glic', 'ureia', 'creatinina', 'gasometr',
-        'coagul', 'urina', 'urinalise', 'cultura', 'paras', 'eletr', 'sodio', 'potassio',
-        'colesterol', 'enzim'
-      ]
-      collectMaterialsByKeywords(materials, labMaterialKeywords).forEach(id => matchedIds.add(id))
-    }
-
-    if (!matchedIds.size) {
-      const specificId = findSpecificMaterial(candidateMessage, materials)
-      if (specificId) {
-        matchedIds.add(specificId)
+    materials.forEach(material => {
+      const { matched, score } = doesRequestMatchMaterialTitle(cleanedMessage, material)
+      if (matched) {
+        matchedMaterials.push({ material, score })
       }
+    })
+
+    if (!matchedMaterials.length) {
+      return { status: 'not_found', message: 'Não está disponível esse impresso.' }
     }
 
-    if (matchedIds.size) {
-      matchedIds.forEach(id => {
-        const key = String(id)
+    matchedMaterials
+      .sort((a, b) => b.score - a.score)
+      .forEach(({ material }) => {
+        const key = String(material.idImpresso || material.id)
         if (key && !releasedData.value[key]) {
-          releaseMaterialById(id)
+          releaseMaterialById(material.idImpresso || material.id, material)
         }
       })
-      return { status: 'released', message: 'Considere solicitado.' }
-    }
 
-    return { status: 'not_found', message: 'Não está disponível esse exame.' }
+    const titles = [...new Set(matchedMaterials.map(({ material }) => material.tituloImpresso || material.titulo || 'Impresso'))]
+    const response = titles.length === 1
+      ? `${titles[0]} liberado.`
+      : `${titles.join(', ')} liberados.`
+
+    return { status: 'released', message: response }
   }
 
   async function resolveAuthContext() {

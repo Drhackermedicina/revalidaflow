@@ -15,6 +15,15 @@ export function useCandidateSearch(currentUser) {
   const selectedCandidate = ref(null)
   const candidateSearchQuery = ref('')
   const candidateSearchSuggestions = ref([])
+  const recentCandidates = ref([])
+  if (typeof window !== 'undefined') {
+    try {
+      recentCandidates.value = JSON.parse(localStorage.getItem('recentCandidates') || '[]').slice(0, 3)
+    } catch (error) {
+      logger.warn('Não foi possível carregar candidatos recentes do cache:', error)
+      recentCandidates.value = []
+    }
+  }
   const showCandidateSuggestions = ref(false)
   const selectedCandidateScores = ref({})
   const isLoadingCandidateSearch = ref(false)
@@ -122,6 +131,16 @@ export function useCandidateSearch(currentUser) {
         photoURL: candidate.photoURL || candidate.photoUrl || candidate.fotoUrl || ''
       }
       sessionStorage.setItem('selectedCandidate', JSON.stringify(payload))
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('recentCandidates') || '[]')
+        const filtered = stored.filter(item => item.uid !== candidate.uid)
+        filtered.unshift(payload)
+        recentCandidates.value = filtered.slice(0, 3)
+        localStorage.setItem('recentCandidates', JSON.stringify(recentCandidates.value))
+      } catch (error) {
+        logger.warn('Não foi possível registrar candidato recente:', error)
+      }
     } catch (error) {
       logger.warn('Não foi possível persistir candidato selecionado:', error)
     }
@@ -220,6 +239,7 @@ export function useCandidateSearch(currentUser) {
     showCandidateSuggestions,
     selectedCandidateScores,
     isLoadingCandidateSearch,
+    recentCandidates,
 
     // Methods
     searchCandidates,
