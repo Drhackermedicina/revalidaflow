@@ -28,3 +28,7 @@ node_modules
 
 # Claude directory - SECURITY
 .claude/
+*.bundle
+*.backup
+*.tar.gz
+*.zip
