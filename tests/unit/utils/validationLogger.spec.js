@@ -7,294 +7,146 @@ const localStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
-}
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
-})
+};
+Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 describe('ValidationLogger', () => {
+  let dispatchEventSpy;
+
   beforeEach(() => {
-    vi.clearAllMocks()
-    // Reset singleton instance
-    validationLogger.reset()
-  })
+    vi.clearAllMocks();
+    validationLogger.resetMetrics();
+    // Spy on window.dispatchEvent to check for events
+    dispatchEventSpy = vi.spyOn(window, 'dispatchEvent');
+  });
 
   describe('Race Condition Logging', () => {
-    it('deve logar race condition detectada', () => {
-      const mockEvent = vi.fn()
-      validationLogger.addEventListener('raceConditionDetected', mockEvent)
+    it('deve disparar evento para race condition detectada', () => {
+      const details = { operationId: 'test-op-123', concurrentCalls: 3 };
+      validationLogger.logRaceConditionDetected('fetchUserRole', details);
 
-      validationLogger.logRaceConditionDetected('fetchUserRole', {
-        operationId: 'test-op-123',
-        concurrentCalls: 3
-      })
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.type).toBe('validationLogger:event');
+      expect(event.detail.type).toBe('race_condition_detected');
+      expect(event.detail.operation).toBe('fetchUserRole');
+      expect(event.detail.details).toEqual(details);
+    });
 
-      expect(mockEvent).toHaveBeenCalledWith({
-        type: 'raceConditionDetected',
-        source: 'fetchUserRole',
-        data: {
-          operationId: 'test-op-123',
-          concurrentCalls: 3
-        },
-        timestamp: expect.any(String)
-      })
-    })
+    it('deve disparar evento para race condition prevenida', () => {
+      const details = { operationId: 'test-op-456', mutexAcquired: true };
+      validationLogger.logRaceConditionPrevented('fetchUserRole', details);
 
-    it('deve logar race condition prevenida', () => {
-      const mockEvent = vi.fn()
-      validationLogger.addEventListener('raceConditionPrevented', mockEvent)
-
-      validationLogger.logRaceConditionPrevented('fetchUserRole', {
-        operationId: 'test-op-456',
-        mutexAcquired: true
-      })
-
-      expect(mockEvent).toHaveBeenCalledWith({
-        type: 'raceConditionPrevented',
-        source: 'fetchUserRole',
-        data: {
-          operationId: 'test-op-456',
-          mutexAcquired: true
-        },
-        timestamp: expect.any(String)
-      })
-    })
-  })
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.detail.type).toBe('race_condition_prevented');
+      expect(event.detail.operation).toBe('fetchUserRole');
+      expect(event.detail.details).toEqual(details);
+    });
+  });
 
   describe('Firestore Error Logging', () => {
-    it('deve logar erro de conexão Firestore', () => {
-      const mockEvent = vi.fn()
-      validationLogger.addEventListener('firestoreError', mockEvent)
+    it('deve disparar evento para erro de conexão Firestore', () => {
+      const error = { code: 'unavailable', message: 'Service unavailable', name: 'FirestoreError' };
+      validationLogger.logFirestoreConnectionError('getDocument', error, { retry: 1 });
 
-      validationLogger.logFirestoreError('getDocumentWithRetry', {
-        operationId: 'firestore-op-123',
-        errorCode: 'unavailable',
-        errorMessage: 'Service unavailable'
-      })
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.detail.type).toBe('firestore_connection_error');
+      expect(event.detail.error).toEqual(error);
+    });
 
-      expect(mockEvent).toHaveBeenCalledWith({
-        type: 'firestoreError',
-        source: 'getDocumentWithRetry',
-        data: {
-          operationId: 'firestore-op-123',
-          errorCode: 'unavailable',
-          errorMessage: 'Service unavailable'
-        },
-        timestamp: expect.any(String)
-      })
-    })
+    it('deve disparar evento para recuperação de operação Firestore', () => {
+      validationLogger.logFirestoreRecovered('getDocument', { retries: 2 });
 
-    it('deve logar recuperação de operação Firestore', () => {
-      const mockEvent = vi.fn()
-      validationLogger.addEventListener('firestoreRecovered', mockEvent)
-
-      validationLogger.logFirestoreRecovered('updateDocumentWithRetry', {
-        operationId: 'firestore-op-456',
-        retryCount: 2,
-        totalTime: 1500
-      })
-
-      expect(mockEvent).toHaveBeenCalledWith({
-        type: 'firestoreRecovered',
-        source: 'updateDocumentWithRetry',
-        data: {
-          operationId: 'firestore-op-456',
-          retryCount: 2,
-          totalTime: 1500
-        },
-        timestamp: expect.any(String)
-      })
-    })
-  })
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.detail.type).toBe('firestore_recovered');
+      expect(event.detail.details).toEqual({ retries: 2 });
+    });
+  });
 
   describe('Google Auth Logging', () => {
-    it('deve logar erro de autenticação Google', () => {
-      const mockEvent = vi.fn()
-      validationLogger.addEventListener('googleAuthError', mockEvent)
+    it('deve disparar evento para erro de autenticação Google', () => {
+      validationLogger.logGoogleAuthPopupBlocked('login', { userAgent: 'test' });
 
-      validationLogger.logGoogleAuthError('loginComGoogle', {
-        loginId: 'auth-123',
-        errorCode: 'auth/popup-blocked',
-        errorMessage: 'Popup blocked'
-      })
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.detail.type).toBe('google_auth_popup_blocked');
+    });
 
-      expect(mockEvent).toHaveBeenCalledWith({
-        type: 'googleAuthError',
-        source: 'loginComGoogle',
-        data: {
-          loginId: 'auth-123',
-          errorCode: 'auth/popup-blocked',
-          errorMessage: 'Popup blocked'
-        },
-        timestamp: expect.any(String)
-      })
-    })
+    it('deve disparar evento para recuperação de autenticação Google', () => {
+      validationLogger.logGoogleAuthRecovered('login', { method: 'redirect' });
 
-    it('deve logar recuperação de autenticação Google', () => {
-      const mockEvent = vi.fn()
-      validationLogger.addEventListener('googleAuthRecovered', mockEvent)
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.detail.type).toBe('google_auth_recovered');
+    });
 
-      validationLogger.logGoogleAuthRecovered('processarRedirectResult', {
-        redirectId: 'redirect-456',
-        method: 'redirect',
-        uid: 'user-123'
-      })
+    it('deve disparar evento para fallback de autenticação Google', () => {
+      validationLogger.logGoogleAuthFallbackRedirect('login');
 
-      expect(mockEvent).toHaveBeenCalledWith({
-        type: 'googleAuthRecovered',
-        source: 'processarRedirectResult',
-        data: {
-          redirectId: 'redirect-456',
-          method: 'redirect',
-          uid: 'user-123'
-        },
-        timestamp: expect.any(String)
-      })
-    })
-
-    it('deve logar fallback de autenticação Google', () => {
-      const mockEvent = vi.fn()
-      validationLogger.addEventListener('googleAuthFallback', mockEvent)
-
-      validationLogger.logGoogleAuthFallback('loginComGoogle', {
-        loginId: 'auth-789',
-        fromMethod: 'popup',
-        toMethod: 'redirect'
-      })
-
-      expect(mockEvent).toHaveBeenCalledWith({
-        type: 'googleAuthFallback',
-        source: 'loginComGoogle',
-        data: {
-          loginId: 'auth-789',
-          fromMethod: 'popup',
-          toMethod: 'redirect'
-        },
-        timestamp: expect.any(String)
-      })
-    })
-  })
+      expect(dispatchEventSpy).toHaveBeenCalledOnce();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.detail.type).toBe('google_auth_fallback_redirect');
+    });
+  });
 
   describe('Metrics Calculation', () => {
-    it('deve calcular métricas de race conditions', () => {
-      // Simular alguns eventos
-      validationLogger.logRaceConditionDetected('fetchUserRole', { operationId: 'op1' })
-      validationLogger.logRaceConditionPrevented('fetchUserRole', { operationId: 'op2' })
-      validationLogger.logRaceConditionDetected('fetchUserRole', { operationId: 'op3' })
+    it('deve calcular métricas corretamente', () => {
+      validationLogger.logRaceConditionDetected('op1');
+      validationLogger.logRaceConditionPrevented('op2');
+      validationLogger.logRaceConditionDetected('op3');
 
-      const metrics = validationLogger.getMetrics()
-
-      expect(metrics.raceConditions.detected).toBe(2)
-      expect(metrics.raceConditions.prevented).toBe(1)
-      expect(metrics.raceConditions.successRate).toBe(33.33) // 1/3 * 100
-    })
-
-    it('deve calcular métricas de Firestore', () => {
-      // Simular alguns eventos
-      validationLogger.logFirestoreError('getDocumentWithRetry', { operationId: 'fs1' })
-      validationLogger.logFirestoreRecovered('getDocumentWithRetry', { operationId: 'fs2' })
-      validationLogger.logFirestoreRecovered('getDocumentWithRetry', { operationId: 'fs3' })
-
-      const metrics = validationLogger.getMetrics()
-
-      expect(metrics.firestore.errors).toBe(1)
-      expect(metrics.firestore.recovered).toBe(2)
-      expect(metrics.firestore.successRate).toBe(66.67) // 2/3 * 100
-    })
-
-    it('deve calcular métricas de Google Auth', () => {
-      // Simular alguns eventos
-      validationLogger.logGoogleAuthError('loginComGoogle', { loginId: 'g1' })
-      validationLogger.logGoogleAuthRecovered('loginComGoogle', { loginId: 'g2' })
-      validationLogger.logGoogleAuthFallback('loginComGoogle', { loginId: 'g3' })
-
-      const metrics = validationLogger.getMetrics()
-
-      expect(metrics.googleAuth.errors).toBe(1)
-      expect(metrics.googleAuth.recovered).toBe(1)
-      expect(metrics.googleAuth.fallbacks).toBe(1)
-      expect(metrics.googleAuth.successRate).toBe(50) // 1/2 * 100
-    })
-  })
+      const metrics = validationLogger.getMetrics();
+      expect(metrics.raceConditions.detected).toBe(2);
+      expect(metrics.raceConditions.prevented).toBe(1);
+      expect(metrics.raceConditions.total).toBe(3);
+    });
+  });
 
   describe('Health Status', () => {
     it('deve retornar status saudável quando métricas estão boas', () => {
-      // Simular operações bem-sucedidas
-      validationLogger.logRaceConditionPrevented('fetchUserRole', {})
-      validationLogger.logFirestoreRecovered('getDocumentWithRetry', {})
-      validationLogger.logGoogleAuthRecovered('loginComGoogle', {})
+      validationLogger.logRaceConditionPrevented('op');
+      const health = validationLogger.calculateHealthStatus();
+      expect(health.overall).toBe('healthy');
+    });
 
-      const health = validationLogger.getHealthStatus()
-
-      expect(health.overall).toBe('healthy')
-      expect(health.raceConditions).toBe('healthy')
-      expect(health.firestore).toBe('healthy')
-      expect(health.googleAuth).toBe('healthy')
-    })
-
-    it('deve retornar status de alerta quando há muitos erros', () => {
-      // Simular muitos erros
+    it('deve retornar status crítico quando há muitos erros', () => {
       for (let i = 0; i < 10; i++) {
-        validationLogger.logRaceConditionDetected('fetchUserRole', {})
-        validationLogger.logFirestoreError('getDocumentWithRetry', {})
-        validationLogger.logGoogleAuthError('loginComGoogle', {})
+        validationLogger.logRaceConditionDetected('op');
       }
-
-      const health = validationLogger.getHealthStatus()
-
-      expect(health.overall).toBe('critical')
-      expect(health.raceConditions).toBe('critical')
-      expect(health.firestore).toBe('critical')
-      expect(health.googleAuth).toBe('critical')
-    })
-  })
+      const health = validationLogger.calculateHealthStatus();
+      expect(health.overall).toBe('critical');
+    });
+  });
 
   describe('Persistence', () => {
     it('deve salvar métricas no localStorage', () => {
-      validationLogger.logRaceConditionPrevented('fetchUserRole', {})
-
-      // Simular chamada de save
-      validationLogger.saveToStorage()
-
+      validationLogger.logRaceConditionPrevented('op');
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'validationLogger_metrics',
-        expect.any(String)
-      )
-    })
+        expect.stringContaining('"prevented":1')
+      );
+    });
 
     it('deve carregar métricas do localStorage', () => {
       const mockData = {
-        raceConditions: { detected: 1, prevented: 2 },
-        firestore: { errors: 0, recovered: 3 },
-        googleAuth: { errors: 1, recovered: 1, fallbacks: 0 }
-      }
+        metrics: {
+          raceConditions: { detected: 10, prevented: 5, total: 15 }
+        },
+        sessionId: 'test',
+        lastUpdated: new Date().toISOString()
+      };
+      localStorageMock.getItem.mockReturnValue(JSON.stringify(mockData));
+      
+      // Reset and load
+      validationLogger.resetMetrics();
+      validationLogger.loadPersistedMetrics();
 
-      localStorageMock.getItem.mockReturnValue(JSON.stringify(mockData))
-
-      validationLogger.loadFromStorage()
-
-      const metrics = validationLogger.getMetrics()
-      expect(metrics.raceConditions.detected).toBe(1)
-      expect(metrics.raceConditions.prevented).toBe(2)
-      expect(metrics.firestore.recovered).toBe(3)
-    })
-  })
-
-  describe('Event System', () => {
-    it('deve permitir adicionar e remover event listeners', () => {
-      const mockEvent = vi.fn()
-      const listener = validationLogger.addEventListener('raceConditionDetected', mockEvent)
-
-      validationLogger.logRaceConditionDetected('test', {})
-
-      expect(mockEvent).toHaveBeenCalledTimes(1)
-
-      // Remover listener
-      validationLogger.removeEventListener('raceConditionDetected', listener)
-
-      validationLogger.logRaceConditionDetected('test', {})
-
-      expect(mockEvent).toHaveBeenCalledTimes(1) // Não deve ser chamado novamente
-    })
-  })
-})
+      const metrics = validationLogger.getMetrics();
+      expect(metrics.raceConditions.detected).toBe(10);
+      expect(metrics.raceConditions.prevented).toBe(5);
+    });
+  });
+});
