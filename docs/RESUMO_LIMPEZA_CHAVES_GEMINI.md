@@ -77,3 +77,5 @@ cd backend && node ../scripts/testar-chaves-gemini.cjs --auto-remove
 
 
 
+
+

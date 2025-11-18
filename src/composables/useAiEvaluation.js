@@ -171,16 +171,23 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
         if (!item) return
 
         const adequadoPts = item.pontuacoes?.adequado?.pontos ?? 5
-        const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos ?? adequadoPts / 2
+        const parcialDef = item.pontuacoes?.parcialmenteAdequado?.pontos
+        const hasParcial = typeof parcialDef === 'number'
+        const parcialPts = hasParcial ? parcialDef : null
         const inadequadoPts = item.pontuacoes?.inadequado?.pontos ?? 0
 
         let score = inadequadoPts
         if (Array.isArray(evaluationArray) && evaluationArray.length > 0) {
           const trueCount = evaluationArray.filter(Boolean).length
           const ratio = trueCount / evaluationArray.length
-          if (ratio >= 0.75) score = adequadoPts
-          else if (ratio >= 0.35) score = parcialPts
-          else score = inadequadoPts
+          if (hasParcial) {
+            if (ratio >= 0.75) score = adequadoPts
+            else if (ratio >= 0.35) score = parcialPts
+            else score = inadequadoPts
+          } else {
+            // Sem nível parcial: binário (tudo cumprido = adequado; caso contrário = inadequado)
+            score = ratio >= 1 ? adequadoPts : inadequadoPts
+          }
         }
 
         scores[item.idItem] = Number(score)
@@ -224,8 +231,20 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
       const item = checklistData.value.itensAvaliacao[index]
       if (!item) return
 
-      const pontuacao = Number(itemEval.pontuacao ?? itemEval.score ?? 0)
+      const pontuacaoRaw = Number(itemEval.pontuacao ?? itemEval.score ?? 0)
       const justificativa = sanitizeText(itemEval.justificativa || itemEval.observacao || 'Avaliado pela IA')
+
+      // Clamp para níveis existentes no item
+      const adequados = item.pontuacoes?.adequado?.pontos
+      const parciais = item.pontuacoes?.parcialmenteAdequado?.pontos
+      const inadequados = item.pontuacoes?.inadequado?.pontos ?? 0
+      const candidatePoints = []
+      if (typeof inadequados === 'number') candidatePoints.push(inadequados)
+      if (typeof parciais === 'number') candidatePoints.push(parciais)
+      if (typeof adequados === 'number') candidatePoints.push(adequados)
+      const pontuacao = candidatePoints.length
+        ? candidatePoints.reduce((best, cur) => Math.abs(cur - pontuacaoRaw) < Math.abs(best - pontuacaoRaw) ? cur : best, candidatePoints[0])
+        : pontuacaoRaw
 
       scores[item.idItem] = pontuacao
       total += pontuacao
@@ -254,11 +273,14 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
 
     items.forEach((item, idx) => {
       const adequadoPts = item.pontuacoes?.adequado?.pontos ?? 5
-      const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos ?? 2.5
+      const parcialPts = item.pontuacoes?.parcialmenteAdequado?.pontos
       const inadequadoPts = item.pontuacoes?.inadequado?.pontos ?? 0
 
-      let score = byIndexScore.has(idx) ? byIndexScore.get(idx) : parcialPts
-      const candidates = [adequadoPts, parcialPts, inadequadoPts]
+      // Default em fallback: se não há informação, usar inadequado (0) e nunca inventar parcial
+      let score = byIndexScore.has(idx) ? byIndexScore.get(idx) : inadequadoPts
+      const candidates = [inadequadoPts]
+      if (typeof parcialPts === 'number') candidates.push(parcialPts)
+      candidates.push(adequadoPts)
       score = candidates.reduce((prev, cur) => Math.abs(cur - score) < Math.abs(prev - score) ? cur : prev, candidates[0])
 
       const observacao = 'Avaliação automática (fallback simples)'
@@ -332,20 +354,31 @@ export function useAiEvaluation({ checklistData, stationData, conversationHistor
  * @param {object} item
  */
 export function getClassificacaoFromPontuacao(pontuacao, item) {
+  // Se não houver definição de pontuações, aplicar uma heurística genérica
   if (!item?.pontuacoes) {
+    if (pontuacao <= 0) return { label: 'Inadequado', color: 'error' }
     if (pontuacao >= 5) return { label: 'Adequado', color: 'success' }
-    if (pontuacao >= 3) return { label: 'Parcialmente Adequado', color: 'warning' }
-    return { label: 'Inadequado', color: 'error' }
-  }
-  const adequado = item.pontuacoes.adequado?.pontos || 1.0
-  const parcial = item.pontuacoes.parcialmenteAdequado?.pontos || 0.5
-  const epsilon = 0.01
-
-  if (Math.abs(pontuacao - adequado) < epsilon || pontuacao >= adequado - epsilon) {
-    return { label: 'Adequado', color: 'success' }
-  }
-  if (Math.abs(pontuacao - parcial) < epsilon || (pontuacao >= parcial - epsilon && pontuacao < adequado - epsilon)) {
     return { label: 'Parcialmente Adequado', color: 'warning' }
   }
-  return { label: 'Inadequado', color: 'error' }
+
+  const adequados = item.pontuacoes.adequado?.pontos
+  const parciais = item.pontuacoes.parcialmenteAdequado?.pontos
+  const inadequados = item.pontuacoes.inadequado?.pontos ?? 0
+
+  const candidates = []
+  candidates.push({ label: 'Inadequado', color: 'error', pontos: inadequados })
+  if (typeof parciais === 'number') {
+    candidates.push({ label: 'Parcialmente Adequado', color: 'warning', pontos: parciais })
+  }
+  if (typeof adequados === 'number') {
+    candidates.push({ label: 'Adequado', color: 'success', pontos: adequados })
+  }
+
+  // Escolher o rótulo cujo valor definido é mais próximo da pontuação
+  const best = candidates.reduce((prev, cur) =>
+    Math.abs(cur.pontos - pontuacao) < Math.abs(prev.pontos - pontuacao) ? cur : prev,
+    candidates[0]
+  )
+
+  return { label: best.label, color: best.color }
 }

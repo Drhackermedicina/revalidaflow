@@ -94,16 +94,28 @@ const handleSubmitEvaluation = () => emit('submitEvaluation')
 
 // Funções de avaliação
 const getEvaluationColor = (item, score) => {
-  if (item.pontuacoes?.adequado?.pontos === score) return 'success'
-  if (item.pontuacoes?.parcialmenteAdequado?.pontos === score) return 'warning'
-  if (item.pontuacoes?.inadequado?.pontos === score) return 'error'
+  const adequado = Number(item.pontuacoes?.adequado?.pontos)
+  const parcial = item.pontuacoes?.parcialmenteAdequado?.pontos
+  const inadequado = Number(item.pontuacoes?.inadequado?.pontos ?? 0)
+  const hasParcial = typeof parcial === 'number' && parcial > inadequado && (!isNaN(adequado) ? parcial < adequado : true)
+  const s = Number(score)
+  const eps = 1e-6
+  if (!isNaN(adequado) && Math.abs(s - adequado) < eps) return 'success'
+  if (hasParcial && Math.abs(s - Number(parcial)) < eps) return 'warning'
+  if (Math.abs(s - inadequado) < eps) return 'error'
   return 'grey'
 }
 
 const getEvaluationLabel = (item, score) => {
-  if (item.pontuacoes?.adequado?.pontos === score) return 'Adequado'
-  if (item.pontuacoes?.parcialmenteAdequado?.pontos === score) return 'Parc. Adequado'
-  if (item.pontuacoes?.inadequado?.pontos === score) return 'Inadequado'
+  const adequado = Number(item.pontuacoes?.adequado?.pontos)
+  const parcial = item.pontuacoes?.parcialmenteAdequado?.pontos
+  const inadequado = Number(item.pontuacoes?.inadequado?.pontos ?? 0)
+  const hasParcial = typeof parcial === 'number' && parcial > inadequado && (!isNaN(adequado) ? parcial < adequado : true)
+  const s = Number(score)
+  const eps = 1e-6
+  if (!isNaN(adequado) && Math.abs(s - adequado) < eps) return 'Adequado'
+  if (hasParcial && Math.abs(s - Number(parcial)) < eps) return 'Parc. Adequado'
+  if (Math.abs(s - inadequado) < eps) return 'Inadequado'
   return 'Não avaliado'
 }
 </script>

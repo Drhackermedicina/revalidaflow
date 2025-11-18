@@ -653,10 +653,10 @@ router.post('/evaluate-pep', authenticateUser, validateSession, async (req, res)
     userId: req.headers['user-id'],
     contentType: req.headers['content-type']
   });
-  
+
   try {
     const { sessionId, stationData, checklistData, conversationHistory, releasedData } = req.body;
-    
+
     console.log('📊 [EVALUATE-PEP] Dados recebidos:', {
       sessionId,
       userId: req.userId,
@@ -684,20 +684,20 @@ Você é um avaliador médico experiente. Analise a conversa abaixo entre um can
 
 **HISTÓRICO DA CONVERSA:**
 ${conversationHistory.map(msg => {
-  if (msg.role === 'candidate') return `CANDIDATO: ${msg.content}`;
-  if (msg.role === 'ai_actor') return `PACIENTE: ${msg.content}`;
-  return `SISTEMA: ${msg.content}`;
-}).join('\n')}
+      if (msg.role === 'candidate') return `CANDIDATO: ${msg.content}`;
+      if (msg.role === 'ai_actor') return `PACIENTE: ${msg.content}`;
+      return `SISTEMA: ${msg.content}`;
+    }).join('\n')}
 
 **MATERIAIS LIBERADOS:** ${Object.keys(releasedData).length} materiais foram solicitados e liberados.
 
 **ITENS DE AVALIAÇÃO (PEP):**
 ${checklistData.itensAvaliacao.map((item, index) => {
-  const pontosVerificacao = item.pontosVerificacao || [];
-  return `${index + 1}. ${item.descricaoItem}
+      const pontosVerificacao = item.pontosVerificacao || [];
+      return `${index + 1}. ${item.descricaoItem}
    Pontos de verificação (marque true/false para cada):
    ${pontosVerificacao.map((ponto, i) => `   ${i + 1}. ${ponto.descricao} [AVALIAR]`).join('\n')}`;
-}).join('\n\n')}
+    }).join('\n\n')}
 
 **INSTRUÇÕES:**
 - Avalie cada ponto de verificação com base na conversa e nos materiais liberados
@@ -771,18 +771,18 @@ ${checklistData.itensAvaliacao.map((item, index) => {
 
     console.log('🤖 [EVALUATE-PEP] Chamando Gemini...');
     console.log('📝 [EVALUATE-PEP] Tamanho do prompt:', evaluationPrompt.length);
-    
+
     const geminiManager = getGeminiManager();
     const geminiOptions = {
       model: 'gemini-1.5-flash',
       maxOutputTokens: 2000,
       temperature: 0.3
     };
-    
+
     console.log('⚙️ [EVALUATE-PEP] Configurações Gemini:', geminiOptions);
-    
+
     const result = await geminiManager.generateResponse(evaluationPrompt, geminiOptions);
-    
+
     console.log('📤 [EVALUATE-PEP] Resposta do Gemini:', {
       hasResult: !!result,
       hasText: !!result?.text,
@@ -798,7 +798,7 @@ ${checklistData.itensAvaliacao.map((item, index) => {
         hasJsonMatch: !!jsonMatch,
         matchLength: jsonMatch?.[0]?.length || 0
       });
-      
+
       if (jsonMatch) {
         parsedEvaluation = JSON.parse(jsonMatch[0]);
         console.log('✅ [EVALUATE-PEP] JSON parseado com sucesso:', {

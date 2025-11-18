@@ -35,7 +35,6 @@ import SimulationSidebar from '@/components/SimulationSidebar.vue'
 import CandidateChecklist from '@/components/CandidateChecklist.vue'
 import ActorScriptPanel from '@/components/ActorScriptPanel.vue'
 import CandidateContentPanel from '@/components/CandidateContentPanel.vue'
-import SimulationAiFeedbackCard from '@/components/SimulationAiFeedbackCard.vue'
 import ImageZoomModal from '@/components/ImageZoomModal.vue'
 import ImpressosModal from '@/components/ImpressosModal.vue'
 import CandidateImpressosPanel from '@/components/CandidateImpressosPanel.vue'
@@ -56,9 +55,6 @@ import { useInviteLinkGeneration } from '@/composables/useInviteLinkGeneration.j
 import { deleteInviteFromFirestore } from '@/utils/simulationInviteCleanup.js'
 
 // Composables de Gravação
-import { useAiEvaluation } from '@/composables/useAiEvaluation.js'
-import { useContinuousRecording } from '@/composables/useContinuousRecording.js'
-import { useCandidateAudioTranscription } from '@/composables/useCandidateAudioTranscription.js'
 // Utils de Formatação
 
 // Bibliotecas Externas
@@ -152,10 +148,6 @@ const showNotification = (message, color = 'info') => {
   showNotificationSnackbar.value = true;
 };
 
-// Refs para IA
-const conversationHistory = ref([]);
-const currentMessage = ref('');
-
 // Simulation workflow management (ready/start/end)
 // IMPORTANTE: Deve vir ANTES de useEvaluation pois exporta simulationEnded
 const partner = ref(null);
@@ -217,26 +209,7 @@ const selectedCandidateForSimulation = ref(null);
 
 watch(simulationStarted, async started => {
   if (!started) {
-    if (isCandidateTranscribing.value) {
-      stopCandidateTranscription();
-    }
     return;
-  }
-
-  if (isCandidate.value) {
-    await startCandidateTranscription();
-  }
-
-  // Iniciar gravação contínua para todos os participantes
-  try {
-    const recordingStarted = await startContinuousRecording();
-    if (recordingStarted) {
-      logger.info('[CONTINUOUS_RECORDING] 🎤 Gravação contínua iniciada com o começo da simulação');
-    } else {
-      logger.warn('[CONTINUOUS_RECORDING] ⚠️ Não foi possível iniciar gravação contínua');
-    }
-  } catch (error) {
-    logger.error('[CONTINUOUS_RECORDING] ❌ Erro ao iniciar gravação contínua:', error);
   }
 
   if (!isActorOrEvaluator.value) {
@@ -388,314 +361,10 @@ const {
   resetSimulationData
 } = useSimulationData({ socket: socketRef, sessionId, userRole, stationData });
 
-// Convert releasedData object to array for CandidateImpressosPanel
 const releasedDataArray = computed(() => {
   return Object.values(releasedData.value);
 });
 
-// Inicializa composable de avaliação por IA
-const {
-  isEvaluating: submittingEvaluation,
-  evaluationCompleted: aiEvaluationSubmitted,
-  runAiEvaluation
-} = useAiEvaluation({
-  checklistData,
-  stationData,
-  conversationHistory,
-  sessionId,
-  releasedData
-});
-
-// Inicializa composable de gravação contínua
-const {
-  isRecording: isContinuouslyRecording,
-  isContinuous: recordingIsContinuous,
-  recordingTime: continuousRecordingTime,
-  audioBlob: continuousRecordingBlob,
-  hasPermission: recordingHasPermission,
-  error: recordingError,
-  startContinuousRecording,
-  stopContinuousRecording,
-  getRecordingBlob,
-  cleanup: cleanupRecording
-} = useContinuousRecording();
-
-// Resultado da avaliação por IA
-const aiEvaluationResult = ref(null)
-
-// Transcrição automática da fala do candidato para alimentar o histórico da IA
-const candidateUserId = computed(() => currentUser.value?.uid || currentUser.value?.userId || '')
-const {
-  requestMicrophonePermission: requestCandidateMicPermission,
-  startCapture: startCandidateTranscription,
-  stopCapture: stopCandidateTranscription,
-  isCapturing: isCandidateTranscribing
-} = useCandidateAudioTranscription({
-  sessionId,
-  userId: candidateUserId,
-  socketRef
-})
-
-// Controle da avaliação opcional por IA
-const enableAIEvaluation = ref(false)
-const showAIEvaluationDialog = ref(false)
-const aiEvaluationDialogShown = ref(false)
-
-const ensureStationSummary = () => {
-  if (!simulationEnded.value) return
-  if (aiEvaluationResult.value) return
-
-  const feedback = checklistData.value?.feedbackEstacao
-  const resumoTecnico = typeof feedback?.resumoTecnico === 'string'
-    ? stripHtmlContent(feedback.resumoTecnico)
-    : ''
-
-  if (!resumoTecnico) return
-
-  const tema = stripHtmlContent(
-    stationData.value?.tituloEstacao ||
-    stationData.value?.titulo ||
-    ''
-  )
-
-  const contexto = stripHtmlContent(
-    stationData.value?.instrucoesParticipante?.descricaoCasoCompleta ||
-    stationData.value?.informacoesEssenciais?.contextoClinico ||
-    ''
-  )
-
-  aiEvaluationResult.value = {
-    scores: {},
-    total: null,
-    details: [],
-    performance: {
-      temaEstacao: tema || null,
-      resumoEstacao: resumoTecnico,
-      contextoClinico: contexto,
-      visaoGeral: resumoTecnico || 'Consulte o resumo técnico desta estação para relembrar os principais achados.',
-      pontosFortes: [],
-      pontosDeMelhoria: [],
-      recomendacoesOSCE: [],
-      indicadoresCriticos: []
-    },
-    metadata: {
-      generatedBy: {
-        displayName: 'Resumo técnico da estação'
-      },
-      source: 'station-feedback',
-      timestamp: new Date().toISOString()
-    }
-  }
-}
-
-// Função para lidar com aceite da avaliação por IA
-const handleAIEvaluationAccept = async () => {
-  showAIEvaluationDialog.value = false
-  enableAIEvaluation.value = true
-
-  logger.info('[IA_EVALUATION] ?? Candidato optou por receber avalia��o por IA.');
-
-  if (simulationEnded.value) {
-    await executeAiEvaluation({ reason: 'candidate-opt-in-post-simulation' }).catch(() => {})
-  } else {
-    showNotification(
-      'A avalia��o por IA ser� executada automaticamente ao final da esta��o.',
-      'info'
-    )
-  }
-}
-
-// Função para recusar avaliação por IA
-const handleAIEvaluationDecline = () => {
-  showAIEvaluationDialog.value = false
-  enableAIEvaluation.value = false
-  logger.info('[IA_EVALUATION] ?? Candidato recusou avalia��o por IA');
-
-  if (simulationEnded.value) {
-    ensureStationSummary();
-  }
-}
-
-// ✅ NOVO: Função para notificar N8N sobre análise de resposta
-const notifyN8NWorkflow = async (data) => {
-  const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/analisar-resposta';
-  const n8nEnabled = import.meta.env.VITE_N8N_ENABLED === 'true' || import.meta.env.DEV;
-
-  if (!n8nEnabled || !n8nWebhookUrl) {
-    logger.debug('[N8N_WORKFLOW] ⚠️ N8N não configurado, ignorando notificação');
-    return;
-  }
-
-  try {
-    logger.info('[N8N_WORKFLOW] 📡 Notificando N8N para análise de resposta...', {
-      userId: data.userId,
-      estacaoId: data.estacaoId,
-      hasConversationHistory: data.conversationHistory?.length > 0
-    });
-
-    const response = await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-
-    if (response.ok) {
-      logger.info('[N8N_WORKFLOW] ✅ N8N notificado com sucesso');
-    } else {
-      logger.warn('[N8N_WORKFLOW] ⚠️ N8N retornou erro', {
-        status: response.status,
-        statusText: response.statusText
-      });
-    }
-  } catch (error) {
-    logger.warn('[N8N_WORKFLOW] ⚠️ Erro ao notificar N8N (não crítico)', {
-      error: error.message
-    });
-    // Não rejeitar a promise - o N8N é opcional
-  }
-};
-
-// ✅ NOVO: Função para sincronizar histórico de conversa com backend
-const syncConversationHistory = () => {
-  return new Promise((resolve, reject) => {
-    if (!socketRef.value?.connected) {
-      logger.warn('[CONVERSATION_HISTORY] ⚠️ Socket não conectado, impossível sincronizar');
-      resolve([]); // Retorna array vazio mas não rejeita
-      return;
-    }
-    
-    if (!sessionId.value) {
-      logger.warn('[CONVERSATION_HISTORY] ⚠️ SessionId não disponível, impossível sincronizar');
-      resolve([]);
-      return;
-    }
-    
-    logger.info('[CONVERSATION_HISTORY] 📡 Solicitando sincronização de histórico...');
-    
-    // Timeout de 5 segundos para evitar travamento
-    const timeout = setTimeout(() => {
-      logger.warn('[CONVERSATION_HISTORY] ⏱️ Timeout ao aguardar sincronização');
-      resolve(conversationHistory.value); // Retorna o que temos
-    }, 5000);
-    
-    // Listener temporário para receber a sincronização
-    const syncHandler = (data) => {
-      clearTimeout(timeout);
-      
-      if (data && Array.isArray(data.conversationHistory)) {
-        logger.info('[CONVERSATION_HISTORY] ✅ Sincronização bem-sucedida', {
-          entries: data.conversationHistory.length
-        });
-        
-        // Mapear para formato esperado
-        const mappedHistory = data.conversationHistory.map(entry => ({
-          role: entry.role,
-          content: entry.text || entry.content,
-          timestamp: entry.timestamp,
-          speakerId: entry.speakerId,
-          speakerName: entry.speakerName
-        }));
-        
-        conversationHistory.value = mappedHistory;
-        resolve(mappedHistory);
-      } else {
-        logger.warn('[CONVERSATION_HISTORY] ⚠️ Sincronização retornou dados inválidos');
-        resolve(conversationHistory.value);
-      }
-      
-      // Remover listener após uso
-      socketRef.value.off('SERVER_AI_TRANSCRIPT_SYNC', syncHandler);
-    };
-    
-    // Registrar listener
-    socketRef.value.once('SERVER_AI_TRANSCRIPT_SYNC', syncHandler);
-    
-    // Solicitar sincronização
-    socketRef.value.emit('CLIENT_REQUEST_AI_TRANSCRIPT_SYNC');
-  });
-}
-
-const executeAiEvaluation = async ({ reason = 'automatic' } = {}) => {
-  if (!enableAIEvaluation.value) {
-    logger.info('[IA_EVALUATION] ?? Avaliacao por IA nao habilitada; execucao ignorada.', { reason });
-    ensureStationSummary();
-    return null;
-  }
-
-  if (aiEvaluationSubmitted.value && aiEvaluationResult.value) {
-    logger.info('[IA_EVALUATION] ?? Avaliacao por IA ja concluida anteriormente; reutilizando resultado.');
-    return aiEvaluationResult.value;
-  }
-
-  if (submittingEvaluation.value) {
-    logger.info('[IA_EVALUATION] ?? Avaliacao por IA em andamento; aguardando finalizacao.');
-    return null;
-  }
-
-  logger.info('[IA_EVALUATION] ?? Disparando avaliacao por IA', { reason });
-
-  try {
-    logger.info('[IA_EVALUATION] ?? Sincronizando historico antes de avaliar...');
-    const syncedHistory = await syncConversationHistory();
-
-    if (syncedHistory.length === 0) {
-      logger.warn('[IA_EVALUATION] ?? Historico de conversa vazio apos sincronizacao');
-      showNotification(
-        'Nao ha historico de conversa para avaliar. A avaliacao pode ser imprecisa.',
-        'warning'
-      );
-    } else {
-      logger.info('[IA_EVALUATION] ? Historico sincronizado', {
-        entries: syncedHistory.length
-      });
-    }
-
-    const result = await runAiEvaluation();
-
-    if (result) {
-      aiEvaluationResult.value = result;
-      logger.info('[IA_EVALUATION] ? Avaliacao por IA concluida com sucesso', {
-        scoresCount: Object.keys(result.scores || {}).length,
-        totalScore: result.total,
-        conversationEntries: syncedHistory.length
-      });
-      showNotification('Avaliacao por IA concluida! Verifique os resultados.', 'success');
-
-      // ✅ NOVO: Notificar N8N sobre análise de resposta (opcional, assíncrono)
-      if (stationData.value && checklistData.value) {
-        notifyN8NWorkflow({
-          userId: currentUser.value?.uid || '',
-          estacaoId: stationId.value,
-          pergunta: stationData.value.tituloEstacao || stationData.value.titulo || '',
-          respostaUsuario: syncedHistory
-            .filter(entry => entry.role === 'user' || entry.speakerId === currentUser.value?.uid)
-            .map(entry => entry.content)
-            .join('\n'),
-          gabarito: checklistData.value.itensAvaliacao
-            ?.map(item => `${item.titulo}: ${item.descricao || ''}`)
-            .join('\n') || '',
-          conversationHistory: syncedHistory,
-          aiEvaluationResult: result,
-          timestamp: new Date().toISOString()
-        }).catch(err => {
-          logger.debug('[N8N_WORKFLOW] Falha ao notificar N8N (não crítico)', err);
-        });
-      }
-
-      return result;
-    }
-
-    logger.warn('[IA_EVALUATION] ?? Avaliacao por IA retornou resultado vazio');
-    showNotification('Avaliacao por IA nao foi possivel', 'warning');
-    ensureStationSummary();
-    return null;
-  } catch (error) {
-    logger.error('[IA_EVALUATION] ? Erro na avaliacao por IA', error);
-    showNotification('Erro na avaliacao por IA', 'error');
-    ensureStationSummary();
-    throw error;
-  }
-}// Aliases para manter compatibilidade com template (funções já têm debounce interno)
 const debouncedToggleParagraphMark = toggleParagraphMark;
 const debouncedToggleScriptContext = toggleScriptContext;
 
@@ -1105,54 +774,6 @@ function connectWebSocket() {
     // (isso é comportamento esperado já que o backend envia para todos na sessão)
   });
   
-  // ✅ NOVO: Listener para transcrições de IA (populando conversationHistory)
-  socket.on('SERVER_AI_TRANSCRIPT_UPDATE', (entry) => {
-    if (!entry || !entry.text) return;
-    
-    logger.info('[CONVERSATION_HISTORY] 📝 Nova transcrição recebida', {
-      role: entry.role,
-      speakerId: entry.speakerId,
-      textLength: entry.text.length
-    });
-    
-    // Adicionar ao histórico de conversa
-    conversationHistory.value.push({
-      role: entry.role,
-      content: entry.text,
-      timestamp: entry.timestamp || new Date().toISOString(),
-      speakerId: entry.speakerId,
-      speakerName: entry.speakerName
-    });
-    
-    // Limite de segurança para evitar crescimento infinito
-    if (conversationHistory.value.length > 500) {
-      conversationHistory.value.shift();
-      logger.warn('[CONVERSATION_HISTORY] ⚠️ Histórico atingiu limite, removendo entrada mais antiga');
-    }
-  });
-  
-  // ✅ NOVO: Listener para sincronização de histórico completo
-  socket.on('SERVER_AI_TRANSCRIPT_SYNC', (data) => {
-    if (data && Array.isArray(data.conversationHistory)) {
-      logger.info('[CONVERSATION_HISTORY] 🔄 Sincronização de histórico recebida', {
-        entries: data.conversationHistory.length
-      });
-      
-      // Mapear para formato esperado pelo frontend
-      conversationHistory.value = data.conversationHistory.map(entry => ({
-        role: entry.role,
-        content: entry.text || entry.content,
-        timestamp: entry.timestamp,
-        speakerId: entry.speakerId,
-        speakerName: entry.speakerName
-      }));
-      
-      logger.info('[CONVERSATION_HISTORY] ✅ Histórico sincronizado com sucesso', {
-        totalEntries: conversationHistory.value.length
-      });
-    }
-  });
-  
   // Listener para quando o ator avança, todos os participantes navegam juntos
   socket.on('SERVER_SEQUENTIAL_ADVANCE', (data) => {
     if (!isSequentialMode.value) {
@@ -1432,12 +1053,6 @@ function setupSession() {
 onMounted(() => {
   setupSession();
 
-  if (isCandidate.value) {
-    requestCandidateMicPermission().catch(error => {
-      logger.warn('[IA_EVALUATION] ⚠️ Permissão de microfone para transcrição automática negada ou falhou', error);
-    });
-  }
-
   // Verifica link do Meet para candidato
   checkCandidateMeetLink();
 
@@ -1554,80 +1169,15 @@ watch([evaluationScores, markedPepItems], ([newScores, newMarks]) => {
 }, { deep: true });
 
 // Watcher para liberar PEP automaticamente ao final da simulação
-watch(simulationEnded, (newValue) => {
-  if (newValue) {
-    // Parar gravação contínua quando a simulação termina (para todos os participantes)
-    try {
-      const recordingStopped = stopContinuousRecording();
-      if (recordingStopped) {
-        logger.info('[CONTINUOUS_RECORDING] ⏹️ Gravação contínua finalizada com o término da simulação');
-
-        // Salvar blob da gravação para uso posterior
-        const recordingBlob = getRecordingBlob();
-        if (recordingBlob) {
-          logger.info('[CONTINUOUS_RECORDING] 💾 Gravação contínua salva para avaliação', {
-            size: recordingBlob.size,
-            type: recordingBlob.type
-          });
-        }
-      } else {
-      logger.warn('[CONTINUOUS_RECORDING] ⚠️ Nenhuma gravação contínua estava em andamento');
-    }
-  } catch (error) {
-    logger.error('[CONTINUOUS_RECORDING] ❌ Erro ao finalizar gravação contínua:', error);
-  }
-
-    if (isCandidateTranscribing.value) {
-      stopCandidateTranscription();
-      logger.info('[CONVERSATION_HISTORY] ⏹️ Transcrição automática do candidato finalizada com o término da simulação');
-    }
-}
-
+watch(simulationEnded, newValue => {
   if (
-    newValue && // Simulação terminou
-    (userRole.value === 'actor' || userRole.value === 'evaluator') && // É ator/avaliador
-    !pepReleasedToCandidate.value && // PEP ainda não foi liberado
-    socketRef.value?.connected && // Socket conectado
-    sessionId.value // Tem sessionId
+    newValue &&
+    (userRole.value === 'actor' || userRole.value === 'evaluator') &&
+    !pepReleasedToCandidate.value &&
+    socketRef.value?.connected &&
+    sessionId.value
   ) {
     releasePepToCandidate();
-  }
-});
-
-// Watcher para acionar avaliação por IA ao final da simulação (apenas para candidatos)
-watch(simulationEnded, async (newValue) => {
-  if (newValue && checklistData.value?.itensAvaliacao?.length > 0 && userRole.value === 'candidate') {
-    // Aguardar um pouco para garantir que todos os dados estejam prontos
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Mostrar diálogo de avaliação opcional (apenas para candidatos)
-    if (!aiEvaluationDialogShown.value) {
-      showAIEvaluationDialog.value = true;
-      aiEvaluationDialogShown.value = true;
-      logger.info('[IA_EVALUATION] ?? Diálogo de avaliação por IA disponibilizado para o candidato');
-    }
-
-    // ✅ NOVO: Notificar N8N quando simulação termina (opcional, assíncrono)
-    // Isso permite que o workflow N8N analise a simulação mesmo sem avaliação por IA
-    if (stationData.value && conversationHistory.value.length > 0) {
-      notifyN8NWorkflow({
-        userId: currentUser.value?.uid || '',
-        estacaoId: stationId.value,
-        pergunta: stationData.value.tituloEstacao || stationData.value.titulo || '',
-        respostaUsuario: conversationHistory.value
-          .filter(entry => entry.role === 'user' || entry.speakerId === currentUser.value?.uid)
-          .map(entry => entry.content)
-          .join('\n'),
-        gabarito: checklistData.value.itensAvaliacao
-          ?.map(item => `${item.titulo}: ${item.descricao || ''}`)
-          .join('\n') || '',
-        conversationHistory: conversationHistory.value,
-        simulationEnded: true,
-        timestamp: new Date().toISOString()
-      }).catch(err => {
-        logger.debug('[N8N_WORKFLOW] Falha ao notificar N8N (não crítico)', err);
-      });
-    }
   }
 });
 
@@ -1694,27 +1244,8 @@ watch(connectionStatus, (status) => {
 // --- CONTROLE DE CONVITE INTERNO (CANDIDATO ONLINE) ---
 
 onUnmounted(() => {
-  // ...existing code...
   if (socketRef.value) {
     socketRef.value.off('INTERNAL_INVITE_RECEIVED', handleInternalInviteReceived);
-    
-    // ✅ NOVO: Limpar listeners de transcrição de conversa
-    socketRef.value.off('SERVER_AI_TRANSCRIPT_UPDATE');
-    socketRef.value.off('SERVER_AI_TRANSCRIPT_SYNC');
-    logger.info('[CONVERSATION_HISTORY] 🧹 Listeners de transcrição removidos no unmount');
-  }
-
-  // Limpar gravação contínua
-  try {
-    cleanupRecording();
-    logger.info('[CONTINUOUS_RECORDING] 🧹 Recursos de gravação limpos no unmount');
-  } catch (error) {
-    logger.error('[CONTINUOUS_RECORDING] ❌ Erro ao limpar recursos de gravação:', error);
-  }
-
-  if (isCandidateTranscribing.value) {
-    stopCandidateTranscription();
-    logger.info('[CONVERSATION_HISTORY] 🧹 Transcrição automática do candidato finalizada no unmount');
   }
 });
 
@@ -1761,8 +1292,6 @@ function toggleCollapse() {
     :is-locally-paused="isLocallyPaused"
     :toggle-local-pause="toggleLocalPause"
     :clear-local-timer="clearLocalTimer"
-    :is-recording="isContinuouslyRecording"
-    :recording-time="continuousRecordingTime"
     @go-to-previous-sequential-station="goToPreviousSequentialStation"
     @go-to-next-sequential-station="goToNextSequentialStation"
     @exit-sequential-mode="exitSequentialMode"
@@ -1890,7 +1419,6 @@ function toggleCollapse() {
               />
             </template>
 
-  
             <!-- PEP CHECKLIST PARA ATOR/AVALIADOR -->
             <template v-if="checklistData?.itensAvaliacao?.length > 0">
               <CandidateChecklist
@@ -1913,66 +1441,52 @@ function toggleCollapse() {
               />
             </template>
 
-            <!-- FEEDBACK DA AVALIAÇÃO POR IA -->
-            <SimulationAiFeedbackCard
-              v-if="aiEvaluationResult && simulationEnded"
-              :feedback="aiEvaluationResult.performance"
-              :scores="aiEvaluationResult.scores"
-              :total-score="aiEvaluationResult.total"
-              :details="aiEvaluationResult.details"
-              :loading="submittingEvaluation"
-              :error="aiEvaluationResult.error"
-              :is-dark-theme="isDarkTheme"
-              :metadata="aiEvaluationResult.metadata"
-            />
-           </div>
+            <VCard
+              v-if="isSequentialMode && isActorOrEvaluator && simulationEnded"
+              class="mt-6 sequential-next-card"
+              :class="isDarkTheme ? 'sequential-next-card--dark' : 'sequential-next-card--light'"
+            >
+              <VCardText class="text-center pa-6">
+          
+                <VAlert
+                  v-if="!allEvaluationsCompleted"
+                  type="info"
+                  variant="tonal"
+                  class="mb-4"
+                >
+                  <VIcon icon="ri-information-line" class="me-2" :tabindex="undefined" />
+                  Complete todas as avaliações do PEP para prosseguir
+                </VAlert>
 
-           <!-- NAVEGAÇÃO SEQUENCIAL - Botão Próxima Estação -->
-           <VCard
-             v-if="isSequentialMode && isActorOrEvaluator && simulationEnded"
-             class="mt-6 sequential-next-card"
-             :class="isDarkTheme ? 'sequential-next-card--dark' : 'sequential-next-card--light'"
-           >
-             <VCardText class="text-center pa-6">
-         
-               <VAlert
-                 v-if="!allEvaluationsCompleted"
-                 type="info"
-                 variant="tonal"
-                 class="mb-4"
-               >
-                 <VIcon icon="ri-information-line" class="me-2" :tabindex="undefined" />
-                 Complete todas as avaliações do PEP para prosseguir
-               </VAlert>
+                <VBtn
+                  v-if="canGoToNext && allEvaluationsCompleted"
+                  color="primary"
+                  size="x-large"
+                  prepend-icon="ri-arrow-right-line"
+                  @click="goToNextSequentialStation"
+                  class="mb-3 px-8"
+                  variant="elevated"
+                >
+                  Próxima Estação ({{ sequenceIndex + 2 }}/{{ totalSequentialStations }})
+                </VBtn>
 
-               <VBtn
-                 v-if="canGoToNext && allEvaluationsCompleted"
-                 color="primary"
-                 size="x-large"
-                 prepend-icon="ri-arrow-right-line"
-                 @click="goToNextSequentialStation"
-                 class="mb-3 px-8"
-                 variant="elevated"
-               >
-                 Próxima Estação ({{ sequenceIndex + 2 }}/{{ totalSequentialStations }})
-               </VBtn>
+                <VBtn
+                  v-else-if="!canGoToNext && allEvaluationsCompleted"
+                  color="success"
+                  size="x-large"
+                  prepend-icon="ri-check-line"
+                  @click="$router.push('/app/station-list')"
+                  class="px-8"
+                  variant="elevated"
+                >
+                  Finalizar Sequência Completa
+                </VBtn>
 
-               <VBtn
-                 v-else-if="!canGoToNext && allEvaluationsCompleted"
-                 color="success"
-                 size="x-large"
-                 prepend-icon="ri-check-line"
-                 @click="$router.push('/app/station-list')"
-                 class="px-8"
-                 variant="elevated"
-               >
-                 Finalizar Sequência Completa
-               </VBtn>
+              </VCardText>
+            </VCard>
+          </div>
 
-             </VCardText>
-           </VCard>
-
-           <!-- VISÃO DO CANDIDATO -->
+          <!-- VISÃO DO CANDIDATO -->
            <div v-if="isCandidate">
               <div v-if="!simulationStarted && !simulationEnded">
                  <VCard class="mb-6">
@@ -2056,19 +1570,6 @@ function toggleCollapse() {
                />
              </template>
 
-             <!-- FEEDBACK DA AVALIAÇÃO POR IA PARA CANDIDATO -->
-             <SimulationAiFeedbackCard
-               v-if="aiEvaluationResult && simulationEnded"
-               :feedback="aiEvaluationResult.performance"
-               :scores="aiEvaluationResult.scores"
-               :total-score="aiEvaluationResult.total"
-               :details="aiEvaluationResult.details"
-               :loading="submittingEvaluation"
-               :error="aiEvaluationResult.error"
-               :is-dark-theme="isDarkTheme"
-               :metadata="aiEvaluationResult.metadata"
-             />
-             
              <!-- Card de Navegação Sequencial para CANDIDATO (aguardando ator avançar) -->
              <VCard
                v-if="isSequentialMode && isCandidate && simulationEnded && canGoToNext"
@@ -2193,48 +1694,6 @@ function toggleCollapse() {
        </VCard>
      </VDialog>
 
-     <!-- Diálogo de Avaliação por IA (apenas para candidatos) -->
-     <VDialog v-model="showAIEvaluationDialog" max-width="500" persistent>
-       <VCard>
-         <VCardTitle class="text-h5">
-           <VIcon color="primary" class="mr-2">mdi-robot</VIcon>
-           Avaliação por Inteligência Artificial
-         </VCardTitle>
-         <VCardText>
-           <p class="text-body-1 mb-4">
-             A simulação foi finalizada! Deseja receber uma avaliação automática por IA da sua performance nesta estação?
-           </p>
-           <p class="text-caption text-medium-emphasis mb-2">
-             <VIcon size="small" class="mr-1">mdi-information</VIcon>
-             A IA analisará sua conversa e os critérios do PEP para fornecer feedback detalhado.
-           </p>
-           <VAlert type="info" variant="tonal" class="mt-3">
-             <template #prepend>
-               <VIcon>mdi-lightbulb</VIcon>
-             </template>
-             Esta avaliação é opcional e pode ajudar a identificar pontos fortes e áreas de melhoria.
-           </VAlert>
-         </VCardText>
-         <VCardActions>
-           <VSpacer />
-           <VBtn
-             text
-             @click="handleAIEvaluationDecline"
-             :disabled="submittingEvaluation"
-           >
-             Não, obrigado
-           </VBtn>
-           <VBtn
-             color="primary"
-             @click="handleAIEvaluationAccept"
-             :loading="submittingEvaluation"
-           >
-             <VIcon class="mr-1">mdi-robot</VIcon>
-             Avaliar minha performance
-           </VBtn>
-         </VCardActions>
-       </VCard>
-     </VDialog>
      <!-- Botão flutuante lateral para gerenciar impressos -->
      <VBtn
        v-if="isActorOrEvaluator && stationData?.materiaisDisponiveis?.impressos?.length > 0"

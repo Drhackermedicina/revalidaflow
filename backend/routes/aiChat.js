@@ -106,16 +106,16 @@ class AIChatManager {
         };
       }
 
-      // Usar Gemini 2.5 Flash especificamente
+      // Usar Gemini 2.0 Flash especificamente
       const genAI = new GoogleGenerativeAI(keyData.key);
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash"
+        model: "gemini-2.0-flash"
       });
 
       // Construir prompt contextual para simulação médica
       const prompt = this.buildMedicalSimulationPrompt(userMessage, stationData, conversationHistory);
 
-      console.log(`🤖 Enviando para Gemini 2.5 Flash (chave ${keyData.index}):`, userMessage.substring(0, 100));
+      console.log(`🤖 Enviando para Gemini 2.0 Flash (chave ${keyData.index}):`, userMessage.substring(0, 100));
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
