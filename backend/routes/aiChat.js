@@ -74,83 +74,91 @@ class AIChatManager {
   }
 
   async generateAIResponse(userMessage, stationData, conversationHistory) {
-    const keyData = this.getActiveKey();
+    // Ordem de fallback para CHAT: 2.5 Flash Lite → 2.0 Flash
+    const models = ["gemini-2.5-flash-lite", "gemini-2.0-flash"];
+    const prompt = this.buildMedicalSimulationPrompt(userMessage, stationData, conversationHistory);
 
-    try {
-      // VERIFICAR SE É PERGUNTA FORA DO SCRIPT
-      if (this.isOffScript(userMessage, stationData)) {
-        console.log(`⚠️ Pergunta fora do script detectada: "${userMessage}"`);
+    // LOOP EXTERNO: Tentar cada MODELO em sequência
+    for (const currentModel of models) {
+      console.log(`🎯 [CHAT] Tentando ${currentModel} em TODAS as chaves disponíveis...`);
+      
+      // LOOP INTERNO: Tentar TODAS as CHAVES para este modelo
+      const availableKeys = this.apiKeys.filter(k => k.isActive && k.quotaUsed < k.maxQuota);
+      
+      for (const keyData of availableKeys) {
+        try {
+          // VERIFICAR SE É PERGUNTA FORA DO SCRIPT
+          if (this.isOffScript(userMessage, stationData)) {
+            console.log(`⚠️ Pergunta fora do script detectada: "${userMessage}"`);
+            return {
+              message: "Não consta no script.",
+              releaseMaterial: false,
+              materialToRelease: null,
+              keyUsed: keyData.index,
+              quotaRemaining: keyData.maxQuota - keyData.quotaUsed,
+              offScript: true
+            };
+          }
 
-        return {
-          message: "Não consta no script.",
-          releaseMaterial: false,
-          materialToRelease: null,
-          keyUsed: keyData.index,
-          quotaRemaining: keyData.maxQuota - keyData.quotaUsed,
-          offScript: true
-        };
+          // VERIFICAR SE É SOLICITAÇÃO VAGA
+          const vagueCheck = this.shouldGiveVagueResponse(userMessage, conversationHistory, stationData);
+          if (vagueCheck.isVague && !vagueCheck.shouldAccept) {
+            console.log(`⚠️ Solicitação vaga detectada: "${userMessage}"`);
+            return {
+              message: vagueCheck.response,
+              releaseMaterial: false,
+              materialToRelease: null,
+              keyUsed: keyData.index,
+              quotaRemaining: keyData.maxQuota - keyData.quotaUsed,
+              vagueRequest: true
+            };
+          }
+
+          // Tentar gerar resposta com este modelo e esta chave
+          const genAI = new GoogleGenerativeAI(keyData.key);
+          const model = genAI.getGenerativeModel({ model: currentModel });
+          
+          console.log(`🤖 [CHAT][${currentModel}] Tentando chave ${keyData.index}:`, userMessage.substring(0, 100));
+
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          const text = response.text();
+
+          // Sucesso!
+          keyData.quotaUsed++;
+          keyData.lastUsed = new Date();
+          keyData.errors = 0;
+
+          console.log(`✅ [CHAT] Sucesso com ${currentModel} (chave ${keyData.index}, ${text.length} chars):`, text.substring(0, 150));
+
+          return {
+            message: text,
+            keyUsed: keyData.index,
+            quotaRemaining: keyData.maxQuota - keyData.quotaUsed,
+            modelUsed: currentModel
+          };
+
+        } catch (error) {
+          const msg = error?.message || '';
+          console.warn(`⚠️ [CHAT][${currentModel}] Chave ${keyData.index} falhou:`, msg.substring(0, 200));
+
+          keyData.errors++;
+          
+          if (keyData.errors >= 5 && !msg.includes('quota') && !msg.includes('429')) {
+            keyData.isActive = false;
+            console.log(`🚫 [CHAT] Chave ${keyData.index} desativada após ${keyData.errors} erros`);
+          }
+
+          continue; // Tenta próxima chave neste modelo
+        }
       }
 
-      // VERIFICAR SE É SOLICITAÇÃO VAGA
-      const vagueCheck = this.shouldGiveVagueResponse(userMessage, conversationHistory, stationData);
-      if (vagueCheck.isVague && !vagueCheck.shouldAccept) {
-        console.log(`⚠️ Solicitação vaga detectada: "${userMessage}"`);
-
-        return {
-          message: vagueCheck.response,
-          releaseMaterial: false,
-          materialToRelease: null,
-          keyUsed: keyData.index,
-          quotaRemaining: keyData.maxQuota - keyData.quotaUsed,
-          vagueRequest: true
-        };
-      }
-
-      // Usar Gemini 2.0 Flash especificamente
-      const genAI = new GoogleGenerativeAI(keyData.key);
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash"
-      });
-
-      // Construir prompt contextual para simulação médica
-      const prompt = this.buildMedicalSimulationPrompt(userMessage, stationData, conversationHistory);
-
-      console.log(`🤖 Enviando para Gemini 2.0 Flash (chave ${keyData.index}):`, userMessage.substring(0, 100));
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-
-      // Atualizar estatísticas da chave
-      keyData.quotaUsed++;
-      keyData.lastUsed = new Date();
-
-      console.log(`✅ Resposta da IA (${text.length} chars):`, text.substring(0, 150));
-
-      return {
-        message: text,
-        keyUsed: keyData.index,
-        quotaRemaining: keyData.maxQuota - keyData.quotaUsed
-      };
-
-    } catch (error) {
-      console.error(`❌ Erro com chave ${keyData.index}:`, error.message);
-
-      // Marcar chave como problemática se muitos erros
-      keyData.errors++;
-      if (keyData.errors >= 3) {
-        keyData.isActive = false;
-        console.log(`🚫 Chave ${keyData.index} desativada após ${keyData.errors} erros`);
-      }
-
-      // Tentar próxima chave se disponível
-      if (this.apiKeys.some(k => k.isActive && k.quotaUsed < k.maxQuota)) {
-        console.log(`🔄 Tentando próxima chave disponível...`);
-        return this.generateAIResponse(userMessage, stationData, conversationHistory);
-      }
-
-      throw new Error(`Todas as chaves API indisponíveis: ${error.message}`);
+      // Se chegou aqui, todas as chaves falharam neste modelo
+      console.log(`❌ [CHAT] Todas as chaves falharam no ${currentModel}, tentando próximo modelo...`);
     }
+
+    // Se chegou aqui, TODOS os modelos falharam em TODAS as chaves
+    throw new Error('Falha ao gerar resposta: todos os modelos e chaves falharam');
   }
 
   buildMedicalSimulationPrompt(userMessage, stationData, conversationHistory) {
@@ -666,8 +674,65 @@ class AIChatManager {
       return userText.includes(topic) || topic.includes(userText.replace(/[^a-záàâãéêíóôõúç\s]/g, '').trim().split(' ')[0]);
     });
 
+    // Dados de identificação disponíveis?
+    const patientInfo = this.extractPatientInfo(patientScript);
+    const stationIdentity = stationData?.informacoesEssenciais || {};
+    const hasIdentityData = Boolean(
+      patientInfo?.nome ||
+      patientInfo?.idade ||
+      patientInfo?.profissao ||
+      patientInfo?.estadoCivil ||
+      stationIdentity?.nome ||
+      stationIdentity?.idade ||
+      stationIdentity?.profissao ||
+      stationIdentity?.estadoCivil ||
+      stationIdentity?.procedencia
+    );
+
+    const identityTerms = [
+      'nome',
+      'identificação',
+      'identidade',
+      'idade',
+      'anos',
+      'profissão',
+      'profissao',
+      'ocupação',
+      'ocupacao',
+      'trabalho',
+      'estado civil',
+      'procedência',
+      'procedencia',
+      'origem',
+      'naturalidade',
+      'cidade',
+      'onde mora',
+      'mora onde',
+      'de onde',
+      'local de nascimento'
+    ];
+
+    const mentionsIdentity = identityTerms.some(term => userText.includes(term));
+    if (hasIdentityData && mentionsIdentity) {
+      return false;
+    }
+
     // Se não tem relação com script/PEP e não é pergunta médica básica, é fora do script
-    const basicMedicalTerms = ['dor', 'sintoma', 'quando', 'como', 'onde', 'medicamento', 'tratamento', 'exame', 'problema', 'queixa'];
+    const basicMedicalTerms = [
+      'dor',
+      'sintoma',
+      'quando',
+      'como',
+      'onde',
+      'medicamento',
+      'tratamento',
+      'exame',
+      'problema',
+      'queixa',
+      'paciente',
+      'história',
+      'contexto'
+    ];
     const isBasicMedical = basicMedicalTerms.some(term => userText.includes(term));
 
     return !hasRelation && !isBasicMedical;
@@ -731,48 +796,59 @@ class AIChatManager {
   }
 
   async analyzeSemanticPrompt(prompt, options = {}) {
-    const keyData = this.getActiveKey();
-    try {
-      const genAI = new GoogleGenerativeAI(keyData.key);
-      const model = genAI.getGenerativeModel({
-        model: options.model || "gemini-1.5-flash"  // Modelo mais rápido para melhor performance
-      });
-
-      console.log(`🧠 Enviando análise semântica para ${options.model || "gemini-1.5-flash"} (chave ${keyData.index})`);
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-
-      keyData.quotaUsed++;
-      keyData.lastUsed = new Date();
-
-      console.log(`✅ Análise semântica concluída: ${text.trim()}`);
-
-      return {
-        message: text,
-        keyUsed: keyData.index,
-        quotaRemaining: keyData.maxQuota - keyData.quotaUsed
-      };
-
-    } catch (error) {
-      console.error(`❌ Erro na análise semântica com chave ${keyData.index}:`, error.message);
-      keyData.errors++;
-
-      // Tentar próxima chave se disponível
-      if (keyData.errors >= 3) {
-        keyData.isActive = false;
-        console.log(`🚫 Chave ${keyData.index} desativada após múltiplos erros`);
-      }
-
-      // Retry com próxima chave
-      const nextKey = this.getActiveKey();
-      if (nextKey && nextKey.index !== keyData.index) {
-        return this.analyzeSemanticPrompt(prompt);
-      }
-
-      throw error;
+    const currentModel = options.model || "gemini-2.0-flash";
+    
+    // Tentar TODAS as chaves disponíveis para este modelo
+    const availableKeys = this.apiKeys.filter(k => k.isActive && k.quotaUsed < k.maxQuota);
+    
+    if (availableKeys.length === 0) {
+      throw new Error('Nenhuma chave ativa disponível');
     }
+
+    console.log(`🎯 [PEP] Tentando ${currentModel} em ${availableKeys.length} chaves disponíveis...`);
+
+    for (const keyData of availableKeys) {
+      try {
+        const genAI = new GoogleGenerativeAI(keyData.key);
+        const model = genAI.getGenerativeModel({ model: currentModel });
+
+        console.log(`🧠 [PEP][${currentModel}] Tentando chave ${keyData.index}`);
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        // Sucesso!
+        keyData.quotaUsed++;
+        keyData.lastUsed = new Date();
+        keyData.errors = 0;
+
+        console.log(`✅ [PEP] Sucesso com ${currentModel} (chave ${keyData.index})`);
+
+        return {
+          message: text,
+          keyUsed: keyData.index,
+          quotaRemaining: keyData.maxQuota - keyData.quotaUsed,
+          modelUsed: currentModel
+        };
+
+      } catch (error) {
+        const msg = error?.message || '';
+        console.warn(`⚠️ [PEP][${currentModel}] Chave ${keyData.index} falhou:`, msg.substring(0, 150));
+        
+        keyData.errors++;
+        
+        if (keyData.errors >= 5 && !msg.includes('quota') && !msg.includes('429')) {
+          keyData.isActive = false;
+          console.log(`🚫 [PEP] Chave ${keyData.index} desativada após ${keyData.errors} erros`);
+        }
+        
+        continue; // Tenta próxima chave
+      }
+    }
+
+    // Se chegou aqui, todas as chaves falharam neste modelo
+    throw new Error(`Todas as chaves falharam no modelo ${currentModel}`);
   }
 }
 
@@ -1560,8 +1636,21 @@ AGORA RETORNE APENAS O JSON (COMECE COM {):
 
     console.log('📤 Enviando prompt para IA Gemini 2.5 Flash...');
 
-    // ✅ Usando Gemini 2.5 Flash para avaliação automática do PEP
-    const aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.5-flash' });
+    // ✅ Ordem de fallback: 2.5 Flash → 2.5 Flash Lite → 2.0 Flash
+    let aiResponse;
+    try {
+      aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.5-flash' });
+    } catch (primaryError) {
+      const msg1 = primaryError?.message || '';
+      console.warn('⚠️ 2.5-flash falhou, tentando gemini-2.5-flash-lite:', msg1);
+      try {
+        aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.5-flash-lite' });
+      } catch (secondaryError) {
+        const msg2 = secondaryError?.message || '';
+        console.warn('⚠️ 2.5-flash-lite falhou, tentando gemini-2.0-flash:', msg2);
+        aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.0-flash' });
+      }
+    }
 
     console.log('📥 Resposta bruta da IA:', aiResponse.message.substring(0, 200));
 
