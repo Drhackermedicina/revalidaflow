@@ -33,7 +33,7 @@ class MemoryService {
   /**
    * Salvar contexto geral da estação
    */
-  async saveStationContext(stationId, context, modelUsed = 'gemini-2.0-flash-exp') {
+  async saveStationContext(stationId, context, modelUsed = 'gemini-2.5-flash-lite') {
     try {
       const contextDoc = {
         estacao_uid: stationId,

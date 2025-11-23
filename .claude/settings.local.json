@@ -65,7 +65,8 @@
       "Bash(rd:*)",
       "Bash(find:*)",
       "WebFetch(domain:github.com)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "WebFetch(domain:ai.google.dev)"
     ],
     "deny": [],
     "ask": []

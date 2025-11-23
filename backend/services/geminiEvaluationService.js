@@ -5,7 +5,8 @@
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const MODEL_NAME = 'gemini-1.5-flash';
+const MODEL_PRIMARY = 'gemini-2.5-flash';
+const MODEL_FALLBACK = 'gemini-2.5-flash-lite';
 const MAX_OUTPUT_TOKENS = 2048;
 
 let keyPool = [];
@@ -274,17 +275,34 @@ async function evaluateAnswer(question, expectedAnswer, userAnswerText) {
     }
 
     try {
-      const model = entry.client.getGenerativeModel({ model: MODEL_NAME });
-      const result = await model.generateContent(request);
-      const response = result.response;
-      const feedbackText = response.text();
+      const models = [MODEL_PRIMARY, MODEL_FALLBACK];
+      let feedbackText = null;
+      let modelUsed = null;
+
+      for (const modelName of models) {
+        try {
+          const model = entry.client.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent(request);
+          const response = result.response;
+          feedbackText = response.text();
+          modelUsed = modelName;
+          break;
+        } catch (innerError) {
+          console.warn(`⚠️ [GEMINI_EVAL] Falha com modelo ${modelName}:`, innerError.message);
+          continue;
+        }
+      }
+
+      if (!feedbackText) {
+        throw new Error('Nenhum modelo retornou feedback');
+      }
 
       return {
         success: true,
         feedback: feedbackText,
         timestamp: new Date().toISOString(),
         metadata: {
-          model: MODEL_NAME,
+          model: modelUsed,
           temperature: 0.7,
           maxTokens: MAX_OUTPUT_TOKENS,
           keyIndex: index,
@@ -350,7 +368,7 @@ async function testGeminiConnection() {
     }
 
     try {
-      const model = entry.client.getGenerativeModel({ model: MODEL_NAME });
+      const model = entry.client.getGenerativeModel({ model: MODEL_PRIMARY });
 
       const testPrompt = {
         contents: [

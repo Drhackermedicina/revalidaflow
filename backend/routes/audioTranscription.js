@@ -26,10 +26,10 @@ const upload = multer({
  */
 router.post('/transcribe', upload.single('audio'), async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     console.log('📥 [AUDIO_API] Requisição de transcrição recebida');
-    
+
     // Validações
     if (!req.file) {
       return res.status(400).json({
@@ -106,7 +106,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
 
   } catch (error) {
     console.error('❌ [AUDIO_API] Erro no endpoint:', error);
-    
+
     res.status(500).json({
       success: false,
       error: 'Erro interno ao processar transcrição',
@@ -122,10 +122,10 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
  */
 router.post('/transcribe-chunks', upload.array('audioChunks', 20), async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     console.log('📥 [AUDIO_API] Requisição de transcrição em chunks recebida');
-    
+
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
@@ -181,7 +181,7 @@ router.post('/transcribe-chunks', upload.array('audioChunks', 20), async (req, r
 
   } catch (error) {
     console.error('❌ [AUDIO_API] Erro no endpoint de chunks:', error);
-    
+
     res.status(500).json({
       success: false,
       error: 'Erro interno ao processar chunks',
@@ -199,14 +199,14 @@ router.get('/test', async (req, res) => {
   try {
     const transcriptionService = getGeminiAudioTranscription();
     const stats = transcriptionService.getKeyStats();
-    
+
     res.json({
       success: true,
       message: 'Serviço de transcrição Gemini 2.0 Flash disponível',
       keysLoaded: stats.total,
       activeKeys: stats.active,
       inactiveKeys: stats.inactive,
-      model: 'gemini-2.0-flash-exp',
+      model: require('../config/ai').transcription.model,
       maxAudioDuration: '8.4 horas',
       maxFileSize: '25MB por chunk',
       timestamp: new Date().toISOString()
@@ -214,7 +214,7 @@ router.get('/test', async (req, res) => {
 
   } catch (error) {
     console.error('❌ [AUDIO_API] Erro no teste:', error);
-    
+
     res.status(500).json({
       success: false,
       error: 'Serviço de transcrição indisponível',
@@ -233,11 +233,11 @@ router.get('/health', async (req, res) => {
   try {
     const transcriptionService = getGeminiAudioTranscription();
     const stats = transcriptionService.getKeyStats();
-    
+
     res.json({
       status: 'healthy',
       service: 'Gemini Audio Transcription',
-      model: 'gemini-2.0-flash-exp',
+      model: require('../config/ai').transcription.model,
       keysLoaded: stats.total,
       activeKeys: stats.active,
       inactiveKeys: stats.inactive,

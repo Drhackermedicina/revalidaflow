@@ -44,7 +44,7 @@ async function saveAttempt(userId, questionId, transcription, feedback, score, d
       createdAt: new Date(),
       updatedAt: new Date(),
       metadata: {
-        aiModel: 'gemini-1.5-flash',
+        aiModel: 'gemini-2.5-flash-lite',
         temperature: 0.7,
         maxTokens: 2048
       }

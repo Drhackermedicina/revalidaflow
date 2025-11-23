@@ -153,6 +153,9 @@ class GeminiAudioTranscription {
     const audioData = this._prepareAudioData(audioBuffer)
     const mimeType = options.mimeType || this._detectMimeType(audioBuffer)
 
+    // Ordem de modelos prioriza economia: 2.5-flash-lite -> 2.5-flash (fallback)
+    const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash']
+
     for (let attempt = 0; attempt < this.keyPool.length; attempt++) {
       let keyIndex
       let keyEntry
@@ -162,14 +165,12 @@ class GeminiAudioTranscription {
         keyEntry = pick.entry
         keyIndex = pick.index
 
-        console.log(`🎤 [GEMINI_AUDIO] Transcrevendo com Gemini 2.0 Flash (chave #${keyIndex})`)
+        console.log(`🎤 [GEMINI_AUDIO] Transcrevendo com Gemini (chave #${keyIndex})`)
         console.log('📊 [GEMINI_AUDIO] Informações do áudio:', {
           mimeType,
           sizeBytes: Buffer.isBuffer(audioBuffer) ? audioBuffer.length : audioData.length,
           estimatedDuration: options.estimatedDuration || 'desconhecido'
         })
-
-        const model = keyEntry.client.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
 
         const prompt = options.customPrompt || `
 Transcreva EXATAMENTE o que foi dito no áudio, palavra por palavra.
@@ -191,18 +192,35 @@ Exemplo de formato esperado:
 Bom dia, doutor. Vim aqui porque estou com uma dor no peito há três dias. A dor é do tipo aperto, principalmente quando subo escadas.
 `
 
-        const result = await model.generateContent([
-          {
-            inlineData: {
-              mimeType,
-              data: audioData
-            }
-          },
-          prompt
-        ])
+        let transcription = ''
+        let modelUsed = null
 
-        const response = await result.response
-        const transcription = response.text()
+        for (const modelName of models) {
+          try {
+            const model = keyEntry.client.getGenerativeModel({ model: modelName })
+            const result = await model.generateContent([
+              {
+                inlineData: {
+                  mimeType,
+                  data: audioData
+                }
+              },
+              prompt
+            ])
+
+            const response = await result.response
+            transcription = response.text()
+            modelUsed = modelName
+            break
+          } catch (modelError) {
+            console.warn(`⚠️ [GEMINI_AUDIO] Falha com modelo ${modelName}:`, modelError.message)
+            continue
+          }
+        }
+
+        if (!transcription) {
+          throw new Error('Nenhum modelo aceitou a requisição de áudio')
+        }
         const duration = Date.now() - startTime
 
         console.log('✅ [GEMINI_AUDIO] Transcrição concluída!', {
@@ -215,7 +233,7 @@ Bom dia, doutor. Vim aqui porque estou com uma dor no peito há três dias. A do
           success: true,
           transcription: transcription.trim(),
           metadata: {
-            model: 'gemini-2.0-flash-exp',
+            model: modelUsed,
             mimeType,
             durationMs: duration,
             audioSizeBytes: Buffer.isBuffer(audioBuffer) ? audioBuffer.length : audioData.length,

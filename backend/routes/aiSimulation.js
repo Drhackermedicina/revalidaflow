@@ -774,7 +774,7 @@ ${checklistData.itensAvaliacao.map((item, index) => {
 
     const geminiManager = getGeminiManager();
     const geminiOptions = {
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       maxOutputTokens: 2000,
       temperature: 0.3
     };

@@ -74,17 +74,18 @@ class AIChatManager {
   }
 
   async generateAIResponse(userMessage, stationData, conversationHistory) {
-    // Ordem de fallback para CHAT: 2.5 Flash Lite → 2.0 Flash
-    const models = ["gemini-2.5-flash-lite", "gemini-2.0-flash"];
+    const { chat } = require('../config/ai');
+    // Ordem de fallback para CHAT: definida em config/ai.js
+    const models = chat.models;
     const prompt = this.buildMedicalSimulationPrompt(userMessage, stationData, conversationHistory);
 
     // LOOP EXTERNO: Tentar cada MODELO em sequência
     for (const currentModel of models) {
       console.log(`🎯 [CHAT] Tentando ${currentModel} em TODAS as chaves disponíveis...`);
-      
+
       // LOOP INTERNO: Tentar TODAS as CHAVES para este modelo
       const availableKeys = this.apiKeys.filter(k => k.isActive && k.quotaUsed < k.maxQuota);
-      
+
       for (const keyData of availableKeys) {
         try {
           // VERIFICAR SE É PERGUNTA FORA DO SCRIPT
@@ -117,7 +118,7 @@ class AIChatManager {
           // Tentar gerar resposta com este modelo e esta chave
           const genAI = new GoogleGenerativeAI(keyData.key);
           const model = genAI.getGenerativeModel({ model: currentModel });
-          
+
           console.log(`🤖 [CHAT][${currentModel}] Tentando chave ${keyData.index}:`, userMessage.substring(0, 100));
 
           const result = await model.generateContent(prompt);
@@ -143,7 +144,7 @@ class AIChatManager {
           console.warn(`⚠️ [CHAT][${currentModel}] Chave ${keyData.index} falhou:`, msg.substring(0, 200));
 
           keyData.errors++;
-          
+
           if (keyData.errors >= 5 && !msg.includes('quota') && !msg.includes('429')) {
             keyData.isActive = false;
             console.log(`🚫 [CHAT] Chave ${keyData.index} desativada após ${keyData.errors} erros`);
@@ -796,11 +797,12 @@ class AIChatManager {
   }
 
   async analyzeSemanticPrompt(prompt, options = {}) {
-    const currentModel = options.model || "gemini-2.0-flash";
-    
+    const { analysis } = require('../config/ai');
+    const currentModel = options.model || analysis.model;
+
     // Tentar TODAS as chaves disponíveis para este modelo
     const availableKeys = this.apiKeys.filter(k => k.isActive && k.quotaUsed < k.maxQuota);
-    
+
     if (availableKeys.length === 0) {
       throw new Error('Nenhuma chave ativa disponível');
     }
@@ -835,14 +837,14 @@ class AIChatManager {
       } catch (error) {
         const msg = error?.message || '';
         console.warn(`⚠️ [PEP][${currentModel}] Chave ${keyData.index} falhou:`, msg.substring(0, 150));
-        
+
         keyData.errors++;
-        
+
         if (keyData.errors >= 5 && !msg.includes('quota') && !msg.includes('429')) {
           keyData.isActive = false;
           console.log(`🚫 [PEP] Chave ${keyData.index} desativada após ${keyData.errors} erros`);
         }
-        
+
         continue; // Tenta próxima chave
       }
     }
@@ -1351,6 +1353,7 @@ function normalizePerformance(performance = {}) {
 router.post('/chat', async (req, res) => {
   try {
     const { message, stationData, conversationHistory = [] } = req.body;
+    const startedAt = Date.now();
 
     if (!message) {
       return res.status(400).json({ error: 'Mensagem é obrigatória' });
@@ -1363,6 +1366,14 @@ router.post('/chat', async (req, res) => {
       stationData,
       conversationHistory
     );
+
+    const durationMs = Date.now() - startedAt;
+    console.log('⏱️ [AI_CHAT] Tempo de resposta:', {
+      durationMs,
+      modelUsed: aiResponse?.modelUsed || 'desconhecido',
+      keyUsed: aiResponse?.keyUsed || 'n/a',
+      quotaRemaining: aiResponse?.quotaRemaining ?? 'n/a'
+    });
 
     res.json(aiResponse);
 
@@ -1398,7 +1409,8 @@ router.post('/simulation-feedback', async (req, res) => {
   });
 
   try {
-    const aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.5-flash' });
+    const { evaluation } = require('../config/ai');
+    const aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: evaluation.model });
     const feedback = parseAiFeedbackResponse(aiResponse.message);
 
     res.json({
@@ -1636,19 +1648,20 @@ AGORA RETORNE APENAS O JSON (COMECE COM {):
 
     console.log('📤 Enviando prompt para IA Gemini 2.5 Flash...');
 
-    // ✅ Ordem de fallback: 2.5 Flash → 2.5 Flash Lite → 2.0 Flash
+    // ✅ Ordem de fallback: definida em config/ai.js
+    const { evaluation } = require('../config/ai');
     let aiResponse;
     try {
-      aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.5-flash' });
+      aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: evaluation.model });
     } catch (primaryError) {
       const msg1 = primaryError?.message || '';
-      console.warn('⚠️ 2.5-flash falhou, tentando gemini-2.5-flash-lite:', msg1);
+      console.warn(`⚠️ ${evaluation.model} falhou, tentando ${evaluation.fallbackModel}:`, msg1);
       try {
-        aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.5-flash-lite' });
+        aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: evaluation.fallbackModel });
       } catch (secondaryError) {
         const msg2 = secondaryError?.message || '';
-        console.warn('⚠️ 2.5-flash-lite falhou, tentando gemini-2.0-flash:', msg2);
-        aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.0-flash' });
+        console.warn(`⚠️ ${evaluation.fallbackModel} falhou, tentando ${evaluation.lastResortModel} como último recurso:`, msg2);
+        aiResponse = await aiChatManager.analyzeSemanticPrompt(prompt, { model: evaluation.lastResortModel });
       }
     }
 
@@ -1788,7 +1801,8 @@ router.post('/analyze', async (req, res) => {
 
     console.log('🧠 Análise semântica solicitada');
 
-    const response = await aiChatManager.analyzeSemanticPrompt(prompt, { model: 'gemini-2.5-flash' });
+    const { analysis } = require('../config/ai');
+    const response = await aiChatManager.analyzeSemanticPrompt(prompt, { model: analysis.model });
     res.json(response);
 
   } catch (error) {

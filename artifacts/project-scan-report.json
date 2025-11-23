@@ -1,0 +1,102 @@
+{
+    "workflow_version": "1.2.0",
+    "timestamps": {
+        "started": "2025-11-23T22:13:54.093Z",
+        "last_updated": "2025-11-23T22:15:17.612Z"
+    },
+    "mode": "initial_scan",
+    "scan_level": "quick",
+    "project_root": "d:/PROJETOS VS CODE/REVALIDAFLOW/FRONTEND E BACKEND",
+    "output_folder": "artifacts",
+    "completed_steps": [
+        {
+            "step": "step_1",
+            "status": "completed",
+            "timestamp": "2025-11-23T22:15:17.612Z",
+            "summary": "Classificado como multi-part com 2 partes"
+        },
+        {
+            "step": "step_3",
+            "status": "completed",
+            "timestamp": "2025-11-23T22:16:44.572Z",
+            "summary": "Análise de tecnologia completa"
+        }
+    ],
+    "current_step": "step_4",
+    "findings": {
+        "project_classification": {
+            "type": "multi-part",
+            "parts_count": 2,
+            "parts": [
+                {
+                    "part_id": "frontend",
+                    "root_path": "src/",
+                    "project_type_id": "web",
+                    "display_name": "Frontend Web Vue.js",
+                    "key_indicators": [
+                        "package.json",
+                        "vite.config.js",
+                        "vue.config.js",
+                        "main.js"
+                    ]
+                },
+                {
+                    "part_id": "backend",
+                    "root_path": "backend/",
+                    "project_type_id": "backend",
+                    "display_name": "Backend Node.js Express",
+                    "key_indicators": [
+                        "package.json",
+                        "server.js",
+                        "routes/",
+                        "services/",
+                        "utils/",
+                        "config/"
+                    ]
+                }
+            ]
+        },
+        "technology_stack": {
+            "frontend": {
+                "framework": "Vue.js",
+                "version": "3.5.21",
+                "language": "JavaScript",
+                "build_tool": "Vite",
+                "ui_library": "Vuetify",
+                "state_management": "Pinia",
+                "database": "Firebase",
+                "key_dependencies": [
+                    "@google/generative-ai",
+                    "@playwright/test",
+                    "axios",
+                    "firebase",
+                    "@vueuse/core"
+                ]
+            },
+            "backend": {
+                "framework": "Express.js",
+                "version": "4.18.2",
+                "language": "JavaScript",
+                "database": "Firebase",
+                "key_dependencies": [
+                    "@google-cloud/aiplatform",
+                    "@google/generative-ai",
+                    "@google-cloud/speech",
+                    "cors",
+                    "dotenv",
+                    "express",
+                    "firebase-admin",
+                    "socket.io"
+                ]
+            }
+        },
+        "architecture_patterns": {
+            "frontend": "Component-based Vue.js with Vite build system",
+            "backend": "RESTful Express API with Firebase integration"
+        }
+    },
+    "outputs_generated": [
+        "project-scan-report.json"
+    ],
+    "resume_instructions": "Starting from step 4"
+}

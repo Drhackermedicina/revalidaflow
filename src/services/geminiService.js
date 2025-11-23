@@ -32,8 +32,8 @@ class GeminiService {
       }
     }
 
-    // Configurações do modelo - atualizado para Gemini 2.5 Flash
-    this.model = 'gemini-2.5-flash';
+    // Modelos com fallback robusto: 2.5 Flash → 2.5 Flash Lite → 2.0 Flash
+    this.models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
     this.endpoint = 'https://generativelanguage.googleapis.com/v1beta/models';
 
     this.currentKeyIndex = 0;
@@ -87,69 +87,80 @@ class GeminiService {
         // Garantir que o valor enviado esteja dentro do intervalo suportado
         const safeMaxOutput = Math.min(this.defaultMaxOutputTokens, this.MAX_OUTPUT_TOKENS_LIMIT);
 
-        const response = await fetch(`${this.endpoint}/${this.model}:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: fullPrompt
-              }]
-            }],
-            generationConfig: {
-              temperature: 0.7, // Temperatura mais alta para chat
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: safeMaxOutput, // Mais tokens para respostas mais longas (sempre com clamp)
-            },
-            safetySettings: [
-              {
-                category: 'HARM_CATEGORY_HARASSMENT',
-                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-              },
-              {
-                category: 'HARM_CATEGORY_HATE_SPEECH',
-                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-              },
-              {
-                category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-              },
-              {
-                category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-                threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-              }
-            ]
-          })
-        });
+        const modelsToTry = Array.isArray(this.models) && this.models.length ? this.models : ['gemini-2.5-flash-lite'];
+        let lastError = null;
 
-        if (response.ok) {
-          const data = await response.json();
-          let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-          // Aplicar sanitização para remover dados identificadores
-          generatedText = this.sanitizeText(generatedText);
-
-          // console.log('✅ Resposta do Gemini:', generatedText.substring(0, 100) + '...');
-          return generatedText;
-
-        } else {
-          // Tentar extrair corpo com detalhes do erro para depuração
-          let errorBody = '';
+        for (const modelName of modelsToTry) {
           try {
-            const errJson = await response.json();
-            errorBody = JSON.stringify(errJson);
-          } catch (e) {
-            try {
-              errorBody = await response.text();
-            } catch (e2) {
-              errorBody = '<body unavailable>';
-            }
-          }
+            const response = await fetch(`${this.endpoint}/${modelName}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: fullPrompt
+                  }]
+                }],
+                generationConfig: {
+                  temperature: 0.7, // Temperatura mais alta para chat
+                  topK: 40,
+                  topP: 0.95,
+                  maxOutputTokens: safeMaxOutput, // Mais tokens para respostas mais longas (sempre com clamp)
+                },
+                safetySettings: [
+                  {
+                    category: 'HARM_CATEGORY_HARASSMENT',
+                    threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+                  },
+                  {
+                    category: 'HARM_CATEGORY_HATE_SPEECH',
+                    threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+                  },
+                  {
+                    category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                    threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+                  },
+                  {
+                    category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                    threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+                  }
+                ]
+              })
+            });
 
-          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorBody}`);
+            if (response.ok) {
+              const data = await response.json();
+              let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+              // Aplicar sanitização para remover dados identificadores
+              generatedText = this.sanitizeText(generatedText);
+
+              return generatedText;
+            }
+
+            // Tentar extrair corpo com detalhes do erro para depuração
+            let errorBody = '';
+            try {
+              const errJson = await response.json();
+              errorBody = JSON.stringify(errJson);
+            } catch (e) {
+              try {
+                errorBody = await response.text();
+              } catch (e2) {
+                errorBody = '<body unavailable>';
+              }
+            }
+
+            lastError = new Error(`HTTP ${response.status}: ${response.statusText} - ${errorBody}`);
+          } catch (innerError) {
+            lastError = innerError;
+          }
+        }
+
+        if (lastError) {
+          throw lastError;
         }
 
       } catch (error) {
