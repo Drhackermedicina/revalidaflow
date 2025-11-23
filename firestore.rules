@@ -51,7 +51,7 @@ service cloud.firestore {
         && request.resource.data.sessionId is string
         && request.resource.data.timestamp is string
         && request.resource.data.evaluations is map
-        && (size(request.resource.data.evaluations) >= 1);
+        && (request.resource.data.evaluations.size() >= 1);
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
       allow update, delete: if false;
     }

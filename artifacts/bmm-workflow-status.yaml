@@ -47,6 +47,12 @@ workflow_status: |
           command: "brainstorm-project"
           included_by: "user_choice"
           status: "artifacts/brainstorming-session-results-2025-11-23.md"
+        - id: "prd"
+          optional: false
+          agent: "pm"
+          command: "prd"
+          output: "{output_folder}/prd-2025-11-23.md"
+          status: "in_progress"
 
         - id: "research"
           optional: true
