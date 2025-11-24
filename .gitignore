@@ -7,18 +7,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependency directories
 node_modules
 .DS_Store
+
+# Build outputs
 dist
 dist-ssr
 *.local
-scripts/validateDatabase.js
+
+# Test coverage and Cypress
 /cypress/videos/
 /cypress/screenshots/
-
-# 👉 Custom Git ignores
-node_modules
-.DS_Store
+coverage
 
 # Environment variables - SECURITY
 .env
@@ -26,9 +27,43 @@ node_modules
 .env.production
 .env.example
 
-# Claude directory - SECURITY
+# AI and Development Tools - SECURITY
 .claude/
+.gemini/
+.cursor/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# TypeScript Auto-generated files
+auto-imports.d.ts
+components.d.ts
+*.d.ts.map
+
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+
+# Cloud and deployment
+.vercel/
+.turbo/
+
+# Nested Git repositories (problematic)
+glm-mcp-server/
+
+# Custom scripts and backups
+scripts/validateDatabase.js
 *.bundle
 *.backup
 *.tar.gz
 *.zip
+
+# OS specific
+Thumbs.db
+.DS_Store
